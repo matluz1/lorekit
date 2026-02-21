@@ -6,10 +6,10 @@ set -euo pipefail
 # Usage: bash scripts/character.sh <action> [args]
 #
 # Actions:
-#   create --session <id> --name <name> --level <level>
+#   create --session <id> --name <name> --level <level> [--type pc|npc] [--region <region_id>]
 #   view <character_id>
-#   list --session <session_id>
-#   update <character_id> --level <level> | --status <status>
+#   list --session <session_id> [--type pc|npc] [--region <region_id>]
+#   update <character_id> --level <level> | --status <status> | --region <region_id>
 #   set-attr <character_id> --category <cat> --key <key> --value <value>
 #   get-attr <character_id> [--category <cat>]
 #   set-item <character_id> --name <name> [--desc <desc>] [--qty <n>] [--equipped 0|1]
@@ -33,10 +33,10 @@ usage() {
     echo "Usage: bash scripts/character.sh <action> [args]"
     echo ""
     echo "Actions:"
-    echo "  create --session <id> --name <name> --level <level>"
+    echo "  create --session <id> --name <name> --level <level> [--type pc|npc] [--region <region_id>]"
     echo "  view <character_id>"
-    echo "  list --session <session_id>"
-    echo "  update <character_id> --level <level> | --status <status>"
+    echo "  list --session <session_id> [--type pc|npc] [--region <region_id>]"
+    echo "  update <character_id> --level <level> | --status <status> | --region <region_id>"
     echo "  set-attr <character_id> --category <cat> --key <key> --value <value>"
     echo "  get-attr <character_id> [--category <cat>]"
     echo "  set-item <character_id> --name <name> [--desc <desc>] [--qty <n>] [--equipped 0|1]"
@@ -56,19 +56,26 @@ shift
 
 case "$ACTION" in
     create)
-        SESSION="" NAME="" LEVEL="1"
+        SESSION="" NAME="" LEVEL="1" TYPE="pc" REGION=""
         while [[ $# -gt 0 ]]; do
             case "$1" in
                 --session) SESSION="$2"; shift 2 ;;
                 --name)    NAME="$2";    shift 2 ;;
                 --level)   LEVEL="$2";   shift 2 ;;
+                --type)    TYPE="$2";    shift 2 ;;
+                --region)  REGION="$2";  shift 2 ;;
                 *) echo "ERROR: Unknown option: $1" >&2; exit 1 ;;
             esac
         done
         if [[ -z "$SESSION" || -z "$NAME" ]]; then
             echo "ERROR: --session and --name are required" >&2; exit 1
         fi
-        ID=$(sqlite3 "$DB_PATH" "INSERT INTO characters (session_id, name, level) VALUES ($SESSION, '$(esc "$NAME")', $LEVEL); SELECT last_insert_rowid();")
+        if [[ "$TYPE" != "pc" && "$TYPE" != "npc" ]]; then
+            echo "ERROR: --type must be pc or npc" >&2; exit 1
+        fi
+        REGION_VAL="NULL"
+        if [[ -n "$REGION" ]]; then REGION_VAL="$REGION"; fi
+        ID=$(sqlite3 "$DB_PATH" "INSERT INTO characters (session_id, name, level, type, region_id) VALUES ($SESSION, '$(esc "$NAME")', $LEVEL, '$(esc "$TYPE")', $REGION_VAL); SELECT last_insert_rowid();")
         echo "CHARACTER_CREATED: $ID"
         ;;
 
@@ -77,16 +84,18 @@ case "$ACTION" in
             echo "ERROR: character_id required" >&2; exit 1
         fi
         CHAR_ID="$1"
-        ROW=$(sqlite3 -separator '|' "$DB_PATH" "SELECT id, session_id, name, level, status, created_at FROM characters WHERE id = $CHAR_ID;")
+        ROW=$(sqlite3 -separator '|' "$DB_PATH" "SELECT c.id, c.session_id, c.name, c.level, c.status, c.type, COALESCE(r.name, ''), c.created_at FROM characters c LEFT JOIN regions r ON c.region_id = r.id WHERE c.id = $CHAR_ID;")
         if [[ -z "$ROW" ]]; then
             echo "ERROR: Character $CHAR_ID not found" >&2; exit 1
         fi
-        IFS='|' read -r id sid name level status created <<< "$ROW"
+        IFS='|' read -r id sid name level status type region created <<< "$ROW"
         echo "ID: $id"
         echo "SESSION: $sid"
         echo "NAME: $name"
+        echo "TYPE: $type"
         echo "LEVEL: $level"
         echo "STATUS: $status"
+        echo "REGION: $region"
         echo "CREATED: $created"
         echo ""
         echo "--- ATTRIBUTES ---"
@@ -100,17 +109,27 @@ case "$ACTION" in
         ;;
 
     list)
-        SESSION=""
+        SESSION="" TYPE="" REGION=""
         while [[ $# -gt 0 ]]; do
             case "$1" in
                 --session) SESSION="$2"; shift 2 ;;
+                --type)    TYPE="$2";    shift 2 ;;
+                --region)  REGION="$2";  shift 2 ;;
                 *) echo "ERROR: Unknown option: $1" >&2; exit 1 ;;
             esac
         done
         if [[ -z "$SESSION" ]]; then
             echo "ERROR: --session is required" >&2; exit 1
         fi
-        sqlite3 -header -column "$DB_PATH" "SELECT id, name, level, status FROM characters WHERE session_id = $SESSION ORDER BY id;"
+        QUERY="SELECT id, name, type, level, status FROM characters WHERE session_id = $SESSION"
+        if [[ -n "$TYPE" ]]; then
+            QUERY="$QUERY AND type = '$(esc "$TYPE")'"
+        fi
+        if [[ -n "$REGION" ]]; then
+            QUERY="$QUERY AND region_id = $REGION"
+        fi
+        QUERY="$QUERY ORDER BY id;"
+        sqlite3 -header -column "$DB_PATH" "$QUERY"
         ;;
 
     update)
@@ -123,11 +142,12 @@ case "$ACTION" in
             case "$1" in
                 --level)  SETS+=("level = $2");                    shift 2 ;;
                 --status) SETS+=("status = '$(esc "$2")'");       shift 2 ;;
+                --region) SETS+=("region_id = $2");                shift 2 ;;
                 *) echo "ERROR: Unknown option: $1" >&2; exit 1 ;;
             esac
         done
         if [[ ${#SETS[@]} -eq 0 ]]; then
-            echo "ERROR: Provide --level and/or --status" >&2; exit 1
+            echo "ERROR: Provide --level, --status, and/or --region" >&2; exit 1
         fi
         SET_CLAUSE=$(IFS=,; echo "${SETS[*]}")
         sqlite3 "$DB_PATH" "UPDATE characters SET $SET_CLAUSE WHERE id = $CHAR_ID;"

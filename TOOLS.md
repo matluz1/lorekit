@@ -169,9 +169,12 @@ bash scripts/character.sh <action> [args]
 
 ```
 bash scripts/character.sh create --session 1 --name "Aldric" --level 3
+bash scripts/character.sh create --session 1 --name "Ancião" --type npc --region 1
 ```
 
-`--session` and `--name` are required. `--level` defaults to 1. Output:
+`--session` and `--name` are required. `--level` defaults to 1. `--type`
+defaults to `pc` (accepts `pc` or `npc`). `--region` is optional and links the
+character to a region. Output:
 ```
 CHARACTER_CREATED: 1
 ```
@@ -189,8 +192,10 @@ Output:
 ID: 1
 SESSION: 1
 NAME: Aldric
+TYPE: pc
 LEVEL: 3
 STATUS: alive
+REGION:
 CREATED: 2026-02-21T16:00:00Z
 
 --- ATTRIBUTES ---
@@ -213,9 +218,13 @@ id  name         category  uses    description
 
 ```
 bash scripts/character.sh list --session 1
+bash scripts/character.sh list --session 1 --type npc
+bash scripts/character.sh list --session 1 --type npc --region 1
 ```
 
-Output: table with columns `id, name, level, status`.
+Optional filters: `--type pc|npc`, `--region <region_id>`.
+
+Output: table with columns `id, name, type, level, status`.
 
 ### update
 
@@ -223,7 +232,10 @@ Output: table with columns `id, name, level, status`.
 bash scripts/character.sh update 1 --level 4
 bash scripts/character.sh update 1 --status dead
 bash scripts/character.sh update 1 --level 5 --status alive
+bash scripts/character.sh update 2 --region 1
 ```
+
+Accepts `--level`, `--status`, and/or `--region`.
 
 Output:
 ```
@@ -317,6 +329,112 @@ bash scripts/character.sh get-abilities 1
 ```
 
 Output: table with columns `id, name, category, uses, description`.
+
+---
+
+## region.sh
+
+Manage regions (locations, areas) within a session.
+
+```
+bash scripts/region.sh <action> [args]
+```
+
+### create
+
+```
+bash scripts/region.sh create 1 --name "Ashar" --desc "Vila de pastores no vale"
+```
+
+`<session_id>` and `--name` are required. `--desc` defaults to empty. Output:
+```
+REGION_CREATED: 1
+```
+
+### list
+
+```
+bash scripts/region.sh list 1
+```
+
+Output: table with columns `id, name, description, created_at`.
+
+### view
+
+Shows region details and all NPCs linked to the region.
+
+```
+bash scripts/region.sh view 1
+```
+
+Output:
+```
+ID: 1
+SESSION: 1
+NAME: Ashar
+DESCRIPTION: Vila de pastores no vale
+CREATED: 2026-02-21T16:00:00Z
+
+--- NPCs IN THIS REGION ---
+id  name    level  status
+--  ------  -----  ------
+2   Ancião  1      alive
+```
+
+### update
+
+```
+bash scripts/region.sh update 1 --name "Ashar (ruínas)" --desc "A vila foi destruída"
+```
+
+Accepts `--name` and/or `--desc`. Output:
+```
+REGION_UPDATED: 1
+```
+
+---
+
+## dialogue.sh
+
+Record and query dialogues between the player and NPCs.
+
+```
+bash scripts/dialogue.sh <action> [args]
+```
+
+### add
+
+```
+bash scripts/dialogue.sh add 1 --npc 2 --speaker pc --content "Olá, ancião"
+bash scripts/dialogue.sh add 1 --npc 2 --speaker "Ancião" --content "Bem-vindo, viajante"
+```
+
+`<session_id>`, `--npc`, `--speaker`, and `--content` are required. `--speaker`
+should be `pc` when the player character speaks, or the NPC's name when the NPC
+speaks. Output:
+```
+DIALOGUE_ADDED: 1
+```
+
+### list
+
+```
+bash scripts/dialogue.sh list 1 --npc 2
+bash scripts/dialogue.sh list 1 --npc 2 --last 5
+```
+
+`--npc` is required. `--last <N>` limits to the most recent N lines. Output:
+table with columns `id, npc, speaker, content, created_at`. Ordered oldest
+first.
+
+### search
+
+```
+bash scripts/dialogue.sh search 1 --query "viajante"
+```
+
+Searches all dialogue content in the session (case-insensitive). Output: table
+with columns `id, npc, speaker, content, created_at`. Ordered oldest first.
 
 ---
 
