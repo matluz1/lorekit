@@ -5,8 +5,8 @@ set -euo pipefail
 # Safe to re-run: uses CREATE TABLE IF NOT EXISTS throughout.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-DB_DIR="$SCRIPT_DIR/../data"
-DB_PATH="$DB_DIR/game.db"
+DB_DIR="${LOREKIT_DB_DIR:-$SCRIPT_DIR/../data}"
+DB_PATH="${LOREKIT_DB:-$DB_DIR/game.db}"
 
 mkdir -p "$DB_DIR"
 
