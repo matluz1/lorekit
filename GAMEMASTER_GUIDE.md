@@ -10,7 +10,8 @@ Read `TOOLS.md` first for the full command reference.
 
 ## 1. Starting a New Adventure
 
-Follow these steps in order. Do not skip or rearrange them.
+Follow these steps in order. Do not skip or rearrange them. Ask one question
+per message and wait for the player's answer before moving on.
 
 1. **Initialize the database** (if not already done):
    ```
