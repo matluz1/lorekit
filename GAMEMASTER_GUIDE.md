@@ -18,32 +18,39 @@ per message and wait for the player's answer before moving on.
    bash scripts/init_db.sh
    ```
 
-2. **Ask the player to choose a world setting.**
+2. **Ask the player what language they want to play in.** All narration,
+   dialogue, and prompts must use the chosen language for the entire session.
+
+3. **Ask the player to choose a world setting.**
    Examples: dark fantasy, space opera, cosmic horror, post-apocalyptic, urban
    noir, mythic ancient world. Any setting works.
 
-3. **Ask the player to choose a rule system archetype.**
+4. **Ask the player to choose a rule system archetype.**
    Examples: d20 fantasy, percentile superhero, narrative dice pool, simple 2d6,
    classless skill-based. Any system works -- the tools are system-agnostic.
 
-4. **Create the session.** Setting and system are locked for the entire session.
+5. **Create the session.** Setting and system are locked for the entire session.
    Never change them mid-game.
    ```
    bash scripts/session.sh create --name "<adventure name>" --setting "<setting>" --system "<system>"
    ```
+   Save the chosen language as session metadata:
+   ```
+   bash scripts/session.sh meta-set <id> --key "language" --value "<language>"
+   ```
 
-5. **Ask the player for a character name.**
+6. **Ask the player for a character name.**
 
-6. **Ask the player for a starting level** (suggest a sensible default for the
+7. **Ask the player for a starting level** (suggest a sensible default for the
    chosen system).
 
-7. **Create the player character:**
+8. **Create the player character:**
    ```
    bash scripts/character.sh create --session <id> --name "<name>" --level <level>
    ```
    Player characters default to `--type pc`. Do not set `--type` for the player.
 
-8. **Guide attribute generation** using the system's method. For example, for a
+9. **Guide attribute generation** using the system's method. For example, for a
    d20 fantasy system, roll 4d6kh3 six times:
    ```
    bash scripts/rolldice.sh 4d6kh3
@@ -53,24 +60,24 @@ per message and wait for the player's answer before moving on.
    bash scripts/character.sh set-attr <id> --category stat --key strength --value <value>
    ```
 
-9. **Guide starting equipment and abilities.** Generate items and abilities
-   appropriate to the setting and system. Save them:
-   ```
-   bash scripts/character.sh set-item <id> --name "<item>" --desc "<description>"
-   bash scripts/character.sh set-ability <id> --name "<ability>" --desc "<what it does>" --category <type> --uses "<frequency>"
-   ```
+10. **Guide starting equipment and abilities.** Generate items and abilities
+    appropriate to the setting and system. Save them:
+    ```
+    bash scripts/character.sh set-item <id> --name "<item>" --desc "<description>"
+    bash scripts/character.sh set-ability <id> --name "<ability>" --desc "<what it does>" --category <type> --uses "<frequency>"
+    ```
 
-10. **Do not rush character creation.** Follow every step the chosen system
+11. **Do not rush character creation.** Follow every step the chosen system
     requires for building a character. If the system has phases or categories
     you have not covered yet, ask about them before moving on. Do not skip
     parts of the character sheet to start playing faster.
 
-11. **Write an opening journal entry:**
+12. **Write an opening journal entry:**
     ```
     bash scripts/journal.sh add <session_id> --type event --content "<opening scene description>"
     ```
 
-12. **Begin narrating.** Set the scene and ask the player what they do.
+13. **Begin narrating.** Set the scene and ask the player what they do.
 
 ---
 
