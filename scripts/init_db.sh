@@ -65,6 +65,14 @@ CREATE TABLE IF NOT EXISTS character_abilities (
     uses         TEXT    NOT NULL DEFAULT 'at_will'
 );
 
+CREATE TABLE IF NOT EXISTS regions (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id  INTEGER NOT NULL REFERENCES sessions(id),
+    name        TEXT    NOT NULL,
+    description TEXT    NOT NULL DEFAULT '',
+    created_at  TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
+);
+
 CREATE TABLE IF NOT EXISTS journal (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
     session_id  INTEGER NOT NULL REFERENCES sessions(id),
@@ -72,6 +80,24 @@ CREATE TABLE IF NOT EXISTS journal (
     content     TEXT    NOT NULL,
     created_at  TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
 );
+
+CREATE TABLE IF NOT EXISTS dialogues (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id  INTEGER NOT NULL REFERENCES sessions(id),
+    npc_id      INTEGER NOT NULL REFERENCES characters(id),
+    speaker     TEXT    NOT NULL,
+    content     TEXT    NOT NULL,
+    created_at  TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
+);
 SQL
+
+# Add columns to characters if they don't exist yet.
+# SQLite has no IF NOT EXISTS for ALTER TABLE, so we check the schema first.
+if ! sqlite3 "$DB_PATH" "PRAGMA table_info(characters);" | grep -q '|type|'; then
+    sqlite3 "$DB_PATH" "ALTER TABLE characters ADD COLUMN type TEXT NOT NULL DEFAULT 'pc';"
+fi
+if ! sqlite3 "$DB_PATH" "PRAGMA table_info(characters);" | grep -q '|region_id|'; then
+    sqlite3 "$DB_PATH" "ALTER TABLE characters ADD COLUMN region_id INTEGER REFERENCES regions(id);"
+fi
 
 echo "Database initialized at $DB_PATH"

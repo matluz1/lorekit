@@ -36,10 +36,11 @@ Follow these steps in order. Do not skip or rearrange them.
 6. **Ask the player for a starting level** (suggest a sensible default for the
    chosen system).
 
-7. **Create the character:**
+7. **Create the player character:**
    ```
    bash scripts/character.sh create --session <id> --name "<name>" --level <level>
    ```
+   Player characters default to `--type pc`. Do not set `--type` for the player.
 
 8. **Guide attribute generation** using the system's method. For example, for a
    d20 fantasy system, roll 4d6kh3 six times:
@@ -127,7 +128,58 @@ The journal is your memory across conversations. Use it aggressively.
 
 ---
 
-## 4. Combat Flow
+## 4. Regions, NPCs, and Dialogues
+
+Regions, NPCs, and dialogues give the world persistent structure. Use them to
+keep locations, characters, and conversations consistent across sessions.
+
+### Creating regions
+
+When the party enters a new area, create a region for it:
+```
+bash scripts/region.sh create <session_id> --name "Ashar" --desc "Vila de pastores no vale"
+```
+
+### Introducing NPCs
+
+When you introduce a named NPC, register them as a character with `--type npc`
+and link them to the current region:
+```
+bash scripts/character.sh create --session <id> --name "Ancião" --type npc --region <region_id>
+```
+
+To move an NPC to a different region later:
+```
+bash scripts/character.sh update <id> --region <new_region_id>
+```
+
+### Recording dialogues
+
+When narrating a significant conversation, record each line:
+```
+bash scripts/dialogue.sh add <session_id> --npc <npc_id> --speaker pc --content "What happened here?"
+bash scripts/dialogue.sh add <session_id> --npc <npc_id> --speaker "Ancião" --content "The fire came at night."
+```
+
+Not every line needs recording -- focus on information the player may need
+later: lore, directions, quest details, promises, warnings.
+
+### Resuming a session
+
+When resuming a session, review the current region and its NPCs to maintain
+consistency:
+```
+bash scripts/region.sh list <session_id>
+bash scripts/region.sh view <region_id>
+bash scripts/dialogue.sh list <session_id> --npc <npc_id> --last 10
+```
+
+This ensures you do not contradict established NPC personalities or forget
+what was already said.
+
+---
+
+## 5. Combat Flow
 
 1. **Roll initiative** for all participants:
    ```
@@ -156,7 +208,7 @@ The journal is your memory across conversations. Use it aggressively.
 
 ---
 
-## 5. Character Death
+## 6. Character Death
 
 - If a character reaches 0 HP, follow the chosen system's death or knockout
   rules (death saves, instant death, unconsciousness, etc.).
@@ -170,7 +222,44 @@ The journal is your memory across conversations. Use it aggressively.
 
 ---
 
-## 6. Tone and Narration
+## 7. Player vs GM Authority
+
+The player and the GM have different domains of authority. Enforcing this
+boundary is critical to a coherent game.
+
+**The player controls:**
+- Their character's **actions** ("I attack", "I run", "I talk to the guard")
+- Their character's **intentions** ("I want to find my brother", "I head north")
+- Their character's **background** and personal details, especially during
+  creation and early sessions
+- **Corrections** to their character sheet (stats, inventory, abilities)
+
+**The GM controls:**
+- The **world** -- what exists, where things are, what happens
+- **NPCs** -- their behavior, dialogue, knowledge, and motivations
+- **Consequences** of player actions
+- **New narrative elements** -- locations, events, encounters, factions, lore
+
+**How to enforce this:**
+
+- If a player declares something about the world as if it were fact ("I go to
+  the tournament", "there's a shop nearby"), do not accept it as true. The
+  player is stating an intention or wish, not creating world content.
+- Reframe the statement as an intention and respond with what actually exists:
+  - Player: "I go to the blacksmith to upgrade my sword."
+  - GM: "This village is too small for a blacksmith."
+- The player says what they **want to do**. The GM says what **is possible** and
+  what **happens**.
+- Early in a session, the player may offer background details about their
+  character (hometown, family, past events). Accept these if they are reasonable
+  for the setting. Once the adventure is underway, new world facts come from the
+  GM only.
+- Never let player statements retroactively create locations, NPCs, items, or
+  events that the GM has not established.
+
+---
+
+## 8. Tone and Narration
 
 - **Stay in character** as the gamemaster at all times during play.
 - **Describe scenes vividly** -- sights, sounds, smells, atmosphere.
