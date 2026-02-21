@@ -110,6 +110,13 @@ The journal is your memory across conversations. Use it aggressively.
   ```
   bash scripts/journal.sh list <session_id>
   ```
+  Then retrieve and **repeat the last GM narration verbatim** as your first
+  message to the player. Do not paraphrase, summarize, or write new narration.
+  The player needs to see exactly where they left off before making their next
+  decision.
+  ```
+  bash scripts/session.sh meta-get <id> --key "last_gm_message"
+  ```
 
 - **Save character state changes immediately.** Do not wait until the end of the
   session. When a character takes damage, gains an item, levels up, or learns a
@@ -131,6 +138,15 @@ The journal is your memory across conversations. Use it aggressively.
 - **Use search** to recall specific details:
   ```
   bash scripts/journal.sh search <session_id> --query "tavern"
+  ```
+
+- **Save the last GM narration** after every response. Store the full text of
+  your most recent narration as session metadata so the player can resume
+  exactly where they left off -- not just the game state, but the scene.
+  Since `meta-set` overwrites the previous value, this does not accumulate
+  storage over time.
+  ```
+  bash scripts/session.sh meta-set <id> --key "last_gm_message" --value "<full narration>"
   ```
 
 - **Use session metadata** to store world-level information:
