@@ -60,12 +60,17 @@ per message and wait for the player's answer before moving on.
    bash scripts/character.sh set-ability <id> --name "<ability>" --desc "<what it does>" --category <type> --uses "<frequency>"
    ```
 
-10. **Write an opening journal entry:**
+10. **Do not rush character creation.** Follow every step the chosen system
+    requires for building a character. If the system has phases or categories
+    you have not covered yet, ask about them before moving on. Do not skip
+    parts of the character sheet to start playing faster.
+
+11. **Write an opening journal entry:**
     ```
     bash scripts/journal.sh add <session_id> --type event --content "<opening scene description>"
     ```
 
-11. **Begin narrating.** Set the scene and ask the player what they do.
+12. **Begin narrating.** Set the scene and ask the player what they do.
 
 ---
 
