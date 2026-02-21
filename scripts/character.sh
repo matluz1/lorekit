@@ -19,7 +19,7 @@ set -euo pipefail
 #   get-abilities <character_id>
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-DB_PATH="$SCRIPT_DIR/../data/game.db"
+DB_PATH="${LOREKIT_DB:-$SCRIPT_DIR/../data/game.db}"
 
 if [[ ! -f "$DB_PATH" ]]; then
     echo "ERROR: Database not found. Run init_db.sh first." >&2
