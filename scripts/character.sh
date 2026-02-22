@@ -140,6 +140,7 @@ case "$ACTION" in
         SETS=()
         while [[ $# -gt 0 ]]; do
             case "$1" in
+                --name)   SETS+=("name = '$(esc "$2")'");          shift 2 ;;
                 --level)  SETS+=("level = $2");                    shift 2 ;;
                 --status) SETS+=("status = '$(esc "$2")'");       shift 2 ;;
                 --region) SETS+=("region_id = $2");                shift 2 ;;
@@ -147,7 +148,7 @@ case "$ACTION" in
             esac
         done
         if [[ ${#SETS[@]} -eq 0 ]]; then
-            echo "ERROR: Provide --level, --status, and/or --region" >&2; exit 1
+            echo "ERROR: Provide --name, --level, --status, and/or --region" >&2; exit 1
         fi
         SET_CLAUSE=$(IFS=,; echo "${SETS[*]}")
         sqlite3 "$DB_PATH" "UPDATE characters SET $SET_CLAUSE WHERE id = $CHAR_ID;"

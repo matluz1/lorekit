@@ -110,6 +110,17 @@ test_update_status() {
     assert_contains "$output" "STATUS: dead"
 }
 
+test_update_name() {
+    local sid cid
+    sid=$(create_test_session)
+    cid=$(create_test_character "$sid" "OldName")
+    bash "$CHAR" update "$cid" --name "NewName" > /dev/null
+    local output
+    output=$(bash "$CHAR" view "$cid")
+    assert_contains "$output" "NAME: NewName"
+    assert_not_contains "$output" "OldName"
+}
+
 test_set_and_get_attribute() {
     local sid cid
     sid=$(create_test_session)
@@ -284,6 +295,7 @@ run_test "list filter by type"             test_list_filter_by_type
 run_test "list filter by region"           test_list_filter_by_region
 run_test "update level"                    test_update_level
 run_test "update status"                   test_update_status
+run_test "update name"                     test_update_name
 run_test "set and get attribute"           test_set_and_get_attribute
 run_test "attribute overwrite"             test_attribute_overwrite
 run_test "get all attribute categories"    test_get_attr_all_categories
