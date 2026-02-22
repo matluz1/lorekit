@@ -2,19 +2,19 @@
 
 This file documents every available script. Read this before running anything.
 
-All scripts are invoked with `bash scripts/<name>.sh`. The database must be
-initialized first with `init_db.sh`.
+All scripts are invoked with `python scripts/<name>.py`. The database must be
+initialized first with `init_db.py`.
 
 Errors print to stderr and exit with code 1. Success exits with code 0.
 
 ---
 
-## init_db.sh
+## init_db.py
 
 Create or verify the database. Safe to re-run.
 
 ```
-bash scripts/init_db.sh
+python scripts/init_db.py
 ```
 
 **Output:**
@@ -26,12 +26,12 @@ Run this once before using any other script.
 
 ---
 
-## rolldice.sh
+## rolldice.py
 
 Roll dice using standard tabletop notation.
 
 ```
-bash scripts/rolldice.sh <expression>
+python scripts/rolldice.py <expression>
 ```
 
 **Expression format:** `[N]d<sides>[kh<keep>][+/-<modifier>]`
@@ -45,12 +45,12 @@ bash scripts/rolldice.sh <expression>
 
 **Examples:**
 ```
-bash scripts/rolldice.sh d20         # Roll 1d20
-bash scripts/rolldice.sh 3d6         # Roll 3d6
-bash scripts/rolldice.sh 2d8+5       # Roll 2d8 and add 5
-bash scripts/rolldice.sh 2d8-2       # Roll 2d8 and subtract 2
-bash scripts/rolldice.sh d100        # Percentile roll
-bash scripts/rolldice.sh 4d6kh3      # Roll 4d6, keep highest 3
+python scripts/rolldice.py d20         # Roll 1d20
+python scripts/rolldice.py 3d6         # Roll 3d6
+python scripts/rolldice.py 2d8+5       # Roll 2d8 and add 5
+python scripts/rolldice.py 2d8-2       # Roll 2d8 and subtract 2
+python scripts/rolldice.py d100        # Percentile roll
+python scripts/rolldice.py 4d6kh3      # Roll 4d6, keep highest 3
 ```
 
 **Output format:**
@@ -70,18 +70,18 @@ TOTAL: 13
 
 ---
 
-## session.sh
+## session.py
 
 Manage adventure sessions.
 
 ```
-bash scripts/session.sh <action> [args]
+python scripts/session.py <action> [args]
 ```
 
 ### create
 
 ```
-bash scripts/session.sh create --name "The Dark Forest" --setting "dark fantasy" --system "d20 fantasy"
+python scripts/session.py create --name "The Dark Forest" --setting "dark fantasy" --system "d20 fantasy"
 ```
 
 All three flags are required. Output:
@@ -92,7 +92,7 @@ SESSION_CREATED: 1
 ### view
 
 ```
-bash scripts/session.sh view 1
+python scripts/session.py view 1
 ```
 
 Output:
@@ -109,9 +109,9 @@ UPDATED: 2026-02-21T16:00:00Z
 ### list
 
 ```
-bash scripts/session.sh list
-bash scripts/session.sh list --status active
-bash scripts/session.sh list --status finished
+python scripts/session.py list
+python scripts/session.py list --status active
+python scripts/session.py list --status finished
 ```
 
 Output: table with columns `id, name, setting, system_type, status, created_at`.
@@ -119,7 +119,7 @@ Output: table with columns `id, name, setting, system_type, status, created_at`.
 ### update
 
 ```
-bash scripts/session.sh update 1 --status finished
+python scripts/session.py update 1 --status finished
 ```
 
 Output:
@@ -133,7 +133,7 @@ Store freeform key-value data on a session (house rules, world lore, etc.).
 Overwrites the value if the key already exists.
 
 ```
-bash scripts/session.sh meta-set 1 --key "house_rule_crits" --value "Max damage on nat 20"
+python scripts/session.py meta-set 1 --key "house_rule_crits" --value "Max damage on nat 20"
 ```
 
 Output:
@@ -144,8 +144,8 @@ META_SET: house_rule_crits
 ### meta-get
 
 ```
-bash scripts/session.sh meta-get 1                          # all metadata
-bash scripts/session.sh meta-get 1 --key "house_rule_crits"  # single key
+python scripts/session.py meta-get 1                          # all metadata
+python scripts/session.py meta-get 1 --key "house_rule_crits"  # single key
 ```
 
 Single key output:
@@ -157,19 +157,19 @@ All keys output: table with columns `key, value`.
 
 ---
 
-## character.sh
+## character.py
 
 Manage characters and their attributes, inventory, and abilities.
 
 ```
-bash scripts/character.sh <action> [args]
+python scripts/character.py <action> [args]
 ```
 
 ### create
 
 ```
-bash scripts/character.sh create --session 1 --name "Aldric" --level 3
-bash scripts/character.sh create --session 1 --name "Ancião" --type npc --region 1
+python scripts/character.py create --session 1 --name "Aldric" --level 3
+python scripts/character.py create --session 1 --name "Ancião" --type npc --region 1
 ```
 
 `--session` and `--name` are required. `--level` defaults to 1. `--type`
@@ -184,7 +184,7 @@ CHARACTER_CREATED: 1
 Shows the full character sheet: identity, attributes, inventory, and abilities.
 
 ```
-bash scripts/character.sh view 1
+python scripts/character.py view 1
 ```
 
 Output:
@@ -217,9 +217,9 @@ id  name         category  uses    description
 ### list
 
 ```
-bash scripts/character.sh list --session 1
-bash scripts/character.sh list --session 1 --type npc
-bash scripts/character.sh list --session 1 --type npc --region 1
+python scripts/character.py list --session 1
+python scripts/character.py list --session 1 --type npc
+python scripts/character.py list --session 1 --type npc --region 1
 ```
 
 Optional filters: `--type pc|npc`, `--region <region_id>`.
@@ -229,11 +229,11 @@ Output: table with columns `id, name, type, level, status`.
 ### update
 
 ```
-bash scripts/character.sh update 1 --name "Ren"
-bash scripts/character.sh update 1 --level 4
-bash scripts/character.sh update 1 --status dead
-bash scripts/character.sh update 1 --level 5 --status alive
-bash scripts/character.sh update 2 --region 1
+python scripts/character.py update 1 --name "Ren"
+python scripts/character.py update 1 --level 4
+python scripts/character.py update 1 --status dead
+python scripts/character.py update 1 --level 5 --status alive
+python scripts/character.py update 2 --region 1
 ```
 
 Accepts `--name`, `--level`, `--status`, and/or `--region`.
@@ -249,10 +249,10 @@ Set a character attribute. Overwrites the value if the category+key already
 exists.
 
 ```
-bash scripts/character.sh set-attr 1 --category stat --key strength --value 16
-bash scripts/character.sh set-attr 1 --category combat --key hit_points --value 28
-bash scripts/character.sh set-attr 1 --category skill --key perception --value 4
-bash scripts/character.sh set-attr 1 --category save --key reflex --value 3
+python scripts/character.py set-attr 1 --category stat --key strength --value 16
+python scripts/character.py set-attr 1 --category combat --key hit_points --value 28
+python scripts/character.py set-attr 1 --category skill --key perception --value 4
+python scripts/character.py set-attr 1 --category save --key reflex --value 3
 ```
 
 Suggested categories: `stat`, `skill`, `save`, `combat`, `resource`, `other`.
@@ -266,8 +266,8 @@ ATTR_SET: strength = 16
 ### get-attr
 
 ```
-bash scripts/character.sh get-attr 1                    # all attributes
-bash scripts/character.sh get-attr 1 --category stat    # only stats
+python scripts/character.py get-attr 1                    # all attributes
+python scripts/character.py get-attr 1 --category stat    # only stats
 ```
 
 All attributes output: table with columns `category, key, value`.
@@ -276,7 +276,7 @@ Filtered output: table with columns `key, value`.
 ### set-item
 
 ```
-bash scripts/character.sh set-item 1 --name "Longsword" --desc "A fine steel blade" --qty 1 --equipped 1
+python scripts/character.py set-item 1 --name "Longsword" --desc "A fine steel blade" --qty 1 --equipped 1
 ```
 
 `--name` is required. Defaults: `--desc ""`, `--qty 1`, `--equipped 0`.
@@ -289,7 +289,7 @@ ITEM_ADDED: 1
 ### get-items
 
 ```
-bash scripts/character.sh get-items 1
+python scripts/character.py get-items 1
 ```
 
 Output: table with columns `id, name, description, quantity, equipped`.
@@ -297,7 +297,7 @@ Output: table with columns `id, name, description, quantity, equipped`.
 ### remove-item
 
 ```
-bash scripts/character.sh remove-item 1
+python scripts/character.py remove-item 1
 ```
 
 Takes the **item id** (from get-items), not the character id.
@@ -310,7 +310,7 @@ ITEM_REMOVED: 1
 ### set-ability
 
 ```
-bash scripts/character.sh set-ability 1 --name "Fireball" --desc "3d6 fire damage in a 20ft radius" --category spell --uses "3/day"
+python scripts/character.py set-ability 1 --name "Fireball" --desc "3d6 fire damage in a 20ft radius" --category spell --uses "3/day"
 ```
 
 `--name`, `--desc`, and `--category` are required. `--uses` defaults to `at_will`.
@@ -326,25 +326,25 @@ ABILITY_ADDED: 1
 ### get-abilities
 
 ```
-bash scripts/character.sh get-abilities 1
+python scripts/character.py get-abilities 1
 ```
 
 Output: table with columns `id, name, category, uses, description`.
 
 ---
 
-## region.sh
+## region.py
 
 Manage regions (locations, areas) within a session.
 
 ```
-bash scripts/region.sh <action> [args]
+python scripts/region.py <action> [args]
 ```
 
 ### create
 
 ```
-bash scripts/region.sh create 1 --name "Ashar" --desc "Vila de pastores no vale"
+python scripts/region.py create 1 --name "Ashar" --desc "Vila de pastores no vale"
 ```
 
 `<session_id>` and `--name` are required. `--desc` defaults to empty. Output:
@@ -355,7 +355,7 @@ REGION_CREATED: 1
 ### list
 
 ```
-bash scripts/region.sh list 1
+python scripts/region.py list 1
 ```
 
 Output: table with columns `id, name, description, created_at`.
@@ -365,7 +365,7 @@ Output: table with columns `id, name, description, created_at`.
 Shows region details and all NPCs linked to the region.
 
 ```
-bash scripts/region.sh view 1
+python scripts/region.py view 1
 ```
 
 Output:
@@ -385,7 +385,7 @@ id  name    level  status
 ### update
 
 ```
-bash scripts/region.sh update 1 --name "Ashar (ruínas)" --desc "A vila foi destruída"
+python scripts/region.py update 1 --name "Ashar (ruínas)" --desc "A vila foi destruída"
 ```
 
 Accepts `--name` and/or `--desc`. Output:
@@ -395,19 +395,19 @@ REGION_UPDATED: 1
 
 ---
 
-## dialogue.sh
+## dialogue.py
 
 Record and query dialogues between the player and NPCs.
 
 ```
-bash scripts/dialogue.sh <action> [args]
+python scripts/dialogue.py <action> [args]
 ```
 
 ### add
 
 ```
-bash scripts/dialogue.sh add 1 --npc 2 --speaker pc --content "Olá, ancião"
-bash scripts/dialogue.sh add 1 --npc 2 --speaker "Ancião" --content "Bem-vindo, viajante"
+python scripts/dialogue.py add 1 --npc 2 --speaker pc --content "Olá, ancião"
+python scripts/dialogue.py add 1 --npc 2 --speaker "Ancião" --content "Bem-vindo, viajante"
 ```
 
 `<session_id>`, `--npc`, `--speaker`, and `--content` are required. `--speaker`
@@ -420,8 +420,8 @@ DIALOGUE_ADDED: 1
 ### list
 
 ```
-bash scripts/dialogue.sh list 1 --npc 2
-bash scripts/dialogue.sh list 1 --npc 2 --last 5
+python scripts/dialogue.py list 1 --npc 2
+python scripts/dialogue.py list 1 --npc 2 --last 5
 ```
 
 `--npc` is required. `--last <N>` limits to the most recent N lines. Output:
@@ -431,7 +431,7 @@ first.
 ### search
 
 ```
-bash scripts/dialogue.sh search 1 --query "viajante"
+python scripts/dialogue.py search 1 --query "viajante"
 ```
 
 Searches all dialogue content in the session (case-insensitive). Output: table
@@ -439,24 +439,24 @@ with columns `id, npc, speaker, content, created_at`. Ordered oldest first.
 
 ---
 
-## journal.sh
+## journal.py
 
 Append-only adventure log. Use this to record everything important that happens
 during a session.
 
 ```
-bash scripts/journal.sh <action> [args]
+python scripts/journal.py <action> [args]
 ```
 
 ### add
 
 ```
-bash scripts/journal.sh add 1 --type event --content "The party entered the cave"
-bash scripts/journal.sh add 1 --type combat --content "Ambushed by 3 goblins"
-bash scripts/journal.sh add 1 --type discovery --content "Found a hidden passage"
-bash scripts/journal.sh add 1 --type npc --content "Met a merchant named Dara"
-bash scripts/journal.sh add 1 --type decision --content "The party chose to spare the bandit"
-bash scripts/journal.sh add 1 --type note --content "Player prefers non-combat solutions"
+python scripts/journal.py add 1 --type event --content "The party entered the cave"
+python scripts/journal.py add 1 --type combat --content "Ambushed by 3 goblins"
+python scripts/journal.py add 1 --type discovery --content "Found a hidden passage"
+python scripts/journal.py add 1 --type npc --content "Met a merchant named Dara"
+python scripts/journal.py add 1 --type decision --content "The party chose to spare the bandit"
+python scripts/journal.py add 1 --type note --content "Player prefers non-combat solutions"
 ```
 
 Entry types: `event`, `combat`, `discovery`, `npc`, `decision`, `note`.
@@ -469,10 +469,10 @@ JOURNAL_ADDED: 1
 ### list
 
 ```
-bash scripts/journal.sh list 1                  # all entries (newest first)
-bash scripts/journal.sh list 1 --type combat     # only combat entries
-bash scripts/journal.sh list 1 --last 5          # last 5 entries
-bash scripts/journal.sh list 1 --type event --last 3  # last 3 events
+python scripts/journal.py list 1                  # all entries (newest first)
+python scripts/journal.py list 1 --type combat     # only combat entries
+python scripts/journal.py list 1 --last 5          # last 5 entries
+python scripts/journal.py list 1 --type event --last 3  # last 3 events
 ```
 
 Output: table with columns `id, entry_type, content, created_at`.
@@ -481,7 +481,7 @@ Ordered newest first.
 ### search
 
 ```
-bash scripts/journal.sh search 1 --query "dragon"
+python scripts/journal.py search 1 --query "dragon"
 ```
 
 Searches journal content for the given text (case-insensitive).

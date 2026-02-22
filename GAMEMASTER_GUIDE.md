@@ -6,6 +6,8 @@ tools.
 
 Read `TOOLS.md` first for the full command reference.
 
+All scripts are invoked with `python scripts/<name>.py`.
+
 ---
 
 ## 1. Starting a New Adventure
@@ -15,7 +17,7 @@ per message and wait for the player's answer before moving on.
 
 1. **Initialize the database** (if not already done):
    ```
-   bash scripts/init_db.sh
+   python scripts/init_db.py
    ```
 
 2. **Ask the player what language they want to play in.** All narration,
@@ -32,11 +34,11 @@ per message and wait for the player's answer before moving on.
 5. **Create the session.** Setting and system are locked for the entire session.
    Never change them mid-game.
    ```
-   bash scripts/session.sh create --name "<adventure name>" --setting "<setting>" --system "<system>"
+   python scripts/session.py create --name "<adventure name>" --setting "<setting>" --system "<system>"
    ```
    Save the chosen language as session metadata:
    ```
-   bash scripts/session.sh meta-set <id> --key "language" --value "<language>"
+   python scripts/session.py meta-set <id> --key "language" --value "<language>"
    ```
 
 6. **Ask the player for a character name.**
@@ -46,25 +48,25 @@ per message and wait for the player's answer before moving on.
 
 8. **Create the player character:**
    ```
-   bash scripts/character.sh create --session <id> --name "<name>" --level <level>
+   python scripts/character.py create --session <id> --name "<name>" --level <level>
    ```
    Player characters default to `--type pc`. Do not set `--type` for the player.
 
 9. **Guide attribute generation** using the system's method. For example, for a
    d20 fantasy system, roll 4d6kh3 six times:
    ```
-   bash scripts/rolldice.sh 4d6kh3
+   python scripts/rolldice.py 4d6kh3
    ```
    Save each result:
    ```
-   bash scripts/character.sh set-attr <id> --category stat --key strength --value <value>
+   python scripts/character.py set-attr <id> --category stat --key strength --value <value>
    ```
 
 10. **Guide starting equipment and abilities.** Generate items and abilities
     appropriate to the setting and system. Save them:
     ```
-    bash scripts/character.sh set-item <id> --name "<item>" --desc "<description>"
-    bash scripts/character.sh set-ability <id> --name "<ability>" --desc "<what it does>" --category <type> --uses "<frequency>"
+    python scripts/character.py set-item <id> --name "<item>" --desc "<description>"
+    python scripts/character.py set-ability <id> --name "<ability>" --desc "<what it does>" --category <type> --uses "<frequency>"
     ```
 
 11. **Do not rush character creation.** Follow every step the chosen system
@@ -74,7 +76,7 @@ per message and wait for the player's answer before moving on.
 
 12. **Write an opening journal entry:**
     ```
-    bash scripts/journal.sh add <session_id> --type event --content "<opening scene description>"
+    python scripts/journal.py add <session_id> --type event --content "<opening scene description>"
     ```
 
 13. **Begin narrating.** Set the scene and ask the player what they do.
@@ -83,14 +85,14 @@ per message and wait for the player's answer before moving on.
 
 ## 2. Dice Rolling Rules
 
-- **Always** use `rolldice.sh` for any random outcome. Never invent numbers.
+- **Always** use `rolldice.py` for any random outcome. Never invent numbers.
 - **Tell the player** what you are rolling and why before you roll.
 - **Interpret results** according to the chosen system's rules.
 - **Roll for NPCs** using the same script -- no hidden or imagined rolls.
 
 ```
-bash scripts/rolldice.sh d20
-bash scripts/rolldice.sh 2d6+3
+python scripts/rolldice.py d20
+python scripts/rolldice.py 2d6+3
 ```
 
 Read the TOTAL line from the output for the result.
@@ -103,28 +105,28 @@ The journal is your memory across conversations. Use it aggressively.
 
 - **After every significant event**, log it:
   ```
-  bash scripts/journal.sh add <session_id> --type event --content "<what happened>"
+  python scripts/journal.py add <session_id> --type event --content "<what happened>"
   ```
 
 - **At the start of a continued session**, read the journal to catch up:
   ```
-  bash scripts/journal.sh list <session_id>
+  python scripts/journal.py list <session_id>
   ```
   Then retrieve and **repeat the last GM narration verbatim** as your first
   message to the player. Do not paraphrase, summarize, or write new narration.
   The player needs to see exactly where they left off before making their next
   decision.
   ```
-  bash scripts/session.sh meta-get <id> --key "last_gm_message"
+  python scripts/session.py meta-get <id> --key "last_gm_message"
   ```
 
 - **Save character state changes immediately.** Do not wait until the end of the
   session. When a character takes damage, gains an item, levels up, or learns a
   new ability, save it right away:
   ```
-  bash scripts/character.sh set-attr <id> --category combat --key hit_points --value <new_value>
-  bash scripts/character.sh update <id> --level <new_level>
-  bash scripts/character.sh set-item <id> --name "<item>"
+  python scripts/character.py set-attr <id> --category combat --key hit_points --value <new_value>
+  python scripts/character.py update <id> --level <new_level>
+  python scripts/character.py set-item <id> --name "<item>"
   ```
 
 - **Use entry types** to categorize journal entries:
@@ -137,7 +139,7 @@ The journal is your memory across conversations. Use it aggressively.
 
 - **Use search** to recall specific details:
   ```
-  bash scripts/journal.sh search <session_id> --query "tavern"
+  python scripts/journal.py search <session_id> --query "tavern"
   ```
 
 - **Save the last GM narration** after every response. Store the full text of
@@ -146,13 +148,13 @@ The journal is your memory across conversations. Use it aggressively.
   Since `meta-set` overwrites the previous value, this does not accumulate
   storage over time.
   ```
-  bash scripts/session.sh meta-set <id> --key "last_gm_message" --value "<full narration>"
+  python scripts/session.py meta-set <id> --key "last_gm_message" --value "<full narration>"
   ```
 
 - **Use session metadata** to store world-level information:
   ```
-  bash scripts/session.sh meta-set <id> --key "world_detail" --value "The kingdom is at war"
-  bash scripts/session.sh meta-set <id> --key "house_rule" --value "Crits deal max damage"
+  python scripts/session.py meta-set <id> --key "world_detail" --value "The kingdom is at war"
+  python scripts/session.py meta-set <id> --key "house_rule" --value "Crits deal max damage"
   ```
 
 ---
@@ -166,7 +168,7 @@ keep locations, characters, and conversations consistent across sessions.
 
 When the party enters a new area, create a region for it:
 ```
-bash scripts/region.sh create <session_id> --name "Ashar" --desc "Vila de pastores no vale"
+python scripts/region.py create <session_id> --name "Ashar" --desc "Vila de pastores no vale"
 ```
 
 ### Introducing NPCs
@@ -174,12 +176,12 @@ bash scripts/region.sh create <session_id> --name "Ashar" --desc "Vila de pastor
 When you introduce a named NPC, register them as a character with `--type npc`
 and link them to the current region:
 ```
-bash scripts/character.sh create --session <id> --name "Ancião" --type npc --region <region_id>
+python scripts/character.py create --session <id> --name "Ancião" --type npc --region <region_id>
 ```
 
 To move an NPC to a different region later:
 ```
-bash scripts/character.sh update <id> --region <new_region_id>
+python scripts/character.py update <id> --region <new_region_id>
 ```
 
 ### Tracking character movement
@@ -193,15 +195,15 @@ includes:
 
 When multiple characters move together (e.g. the party returns to a previous
 location), update **every** character that moved, not just the player. Verify
-with `region.sh view` after bulk moves to confirm all characters are in the
+with `region.py view` after bulk moves to confirm all characters are in the
 correct region.
 
 ### Recording dialogues
 
 When narrating a significant conversation, record each line:
 ```
-bash scripts/dialogue.sh add <session_id> --npc <npc_id> --speaker pc --content "What happened here?"
-bash scripts/dialogue.sh add <session_id> --npc <npc_id> --speaker "Ancião" --content "The fire came at night."
+python scripts/dialogue.py add <session_id> --npc <npc_id> --speaker pc --content "What happened here?"
+python scripts/dialogue.py add <session_id> --npc <npc_id> --speaker "Ancião" --content "The fire came at night."
 ```
 
 Not every line needs recording -- focus on information the player may need
@@ -212,9 +214,9 @@ later: lore, directions, quest details, promises, warnings.
 When resuming a session, review the current region and its NPCs to maintain
 consistency:
 ```
-bash scripts/region.sh list <session_id>
-bash scripts/region.sh view <region_id>
-bash scripts/dialogue.sh list <session_id> --npc <npc_id> --last 10
+python scripts/region.py list <session_id>
+python scripts/region.py view <region_id>
+python scripts/dialogue.py list <session_id> --npc <npc_id> --last 10
 ```
 
 This ensures you do not contradict established NPC personalities or forget
@@ -226,7 +228,7 @@ what was already said.
 
 1. **Roll initiative** for all participants:
    ```
-   bash scripts/rolldice.sh d20
+   python scripts/rolldice.py d20
    ```
    Add the relevant modifier mentally based on the system.
 
@@ -238,12 +240,12 @@ what was already said.
    - Roll attacks, damage, saves, or skill checks as needed
    - Apply results to character attributes:
      ```
-     bash scripts/character.sh set-attr <id> --category combat --key hit_points --value <new_value>
+     python scripts/character.py set-attr <id> --category combat --key hit_points --value <new_value>
      ```
 
 4. **Log combat events:**
    ```
-   bash scripts/journal.sh add <session_id> --type combat --content "Aldric hit the goblin for 8 damage"
+   python scripts/journal.py add <session_id> --type combat --content "Aldric hit the goblin for 8 damage"
    ```
 
 5. **End combat** when all enemies are defeated, the party flees, or a
@@ -257,8 +259,8 @@ what was already said.
   rules (death saves, instant death, unconsciousness, etc.).
 - If the character dies:
   ```
-  bash scripts/character.sh update <id> --status dead
-  bash scripts/journal.sh add <session_id> --type event --content "<name> has fallen"
+  python scripts/character.py update <id> --status dead
+  python scripts/journal.py add <session_id> --type event --content "<name> has fallen"
   ```
 - Offer the player a chance to create a new character. Follow the same creation
   flow from section 1 (steps 5-9).
