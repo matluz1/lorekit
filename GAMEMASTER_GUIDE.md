@@ -182,6 +182,20 @@ To move an NPC to a different region later:
 bash scripts/character.sh update <id> --region <new_region_id>
 ```
 
+### Tracking character movement
+
+When characters (PC or NPC) move between regions during narration, update
+their region **immediately** -- do not wait until the end of the scene. This
+includes:
+- The player character entering a new area
+- NPCs traveling with the party
+- NPCs being carried, rescued, or displaced
+
+When multiple characters move together (e.g. the party returns to a previous
+location), update **every** character that moved, not just the player. Verify
+with `region.sh view` after bulk moves to confirm all characters are in the
+correct region.
+
 ### Recording dialogues
 
 When narrating a significant conversation, record each line:
