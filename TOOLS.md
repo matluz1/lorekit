@@ -229,13 +229,14 @@ Output: table with columns `id, name, type, level, status`.
 ### update
 
 ```
+bash scripts/character.sh update 1 --name "Ren"
 bash scripts/character.sh update 1 --level 4
 bash scripts/character.sh update 1 --status dead
 bash scripts/character.sh update 1 --level 5 --status alive
 bash scripts/character.sh update 2 --region 1
 ```
 
-Accepts `--level`, `--status`, and/or `--region`.
+Accepts `--name`, `--level`, `--status`, and/or `--region`.
 
 Output:
 ```
