@@ -16,6 +16,7 @@ def db_path(tmp_path):
     env = os.environ.copy()
     env["LOREKIT_DB_DIR"] = str(tmp_path)
     env["LOREKIT_DB"] = db
+    env["LOREKIT_CHROMA_DIR"] = str(tmp_path / "chroma")
     subprocess.run(
         [sys.executable, os.path.join(SCRIPTS_DIR, "init_db.py")],
         env=env,
@@ -32,6 +33,7 @@ def run(db_path):
     def _run(script, *args):
         env = os.environ.copy()
         env["LOREKIT_DB"] = db_path
+        env["LOREKIT_CHROMA_DIR"] = str(os.path.join(os.path.dirname(db_path), "chroma"))
         result = subprocess.run(
             [sys.executable, os.path.join(SCRIPTS_DIR, script), *args],
             env=env,

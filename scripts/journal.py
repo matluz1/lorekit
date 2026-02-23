@@ -63,7 +63,13 @@ def cmd_add(db, args):
         (session_id, entry_type, content),
     )
     db.commit()
-    print(f"JOURNAL_ADDED: {cur.lastrowid}")
+    sql_id = cur.lastrowid
+    try:
+        from _vectordb import index_journal
+        index_journal(session_id, sql_id, entry_type, content)
+    except Exception:
+        pass
+    print(f"JOURNAL_ADDED: {sql_id}")
 
 
 def cmd_list(db, args):

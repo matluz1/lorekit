@@ -8,7 +8,7 @@ Read `TOOLS.md` first for the full command reference.
 
 **Only run commands documented in `TOOLS.md`.** Do not run any other scripts,
 shell commands, or tools beyond what is listed there. All scripts are invoked
-using the shortest relative path: `python ./scripts/<name>.py`.
+using the project venv: `.venv/bin/python ./scripts/<name>.py`.
 
 ---
 
@@ -19,7 +19,7 @@ per message and wait for the player's answer before moving on.
 
 1. **Initialize the database** (if not already done):
    ```
-   python ./scripts/init_db.py
+   .venv/bin/python ./scripts/init_db.py
    ```
 
 2. **Ask the player what language they want to play in.** All narration,
@@ -36,11 +36,11 @@ per message and wait for the player's answer before moving on.
 5. **Create the session.** Setting and system are locked for the entire session.
    Never change them mid-game.
    ```
-   python ./scripts/session.py create --name "<adventure name>" --setting "<setting>" --system "<system>"
+   .venv/bin/python ./scripts/session.py create --name "<adventure name>" --setting "<setting>" --system "<system>"
    ```
    Save the chosen language as session metadata:
    ```
-   python ./scripts/session.py meta-set <id> --key "language" --value "<language>"
+   .venv/bin/python ./scripts/session.py meta-set <id> --key "language" --value "<language>"
    ```
 
 6. **Ask the player for a character name.**
@@ -50,25 +50,25 @@ per message and wait for the player's answer before moving on.
 
 8. **Create the player character:**
    ```
-   python ./scripts/character.py create --session <id> --name "<name>" --level <level>
+   .venv/bin/python ./scripts/character.py create --session <id> --name "<name>" --level <level>
    ```
    Player characters default to `--type pc`. Do not set `--type` for the player.
 
 9. **Guide attribute generation** using the system's method. For example, for a
    d20 fantasy system, roll 4d6kh3 six times:
    ```
-   python ./scripts/rolldice.py 4d6kh3
+   .venv/bin/python ./scripts/rolldice.py 4d6kh3
    ```
    Save each result:
    ```
-   python ./scripts/character.py set-attr <id> --category stat --key strength --value <value>
+   .venv/bin/python ./scripts/character.py set-attr <id> --category stat --key strength --value <value>
    ```
 
 10. **Guide starting equipment and abilities.** Generate items and abilities
     appropriate to the setting and system. Save them:
     ```
-    python ./scripts/character.py set-item <id> --name "<item>" --desc "<description>"
-    python ./scripts/character.py set-ability <id> --name "<ability>" --desc "<what it does>" --category <type> --uses "<frequency>"
+    .venv/bin/python ./scripts/character.py set-item <id> --name "<item>" --desc "<description>"
+    .venv/bin/python ./scripts/character.py set-ability <id> --name "<ability>" --desc "<what it does>" --category <type> --uses "<frequency>"
     ```
 
 11. **Do not rush character creation.** Follow every step the chosen system
@@ -78,7 +78,7 @@ per message and wait for the player's answer before moving on.
 
 12. **Write an opening journal entry:**
     ```
-    python ./scripts/journal.py add <session_id> --type event --content "<opening scene description>"
+    .venv/bin/python ./scripts/journal.py add <session_id> --type event --content "<opening scene description>"
     ```
 
 13. **Begin narrating.** Set the scene and ask the player what they do.
@@ -93,8 +93,8 @@ per message and wait for the player's answer before moving on.
 - **Roll for NPCs** using the same script -- no hidden or imagined rolls.
 
 ```
-python ./scripts/rolldice.py d20
-python ./scripts/rolldice.py 2d6+3
+.venv/bin/python ./scripts/rolldice.py d20
+.venv/bin/python ./scripts/rolldice.py 2d6+3
 ```
 
 Read the TOTAL line from the output for the result.
@@ -107,28 +107,28 @@ The journal is your memory across conversations. Use it aggressively.
 
 - **After every significant event**, log it:
   ```
-  python ./scripts/journal.py add <session_id> --type event --content "<what happened>"
+  .venv/bin/python ./scripts/journal.py add <session_id> --type event --content "<what happened>"
   ```
 
 - **At the start of a continued session**, read the journal to catch up:
   ```
-  python ./scripts/journal.py list <session_id>
+  .venv/bin/python ./scripts/journal.py list <session_id>
   ```
   Then retrieve and **repeat the last GM narration verbatim** as your first
   message to the player. Do not paraphrase, summarize, or write new narration.
   The player needs to see exactly where they left off before making their next
   decision.
   ```
-  python ./scripts/session.py meta-get <id> --key "last_gm_message"
+  .venv/bin/python ./scripts/session.py meta-get <id> --key "last_gm_message"
   ```
 
 - **Save character state changes immediately.** Do not wait until the end of the
   session. When a character takes damage, gains an item, levels up, or learns a
   new ability, save it right away:
   ```
-  python ./scripts/character.py set-attr <id> --category combat --key hit_points --value <new_value>
-  python ./scripts/character.py update <id> --level <new_level>
-  python ./scripts/character.py set-item <id> --name "<item>"
+  .venv/bin/python ./scripts/character.py set-attr <id> --category combat --key hit_points --value <new_value>
+  .venv/bin/python ./scripts/character.py update <id> --level <new_level>
+  .venv/bin/python ./scripts/character.py set-item <id> --name "<item>"
   ```
 
 - **Use entry types** to categorize journal entries:
@@ -139,9 +139,18 @@ The journal is your memory across conversations. Use it aggressively.
   - `decision` -- player choices that affect the story
   - `note` -- out-of-game notes (player preferences, reminders)
 
-- **Use search** to recall specific details:
+- **Use keyword search** to recall specific details:
   ```
-  python ./scripts/journal.py search <session_id> --query "tavern"
+  .venv/bin/python ./scripts/journal.py search <session_id> --query "tavern"
+  ```
+
+- **Use semantic search** to find relevant past events by meaning, not just
+  exact wording. This is useful when you want to callback to earlier scenes,
+  maintain emotional consistency, or find thematic echoes:
+  ```
+  .venv/bin/python ./scripts/recall.py search <session_id> --query "moments of betrayal"
+  .venv/bin/python ./scripts/recall.py search <session_id> --query "the old wizard's warnings" --source journal
+  .venv/bin/python ./scripts/recall.py search <session_id> --query "merchant negotiations" --source dialogues
   ```
 
 - **Save the last GM narration** after every response. Store the full text of
@@ -150,13 +159,13 @@ The journal is your memory across conversations. Use it aggressively.
   Since `meta-set` overwrites the previous value, this does not accumulate
   storage over time.
   ```
-  python ./scripts/session.py meta-set <id> --key "last_gm_message" --value "<full narration>"
+  .venv/bin/python ./scripts/session.py meta-set <id> --key "last_gm_message" --value "<full narration>"
   ```
 
 - **Use session metadata** to store world-level information:
   ```
-  python ./scripts/session.py meta-set <id> --key "world_detail" --value "The kingdom is at war"
-  python ./scripts/session.py meta-set <id> --key "house_rule" --value "Crits deal max damage"
+  .venv/bin/python ./scripts/session.py meta-set <id> --key "world_detail" --value "The kingdom is at war"
+  .venv/bin/python ./scripts/session.py meta-set <id> --key "house_rule" --value "Crits deal max damage"
   ```
 
 ---
@@ -170,7 +179,7 @@ keep locations, characters, and conversations consistent across sessions.
 
 When the party enters a new area, create a region for it:
 ```
-python ./scripts/region.py create <session_id> --name "Ashar" --desc "Vila de pastores no vale"
+.venv/bin/python ./scripts/region.py create <session_id> --name "Ashar" --desc "Vila de pastores no vale"
 ```
 
 ### Introducing NPCs
@@ -178,12 +187,12 @@ python ./scripts/region.py create <session_id> --name "Ashar" --desc "Vila de pa
 When you introduce a named NPC, register them as a character with `--type npc`
 and link them to the current region:
 ```
-python ./scripts/character.py create --session <id> --name "Ancião" --type npc --region <region_id>
+.venv/bin/python ./scripts/character.py create --session <id> --name "Ancião" --type npc --region <region_id>
 ```
 
 To move an NPC to a different region later:
 ```
-python ./scripts/character.py update <id> --region <new_region_id>
+.venv/bin/python ./scripts/character.py update <id> --region <new_region_id>
 ```
 
 ### Tracking character movement
@@ -204,8 +213,8 @@ correct region.
 
 When narrating a significant conversation, record each line:
 ```
-python ./scripts/dialogue.py add <session_id> --npc <npc_id> --speaker pc --content "What happened here?"
-python ./scripts/dialogue.py add <session_id> --npc <npc_id> --speaker "Ancião" --content "The fire came at night."
+.venv/bin/python ./scripts/dialogue.py add <session_id> --npc <npc_id> --speaker pc --content "What happened here?"
+.venv/bin/python ./scripts/dialogue.py add <session_id> --npc <npc_id> --speaker "Ancião" --content "The fire came at night."
 ```
 
 Not every line needs recording -- focus on information the player may need
@@ -216,9 +225,9 @@ later: lore, directions, quest details, promises, warnings.
 When resuming a session, review the current region and its NPCs to maintain
 consistency:
 ```
-python ./scripts/region.py list <session_id>
-python ./scripts/region.py view <region_id>
-python ./scripts/dialogue.py list <session_id> --npc <npc_id> --last 10
+.venv/bin/python ./scripts/region.py list <session_id>
+.venv/bin/python ./scripts/region.py view <region_id>
+.venv/bin/python ./scripts/dialogue.py list <session_id> --npc <npc_id> --last 10
 ```
 
 This ensures you do not contradict established NPC personalities or forget
@@ -230,7 +239,7 @@ what was already said.
 
 1. **Roll initiative** for all participants:
    ```
-   python ./scripts/rolldice.py d20
+   .venv/bin/python ./scripts/rolldice.py d20
    ```
    Add the relevant modifier mentally based on the system.
 
@@ -242,12 +251,12 @@ what was already said.
    - Roll attacks, damage, saves, or skill checks as needed
    - Apply results to character attributes:
      ```
-     python ./scripts/character.py set-attr <id> --category combat --key hit_points --value <new_value>
+     .venv/bin/python ./scripts/character.py set-attr <id> --category combat --key hit_points --value <new_value>
      ```
 
 4. **Log combat events:**
    ```
-   python ./scripts/journal.py add <session_id> --type combat --content "Aldric hit the goblin for 8 damage"
+   .venv/bin/python ./scripts/journal.py add <session_id> --type combat --content "Aldric hit the goblin for 8 damage"
    ```
 
 5. **End combat** when all enemies are defeated, the party flees, or a
@@ -261,8 +270,8 @@ what was already said.
   rules (death saves, instant death, unconsciousness, etc.).
 - If the character dies:
   ```
-  python ./scripts/character.py update <id> --status dead
-  python ./scripts/journal.py add <session_id> --type event --content "<name> has fallen"
+  .venv/bin/python ./scripts/character.py update <id> --status dead
+  .venv/bin/python ./scripts/journal.py add <session_id> --type event --content "<name> has fallen"
   ```
 - Offer the player a chance to create a new character. Follow the same creation
   flow from section 1 (steps 5-9).
