@@ -63,7 +63,13 @@ def cmd_add(db, args):
         (session_id, npc, speaker, content),
     )
     db.commit()
-    print(f"DIALOGUE_ADDED: {cur.lastrowid}")
+    sql_id = cur.lastrowid
+    try:
+        from _vectordb import index_dialogue
+        index_dialogue(session_id, sql_id, npc, speaker, content)
+    except Exception:
+        pass
+    print(f"DIALOGUE_ADDED: {sql_id}")
 
 
 def cmd_list(db, args):

@@ -1,4 +1,5 @@
 data/*.db
+data/chroma/
 __pycache__/
 .venv/
 .pytest_cache/
