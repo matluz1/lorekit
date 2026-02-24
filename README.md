@@ -1,7 +1,7 @@
 # LoreKit
 
 Tabletop RPG toolkit for AI agents. Tracks sessions, characters, dice rolls,
-journal entries, regions, dialogues, and semantic recall. The agent reads
+timeline events, regions, journal notes, and semantic recall. The agent reads
 `GAMEMASTER_GUIDE.md` and runs the adventure as a gamemaster.
 
 ## Requirements

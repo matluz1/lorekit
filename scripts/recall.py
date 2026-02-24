@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""recall.py -- Semantic search across journal entries and dialogues."""
+"""recall.py -- Semantic search across timeline entries and journal notes."""
 
 import os
 import sys
@@ -12,7 +12,7 @@ def usage():
     print("Usage: python scripts/recall.py <action> [args]")
     print()
     print("Actions:")
-    print('  search <session_id> --query "<text>" [--source journal|dialogues] [--n <N>]')
+    print('  search <session_id> --query "<text>" [--source timeline|journal] [--n <N>]')
     print("  reindex <session_id>")
     sys.exit(1)
 
@@ -96,7 +96,7 @@ def cmd_reindex(args):
         error("session_id required")
     session_id = args[0]
 
-    from _vectordb import is_available, get_chroma_client, index_journal, index_dialogue
+    from _vectordb import is_available, get_chroma_client, index_journal, index_timeline
 
     if not is_available():
         error("chromadb is not installed")
@@ -105,7 +105,7 @@ def cmd_reindex(args):
 
     # Clear existing vectors for this session
     client = get_chroma_client()
-    for col_name in ("journal", "dialogues"):
+    for col_name in ("timeline", "journal"):
         try:
             col = client.get_collection(col_name)
             existing = col.get(where={"session_id": str(session_id)})
@@ -113,6 +113,19 @@ def cmd_reindex(args):
                 col.delete(ids=existing["ids"])
         except Exception:
             pass
+
+    # Reindex timeline entries
+    timeline_count = 0
+    cur = db.execute(
+        "SELECT id, entry_type, speaker, npc_id, content, created_at FROM timeline WHERE session_id = ?",
+        (session_id,),
+    )
+    for row in cur.fetchall():
+        sql_id, entry_type, speaker, npc_id, content, created_at = row
+        index_timeline(session_id, sql_id, entry_type, content,
+                       speaker=speaker if speaker else None,
+                       npc_id=npc_id, created_at=created_at)
+        timeline_count += 1
 
     # Reindex journal entries
     journal_count = 0
@@ -125,18 +138,7 @@ def cmd_reindex(args):
         index_journal(session_id, sql_id, entry_type, content, created_at)
         journal_count += 1
 
-    # Reindex dialogues
-    dialogue_count = 0
-    cur = db.execute(
-        "SELECT id, npc_id, speaker, content, created_at FROM dialogues WHERE session_id = ?",
-        (session_id,),
-    )
-    for row in cur.fetchall():
-        sql_id, npc_id, speaker, content, created_at = row
-        index_dialogue(session_id, sql_id, npc_id, speaker, content, created_at)
-        dialogue_count += 1
-
-    print(f"REINDEX_COMPLETE: {journal_count} journal entries, {dialogue_count} dialogues")
+    print(f"REINDEX_COMPLETE: {timeline_count} timeline entries, {journal_count} journal entries")
 
 
 if __name__ == "__main__":

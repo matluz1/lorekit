@@ -77,11 +77,12 @@ CREATE TABLE IF NOT EXISTS journal (
     created_at  TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
 );
 
-CREATE TABLE IF NOT EXISTS dialogues (
+CREATE TABLE IF NOT EXISTS timeline (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
     session_id  INTEGER NOT NULL REFERENCES sessions(id),
-    npc_id      INTEGER NOT NULL REFERENCES characters(id),
-    speaker     TEXT    NOT NULL,
+    entry_type  TEXT    NOT NULL,
+    speaker     TEXT    NOT NULL DEFAULT '',
+    npc_id      INTEGER REFERENCES characters(id),
     content     TEXT    NOT NULL,
     created_at  TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
 );

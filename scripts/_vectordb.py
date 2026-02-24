@@ -47,20 +47,23 @@ def index_journal(session_id, sql_id, entry_type, content, created_at=None):
     )
 
 
-def index_dialogue(session_id, sql_id, npc_id, speaker, content, created_at=None):
-    """Upsert a dialogue line into the dialogues collection."""
+def index_timeline(session_id, sql_id, entry_type, content, speaker=None, npc_id=None, created_at=None):
+    """Upsert a timeline entry into the timeline collection."""
     client = get_chroma_client()
-    collection = client.get_or_create_collection("dialogues")
+    collection = client.get_or_create_collection("timeline")
     metadata = {
         "session_id": str(session_id),
-        "npc_id": str(npc_id),
-        "speaker": speaker,
+        "entry_type": entry_type,
         "sql_id": int(sql_id),
     }
+    if speaker:
+        metadata["speaker"] = speaker
+    if npc_id is not None:
+        metadata["npc_id"] = str(npc_id)
     if created_at:
         metadata["created_at"] = created_at
     collection.upsert(
-        ids=[f"dialogue_{sql_id}"],
+        ids=[f"timeline_{sql_id}"],
         documents=[content],
         metadatas=[metadata],
     )
@@ -77,7 +80,7 @@ def search(query, session_id, collection_name=None, n_results=5):
     if collection_name:
         collections.append(collection_name)
     else:
-        collections = ["journal", "dialogues"]
+        collections = ["timeline", "journal"]
 
     for name in collections:
         try:

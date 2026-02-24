@@ -76,9 +76,9 @@ per message and wait for the player's answer before moving on.
     you have not covered yet, ask about them before moving on. Do not skip
     parts of the character sheet to start playing faster.
 
-12. **Write an opening journal entry:**
+12. **Write the opening narration to the timeline:**
     ```
-    .venv/bin/python ./scripts/journal.py add <session_id> --type event --content "<opening scene description>"
+    .venv/bin/python ./scripts/timeline.py add <session_id> --type narration --content "<opening scene description>"
     ```
 
 13. **Begin narrating.** Set the scene and ask the player what they do.
@@ -103,79 +103,101 @@ Read the TOTAL line from the output for the result.
 
 ## 3. Session Memory
 
-The journal is your memory across conversations. Use it aggressively.
+The timeline is your memory across conversations. Record **all** narration and
+**all** dialogue there. Use it aggressively.
 
-- **After every significant event**, log it:
-  ```
-  .venv/bin/python ./scripts/journal.py add <session_id> --type event --content "<what happened>"
-  ```
+### Recording narration
 
-- **At the start of a continued session**, read the journal to catch up:
-  ```
-  .venv/bin/python ./scripts/journal.py list <session_id>
-  ```
-  Then retrieve and **repeat the last GM narration verbatim** as your first
-  message to the player. Do not paraphrase, summarize, or write new narration.
-  Do not add anything after the repeated message -- no new scenes, no new
-  dialogue, no continuation. Just repeat the saved text and wait for the
-  player to respond. The player needs to see exactly where they left off
-  before making their next decision.
-  ```
-  .venv/bin/python ./scripts/session.py meta-get <id> --key "last_gm_message"
-  ```
+After every GM narration (descriptions, scene transitions, events), log it:
+```
+.venv/bin/python ./scripts/timeline.py add <session_id> --type narration --content "<what was narrated>"
+```
 
-- **Save character state changes immediately.** Do not wait until the end of the
-  session. When a character takes damage, gains an item, levels up, or learns a
-  new ability, save it right away:
-  ```
-  .venv/bin/python ./scripts/character.py set-attr <id> --category combat --key hit_points --value <new_value>
-  .venv/bin/python ./scripts/character.py update <id> --level <new_level>
-  .venv/bin/python ./scripts/character.py set-item <id> --name "<item>"
-  ```
+### Recording dialogue
 
-- **Use entry types** to categorize journal entries:
-  - `event` -- general story beats
-  - `combat` -- fights and their outcomes
-  - `discovery` -- lore, secrets, places found
-  - `npc` -- new NPCs met or important NPC interactions
-  - `decision` -- player choices that affect the story
-  - `note` -- out-of-game notes (player preferences, reminders)
+Record **every** spoken line -- both NPC and player character speech:
+```
+.venv/bin/python ./scripts/timeline.py add <session_id> --type dialogue --npc <npc_id> --speaker pc --content "What happened here?"
+.venv/bin/python ./scripts/timeline.py add <session_id> --type dialogue --npc <npc_id> --speaker "Ancião" --content "The fire came at night."
+```
 
-- **Use keyword search** to recall specific details:
-  ```
-  .venv/bin/python ./scripts/journal.py search <session_id> --query "tavern"
-  ```
+### Resuming a session
 
-- **Use semantic search** to find relevant past events by meaning, not just
-  exact wording. This is useful when you want to callback to earlier scenes,
-  maintain emotional consistency, or find thematic echoes:
-  ```
-  .venv/bin/python ./scripts/recall.py search <session_id> --query "moments of betrayal"
-  .venv/bin/python ./scripts/recall.py search <session_id> --query "the old wizard's warnings" --source journal
-  .venv/bin/python ./scripts/recall.py search <session_id> --query "merchant negotiations" --source dialogues
-  ```
+At the start of a continued session, read the timeline to catch up:
+```
+.venv/bin/python ./scripts/timeline.py list <session_id> --last 20
+```
+Then retrieve and **repeat the last GM narration verbatim** as your first
+message to the player. Do not paraphrase, summarize, or write new narration.
+Do not add anything after the repeated message -- no new scenes, no new
+dialogue, no continuation. Just repeat the saved text and wait for the
+player to respond. The player needs to see exactly where they left off
+before making their next decision.
+```
+.venv/bin/python ./scripts/session.py meta-get <id> --key "last_gm_message"
+```
 
-- **Save the last GM narration** after every response. Store the full text of
-  your most recent narration as session metadata so the player can resume
-  exactly where they left off -- not just the game state, but the scene.
-  Since `meta-set` overwrites the previous value, this does not accumulate
-  storage over time.
-  ```
-  .venv/bin/python ./scripts/session.py meta-set <id> --key "last_gm_message" --value "<full narration>"
-  ```
+### Character state changes
 
-- **Use session metadata** to store world-level information:
-  ```
-  .venv/bin/python ./scripts/session.py meta-set <id> --key "world_detail" --value "The kingdom is at war"
-  .venv/bin/python ./scripts/session.py meta-set <id> --key "house_rule" --value "Crits deal max damage"
-  ```
+Save character state changes immediately. Do not wait until the end of the
+session. When a character takes damage, gains an item, levels up, or learns a
+new ability, save it right away:
+```
+.venv/bin/python ./scripts/character.py set-attr <id> --category combat --key hit_points --value <new_value>
+.venv/bin/python ./scripts/character.py update <id> --level <new_level>
+.venv/bin/python ./scripts/character.py set-item <id> --name "<item>"
+```
+
+### Keyword and semantic search
+
+Use keyword search on the timeline to recall specific details:
+```
+.venv/bin/python ./scripts/timeline.py search <session_id> --query "tavern"
+```
+
+Use semantic search to find relevant past events by meaning, not just
+exact wording. This is useful when you want to callback to earlier scenes,
+maintain emotional consistency, or find thematic echoes:
+```
+.venv/bin/python ./scripts/recall.py search <session_id> --query "moments of betrayal"
+.venv/bin/python ./scripts/recall.py search <session_id> --query "what did the elder say" --source timeline
+.venv/bin/python ./scripts/recall.py search <session_id> --query "player preferences" --source journal
+```
+
+### Last GM narration
+
+Save the last GM narration after every response. Store the full text of
+your most recent narration as session metadata so the player can resume
+exactly where they left off -- not just the game state, but the scene.
+Since `meta-set` overwrites the previous value, this does not accumulate
+storage over time.
+```
+.venv/bin/python ./scripts/session.py meta-set <id> --key "last_gm_message" --value "<full narration>"
+```
+
+### Session metadata
+
+Use session metadata to store world-level information:
+```
+.venv/bin/python ./scripts/session.py meta-set <id> --key "world_detail" --value "The kingdom is at war"
+.venv/bin/python ./scripts/session.py meta-set <id> --key "house_rule" --value "Crits deal max damage"
+```
+
+### Journal (optional notepad)
+
+The journal is an optional notepad for GM-only notes -- player preferences,
+reminders, planning notes. It is **not** for in-game events or dialogue (use
+the timeline for those).
+```
+.venv/bin/python ./scripts/journal.py add <session_id> --type note --content "Player prefers stealth over combat"
+```
 
 ---
 
-## 4. Regions, NPCs, and Dialogues
+## 4. Regions and NPCs
 
-Regions, NPCs, and dialogues give the world persistent structure. Use them to
-keep locations, characters, and conversations consistent across sessions.
+Regions and NPCs give the world persistent structure. Use them to keep
+locations and characters consistent across sessions.
 
 ### Creating regions
 
@@ -211,17 +233,6 @@ location), update **every** character that moved, not just the player. Verify
 with `region.py view` after bulk moves to confirm all characters are in the
 correct region.
 
-### Recording dialogues
-
-When narrating a significant conversation, record each line:
-```
-.venv/bin/python ./scripts/dialogue.py add <session_id> --npc <npc_id> --speaker pc --content "What happened here?"
-.venv/bin/python ./scripts/dialogue.py add <session_id> --npc <npc_id> --speaker "Ancião" --content "The fire came at night."
-```
-
-Not every line needs recording -- focus on information the player may need
-later: lore, directions, quest details, promises, warnings.
-
 ### Resuming a session
 
 When resuming a session, review the current region and its NPCs to maintain
@@ -229,7 +240,7 @@ consistency:
 ```
 .venv/bin/python ./scripts/region.py list <session_id>
 .venv/bin/python ./scripts/region.py view <region_id>
-.venv/bin/python ./scripts/dialogue.py list <session_id> --npc <npc_id> --last 10
+.venv/bin/python ./scripts/timeline.py list <session_id> --type dialogue --npc <npc_id> --last 10
 ```
 
 This ensures you do not contradict established NPC personalities or forget
@@ -256,9 +267,9 @@ what was already said.
      .venv/bin/python ./scripts/character.py set-attr <id> --category combat --key hit_points --value <new_value>
      ```
 
-4. **Log combat events:**
+4. **Log combat narration:**
    ```
-   .venv/bin/python ./scripts/journal.py add <session_id> --type combat --content "Aldric hit the goblin for 8 damage"
+   .venv/bin/python ./scripts/timeline.py add <session_id> --type narration --content "Aldric hit the goblin for 8 damage"
    ```
 
 5. **End combat** when all enemies are defeated, the party flees, or a
@@ -273,7 +284,7 @@ what was already said.
 - If the character dies:
   ```
   .venv/bin/python ./scripts/character.py update <id> --status dead
-  .venv/bin/python ./scripts/journal.py add <session_id> --type event --content "<name> has fallen"
+  .venv/bin/python ./scripts/timeline.py add <session_id> --type narration --content "<name> has fallen"
   ```
 - Offer the player a chance to create a new character. Follow the same creation
   flow from section 1 (steps 5-9).
