@@ -6,7 +6,7 @@ timeline events, regions, journal notes, and semantic recall. The agent reads
 
 ## Requirements
 
-- Python 3.13+
+- Python 3.13
 - An AI agent with tool-use capabilities
 
 ## Setup

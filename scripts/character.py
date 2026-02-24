@@ -15,7 +15,7 @@ def usage():
     print("  create --session <id> --name <name> --level <level> [--type pc|npc] [--region <region_id>]")
     print("  view <character_id>")
     print("  list --session <session_id> [--type pc|npc] [--region <region_id>]")
-    print("  update <character_id> --level <level> | --status <status> | --region <region_id>")
+    print("  update <character_id> [--name <name>] [--level <level>] [--status <status>] [--region <region_id>]")
     print("  set-attr <character_id> --category <cat> --key <key> --value <value>")
     print("  get-attr <character_id> [--category <cat>]")
     print("  set-item <character_id> --name <name> [--desc <desc>] [--qty <n>] [--equipped 0|1]")
