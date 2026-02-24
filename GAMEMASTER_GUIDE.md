@@ -116,8 +116,10 @@ The journal is your memory across conversations. Use it aggressively.
   ```
   Then retrieve and **repeat the last GM narration verbatim** as your first
   message to the player. Do not paraphrase, summarize, or write new narration.
-  The player needs to see exactly where they left off before making their next
-  decision.
+  Do not add anything after the repeated message -- no new scenes, no new
+  dialogue, no continuation. Just repeat the saved text and wait for the
+  player to respond. The player needs to see exactly where they left off
+  before making their next decision.
   ```
   .venv/bin/python ./scripts/session.py meta-get <id> --key "last_gm_message"
   ```
