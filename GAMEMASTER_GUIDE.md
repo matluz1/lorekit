@@ -52,7 +52,7 @@ per message and wait for the player's answer before moving on.
    ```
    .venv/bin/python ./scripts/character.py create --session <id> --name "<name>" --level <level>
    ```
-   Player characters default to `--type pc`. Do not set `--type` for the player.
+   Player characters default to `--type pc`, so you can omit it.
 
 9. **Guide attribute generation** using the system's method. For example, for a
    d20 fantasy system, roll 4d6kh3 six times:
