@@ -31,7 +31,7 @@ def test_creates_all_nine_tables(db_path):
     conn = sqlite3.connect(db_path)
     tables = [row[0] for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name").fetchall()]
     conn.close()
-    expected = ["character_abilities", "character_attributes", "character_inventory", "characters", "dialogues", "journal", "regions", "session_meta", "sessions"]
+    expected = ["character_abilities", "character_attributes", "character_inventory", "characters", "journal", "regions", "session_meta", "sessions", "timeline"]
     for t in expected:
         assert t in tables, f"table {t} missing"
 

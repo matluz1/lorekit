@@ -395,54 +395,67 @@ REGION_UPDATED: 1
 
 ---
 
-## dialogue.py
+## timeline.py
 
-Record and query dialogues between the player and NPCs.
+Unified timeline of narration and dialogue. Records everything that happens
+in the game world in chronological order.
 
 ```
-.venv/bin/python ./scripts/dialogue.py <action> [args]
+.venv/bin/python ./scripts/timeline.py <action> [args]
 ```
 
 ### add
 
 ```
-.venv/bin/python ./scripts/dialogue.py add 1 --npc 2 --speaker pc --content "Olá, ancião"
-.venv/bin/python ./scripts/dialogue.py add 1 --npc 2 --speaker "Ancião" --content "Bem-vindo, viajante"
+.venv/bin/python ./scripts/timeline.py add 1 --type narration --content "The forest grew dark as the party advanced."
+.venv/bin/python ./scripts/timeline.py add 1 --type dialogue --npc 2 --speaker pc --content "What happened here?"
+.venv/bin/python ./scripts/timeline.py add 1 --type dialogue --npc 2 --speaker "Ancião" --content "The fire came at night."
 ```
 
-`<session_id>`, `--npc`, `--speaker`, and `--content` are required. `--speaker`
-should be `pc` when the player character speaks, or the NPC's name when the NPC
-speaks. Output:
+Entry types: `narration`, `dialogue`.
+
+- `narration` requires only `--content`.
+- `dialogue` requires `--npc`, `--speaker`, and `--content`. `--speaker` should
+  be `pc` when the player character speaks, or the NPC's name when the NPC
+  speaks.
+
+Output:
 ```
-DIALOGUE_ADDED: 1
+TIMELINE_ADDED: 1
 ```
 
 ### list
 
 ```
-.venv/bin/python ./scripts/dialogue.py list 1 --npc 2
-.venv/bin/python ./scripts/dialogue.py list 1 --npc 2 --last 5
+.venv/bin/python ./scripts/timeline.py list 1                              # all entries
+.venv/bin/python ./scripts/timeline.py list 1 --type narration              # only narration
+.venv/bin/python ./scripts/timeline.py list 1 --type dialogue               # only dialogue
+.venv/bin/python ./scripts/timeline.py list 1 --npc 2                       # dialogue with a specific NPC
+.venv/bin/python ./scripts/timeline.py list 1 --last 10                     # last 10 entries
+.venv/bin/python ./scripts/timeline.py list 1 --type dialogue --npc 2 --last 5  # last 5 lines with NPC
 ```
 
-`--npc` is required. `--last <N>` limits to the most recent N lines. Output:
-table with columns `id, npc, speaker, content, created_at`. Ordered oldest
-first.
+Output: table with columns `id, entry_type, speaker, npc_id, content, created_at`.
+Ordered oldest first.
 
 ### search
 
 ```
-.venv/bin/python ./scripts/dialogue.py search 1 --query "viajante"
+.venv/bin/python ./scripts/timeline.py search 1 --query "dragon"
 ```
 
-Searches all dialogue content in the session (case-insensitive). Output: table
-with columns `id, npc, speaker, content, created_at`. Ordered oldest first.
+Searches timeline content for the given text (case-insensitive).
+
+Output: table with columns `id, entry_type, speaker, npc_id, content, created_at`.
+Ordered oldest first.
 
 ---
 
 ## journal.py
 
-Append-only adventure log. Use this to record everything important that happens
-during a session.
+Optional notepad for GM notes. Use this for out-of-game annotations,
+player preferences, and reminders -- not for in-game events (use `timeline.py`
+for those).
 
 ```
 .venv/bin/python ./scripts/journal.py <action> [args]
@@ -451,12 +464,8 @@ during a session.
 ### add
 
 ```
-.venv/bin/python ./scripts/journal.py add 1 --type event --content "The party entered the cave"
-.venv/bin/python ./scripts/journal.py add 1 --type combat --content "Ambushed by 3 goblins"
-.venv/bin/python ./scripts/journal.py add 1 --type discovery --content "Found a hidden passage"
-.venv/bin/python ./scripts/journal.py add 1 --type npc --content "Met a merchant named Dara"
-.venv/bin/python ./scripts/journal.py add 1 --type decision --content "The party chose to spare the bandit"
 .venv/bin/python ./scripts/journal.py add 1 --type note --content "Player prefers non-combat solutions"
+.venv/bin/python ./scripts/journal.py add 1 --type note --content "Remember to introduce the merchant next session"
 ```
 
 Entry types: `event`, `combat`, `discovery`, `npc`, `decision`, `note`.
@@ -470,9 +479,8 @@ JOURNAL_ADDED: 1
 
 ```
 .venv/bin/python ./scripts/journal.py list 1                  # all entries (newest first)
-.venv/bin/python ./scripts/journal.py list 1 --type combat     # only combat entries
+.venv/bin/python ./scripts/journal.py list 1 --type note       # only notes
 .venv/bin/python ./scripts/journal.py list 1 --last 5          # last 5 entries
-.venv/bin/python ./scripts/journal.py list 1 --type event --last 3  # last 3 events
 ```
 
 Output: table with columns `id, entry_type, content, created_at`.
@@ -481,7 +489,7 @@ Ordered newest first.
 ### search
 
 ```
-.venv/bin/python ./scripts/journal.py search 1 --query "dragon"
+.venv/bin/python ./scripts/journal.py search 1 --query "player prefers"
 ```
 
 Searches journal content for the given text (case-insensitive).
@@ -493,7 +501,7 @@ Ordered oldest first.
 
 ## recall.py
 
-Semantic search across journal entries and dialogues. Finds relevant content
+Semantic search across timeline entries and journal notes. Finds relevant content
 by meaning, not just exact keywords. Requires `chromadb` to be installed.
 
 ```
@@ -504,12 +512,12 @@ by meaning, not just exact keywords. Requires `chromadb` to be installed.
 
 ```
 .venv/bin/python ./scripts/recall.py search 1 --query "the betrayal at the temple"
-.venv/bin/python ./scripts/recall.py search 1 --query "moments of loss" --source journal
-.venv/bin/python ./scripts/recall.py search 1 --query "suspicious merchant" --source dialogues
+.venv/bin/python ./scripts/recall.py search 1 --query "what did the elder say" --source timeline
+.venv/bin/python ./scripts/recall.py search 1 --query "player preferences" --source journal
 .venv/bin/python ./scripts/recall.py search 1 --query "dark rituals" --n 10
 ```
 
-`<session_id>` and `--query` are required. `--source journal|dialogues` limits
+`<session_id>` and `--query` are required. `--source timeline|journal` limits
 the search to one collection (default: both). `--n <N>` controls the number of
 results (default: 5).
 
@@ -527,5 +535,5 @@ after importing data or if the vector DB gets out of sync.
 
 Output:
 ```
-REINDEX_COMPLETE: 12 journal entries, 8 dialogues
+REINDEX_COMPLETE: 5 timeline entries, 2 journal entries
 ```
