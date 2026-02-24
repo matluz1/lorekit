@@ -70,7 +70,7 @@ def index_timeline(session_id, sql_id, entry_type, content, speaker=None, npc_id
 
 
 def search(query, session_id, collection_name=None, n_results=5):
-    """Semantic search across journal and/or dialogues.
+    """Semantic search across timeline and/or journal.
 
     Returns a list of dicts with keys: source, id, content, distance, metadata.
     """
