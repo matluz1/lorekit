@@ -169,7 +169,7 @@ Manage characters and their attributes, inventory, and abilities.
 
 ```
 .venv/bin/python ./scripts/character.py create --session 1 --name "Aldric" --level 3
-.venv/bin/python ./scripts/character.py create --session 1 --name "Ancião" --type npc --region 1
+.venv/bin/python ./scripts/character.py create --session 1 --name "Elder" --type npc --region 1
 ```
 
 `--session` and `--name` are required. `--level` defaults to 1. `--type`
@@ -344,7 +344,7 @@ Manage regions (locations, areas) within a session.
 ### create
 
 ```
-.venv/bin/python ./scripts/region.py create 1 --name "Ashar" --desc "Vila de pastores no vale"
+.venv/bin/python ./scripts/region.py create 1 --name "Ashar" --desc "A shepherds' village in the valley"
 ```
 
 `<session_id>` and `--name` are required. `--desc` defaults to empty. Output:
@@ -373,19 +373,19 @@ Output:
 ID: 1
 SESSION: 1
 NAME: Ashar
-DESCRIPTION: Vila de pastores no vale
+DESCRIPTION: A shepherds' village in the valley
 CREATED: 2026-02-21T16:00:00Z
 
 --- NPCs IN THIS REGION ---
 id  name    level  status
 --  ------  -----  ------
-2   Ancião  1      alive
+2   Elder   1      alive
 ```
 
 ### update
 
 ```
-.venv/bin/python ./scripts/region.py update 1 --name "Ashar (ruínas)" --desc "A vila foi destruída"
+.venv/bin/python ./scripts/region.py update 1 --name "Ashar (ruins)" --desc "The village was destroyed"
 ```
 
 Accepts `--name` and/or `--desc`. Output:
@@ -409,7 +409,7 @@ in the game world in chronological order.
 ```
 .venv/bin/python ./scripts/timeline.py add 1 --type narration --content "The forest grew dark as the party advanced."
 .venv/bin/python ./scripts/timeline.py add 1 --type dialogue --npc 2 --speaker pc --content "What happened here?"
-.venv/bin/python ./scripts/timeline.py add 1 --type dialogue --npc 2 --speaker "Ancião" --content "The fire came at night."
+.venv/bin/python ./scripts/timeline.py add 1 --type dialogue --npc 2 --speaker "Elder" --content "The fire came at night."
 ```
 
 Entry types: `narration`, `dialogue`.

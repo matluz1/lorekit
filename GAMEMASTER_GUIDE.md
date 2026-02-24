@@ -118,7 +118,7 @@ After every GM narration (descriptions, scene transitions, events), log it:
 Record **every** spoken line -- both NPC and player character speech:
 ```
 .venv/bin/python ./scripts/timeline.py add <session_id> --type dialogue --npc <npc_id> --speaker pc --content "What happened here?"
-.venv/bin/python ./scripts/timeline.py add <session_id> --type dialogue --npc <npc_id> --speaker "Ancião" --content "The fire came at night."
+.venv/bin/python ./scripts/timeline.py add <session_id> --type dialogue --npc <npc_id> --speaker "Elder" --content "The fire came at night."
 ```
 
 ### Resuming a session
@@ -203,7 +203,7 @@ locations and characters consistent across sessions.
 
 When the party enters a new area, create a region for it:
 ```
-.venv/bin/python ./scripts/region.py create <session_id> --name "Ashar" --desc "Vila de pastores no vale"
+.venv/bin/python ./scripts/region.py create <session_id> --name "Ashar" --desc "A shepherds' village in the valley"
 ```
 
 ### Introducing NPCs
@@ -211,7 +211,7 @@ When the party enters a new area, create a region for it:
 When you introduce a named NPC, register them as a character with `--type npc`
 and link them to the current region:
 ```
-.venv/bin/python ./scripts/character.py create --session <id> --name "Ancião" --type npc --region <region_id>
+.venv/bin/python ./scripts/character.py create --session <id> --name "Elder" --type npc --region <region_id>
 ```
 
 To move an NPC to a different region later:
