@@ -636,6 +636,45 @@ Ordered oldest first.
 
 ---
 
+## export.py
+
+Export session data for narrative rewriting. Consolidates all session data into
+a single structured text dump optimised for LLM consumption.
+
+```
+.venv/bin/python ./scripts/export.py <action> [args]
+```
+
+### dump
+
+```
+.venv/bin/python ./scripts/export.py dump 1
+```
+
+Exports all session data to `.export/session_<id>.txt`. The `.export/`
+directory is created automatically and is gitignored.
+
+Outputs all data in order: session info, story/acts, characters (with
+attributes, inventory, abilities), regions, timeline, and journal.
+
+```
+EXPORTED: .export/session_1.txt
+```
+
+### clean
+
+```
+.venv/bin/python ./scripts/export.py clean
+```
+
+Removes the `.export/` directory and all files inside it.
+
+```
+CLEANED: .export
+```
+
+---
+
 ## recall.py
 
 Semantic search across timeline entries and journal notes. Finds relevant content

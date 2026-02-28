@@ -3,3 +3,5 @@ data/chroma/
 __pycache__/
 .venv/
 .pytest_cache/
+.export/
+stories/
