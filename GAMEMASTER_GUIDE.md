@@ -57,45 +57,64 @@ per message and wait for the player's answer before moving on.
    .venv/bin/python ./scripts/session.py meta-set <id> --key "language" --value "<language>"
    ```
 
-5. **Ask the player for a character name.**
+5. **Ask the player to choose an adventure size.** This determines the story's
+   scope and how many acts to plan:
+   - **Oneshot**: A self-contained adventure for a single session. Plan 1 act
+     with a single goal and climax.
+   - **Short adventure**: A 2-4 session arc. Plan 2-3 acts with turning points
+     between them.
+   - **Campaign**: An open-ended series. Plan only the first 2-3 acts now; add
+     more later as the story evolves.
 
-6. **Ask the player for a starting level** (suggest a sensible default for the
+6. **Plan the story in acts.** Based on the adventure size, create a story plan
+   with a premise and structured acts. Each act has a goal (what the PCs
+   pursue) and an event (the turning point that ends the act). Save the plan
+   and mark the first act as active:
+   ```
+   .venv/bin/python ./scripts/story.py set <id> --size "<size>" --premise "<one-line premise>"
+   .venv/bin/python ./scripts/story.py add-act <id> --title "<act title>" --goal "<what PCs pursue>" --event "<turning point>"
+   .venv/bin/python ./scripts/story.py update-act <first_act_id> --status active
+   ```
+
+7. **Ask the player for a character name.**
+
+8. **Ask the player for a starting level** (suggest a sensible default for the
    chosen system).
 
-7. **Create the player character:**
+9. **Create the player character:**
    ```
    .venv/bin/python ./scripts/character.py create --session <id> --name "<name>" --level <level>
    ```
    Player characters default to `--type pc`, so you can omit it.
 
-8. **Guide attribute generation** using the system's method. For example, for a
-   d20 fantasy system, roll 4d6kh3 six times:
-   ```
-   .venv/bin/python ./scripts/rolldice.py 4d6kh3
-   ```
-   Save each result:
-   ```
-   .venv/bin/python ./scripts/character.py set-attr <id> --category stat --key strength --value <value>
-   ```
+10. **Guide attribute generation** using the system's method. For example, for a
+    d20 fantasy system, roll 4d6kh3 six times:
+    ```
+    .venv/bin/python ./scripts/rolldice.py 4d6kh3
+    ```
+    Save each result:
+    ```
+    .venv/bin/python ./scripts/character.py set-attr <id> --category stat --key strength --value <value>
+    ```
 
-9. **Guide starting equipment and abilities.** Generate items and abilities
-   appropriate to the setting and system. Save them:
-   ```
-   .venv/bin/python ./scripts/character.py set-item <id> --name "<item>" --desc "<description>"
-   .venv/bin/python ./scripts/character.py set-ability <id> --name "<ability>" --desc "<what it does>" --category <type> --uses "<frequency>"
-   ```
+11. **Guide starting equipment and abilities.** Generate items and abilities
+    appropriate to the setting and system. Save them:
+    ```
+    .venv/bin/python ./scripts/character.py set-item <id> --name "<item>" --desc "<description>"
+    .venv/bin/python ./scripts/character.py set-ability <id> --name "<ability>" --desc "<what it does>" --category <type> --uses "<frequency>"
+    ```
 
-10. **Do not rush character creation.** Follow every step the chosen system
+12. **Do not rush character creation.** Follow every step the chosen system
     requires for building a character. If the system has phases or categories
     you have not covered yet, ask about them before moving on. Do not skip
     parts of the character sheet to start playing faster.
 
-11. **Write the opening narration to the timeline:**
+13. **Write the opening narration to the timeline:**
     ```
     .venv/bin/python ./scripts/timeline.py add <session_id> --type narration --content "<opening scene description>"
     ```
 
-12. **Begin narrating.** Set the scene and ask the player what they do.
+14. **Begin narrating.** Set the scene and ask the player what they do.
 
 ---
 
@@ -152,6 +171,29 @@ player to respond. The player needs to see exactly where they left off
 before making their next decision.
 ```
 .venv/bin/python ./scripts/session.py meta-get <id> --key "last_gm_message"
+```
+
+### Reviewing the story plan
+
+On resume, check the story plan to see the active act's goal and event. This
+keeps the narrative on track across conversations:
+```
+.venv/bin/python ./scripts/story.py view <session_id>
+```
+
+### Advancing acts
+
+When a turning-point event occurs during play -- the event described in the
+active act -- advance the story:
+```
+.venv/bin/python ./scripts/story.py advance <session_id>
+```
+
+If the story evolves beyond the original plan, add new acts or update existing
+ones mid-game:
+```
+.venv/bin/python ./scripts/story.py add-act <session_id> --title "<title>" --goal "<goal>" --event "<event>"
+.venv/bin/python ./scripts/story.py update-act <act_id> --goal "<revised goal>"
 ```
 
 ### Character state changes
