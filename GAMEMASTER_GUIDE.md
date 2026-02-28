@@ -196,6 +196,23 @@ ones mid-game:
 .venv/bin/python ./scripts/story.py update-act <act_id> --goal "<revised goal>"
 ```
 
+Sometimes a major event -- character death, a betrayal that flips the premise,
+fleeing the region entirely -- makes the remaining planned acts irrelevant. When
+this happens, do not force the story back on track. Instead, replan:
+
+1. Mark any acts that no longer apply as skipped:
+   ```
+   .venv/bin/python ./scripts/story.py update-act <act_id> --status skipped
+   ```
+2. Update the premise if the story's direction has fundamentally changed:
+   ```
+   .venv/bin/python ./scripts/story.py set <session_id> --size "<same size>" --premise "<new premise>"
+   ```
+3. Add new acts that follow from what actually happened:
+   ```
+   .venv/bin/python ./scripts/story.py add-act <session_id> --title "<title>" --goal "<goal>" --event "<event>"
+   ```
+
 ### Character state changes
 
 Save character state changes immediately. Do not wait until the end of the
@@ -402,6 +419,16 @@ choice, but the GM should pause and ask for confirmation before executing it.
 
 This is not about overriding player agency -- it is about making sure a dramatic
 or irreversible choice is intentional, not accidental.
+
+**Let bad choices have bad outcomes.**
+
+Do not default to positive outcomes. If a player makes a poor decision -- charges
+a superior enemy, trusts the wrong person, ignores clear danger -- let the
+consequences follow naturally, even if that means the character is hurt, captured,
+or killed. In tabletop RPGs, character death is normal. If every choice somehow
+works out, the world loses its stakes and the story loses its tension. Only soften
+consequences if the setting or the player has explicitly established a lighter
+tone.
 
 ---
 
