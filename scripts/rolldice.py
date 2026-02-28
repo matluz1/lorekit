@@ -8,25 +8,24 @@ import sys
 
 def usage():
     name = "rolldice.py"
-    print(f"Usage: {name} <expression>")
+    print(f"Usage: {name} <expression> [expression ...]")
     print()
     print("Examples:")
     print(f"  {name} d20        # Roll 1d20")
     print(f"  {name} 3d6        # Roll 3d6")
     print(f"  {name} 2d8+5      # Roll 2d8 and add 5")
     print(f"  {name} 4d6kh3     # Roll 4d6, keep highest 3")
+    print(f"  {name} d20 2d6+3  # Roll multiple expressions")
     sys.exit(1)
 
 
-def main():
-    if len(sys.argv) != 2:
-        usage()
-
-    expr = sys.argv[1].lower()
+def roll_expr(expr: str) -> dict:
+    """Parse and roll a single dice expression. Returns structured result."""
+    expr = expr.lower()
 
     m = re.fullmatch(r"([0-9]*)d([0-9]+)(kh([0-9]+))?([+-]([0-9]+))?", expr)
     if not m:
-        print(f"ERROR: Invalid dice expression: {sys.argv[1]}", file=sys.stderr)
+        print(f"ERROR: Invalid dice expression: {expr}", file=sys.stderr)
         print("Expected format: [N]d<sides>[kh<keep>][+/-<modifier>]", file=sys.stderr)
         sys.exit(1)
 
@@ -50,13 +49,11 @@ def main():
             sys.exit(1)
 
     rolls = [secrets.randbelow(sides) + 1 for _ in range(num)]
-    rolls_str = ",".join(str(r) for r in rolls)
 
     if keep is not None:
         kept = sorted(rolls, reverse=True)[:keep]
     else:
         kept = list(rolls)
-    kept_str = ",".join(str(k) for k in kept)
 
     total = sum(kept)
 
@@ -69,10 +66,41 @@ def main():
             modifier = f"+{mod_val}"
             total += mod_val
 
-    print(f"ROLLS: {rolls_str}")
-    print(f"KEPT: {kept_str}")
-    print(f"MODIFIER: {modifier}")
-    print(f"TOTAL: {total}")
+    return {
+        "rolls": ",".join(str(r) for r in rolls),
+        "kept": ",".join(str(k) for k in kept),
+        "modifier": modifier,
+        "total": total,
+    }
+
+
+def format_result(result: dict) -> str:
+    """Format a roll result as output lines."""
+    lines = [
+        f"ROLLS: {result['rolls']}",
+        f"KEPT: {result['kept']}",
+        f"MODIFIER: {result['modifier']}",
+        f"TOTAL: {result['total']}",
+    ]
+    return "\n".join(lines)
+
+
+def main():
+    if len(sys.argv) < 2:
+        usage()
+
+    expressions = sys.argv[1:]
+
+    if len(expressions) == 1:
+        result = roll_expr(expressions[0])
+        print(format_result(result))
+    else:
+        blocks = []
+        for expr in expressions:
+            result = roll_expr(expr)
+            block = f"--- {expr} ---\n{format_result(result)}"
+            blocks.append(block)
+        print("\n\n".join(blocks))
 
 
 if __name__ == "__main__":

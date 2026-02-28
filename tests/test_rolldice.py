@@ -52,6 +52,32 @@ def test_keep_highest(run):
             assert kept.count(",") == 2, "4d6kh3 should keep 3"
 
 
+# -- Multiple Expressions --
+
+def test_two_expressions_succeeds(run):
+    r = run("rolldice.py", "d20", "d6")
+    assert r.returncode == 0
+    assert "--- d20 ---" in r.stdout
+    assert "--- d6 ---" in r.stdout
+
+
+def test_multiple_expressions(run):
+    r = run("rolldice.py", "d20", "2d6+3", "4d6kh3")
+    assert r.returncode == 0
+    blocks = r.stdout.split("---")
+    # 3 expressions produce 3 headers: "--- d20 ---", "--- 2d6+3 ---", "--- 4d6kh3 ---"
+    headers = [b.strip() for b in blocks if b.strip() in ("d20", "2d6+3", "4d6kh3")]
+    assert len(headers) == 3
+    assert r.stdout.count("TOTAL:") == 3
+
+
+def test_single_expression_unchanged(run):
+    r = run("rolldice.py", "d20")
+    assert r.returncode == 0
+    assert "---" not in r.stdout
+    assert r.stdout.startswith("ROLLS:")
+
+
 # -- Error Cases --
 
 def test_no_args_fails(run):
@@ -77,11 +103,6 @@ def test_one_side_fails(run):
 
 def test_keep_more_than_rolled_fails(run):
     r = run("rolldice.py", "2d6kh5")
-    assert r.returncode == 1
-
-
-def test_two_args_fails(run):
-    r = run("rolldice.py", "d20", "d6")
     assert r.returncode == 1
 
 

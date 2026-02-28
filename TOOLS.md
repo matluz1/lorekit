@@ -28,10 +28,10 @@ Run this once before using any other script.
 
 ## rolldice.py
 
-Roll dice using standard tabletop notation.
+Roll dice using standard tabletop notation. Accepts one or more expressions.
 
 ```
-.venv/bin/python ./scripts/rolldice.py <expression>
+.venv/bin/python ./scripts/rolldice.py <expression> [expression ...]
 ```
 
 **Expression format:** `[N]d<sides>[kh<keep>][+/-<modifier>]`
@@ -51,14 +51,30 @@ Roll dice using standard tabletop notation.
 .venv/bin/python ./scripts/rolldice.py 2d8-2       # Roll 2d8 and subtract 2
 .venv/bin/python ./scripts/rolldice.py d100        # Percentile roll
 .venv/bin/python ./scripts/rolldice.py 4d6kh3      # Roll 4d6, keep highest 3
+.venv/bin/python ./scripts/rolldice.py d20 2d6+3 4d6kh3  # Multiple expressions
 ```
 
-**Output format:**
+**Output format (single expression):**
 ```
 ROLLS: 4,3,6,2
 KEPT: 6,4,3
 MODIFIER: +0
 TOTAL: 13
+```
+
+**Output format (multiple expressions):**
+```
+--- d20 ---
+ROLLS: 14
+KEPT: 14
+MODIFIER: +0
+TOTAL: 14
+
+--- 2d8+5 ---
+ROLLS: 3,7
+KEPT: 3,7
+MODIFIER: +5
+TOTAL: 15
 ```
 
 | Line | Meaning |
