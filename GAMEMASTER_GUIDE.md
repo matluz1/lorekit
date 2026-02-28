@@ -453,3 +453,55 @@ tone.
   Use the journal and session metadata to track established facts.
 - **Present consequences.** Player choices should matter and have visible effects
   on the world.
+
+---
+
+## 10. Ending a Session and Exporting the Story
+
+When the adventure reaches its conclusion -- the final act is completed, the
+story reaches a natural end, or the player decides to wrap up -- mark the
+session as finished:
+```
+.venv/bin/python ./scripts/session.py update <id> --status finished
+```
+
+### Exporting for narrative rewriting
+
+After a session ends, the player may want to turn the adventure into a
+readable story. Use the export tool to dump all session data into the
+`.export/` directory:
+```
+.venv/bin/python ./scripts/export.py dump <session_id>
+```
+
+The dump includes everything: session info, story arcs, characters, regions,
+the full timeline, and journal notes. This is raw material -- not a finished
+story. Read it, then use it as the basis for rewriting the adventure as prose
+narrative in Markdown. After rewriting, clean up the temporary export:
+```
+.venv/bin/python ./scripts/export.py clean
+```
+
+### Rewriting guidelines
+
+When rewriting the dump as a story, follow these rules:
+
+- **Few chapters, long scenes.** Group related events into large, continuous
+  chapters. Do not create one chapter per scene. Each chapter should
+  contain multiple beats that flow naturally into
+  each other. Short chapters fragment the reading rhythm -- prefer fewer,
+  denser ones.
+- **Use the story acts as a skeleton.** Each act in the story plan maps
+  roughly to one or two chapters. Let the act structure guide where to place
+  chapter breaks -- at major turning points, not at every pause in action.
+- **Prose, not screenplay.** Narrate fully. Expand terse timeline entries into
+  vivid prose with atmosphere, physical detail, and interiority. Dialogue
+  should be woven into the narration, not listed.
+- **Preserve the player character's voice.** If the character was silent,
+  keep them silent. If they were humorous, keep the humor. Do not flatten
+  the character to fit a generic heroic template.
+- **Include an epilogue** only if the timeline has one. Do not invent closure
+  that did not happen in play.
+- **Save the story to `stories/`.** Write the finished Markdown file to the
+  `stories/` directory at the project root, using a descriptive filename
+  (e.g. `stories/o_bastiao_de_talassa.md`).
