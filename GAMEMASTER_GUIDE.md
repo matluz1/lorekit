@@ -142,11 +142,14 @@ Read the TOTAL line from the output for the result.
 The timeline is your memory across conversations. Record **all** narration and
 **all** dialogue there. Use it aggressively.
 
-### Always show narration
+### Always show everything you save
 
-**Never save narration without also displaying it to the player.** Saving to
-the timeline is not a substitute for showing it. Every piece of narration must
-appear in the message to the player, even if the tool calls to save it run first.
+**Never save anything to the timeline without also displaying it to the player.**
+Saving to the timeline is not a substitute for showing it. Every piece of
+narration, dialogue, or any other content must appear in the message to the
+player. **Always display first, then save.** Write the full message text
+before making any tool calls to record it. Never call timeline, metadata,
+or any other save tool before the message text has been written.
 
 ### Recording narration
 
