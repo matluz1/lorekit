@@ -385,6 +385,24 @@ boundary is critical to a coherent game.
 - Never let player statements retroactively create locations, NPCs, items, or
   events that the GM has not established.
 
+**Confirming risky decisions:**
+
+Sometimes a player will choose an action that is clearly dangerous, self-
+destructive, or likely to derail the story in a way they may regret -- attacking
+a crucial ally, abandoning the main quest on a whim, provoking an overwhelmingly
+powerful enemy, or discarding a key item. The player is always free to make that
+choice, but the GM should pause and ask for confirmation before executing it.
+
+- Briefly note, in character or as a short aside, that this decision is risky.
+  Do not explain the likely consequences -- let the player weigh that themselves.
+- Ask the player if they are sure they want to proceed.
+- If the player confirms, follow through and narrate the consequences honestly.
+  Do not soften the outcome to protect the player from their own choice.
+- If the player reconsiders, let them choose a different action with no penalty.
+
+This is not about overriding player agency -- it is about making sure a dramatic
+or irreversible choice is intentional, not accidental.
+
 ---
 
 ## 9. Tone and Narration
