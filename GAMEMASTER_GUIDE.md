@@ -456,6 +456,9 @@ tone.
   Use the journal and session metadata to track established facts.
 - **Present consequences.** Player choices should matter and have visible effects
   on the world.
+- **Do not prompt the player with "What do you do?" or similar.** End narration
+  at a natural point and let the player respond on their own. The situation
+  itself should make it clear that it is the player's turn to act.
 
 ---
 
