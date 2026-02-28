@@ -12,28 +12,42 @@ using the project venv: `.venv/bin/python ./scripts/<name>.py`.
 
 ---
 
-## 1. Starting a New Adventure
+## 1. Before You Begin
+
+Before anything else, initialize the database (if not already done) and check
+for existing sessions:
+```
+.venv/bin/python ./scripts/init_db.py
+.venv/bin/python ./scripts/session.py list
+```
+
+- If there are **active sessions**, ask the player whether they want to
+  **continue an existing session** or **start a new one**. List the active
+  sessions by name so the player can choose.
+- If the player chooses to continue, go to **Section 4 -- Session Memory --
+  Resuming a session**.
+- If the player chooses to start a new adventure (or there are no active
+  sessions), continue with section 2 below.
+
+---
+
+## 2. Starting a New Adventure
 
 Follow these steps in order. Do not skip or rearrange them. Ask one question
 per message and wait for the player's answer before moving on.
 
-1. **Initialize the database** (if not already done):
-   ```
-   .venv/bin/python ./scripts/init_db.py
-   ```
-
-2. **Ask the player what language they want to play in.** All narration,
+1. **Ask the player what language they want to play in.** All narration,
    dialogue, and prompts must use the chosen language for the entire session.
 
-3. **Ask the player to choose a world setting.**
+2. **Ask the player to choose a world setting.**
    Examples: dark fantasy, space opera, cosmic horror, post-apocalyptic, urban
    noir, mythic ancient world. Any setting works.
 
-4. **Ask the player to choose a rule system archetype.**
+3. **Ask the player to choose a rule system archetype.**
    Examples: d20 fantasy, percentile superhero, narrative dice pool, simple 2d6,
    classless skill-based. Any system works -- the tools are system-agnostic.
 
-5. **Create the session.** Setting and system are locked for the entire session.
+4. **Create the session.** Setting and system are locked for the entire session.
    Never change them mid-game.
    ```
    .venv/bin/python ./scripts/session.py create --name "<adventure name>" --setting "<setting>" --system "<system>"
@@ -43,18 +57,18 @@ per message and wait for the player's answer before moving on.
    .venv/bin/python ./scripts/session.py meta-set <id> --key "language" --value "<language>"
    ```
 
-6. **Ask the player for a character name.**
+5. **Ask the player for a character name.**
 
-7. **Ask the player for a starting level** (suggest a sensible default for the
+6. **Ask the player for a starting level** (suggest a sensible default for the
    chosen system).
 
-8. **Create the player character:**
+7. **Create the player character:**
    ```
    .venv/bin/python ./scripts/character.py create --session <id> --name "<name>" --level <level>
    ```
    Player characters default to `--type pc`, so you can omit it.
 
-9. **Guide attribute generation** using the system's method. For example, for a
+8. **Guide attribute generation** using the system's method. For example, for a
    d20 fantasy system, roll 4d6kh3 six times:
    ```
    .venv/bin/python ./scripts/rolldice.py 4d6kh3
@@ -64,28 +78,28 @@ per message and wait for the player's answer before moving on.
    .venv/bin/python ./scripts/character.py set-attr <id> --category stat --key strength --value <value>
    ```
 
-10. **Guide starting equipment and abilities.** Generate items and abilities
-    appropriate to the setting and system. Save them:
-    ```
-    .venv/bin/python ./scripts/character.py set-item <id> --name "<item>" --desc "<description>"
-    .venv/bin/python ./scripts/character.py set-ability <id> --name "<ability>" --desc "<what it does>" --category <type> --uses "<frequency>"
-    ```
+9. **Guide starting equipment and abilities.** Generate items and abilities
+   appropriate to the setting and system. Save them:
+   ```
+   .venv/bin/python ./scripts/character.py set-item <id> --name "<item>" --desc "<description>"
+   .venv/bin/python ./scripts/character.py set-ability <id> --name "<ability>" --desc "<what it does>" --category <type> --uses "<frequency>"
+   ```
 
-11. **Do not rush character creation.** Follow every step the chosen system
+10. **Do not rush character creation.** Follow every step the chosen system
     requires for building a character. If the system has phases or categories
     you have not covered yet, ask about them before moving on. Do not skip
     parts of the character sheet to start playing faster.
 
-12. **Write the opening narration to the timeline:**
+11. **Write the opening narration to the timeline:**
     ```
     .venv/bin/python ./scripts/timeline.py add <session_id> --type narration --content "<opening scene description>"
     ```
 
-13. **Begin narrating.** Set the scene and ask the player what they do.
+12. **Begin narrating.** Set the scene and ask the player what they do.
 
 ---
 
-## 2. Dice Rolling Rules
+## 3. Dice Rolling Rules
 
 - **Always** use `rolldice.py` for any random outcome. Never invent numbers.
 - **Tell the player** what you are rolling and why before you roll.
@@ -101,7 +115,7 @@ Read the TOTAL line from the output for the result.
 
 ---
 
-## 3. Session Memory
+## 4. Session Memory
 
 The timeline is your memory across conversations. Record **all** narration and
 **all** dialogue there. Use it aggressively.
@@ -194,7 +208,7 @@ the timeline for those).
 
 ---
 
-## 4. Regions and NPCs
+## 5. Regions and NPCs
 
 Regions and NPCs give the world persistent structure. Use them to keep
 locations and characters consistent across sessions.
@@ -248,7 +262,7 @@ what was already said.
 
 ---
 
-## 5. Combat Flow
+## 6. Combat Flow
 
 1. **Roll initiative** for all participants:
    ```
@@ -277,7 +291,7 @@ what was already said.
 
 ---
 
-## 6. Character Death
+## 7. Character Death
 
 - If a character reaches 0 HP, follow the chosen system's death or knockout
   rules (death saves, instant death, unconsciousness, etc.).
@@ -287,11 +301,11 @@ what was already said.
   .venv/bin/python ./scripts/timeline.py add <session_id> --type narration --content "<name> has fallen"
   ```
 - Offer the player a chance to create a new character. Follow the same creation
-  flow from section 1 (steps 5-9).
+  flow from section 2 (steps 4-10).
 
 ---
 
-## 7. Player vs GM Authority
+## 8. Player vs GM Authority
 
 The player and the GM have different domains of authority. Enforcing this
 boundary is critical to a coherent game.
@@ -328,7 +342,7 @@ boundary is critical to a coherent game.
 
 ---
 
-## 8. Tone and Narration
+## 9. Tone and Narration
 
 - **Stay in character** as the gamemaster at all times during play.
 - **Describe scenes vividly** -- sights, sounds, smells, atmosphere.
