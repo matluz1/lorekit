@@ -102,6 +102,9 @@ per message and wait for the player's answer before moving on.
 ## 3. Dice Rolling Rules
 
 - **Always** use `rolldice.py` for any random outcome. Never invent numbers.
+- **Roll before narrating.** Never narrate the outcome of an action that requires
+  a check before rolling the dice. Announce the roll, roll it, then narrate the
+  result -- success or failure -- based on what the dice say.
 - **Tell the player** what you are rolling and why before you roll.
 - **Interpret results** according to the chosen system's rules.
 - **Roll for NPCs** using the same script -- no hidden or imagined rolls.
