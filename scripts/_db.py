@@ -86,6 +86,28 @@ CREATE TABLE IF NOT EXISTS timeline (
     content     TEXT    NOT NULL,
     created_at  TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
 );
+
+CREATE TABLE IF NOT EXISTS stories (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id  INTEGER NOT NULL REFERENCES sessions(id),
+    adventure_size TEXT NOT NULL,
+    premise     TEXT    NOT NULL,
+    created_at  TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+    UNIQUE(session_id)
+);
+
+CREATE TABLE IF NOT EXISTS story_acts (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id  INTEGER NOT NULL REFERENCES sessions(id),
+    act_order   INTEGER NOT NULL,
+    title       TEXT    NOT NULL,
+    description TEXT    NOT NULL DEFAULT '',
+    goal        TEXT    NOT NULL DEFAULT '',
+    event       TEXT    NOT NULL DEFAULT '',
+    status      TEXT    NOT NULL DEFAULT 'pending',
+    created_at  TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+    UNIQUE(session_id, act_order)
+);
 """
 
 # Migration: add columns that may not exist on older databases

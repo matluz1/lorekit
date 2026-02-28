@@ -157,6 +157,127 @@ All keys output: table with columns `key, value`.
 
 ---
 
+## story.py
+
+Manage story arcs and act-based pacing within a session.
+
+```
+.venv/bin/python ./scripts/story.py <action> [args]
+```
+
+### set
+
+Create or overwrite the story plan for a session.
+
+```
+.venv/bin/python ./scripts/story.py set 1 --size "short" --premise "A cursed forest threatens the village"
+```
+
+Both `--size` and `--premise` are required. Size values: `oneshot`, `short`, `campaign`.
+If a story already exists for the session, it is overwritten.
+
+Output:
+```
+STORY_SET: 1
+```
+
+### view
+
+Show the story premise and all acts.
+
+```
+.venv/bin/python ./scripts/story.py view 1
+```
+
+Output:
+```
+ID: 1
+SESSION: 1
+SIZE: short
+PREMISE: A cursed forest threatens the village
+CREATED: 2026-02-21T16:00:00Z
+
+--- ACTS ---
+act_order  title          status
+---------  -------------  ---------
+1          The Call        active
+2          The Descent     pending
+3          The Resolution  pending
+```
+
+### add-act
+
+Append an act to the story. Order is auto-assigned.
+
+```
+.venv/bin/python ./scripts/story.py add-act 1 --title "The Call" --desc "Heroes are summoned" --goal "Reach the temple" --event "The temple collapses"
+```
+
+`--title` is required. `--desc`, `--goal`, and `--event` default to empty.
+
+Output:
+```
+ACT_ADDED: 1
+```
+
+### view-act
+
+Show full details for a single act.
+
+```
+.venv/bin/python ./scripts/story.py view-act 1
+```
+
+Output:
+```
+ID: 1
+SESSION: 1
+ORDER: 1
+TITLE: The Call
+DESCRIPTION: Heroes are summoned
+GOAL: Reach the temple
+EVENT: The temple collapses
+STATUS: pending
+CREATED: 2026-02-21T16:00:00Z
+```
+
+### update-act
+
+Update one or more fields on an act.
+
+```
+.venv/bin/python ./scripts/story.py update-act 1 --status active
+.venv/bin/python ./scripts/story.py update-act 1 --title "New Title" --desc "New description"
+.venv/bin/python ./scripts/story.py update-act 1 --goal "New goal" --event "New event"
+```
+
+Accepts `--title`, `--desc`, `--goal`, `--event`, and/or `--status`.
+
+Output:
+```
+ACT_UPDATED: 1
+```
+
+### advance
+
+Complete the current active act and activate the next pending one.
+
+```
+.venv/bin/python ./scripts/story.py advance 1
+```
+
+Output (next act exists):
+```
+ACT_ADVANCED: completed act 1, activated act 2
+```
+
+Output (no more acts):
+```
+ACT_ADVANCED: completed act 3, no remaining acts
+```
+
+---
+
 ## character.py
 
 Manage characters and their attributes, inventory, and abilities.

@@ -27,13 +27,12 @@ def test_creates_data_directory(tmp_path):
     assert os.path.isdir(data_dir)
 
 
-def test_creates_all_nine_tables(db_path):
+def test_creates_all_tables(db_path):
     conn = sqlite3.connect(db_path)
-    tables = [row[0] for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name").fetchall()]
+    tables = [row[0] for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name").fetchall()]
     conn.close()
-    expected = ["character_abilities", "character_attributes", "character_inventory", "characters", "journal", "regions", "session_meta", "sessions", "timeline"]
-    for t in expected:
-        assert t in tables, f"table {t} missing"
+    expected = ["character_abilities", "character_attributes", "character_inventory", "characters", "journal", "regions", "session_meta", "sessions", "stories", "story_acts", "timeline"]
+    assert sorted(tables) == expected
 
 
 def test_idempotent_reinit(db_path):
