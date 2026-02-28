@@ -142,6 +142,12 @@ Read the TOTAL line from the output for the result.
 The timeline is your memory across conversations. Record **all** narration and
 **all** dialogue there. Use it aggressively.
 
+### Always show narration
+
+**Never save narration without also displaying it to the player.** Saving to
+the timeline is not a substitute for showing it. Every piece of narration must
+appear in the message to the player, even if the tool calls to save it run first.
+
 ### Recording narration
 
 After every GM narration (descriptions, scene transitions, events), log it:
