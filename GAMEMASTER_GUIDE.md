@@ -110,7 +110,7 @@ per message and wait for the player's answer before moving on.
 
 13. **Write the opening narration to the timeline:**
     ```
-    timeline_add(session_id=<session_id>, type="narration", content="<exact text shown to the player>")
+    timeline_add(session_id=<session_id>, type="narration", content="<exact text shown to the player>", summary="<1-2 sentence summary>")
     ```
 
 14. **Begin narrating.** Set the scene and let the player respond.
@@ -157,9 +157,14 @@ save the **complete text exactly as shown to the player** -- including any NPC
 dialogue embedded in the narration. Do not summarize, condense, paraphrase, or
 rewrite the text. The saved version must be **identical** to what appeared in
 the message. If the narration was three paragraphs with dialogue, save three
-paragraphs with dialogue -- not a compressed summary:
+paragraphs with dialogue -- not a compressed summary.
+
+**Always include a `summary`** -- a 1-2 sentence description of the key events
+in the narration. The summary is used for semantic search, so keep it concrete
+and factual. Focus on what happens (actions, revelations, decisions), not
+atmosphere. Write the summary in the same language as the narration:
 ```
-timeline_add(session_id=<session_id>, type="narration", content="<exact text shown to the player>")
+timeline_add(session_id=<session_id>, type="narration", content="<exact text shown to the player>", summary="<1-2 sentence summary of key events>")
 ```
 
 ### Recording player choices
@@ -249,9 +254,10 @@ exact wording. This is useful when you want to callback to earlier scenes,
 maintain emotional consistency, or find thematic echoes:
 ```
 recall_search(session_id=<session_id>, query="moments of betrayal")
-recall_search(session_id=<session_id>, query="what did the elder say", source="timeline")
-recall_search(session_id=<session_id>, query="player preferences", source="journal")
 ```
+
+Prefer leaving `source` empty so the search returns results from both
+timeline and journal in a single call.
 
 **Write good queries.** Semantic search works best with short, focused
 queries that use **the same concrete vocabulary** that appears in the saved
@@ -319,10 +325,11 @@ journal_add(session_id=<session_id>, type="note", content="NPC A and NPC B have 
 ```
 This gives semantic search a target when you later need to recall a
 relationship dynamic that no single timeline entry would surface on its own.
-When searching for character dynamics, **always search the journal too** --
-the timeline holds what happened, the journal holds what it means:
+A recall search without `source` already returns both timeline and journal
+results, so journal notes about dynamics will surface alongside the scenes
+that shaped them:
 ```
-recall_search(session_id=<session_id>, query="how do A and B get along", source="journal")
+recall_search(session_id=<session_id>, query="how do A and B get along")
 ```
 
 ---
@@ -407,7 +414,7 @@ what was already said.
 
 4. **Log combat narration:**
    ```
-   timeline_add(session_id=<session_id>, type="narration", content="<exact combat narration shown to the player>")
+   timeline_add(session_id=<session_id>, type="narration", content="<exact combat narration shown to the player>", summary="<1-2 sentence summary>")
    ```
 
 5. **End combat** when all enemies are defeated, the party flees, or a
@@ -422,7 +429,7 @@ what was already said.
 - If the character dies:
   ```
   character_update(character_id=<id>, status="dead")
-  timeline_add(session_id=<session_id>, type="narration", content="<exact death narration shown to the player>")
+  timeline_add(session_id=<session_id>, type="narration", content="<exact death narration shown to the player>", summary="<1-2 sentence summary>")
   ```
 - Offer the player a chance to create a new character. Follow the same creation
   flow from section 2 (steps 4-10).

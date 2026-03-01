@@ -82,6 +82,7 @@ CREATE TABLE IF NOT EXISTS timeline (
     session_id  INTEGER NOT NULL REFERENCES sessions(id),
     entry_type  TEXT    NOT NULL,
     content     TEXT    NOT NULL,
+    summary     TEXT    NOT NULL DEFAULT '',
     created_at  TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
 );
 
@@ -112,6 +113,7 @@ CREATE TABLE IF NOT EXISTS story_acts (
 ADD_COLUMN_MIGRATIONS = [
     ("characters", "type", "ALTER TABLE characters ADD COLUMN type TEXT NOT NULL DEFAULT 'pc'"),
     ("characters", "region_id", "ALTER TABLE characters ADD COLUMN region_id INTEGER REFERENCES regions(id)"),
+    ("timeline", "summary", "ALTER TABLE timeline ADD COLUMN summary TEXT NOT NULL DEFAULT ''"),
 ]
 
 DROP_COLUMN_MIGRATIONS = [

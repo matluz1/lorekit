@@ -367,22 +367,27 @@ def region_update(region_id: int, name: str = "", desc: str = "") -> str:
 
 
 @mcp.tool()
-def timeline_add(session_id: int, type: str, content: str) -> str:
+def timeline_add(session_id: int, type: str, content: str, summary: str = "") -> str:
     """Add a timeline entry. Type: narration or player_choice."""
     from timeline import cmd_add
 
-    return _run_with_db(cmd_add, [str(session_id), "--type", type, "--content", content])
+    args = [str(session_id), "--type", type, "--content", content]
+    if summary:
+        args += ["--summary", summary]
+    return _run_with_db(cmd_add, args)
 
 
 @mcp.tool()
-def timeline_list(session_id: int, type: str = "", last: int = 0) -> str:
+def timeline_list(session_id: int, type: str = "", last: int = 0, id: str = "") -> str:
     """List timeline entries. Optionally filter by type and/or limit to last N."""
     from timeline import cmd_list
 
     args = [str(session_id)]
-    if type:
+    if id:
+        args += ["--id", id]
+    elif type:
         args += ["--type", type]
-    if last:
+    if not id and last:
         args += ["--last", str(last)]
     return _run_with_db(cmd_list, args)
 
@@ -393,6 +398,14 @@ def timeline_search(session_id: int, query: str) -> str:
     from timeline import cmd_search
 
     return _run_with_db(cmd_search, [str(session_id), "--query", query])
+
+
+@mcp.tool()
+def timeline_set_summary(timeline_id: int, summary: str) -> str:
+    """Set the summary for an existing timeline entry. Re-indexes for semantic search."""
+    from timeline import cmd_set_summary
+
+    return _run_with_db(cmd_set_summary, [str(timeline_id), "--summary", summary])
 
 
 # ---------------------------------------------------------------------------
@@ -469,14 +482,14 @@ def roll_dice(expression: str) -> str:
 
 
 @mcp.tool()
-def recall_search(session_id: int, query: str, source: str = "", n: int = 5) -> str:
+def recall_search(session_id: int, query: str, source: str = "", n: int = 0) -> str:
     """Semantic search across timeline and journal. Source: timeline, journal, or empty for both."""
     from recall import cmd_search
 
     args = [str(session_id), "--query", query]
     if source:
         args += ["--source", source]
-    if n != 5:
+    if n > 0:
         args += ["--n", str(n)]
     return _run_no_db(cmd_search, args)
 

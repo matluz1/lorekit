@@ -44,6 +44,7 @@ def _embed_query(text):
     return model.encode(f"query: {text}", normalize_embeddings=True).tolist()
 
 
+
 def is_available():
     """Return True if chromadb is importable."""
     try:
@@ -92,10 +93,15 @@ def index_journal(session_id, sql_id, entry_type, content, created_at=None):
     collection.upsert(**kwargs)
 
 
-def index_timeline(session_id, sql_id, entry_type, content, created_at=None):
-    """Upsert a timeline entry into the timeline collection."""
+def index_timeline(session_id, sql_id, entry_type, summary, created_at=None):
+    """Upsert a timeline entry into the timeline collection.
+
+    Indexes the summary text as a single vector per entry.
+    """
     client = get_chroma_client()
     collection = client.get_or_create_collection("timeline")
+
+    doc_id = f"timeline_{sql_id}"
     metadata = {
         "session_id": str(session_id),
         "entry_type": entry_type,
@@ -103,10 +109,11 @@ def index_timeline(session_id, sql_id, entry_type, content, created_at=None):
     }
     if created_at:
         metadata["created_at"] = created_at
-    embeddings = _embed_passages([content])
+
+    embeddings = _embed_passages([summary])
     kwargs = {
-        "ids": [f"timeline_{sql_id}"],
-        "documents": [content],
+        "ids": [doc_id],
+        "documents": [summary],
         "metadatas": [metadata],
     }
     if embeddings is not None:
@@ -219,13 +226,13 @@ def _rrf_merge(semantic_results, kw_results, n_results):
     doc_map = {}
 
     for rank, r in enumerate(semantic_results):
-        key = (r["source"], r["id"])
+        key = (r["source"], r["metadata"]["sql_id"])
         scores[key] = scores.get(key, 0.0) + 1.0 / (k + rank + 1)
         if key not in doc_map:
             doc_map[key] = r
 
     for rank, r in enumerate(kw_results):
-        key = (r["source"], r["id"])
+        key = (r["source"], r["metadata"]["sql_id"])
         scores[key] = scores.get(key, 0.0) + 1.0 / (k + rank + 1)
         if key not in doc_map:
             doc_map[key] = r
@@ -233,25 +240,51 @@ def _rrf_merge(semantic_results, kw_results, n_results):
     ranked = sorted(scores.items(), key=lambda x: x[1], reverse=True)
 
     results = []
-    for (source, doc_id), _rrf_score in ranked[:n_results]:
-        results.append(doc_map[(source, doc_id)])
+    for key, _rrf_score in ranked[:n_results]:
+        results.append(doc_map[key])
 
     return results
 
 
-def hybrid_search(query, session_id, collection_name=None, n_results=5):
+_DEFAULT_LIMITS = {"timeline": 15, "journal": 5}
+
+
+def _resolve_raw_content(results):
+    """Attach raw content from SQLite to each result dict."""
+    from _db import require_db
+
+    if not results:
+        return results
+
+    db = require_db()
+    for r in results:
+        sql_id = r["metadata"].get("sql_id")
+        source = r["source"]
+        if sql_id is None:
+            continue
+        table = source  # "timeline" or "journal"
+        row = db.execute(
+            f"SELECT content FROM {table} WHERE id = ?", (sql_id,)
+        ).fetchone()
+        if row:
+            r["raw"] = row[0]
+
+    return results
+
+
+def hybrid_search(query, session_id, collection_name=None, n_results=0):
     """Hybrid search combining keyword (SQL LIKE) and semantic (ChromaDB) results.
 
     Uses Reciprocal Rank Fusion to merge rankings per collection.
-    When searching both collections, timeline returns n_results * 3 results
-    and journal returns n_results, so the larger collection gets proportional
-    coverage without drowning out the smaller one.
-    Returns a list of dicts with keys: source, id, content, distance, metadata.
+    Each collection has a default result limit (timeline: 15, journal: 5).
+    Pass n_results > 0 to override the default for the requested collection(s).
+    Returns a list of dicts with keys: source, id, content, distance, metadata, raw.
     """
-    if collection_name:
-        limits = {collection_name: n_results}
+    collections = [collection_name] if collection_name else ["timeline", "journal"]
+    if n_results > 0:
+        limits = {c: n_results for c in collections}
     else:
-        limits = {"timeline": 15, "journal": 5}
+        limits = {c: _DEFAULT_LIMITS.get(c, 5) for c in collections}
 
     results = []
     for col_name, limit in limits.items():
@@ -259,5 +292,7 @@ def hybrid_search(query, session_id, collection_name=None, n_results=5):
         sem = search(query, session_id, collection_name=col_name, n_results=fetch_n)
         kw = keyword_search(query, session_id, collection_name=col_name, n_results=fetch_n)
         results.extend(_rrf_merge(sem, kw, limit))
+
+    _resolve_raw_content(results)
 
     return results

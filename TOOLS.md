@@ -662,22 +662,43 @@ REGION_UPDATED: 1
 ## timeline_add
 
 Add a timeline entry. Records narration and player choices in chronological
-order.
+order. Narration entries should include a `summary` for semantic search
+indexing.
 
 ```
-timeline_add(session_id=1, type="narration", content="<exact text shown to the player>")
+timeline_add(session_id=1, type="narration", content="<exact text shown to the player>", summary="<1-2 sentence summary>")
 timeline_add(session_id=1, type="player_choice", content="<what the player chose or said>")
 ```
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| session_id | int | yes | Session ID |
-| type | str | yes | narration or player_choice |
-| content | str | yes | Entry text |
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| session_id | int | yes | | Session ID |
+| type | str | yes | | narration or player_choice |
+| content | str | yes | | Entry text |
+| summary | str | no | "" | 1-2 sentence summary for semantic search (narration only) |
 
 **Output:**
 ```
 TIMELINE_ADDED: 1
+```
+
+## timeline_set_summary
+
+Set the summary for an existing timeline entry. Use this to backfill
+summaries on older entries that were created without one.
+
+```
+timeline_set_summary(timeline_id=42, summary="<1-2 sentence summary>")
+```
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| timeline_id | int | yes | Timeline entry ID |
+| summary | str | yes | 1-2 sentence summary |
+
+**Output:**
+```
+SUMMARY_SET: 42
 ```
 
 ## timeline_list
@@ -688,6 +709,8 @@ List timeline entries.
 timeline_list(session_id=1)
 timeline_list(session_id=1, type="narration")
 timeline_list(session_id=1, last=10)
+timeline_list(session_id=1, id="42")
+timeline_list(session_id=1, id="10-20")
 ```
 
 | Parameter | Type | Required | Default | Description |
@@ -695,6 +718,7 @@ timeline_list(session_id=1, last=10)
 | session_id | int | yes | | Session ID |
 | type | str | no | "" | narration or player_choice |
 | last | int | no | 0 | Limit to last N entries |
+| id | str | no | "" | Single ID `"42"` or range `"10-20"` (ignores type/last) |
 
 **Output:** table with columns `id, entry_type, content, created_at`.
 Ordered oldest first.
@@ -790,10 +814,11 @@ recall_search(session_id=1, query="dark rituals", n=10)
 | session_id | int | yes | | Session ID |
 | query | str | yes | | Search text |
 | source | str | no | "" | timeline, journal, or empty for both |
-| n | int | no | 5 | Number of results |
+| n | int | no | 0 | Override result count. 0 = use built-in limits (timeline: 15, journal: 5) |
 
 **Output:** table with columns `source, id, distance, content`. Lower distance
-means higher relevance.
+means higher relevance. Default limits apply per collection regardless of
+whether `source` is specified or empty.
 
 ## recall_reindex
 

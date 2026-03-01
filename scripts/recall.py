@@ -43,7 +43,7 @@ def cmd_search(args):
     rest = args[1:]
     query_text = ""
     source = ""
-    n_results = 5
+    n_results = 0
     i = 0
     while i < len(rest):
         if rest[i] == "--query":
@@ -70,7 +70,7 @@ def cmd_search(args):
         return
 
     # Print results in table format
-    headers = ["source", "id", "distance", "content"]
+    headers = ["source", "id", "distance", "content", "raw"]
     widths = [len(h) for h in headers]
     str_rows = []
     for r in results:
@@ -79,6 +79,7 @@ def cmd_search(args):
             r["id"],
             f"{r['distance']:.4f}",
             r["content"],
+            r.get("raw", ""),
         ]
         str_rows.append(row)
         for j, val in enumerate(row):
@@ -118,16 +119,21 @@ def cmd_reindex(args):
     ]
 
     timeline_count = 0
+    skipped_count = 0
     journal_count = 0
 
     for sid in all_session_ids:
         cur = db.execute(
-            "SELECT id, entry_type, content, created_at FROM timeline WHERE session_id = ?",
+            "SELECT id, entry_type, summary, created_at FROM timeline WHERE session_id = ?",
             (sid,),
         )
         for row in cur.fetchall():
-            sql_id, entry_type, content, created_at = row
-            index_timeline(sid, sql_id, entry_type, content, created_at=created_at)
+            sql_id, entry_type, summary, created_at = row
+            if entry_type != "narration" or not summary:
+                if str(sid) == str(session_id) and entry_type == "narration" and not summary:
+                    skipped_count += 1
+                continue
+            index_timeline(sid, sql_id, entry_type, summary, created_at=created_at)
             if str(sid) == str(session_id):
                 timeline_count += 1
 
@@ -142,6 +148,8 @@ def cmd_reindex(args):
                 journal_count += 1
 
     msg = f"REINDEX_COMPLETE: {timeline_count} timeline entries, {journal_count} journal entries"
+    if skipped_count:
+        msg += f" ({skipped_count} narrations skipped -- no summary)"
     if len(all_session_ids) > 1:
         msg += f" (rebuilt all {len(all_session_ids)} sessions)"
     print(msg)
