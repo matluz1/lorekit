@@ -57,13 +57,13 @@ def cmd_search(args):
     if not query_text:
         error("--query is required")
 
-    from _vectordb import is_available, search
+    from _vectordb import is_available, hybrid_search
 
     if not is_available():
         error("chromadb is not installed")
 
     collection_name = source if source else None
-    results = search(query_text, session_id, collection_name=collection_name, n_results=n_results)
+    results = hybrid_search(query_text, session_id, collection_name=collection_name, n_results=n_results)
 
     if not results:
         print("No results found.")
@@ -102,41 +102,49 @@ def cmd_reindex(args):
         error("chromadb is not installed")
 
     db = require_db()
-
-    # Clear existing vectors for this session
     client = get_chroma_client()
+
+    # Delete and recreate collections to ensure clean embeddings
     for col_name in ("timeline", "journal"):
         try:
-            col = client.get_collection(col_name)
-            existing = col.get(where={"session_id": str(session_id)})
-            if existing["ids"]:
-                col.delete(ids=existing["ids"])
+            client.delete_collection(col_name)
         except Exception:
             pass
+        client.get_or_create_collection(col_name)
 
-    # Reindex timeline entries
+    # Reindex all sessions (not just the requested one) since we wiped collections
+    all_session_ids = [
+        row[0] for row in db.execute("SELECT id FROM sessions").fetchall()
+    ]
+
     timeline_count = 0
-    cur = db.execute(
-        "SELECT id, entry_type, content, created_at FROM timeline WHERE session_id = ?",
-        (session_id,),
-    )
-    for row in cur.fetchall():
-        sql_id, entry_type, content, created_at = row
-        index_timeline(session_id, sql_id, entry_type, content, created_at=created_at)
-        timeline_count += 1
-
-    # Reindex journal entries
     journal_count = 0
-    cur = db.execute(
-        "SELECT id, entry_type, content, created_at FROM journal WHERE session_id = ?",
-        (session_id,),
-    )
-    for row in cur.fetchall():
-        sql_id, entry_type, content, created_at = row
-        index_journal(session_id, sql_id, entry_type, content, created_at)
-        journal_count += 1
 
-    print(f"REINDEX_COMPLETE: {timeline_count} timeline entries, {journal_count} journal entries")
+    for sid in all_session_ids:
+        cur = db.execute(
+            "SELECT id, entry_type, content, created_at FROM timeline WHERE session_id = ?",
+            (sid,),
+        )
+        for row in cur.fetchall():
+            sql_id, entry_type, content, created_at = row
+            index_timeline(sid, sql_id, entry_type, content, created_at=created_at)
+            if str(sid) == str(session_id):
+                timeline_count += 1
+
+        cur = db.execute(
+            "SELECT id, entry_type, content, created_at FROM journal WHERE session_id = ?",
+            (sid,),
+        )
+        for row in cur.fetchall():
+            sql_id, entry_type, content, created_at = row
+            index_journal(sid, sql_id, entry_type, content, created_at)
+            if str(sid) == str(session_id):
+                journal_count += 1
+
+    msg = f"REINDEX_COMPLETE: {timeline_count} timeline entries, {journal_count} journal entries"
+    if len(all_session_ids) > 1:
+        msg += f" (rebuilt all {len(all_session_ids)} sessions)"
+    print(msg)
 
 
 if __name__ == "__main__":
