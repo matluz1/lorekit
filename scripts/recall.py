@@ -117,14 +117,12 @@ def cmd_reindex(args):
     # Reindex timeline entries
     timeline_count = 0
     cur = db.execute(
-        "SELECT id, entry_type, speaker, npc_id, content, created_at FROM timeline WHERE session_id = ?",
+        "SELECT id, entry_type, content, created_at FROM timeline WHERE session_id = ?",
         (session_id,),
     )
     for row in cur.fetchall():
-        sql_id, entry_type, speaker, npc_id, content, created_at = row
-        index_timeline(session_id, sql_id, entry_type, content,
-                       speaker=speaker if speaker else None,
-                       npc_id=npc_id, created_at=created_at)
+        sql_id, entry_type, content, created_at = row
+        index_timeline(session_id, sql_id, entry_type, content, created_at=created_at)
         timeline_count += 1
 
     # Reindex journal entries

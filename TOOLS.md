@@ -534,8 +534,10 @@ REGION_UPDATED: 1
 
 ## timeline.py
 
-Unified timeline of narration and dialogue. Records everything that happens
-in the game world in chronological order.
+Unified timeline of narration and player choices. Records everything that
+happens in the game in chronological order. Narration entries store the
+complete text exactly as shown to the player. Player choice entries store
+the player's response.
 
 ```
 .venv/bin/python ./scripts/timeline.py <action> [args]
@@ -544,17 +546,14 @@ in the game world in chronological order.
 ### add
 
 ```
-.venv/bin/python ./scripts/timeline.py add 1 --type narration --content "The forest grew dark as the party advanced."
-.venv/bin/python ./scripts/timeline.py add 1 --type dialogue --npc 2 --speaker pc --content "What happened here?"
-.venv/bin/python ./scripts/timeline.py add 1 --type dialogue --npc 2 --speaker "Elder" --content "The fire came at night."
+.venv/bin/python ./scripts/timeline.py add 1 --type narration --content "<exact text shown to the player>"
+.venv/bin/python ./scripts/timeline.py add 1 --type player_choice --content "<what the player chose or said>"
 ```
 
-Entry types: `narration`, `dialogue`.
+Entry types: `narration`, `player_choice`.
 
-- `narration` requires only `--content`.
-- `dialogue` requires `--npc`, `--speaker`, and `--content`. `--speaker` should
-  be `pc` when the player character speaks, or the NPC's name when the NPC
-  speaks.
+- `narration`: the complete GM text exactly as displayed to the player.
+- `player_choice`: the player's response or action.
 
 Output:
 ```
@@ -566,13 +565,11 @@ TIMELINE_ADDED: 1
 ```
 .venv/bin/python ./scripts/timeline.py list 1                              # all entries
 .venv/bin/python ./scripts/timeline.py list 1 --type narration              # only narration
-.venv/bin/python ./scripts/timeline.py list 1 --type dialogue               # only dialogue
-.venv/bin/python ./scripts/timeline.py list 1 --npc 2                       # dialogue with a specific NPC
+.venv/bin/python ./scripts/timeline.py list 1 --type player_choice          # only player choices
 .venv/bin/python ./scripts/timeline.py list 1 --last 10                     # last 10 entries
-.venv/bin/python ./scripts/timeline.py list 1 --type dialogue --npc 2 --last 5  # last 5 lines with NPC
 ```
 
-Output: table with columns `id, entry_type, speaker, npc_id, content, created_at`.
+Output: table with columns `id, entry_type, content, created_at`.
 Ordered oldest first.
 
 ### search
@@ -583,7 +580,7 @@ Ordered oldest first.
 
 Searches timeline content for the given text (case-insensitive).
 
-Output: table with columns `id, entry_type, speaker, npc_id, content, created_at`.
+Output: table with columns `id, entry_type, content, created_at`.
 Ordered oldest first.
 
 ---

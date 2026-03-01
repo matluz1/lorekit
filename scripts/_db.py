@@ -81,8 +81,6 @@ CREATE TABLE IF NOT EXISTS timeline (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
     session_id  INTEGER NOT NULL REFERENCES sessions(id),
     entry_type  TEXT    NOT NULL,
-    speaker     TEXT    NOT NULL DEFAULT '',
-    npc_id      INTEGER REFERENCES characters(id),
     content     TEXT    NOT NULL,
     created_at  TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
 );
@@ -110,10 +108,15 @@ CREATE TABLE IF NOT EXISTS story_acts (
 );
 """
 
-# Migration: add columns that may not exist on older databases
-MIGRATIONS = [
+# Migrations: add or drop columns on older databases
+ADD_COLUMN_MIGRATIONS = [
     ("characters", "type", "ALTER TABLE characters ADD COLUMN type TEXT NOT NULL DEFAULT 'pc'"),
     ("characters", "region_id", "ALTER TABLE characters ADD COLUMN region_id INTEGER REFERENCES regions(id)"),
+]
+
+DROP_COLUMN_MIGRATIONS = [
+    ("timeline", "speaker", "ALTER TABLE timeline DROP COLUMN speaker"),
+    ("timeline", "npc_id", "ALTER TABLE timeline DROP COLUMN npc_id"),
 ]
 
 
@@ -151,9 +154,13 @@ def init_schema(db_path=None):
     conn = get_db(db_path)
     conn.executescript(SCHEMA_SQL)
     # Run migrations
-    for table, column, sql in MIGRATIONS:
+    for table, column, sql in ADD_COLUMN_MIGRATIONS:
         cols = [row[1] for row in conn.execute(f"PRAGMA table_info({table})").fetchall()]
         if column not in cols:
+            conn.execute(sql)
+    for table, column, sql in DROP_COLUMN_MIGRATIONS:
+        cols = [row[1] for row in conn.execute(f"PRAGMA table_info({table})").fetchall()]
+        if column in cols:
             conn.execute(sql)
     conn.commit()
     conn.close()
