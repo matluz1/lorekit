@@ -254,17 +254,26 @@ maintain emotional consistency, or find thematic echoes:
 .venv/bin/python ./scripts/recall.py search <session_id> --query "player preferences" --source journal
 ```
 
-**Write good queries.** Semantic search works best with short, focused,
-narrative-style queries -- phrases that sound like they could *describe* the
-passage you want to find. Do not dump multiple keywords into one query; that
-dilutes the semantic signal and returns vague results.
+**Write good queries.** Semantic search works best with short, focused
+queries that use **the same concrete vocabulary** that appears in the saved
+text. The timeline contains raw narration and player messages -- colloquial,
+situational, first-person. Queries that use abstract or analytical language
+("demonstrates loyalty", "relationship of trust") will miss entries written
+in concrete, informal language. Match the register of the text: if the
+player writes casually, query casually; if the narration describes physical
+reactions, query with physical reactions.
 
 - **Bad:** `"village elder betrayal trust past"` -- too many concepts
   crammed together, returns generic matches with high distance.
+- **Bad:** `"demonstrates loyalty and affection"` -- abstract description
+  of a dynamic; the actual text uses concrete actions and dialogue, not
+  analytical summaries.
 - **Good:** `"the elder lied about the fire"` -- concrete, describes a
   specific event.
 - **Good:** `"who started the war between the two clans"` -- a natural
   question the passage would answer.
+- **Good:** `"go fetch water for me"` -- echoes the actual words a
+  character would use, matching the informal register of the saved text.
 
 When you need to understand something from multiple angles, run **several
 focused queries in parallel** instead of one broad query. Take the time to
@@ -298,6 +307,23 @@ reminders, planning notes. It is **not** for in-game events or dialogue (use
 the timeline for those).
 ```
 .venv/bin/python ./scripts/journal.py add <session_id> --type note --content "Player prefers stealth over combat"
+```
+
+Use the journal to record **recurring relationship dynamics** between
+characters. The timeline stores individual scenes, but patterns that emerge
+across many scenes -- one character always ordering another around, a rivalry
+that softens over time, a running joke -- are not captured in any single
+entry. After a scene that reinforces or shifts a dynamic, save a short note
+describing the pattern, not the specific event:
+```
+.venv/bin/python ./scripts/journal.py add <session_id> --type note --content "NPC A and NPC B have a competitive friendship; they insult each other but always back each other up in danger"
+```
+This gives semantic search a target when you later need to recall a
+relationship dynamic that no single timeline entry would surface on its own.
+When searching for character dynamics, **always search the journal too** --
+the timeline holds what happened, the journal holds what it means:
+```
+.venv/bin/python ./scripts/recall.py search <session_id> --query "how do A and B get along" --source journal
 ```
 
 ---
