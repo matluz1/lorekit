@@ -73,11 +73,12 @@ def test_search_source_journal(run, make_session):
 
 
 def test_search_n_controls_results(run, make_session):
+    """--n limits results when --source is specified."""
     sid = make_session()
     for i in range(5):
         run("timeline.py", "add", sid, "--type", "narration", "--content", f"Adventure event number {i}")
     run("recall.py", "reindex", sid)
-    r = run("recall.py", "search", sid, "--query", "adventure", "--n", "2")
+    r = run("recall.py", "search", sid, "--query", "adventure", "--source", "timeline", "--n", "2")
     assert r.returncode == 0
     data_lines = [l for l in r.stdout.strip().split("\n")[2:] if l.strip()]
     assert len(data_lines) == 2
@@ -89,6 +90,49 @@ def test_search_no_results(run, make_session):
     r = run("recall.py", "search", sid, "--query", "something")
     assert r.returncode == 0
     assert "No results found" in r.stdout
+
+
+# -- Hybrid search --
+
+def test_search_keyword_match_surfaces(run, make_session):
+    """A keyword match that may not rank high semantically still appears."""
+    sid = make_session()
+    run("timeline.py", "add", sid, "--type", "narration",
+        "--content", "The merchant sold exotic spices from the eastern lands")
+    run("timeline.py", "add", sid, "--type", "narration",
+        "--content", "A cold wind blew through the empty streets at night")
+    run("recall.py", "reindex", sid)
+    r = run("recall.py", "search", sid, "--query", "spices")
+    assert r.returncode == 0
+    assert "spices" in r.stdout
+
+
+def test_search_no_duplicates(run, make_session):
+    """Same entry found by keyword and semantic should appear only once."""
+    sid = make_session()
+    run("timeline.py", "add", sid, "--type", "narration",
+        "--content", "The ancient temple crumbled to dust")
+    run("recall.py", "reindex", sid)
+    r = run("recall.py", "search", sid, "--query", "ancient temple")
+    assert r.returncode == 0
+    lines = [l for l in r.stdout.strip().split("\n")[2:] if l.strip()]
+    assert len(lines) == 1
+
+
+def test_reindex_rebuilds_all_sessions(run, make_session):
+    """Reindexing one session rebuilds vectors for all sessions."""
+    sid1 = make_session()
+    sid2 = make_session()
+    run("timeline.py", "add", sid1, "--type", "narration", "--content", "First session event")
+    run("timeline.py", "add", sid2, "--type", "narration", "--content", "Second session event")
+    r = run("recall.py", "reindex", sid1)
+    assert r.returncode == 0
+    assert "1 timeline entries" in r.stdout
+    assert "rebuilt all" in r.stdout
+    # Verify second session is still searchable after reindex
+    r2 = run("recall.py", "search", sid2, "--query", "second session")
+    assert r2.returncode == 0
+    assert "Second session" in r2.stdout
 
 
 # -- Auto-indexing --
