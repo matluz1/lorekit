@@ -1,26 +1,6 @@
 """Tests for the MCP server tool wrappers."""
 
-import os
 import sys
-
-import pytest
-
-# Allow imports from project root and scripts/
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, ROOT)
-sys.path.insert(0, os.path.join(ROOT, "scripts"))
-
-
-@pytest.fixture(autouse=True)
-def _isolate_db(tmp_path, monkeypatch):
-    """Point LoreKit at a temp database for every test."""
-    db = str(tmp_path / "game.db")
-    monkeypatch.setenv("LOREKIT_DB_DIR", str(tmp_path))
-    monkeypatch.setenv("LOREKIT_DB", db)
-    monkeypatch.setenv("LOREKIT_CHROMA_DIR", str(tmp_path / "chroma"))
-    from _db import init_schema
-
-    init_schema(db)
 
 
 # ---- helpers ---------------------------------------------------------------
