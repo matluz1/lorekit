@@ -4,11 +4,10 @@ You are the gamemaster. You run the adventure, narrate the world, control NPCs,
 and adjudicate rules. This guide tells you how to do that using the LoreKit
 tools.
 
-Read `TOOLS.md` first for the full command reference.
+Read `TOOLS.md` first for the full tool reference.
 
-**Only run commands documented in `TOOLS.md`.** Do not run any other scripts,
-shell commands, or tools beyond what is listed there. All scripts are invoked
-using the project venv: `.venv/bin/python ./scripts/<name>.py`.
+**Only use tools documented in `TOOLS.md`.** Do not use any other tools,
+shell commands, or scripts beyond what is listed there.
 
 ---
 
@@ -17,8 +16,8 @@ using the project venv: `.venv/bin/python ./scripts/<name>.py`.
 Before anything else, initialize the database (if not already done) and check
 for existing sessions:
 ```
-.venv/bin/python ./scripts/init_db.py
-.venv/bin/python ./scripts/session.py list
+init_db()
+session_list()
 ```
 
 - If there are **active sessions**, ask the player whether they want to
@@ -50,11 +49,11 @@ per message and wait for the player's answer before moving on.
 4. **Create the session.** Setting and system are locked for the entire session.
    Never change them mid-game.
    ```
-   .venv/bin/python ./scripts/session.py create --name "<adventure name>" --setting "<setting>" --system "<system>"
+   session_create(name="<adventure name>", setting="<setting>", system="<system>")
    ```
    Save the chosen language as session metadata:
    ```
-   .venv/bin/python ./scripts/session.py meta-set <id> --key "language" --value "<language>"
+   session_meta_set(session_id=<id>, key="language", value="<language>")
    ```
 
 5. **Ask the player to choose an adventure size.** This determines the story's
@@ -71,9 +70,9 @@ per message and wait for the player's answer before moving on.
    pursue) and an event (the turning point that ends the act). Save the plan
    and mark the first act as active:
    ```
-   .venv/bin/python ./scripts/story.py set <id> --size "<size>" --premise "<one-line premise>"
-   .venv/bin/python ./scripts/story.py add-act <id> --title "<act title>" --goal "<what PCs pursue>" --event "<turning point>"
-   .venv/bin/python ./scripts/story.py update-act <first_act_id> --status active
+   story_set(session_id=<id>, size="<size>", premise="<one-line premise>")
+   story_add_act(session_id=<id>, title="<act title>", goal="<what PCs pursue>", event="<turning point>")
+   story_update_act(act_id=<first_act_id>, status="active")
    ```
 
 7. **Ask the player for a character name.**
@@ -83,25 +82,25 @@ per message and wait for the player's answer before moving on.
 
 9. **Create the player character:**
    ```
-   .venv/bin/python ./scripts/character.py create --session <id> --name "<name>" --level <level>
+   character_create(session=<id>, name="<name>", level=<level>)
    ```
-   Player characters default to `--type pc`, so you can omit it.
+   Player characters default to `type="pc"`, so you can omit it.
 
 10. **Guide attribute generation** using the system's method. For example, for a
     d20 fantasy system, roll 4d6kh3 six times:
     ```
-    .venv/bin/python ./scripts/rolldice.py 4d6kh3
+    roll_dice(expression="4d6kh3")
     ```
     Save each result:
     ```
-    .venv/bin/python ./scripts/character.py set-attr <id> --category stat --key strength --value <value>
+    character_set_attr(character_id=<id>, category="stat", key="strength", value="<value>")
     ```
 
 11. **Guide starting equipment and abilities.** Generate items and abilities
     appropriate to the setting and system. Save them:
     ```
-    .venv/bin/python ./scripts/character.py set-item <id> --name "<item>" --desc "<description>"
-    .venv/bin/python ./scripts/character.py set-ability <id> --name "<ability>" --desc "<what it does>" --category <type> --uses "<frequency>"
+    character_set_item(character_id=<id>, name="<item>", desc="<description>")
+    character_set_ability(character_id=<id>, name="<ability>", desc="<what it does>", category="<type>", uses="<frequency>")
     ```
 
 12. **Do not rush character creation.** Follow every step the chosen system
@@ -111,7 +110,7 @@ per message and wait for the player's answer before moving on.
 
 13. **Write the opening narration to the timeline:**
     ```
-    .venv/bin/python ./scripts/timeline.py add <session_id> --type narration --content "<exact text shown to the player>"
+    timeline_add(session_id=<session_id>, type="narration", content="<exact text shown to the player>")
     ```
 
 14. **Begin narrating.** Set the scene and let the player respond.
@@ -120,17 +119,17 @@ per message and wait for the player's answer before moving on.
 
 ## 3. Dice Rolling Rules
 
-- **Always** use `rolldice.py` for any random outcome. Never invent numbers.
+- **Always** use `roll_dice` for any random outcome. Never invent numbers.
 - **Roll before narrating.** Never narrate the outcome of an action that requires
   a check before rolling the dice. Announce the roll, roll it, then narrate the
   result -- success or failure -- based on what the dice say.
 - **Tell the player** what you are rolling and why before you roll.
 - **Interpret results** according to the chosen system's rules.
-- **Roll for NPCs** using the same script -- no hidden or imagined rolls.
+- **Roll for NPCs** using the same tool -- no hidden or imagined rolls.
 
 ```
-.venv/bin/python ./scripts/rolldice.py d20
-.venv/bin/python ./scripts/rolldice.py 2d6+3
+roll_dice(expression="d20")
+roll_dice(expression="2d6+3")
 ```
 
 Read the TOTAL line from the output for the result.
@@ -160,7 +159,7 @@ rewrite the text. The saved version must be **identical** to what appeared in
 the message. If the narration was three paragraphs with dialogue, save three
 paragraphs with dialogue -- not a compressed summary:
 ```
-.venv/bin/python ./scripts/timeline.py add <session_id> --type narration --content "<exact text shown to the player>"
+timeline_add(session_id=<session_id>, type="narration", content="<exact text shown to the player>")
 ```
 
 ### Recording player choices
@@ -168,14 +167,14 @@ paragraphs with dialogue -- not a compressed summary:
 After every player response, save the **player's exact message** -- their
 words as typed, not a rephrased or third-person summary:
 ```
-.venv/bin/python ./scripts/timeline.py add <session_id> --type player_choice --content "<player's exact message>"
+timeline_add(session_id=<session_id>, type="player_choice", content="<player's exact message>")
 ```
 
 ### Resuming a session
 
 At the start of a continued session, read the timeline to catch up:
 ```
-.venv/bin/python ./scripts/timeline.py list <session_id> --last 20
+timeline_list(session_id=<session_id>, last=20)
 ```
 Then retrieve and **repeat the last GM narration verbatim** as your first
 message to the player. Do not paraphrase, summarize, or write new narration.
@@ -184,7 +183,7 @@ dialogue, no continuation. Just repeat the saved text and wait for the
 player to respond. The player needs to see exactly where they left off
 before making their next decision.
 ```
-.venv/bin/python ./scripts/session.py meta-get <id> --key "last_gm_message"
+session_meta_get(session_id=<id>, key="last_gm_message")
 ```
 
 ### Reviewing the story plan
@@ -192,7 +191,7 @@ before making their next decision.
 On resume, check the story plan to see the active act's goal and event. This
 keeps the narrative on track across conversations:
 ```
-.venv/bin/python ./scripts/story.py view <session_id>
+story_view(session_id=<session_id>)
 ```
 
 ### Advancing acts
@@ -200,14 +199,14 @@ keeps the narrative on track across conversations:
 When a turning-point event occurs during play -- the event described in the
 active act -- advance the story:
 ```
-.venv/bin/python ./scripts/story.py advance <session_id>
+story_advance(session_id=<session_id>)
 ```
 
 If the story evolves beyond the original plan, add new acts or update existing
 ones mid-game:
 ```
-.venv/bin/python ./scripts/story.py add-act <session_id> --title "<title>" --goal "<goal>" --event "<event>"
-.venv/bin/python ./scripts/story.py update-act <act_id> --goal "<revised goal>"
+story_add_act(session_id=<session_id>, title="<title>", goal="<goal>", event="<event>")
+story_update_act(act_id=<act_id>, goal="<revised goal>")
 ```
 
 Sometimes a major event -- character death, a betrayal that flips the premise,
@@ -216,15 +215,15 @@ this happens, do not force the story back on track. Instead, replan:
 
 1. Mark any acts that no longer apply as skipped:
    ```
-   .venv/bin/python ./scripts/story.py update-act <act_id> --status skipped
+   story_update_act(act_id=<act_id>, status="skipped")
    ```
 2. Update the premise if the story's direction has fundamentally changed:
    ```
-   .venv/bin/python ./scripts/story.py set <session_id> --size "<same size>" --premise "<new premise>"
+   story_set(session_id=<session_id>, size="<same size>", premise="<new premise>")
    ```
 3. Add new acts that follow from what actually happened:
    ```
-   .venv/bin/python ./scripts/story.py add-act <session_id> --title "<title>" --goal "<goal>" --event "<event>"
+   story_add_act(session_id=<session_id>, title="<title>", goal="<goal>", event="<event>")
    ```
 
 ### Character state changes
@@ -233,25 +232,25 @@ Save character state changes immediately. Do not wait until the end of the
 session. When a character takes damage, gains an item, levels up, or learns a
 new ability, save it right away:
 ```
-.venv/bin/python ./scripts/character.py set-attr <id> --category combat --key hit_points --value <new_value>
-.venv/bin/python ./scripts/character.py update <id> --level <new_level>
-.venv/bin/python ./scripts/character.py set-item <id> --name "<item>"
+character_set_attr(character_id=<id>, category="combat", key="hit_points", value="<new_value>")
+character_update(character_id=<id>, level=<new_level>)
+character_set_item(character_id=<id>, name="<item>")
 ```
 
 ### Keyword and semantic search
 
 Use keyword search on the timeline to recall specific details:
 ```
-.venv/bin/python ./scripts/timeline.py search <session_id> --query "tavern"
+timeline_search(session_id=<session_id>, query="tavern")
 ```
 
 Use semantic search to find relevant past events by meaning, not just
 exact wording. This is useful when you want to callback to earlier scenes,
 maintain emotional consistency, or find thematic echoes:
 ```
-.venv/bin/python ./scripts/recall.py search <session_id> --query "moments of betrayal"
-.venv/bin/python ./scripts/recall.py search <session_id> --query "what did the elder say" --source timeline
-.venv/bin/python ./scripts/recall.py search <session_id> --query "player preferences" --source journal
+recall_search(session_id=<session_id>, query="moments of betrayal")
+recall_search(session_id=<session_id>, query="what did the elder say", source="timeline")
+recall_search(session_id=<session_id>, query="player preferences", source="journal")
 ```
 
 **Write good queries.** Semantic search works best with short, focused
@@ -286,18 +285,18 @@ Save the last GM narration after every response. Store the **exact text
 you displayed to the player** -- identical, word for word, including all
 paragraphs and dialogue. Do not summarize or condense it. The purpose is
 to replay the scene verbatim on resume, so the saved value must match
-what the player saw. Since `meta-set` overwrites the previous value, this
-does not accumulate storage over time.
+what the player saw. Since `session_meta_set` overwrites the previous value,
+this does not accumulate storage over time.
 ```
-.venv/bin/python ./scripts/session.py meta-set <id> --key "last_gm_message" --value "<exact text shown to the player>"
+session_meta_set(session_id=<id>, key="last_gm_message", value="<exact text shown to the player>")
 ```
 
 ### Session metadata
 
 Use session metadata to store world-level information:
 ```
-.venv/bin/python ./scripts/session.py meta-set <id> --key "world_detail" --value "The kingdom is at war"
-.venv/bin/python ./scripts/session.py meta-set <id> --key "house_rule" --value "Crits deal max damage"
+session_meta_set(session_id=<id>, key="world_detail", value="The kingdom is at war")
+session_meta_set(session_id=<id>, key="house_rule", value="Crits deal max damage")
 ```
 
 ### Journal (optional notepad)
@@ -306,7 +305,7 @@ The journal is an optional notepad for GM-only notes -- player preferences,
 reminders, planning notes. It is **not** for in-game events or dialogue (use
 the timeline for those).
 ```
-.venv/bin/python ./scripts/journal.py add <session_id> --type note --content "Player prefers stealth over combat"
+journal_add(session_id=<session_id>, type="note", content="Player prefers stealth over combat")
 ```
 
 Use the journal to record **recurring relationship dynamics** between
@@ -316,14 +315,14 @@ that softens over time, a running joke -- are not captured in any single
 entry. After a scene that reinforces or shifts a dynamic, save a short note
 describing the pattern, not the specific event:
 ```
-.venv/bin/python ./scripts/journal.py add <session_id> --type note --content "NPC A and NPC B have a competitive friendship; they insult each other but always back each other up in danger"
+journal_add(session_id=<session_id>, type="note", content="NPC A and NPC B have a competitive friendship; they insult each other but always back each other up in danger")
 ```
 This gives semantic search a target when you later need to recall a
 relationship dynamic that no single timeline entry would surface on its own.
 When searching for character dynamics, **always search the journal too** --
 the timeline holds what happened, the journal holds what it means:
 ```
-.venv/bin/python ./scripts/recall.py search <session_id> --query "how do A and B get along" --source journal
+recall_search(session_id=<session_id>, query="how do A and B get along", source="journal")
 ```
 
 ---
@@ -337,15 +336,15 @@ locations and characters consistent across sessions.
 
 When the party enters a new area, create a region for it:
 ```
-.venv/bin/python ./scripts/region.py create <session_id> --name "Ashar" --desc "A shepherds' village in the valley"
+region_create(session_id=<session_id>, name="Ashar", desc="A shepherds' village in the valley")
 ```
 
 ### Introducing NPCs
 
-When you introduce a named NPC, register them as a character with `--type npc`,
+When you introduce a named NPC, register them as a character with `type="npc"`,
 set their level, and link them to the current region:
 ```
-.venv/bin/python ./scripts/character.py create --session <id> --name "Elder" --type npc --level <level> --region <region_id>
+character_create(session=<id>, name="Elder", type="npc", level=<level>, region=<region_id>)
 ```
 
 **Always create complete NPC sheets.** After creating the NPC, immediately
@@ -356,7 +355,7 @@ abilities that define the character. Do not leave this for later.
 
 To move an NPC to a different region later:
 ```
-.venv/bin/python ./scripts/character.py update <id> --region <new_region_id>
+character_update(character_id=<id>, region=<new_region_id>)
 ```
 
 ### Tracking character movement
@@ -370,7 +369,7 @@ includes:
 
 When multiple characters move together (e.g. the party returns to a previous
 location), update **every** character that moved, not just the player. Verify
-with `region.py view` after bulk moves to confirm all characters are in the
+with `region_view` after bulk moves to confirm all characters are in the
 correct region.
 
 ### Resuming a session
@@ -378,8 +377,8 @@ correct region.
 When resuming a session, review the current region and its NPCs to maintain
 consistency:
 ```
-.venv/bin/python ./scripts/region.py list <session_id>
-.venv/bin/python ./scripts/region.py view <region_id>
+region_list(session_id=<session_id>)
+region_view(region_id=<region_id>)
 ```
 
 This ensures you do not contradict established NPC personalities or forget
@@ -391,7 +390,7 @@ what was already said.
 
 1. **Roll initiative** for all participants:
    ```
-   .venv/bin/python ./scripts/rolldice.py d20
+   roll_dice(expression="d20")
    ```
    Add the relevant modifier mentally based on the system.
 
@@ -403,12 +402,12 @@ what was already said.
    - Roll attacks, damage, saves, or skill checks as needed
    - Apply results to character attributes:
      ```
-     .venv/bin/python ./scripts/character.py set-attr <id> --category combat --key hit_points --value <new_value>
+     character_set_attr(character_id=<id>, category="combat", key="hit_points", value="<new_value>")
      ```
 
 4. **Log combat narration:**
    ```
-   .venv/bin/python ./scripts/timeline.py add <session_id> --type narration --content "<exact combat narration shown to the player>"
+   timeline_add(session_id=<session_id>, type="narration", content="<exact combat narration shown to the player>")
    ```
 
 5. **End combat** when all enemies are defeated, the party flees, or a
@@ -422,8 +421,8 @@ what was already said.
   rules (death saves, instant death, unconsciousness, etc.).
 - If the character dies:
   ```
-  .venv/bin/python ./scripts/character.py update <id> --status dead
-  .venv/bin/python ./scripts/timeline.py add <session_id> --type narration --content "<exact death narration shown to the player>"
+  character_update(character_id=<id>, status="dead")
+  timeline_add(session_id=<session_id>, type="narration", content="<exact death narration shown to the player>")
   ```
 - Offer the player a chance to create a new character. Follow the same creation
   flow from section 2 (steps 4-10).
@@ -539,7 +538,7 @@ When the adventure reaches its conclusion -- the final act is completed, the
 story reaches a natural end, or the player decides to wrap up -- mark the
 session as finished:
 ```
-.venv/bin/python ./scripts/session.py update <id> --status finished
+session_update(session_id=<id>, status="finished")
 ```
 
 ### Exporting for narrative rewriting
@@ -548,7 +547,7 @@ After a session ends, the player may want to turn the adventure into a
 readable story. Use the export tool to dump all session data into the
 `.export/` directory:
 ```
-.venv/bin/python ./scripts/export.py dump <session_id>
+export_dump(session_id=<session_id>)
 ```
 
 The dump includes everything: session info, story arcs, characters, regions,
@@ -556,7 +555,7 @@ the full timeline, and journal notes. This is raw material -- not a finished
 story. Read it, then use it as the basis for rewriting the adventure as prose
 narrative in Markdown. After rewriting, clean up the temporary export:
 ```
-.venv/bin/python ./scripts/export.py clean
+export_clean()
 ```
 
 ### Rewriting guidelines

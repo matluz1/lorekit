@@ -1,6 +1,8 @@
 """Vector database utilities for LoreKit semantic search."""
 
+import io
 import os
+import sys
 
 _model = None
 _model_resolved = False
@@ -11,12 +13,16 @@ def _get_model():
     global _model, _model_resolved
     if _model_resolved:
         return _model
+    old_stderr = sys.stderr
     try:
         from sentence_transformers import SentenceTransformer
 
+        sys.stderr = io.StringIO()
         _model = SentenceTransformer("intfloat/multilingual-e5-small")
     except (ImportError, Exception):
         _model = None
+    finally:
+        sys.stderr = old_stderr
     _model_resolved = True
     return _model
 
