@@ -46,13 +46,15 @@ def cmd_add(db, args):
         error("session_id required")
     session_id = args[0]
     rest = args[1:]
-    entry_type = content = ""
+    entry_type = content = summary = ""
     i = 0
     while i < len(rest):
         if rest[i] == "--type":
             entry_type = rest[i + 1]; i += 2
         elif rest[i] == "--content":
             content = rest[i + 1]; i += 2
+        elif rest[i] == "--summary":
+            summary = rest[i + 1]; i += 2
         else:
             error(f"Unknown option: {rest[i]}")
     if not entry_type or not content:
@@ -60,17 +62,53 @@ def cmd_add(db, args):
     if entry_type not in ("narration", "player_choice"):
         error("--type must be narration or player_choice")
     cur = db.execute(
-        "INSERT INTO timeline (session_id, entry_type, content) VALUES (?, ?, ?)",
-        (session_id, entry_type, content),
+        "INSERT INTO timeline (session_id, entry_type, content, summary) VALUES (?, ?, ?, ?)",
+        (session_id, entry_type, content, summary),
     )
     db.commit()
     sql_id = cur.lastrowid
-    try:
-        from _vectordb import index_timeline
-        index_timeline(session_id, sql_id, entry_type, content)
-    except Exception:
-        pass
+    if entry_type == "narration" and summary:
+        try:
+            from _vectordb import index_timeline
+            index_timeline(session_id, sql_id, entry_type, summary)
+        except Exception:
+            pass
     print(f"TIMELINE_ADDED: {sql_id}")
+
+
+def cmd_set_summary(db, args):
+    if not args:
+        error("timeline_id required")
+    timeline_id = args[0]
+    rest = args[1:]
+    summary = ""
+    i = 0
+    while i < len(rest):
+        if rest[i] == "--summary":
+            summary = rest[i + 1]; i += 2
+        else:
+            error(f"Unknown option: {rest[i]}")
+    if not summary:
+        error("--summary is required")
+    row = db.execute(
+        "SELECT session_id, entry_type FROM timeline WHERE id = ?",
+        (timeline_id,),
+    ).fetchone()
+    if not row:
+        error(f"Timeline entry {timeline_id} not found")
+    session_id, entry_type = row
+    db.execute(
+        "UPDATE timeline SET summary = ? WHERE id = ?",
+        (summary, timeline_id),
+    )
+    db.commit()
+    if entry_type == "narration":
+        try:
+            from _vectordb import index_timeline
+            index_timeline(session_id, timeline_id, entry_type, summary)
+        except Exception:
+            pass
+    print(f"SUMMARY_SET: {timeline_id}")
 
 
 def cmd_list(db, args):
@@ -78,15 +116,31 @@ def cmd_list(db, args):
         error("session_id required")
     session_id = args[0]
     rest = args[1:]
-    entry_type = last = ""
+    entry_type = last = entry_id = ""
     i = 0
     while i < len(rest):
         if rest[i] == "--type":
             entry_type = rest[i + 1]; i += 2
         elif rest[i] == "--last":
             last = rest[i + 1]; i += 2
+        elif rest[i] == "--id":
+            entry_id = rest[i + 1]; i += 2
         else:
             error(f"Unknown option: {rest[i]}")
+    if entry_id:
+        if "-" in entry_id:
+            id_from, id_to = entry_id.split("-", 1)
+            cur = db.execute(
+                "SELECT id, entry_type, content, created_at FROM timeline WHERE session_id = ? AND id BETWEEN ? AND ? ORDER BY id",
+                (session_id, int(id_from), int(id_to)),
+            )
+        else:
+            cur = db.execute(
+                "SELECT id, entry_type, content, created_at FROM timeline WHERE session_id = ? AND id = ?",
+                (session_id, int(entry_id)),
+            )
+        print_table(cur)
+        return
     query = "SELECT id, entry_type, content, created_at FROM timeline WHERE session_id = ?"
     params = [session_id]
     if entry_type:
