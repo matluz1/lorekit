@@ -111,10 +111,10 @@ per message and wait for the player's answer before moving on.
 
 13. **Write the opening narration to the timeline:**
     ```
-    .venv/bin/python ./scripts/timeline.py add <session_id> --type narration --content "<opening scene description>"
+    .venv/bin/python ./scripts/timeline.py add <session_id> --type narration --content "<exact text shown to the player>"
     ```
 
-14. **Begin narrating.** Set the scene and ask the player what they do.
+14. **Begin narrating.** Set the scene and let the player respond.
 
 ---
 
@@ -139,31 +139,36 @@ Read the TOTAL line from the output for the result.
 
 ## 4. Session Memory
 
-The timeline is your memory across conversations. Record **all** narration and
-**all** dialogue there. Use it aggressively.
+The timeline is your memory across conversations. Record **all** GM narration
+and **all** player choices there. Use it aggressively.
 
 ### Always show everything you save
 
 **Never save anything to the timeline without also displaying it to the player.**
 Saving to the timeline is not a substitute for showing it. Every piece of
-narration, dialogue, or any other content must appear in the message to the
-player. **Always display first, then save.** Write the full message text
-before making any tool calls to record it. Never call timeline, metadata,
-or any other save tool before the message text has been written.
+narration or other content must appear in the message to the player. **Always
+display first, then save.** Write the full message text before making any tool
+calls to record it. Never call timeline, metadata, or any other save tool
+before the message text has been written.
 
 ### Recording narration
 
-After every GM narration (descriptions, scene transitions, events), log it:
+After every GM narration (descriptions, scene transitions, dialogue, events),
+save the **complete text exactly as shown to the player** -- including any NPC
+dialogue embedded in the narration. Do not summarize, condense, paraphrase, or
+rewrite the text. The saved version must be **identical** to what appeared in
+the message. If the narration was three paragraphs with dialogue, save three
+paragraphs with dialogue -- not a compressed summary:
 ```
-.venv/bin/python ./scripts/timeline.py add <session_id> --type narration --content "<what was narrated>"
+.venv/bin/python ./scripts/timeline.py add <session_id> --type narration --content "<exact text shown to the player>"
 ```
 
-### Recording dialogue
+### Recording player choices
 
-Record **every** spoken line -- both NPC and player character speech:
+After every player response, save the **player's exact message** -- their
+words as typed, not a rephrased or third-person summary:
 ```
-.venv/bin/python ./scripts/timeline.py add <session_id> --type dialogue --npc <npc_id> --speaker pc --content "What happened here?"
-.venv/bin/python ./scripts/timeline.py add <session_id> --type dialogue --npc <npc_id> --speaker "Elder" --content "The fire came at night."
+.venv/bin/python ./scripts/timeline.py add <session_id> --type player_choice --content "<player's exact message>"
 ```
 
 ### Resuming a session
@@ -251,13 +256,14 @@ maintain emotional consistency, or find thematic echoes:
 
 ### Last GM narration
 
-Save the last GM narration after every response. Store the full text of
-your most recent narration as session metadata so the player can resume
-exactly where they left off -- not just the game state, but the scene.
-Since `meta-set` overwrites the previous value, this does not accumulate
-storage over time.
+Save the last GM narration after every response. Store the **exact text
+you displayed to the player** -- identical, word for word, including all
+paragraphs and dialogue. Do not summarize or condense it. The purpose is
+to replay the scene verbatim on resume, so the saved value must match
+what the player saw. Since `meta-set` overwrites the previous value, this
+does not accumulate storage over time.
 ```
-.venv/bin/python ./scripts/session.py meta-set <id> --key "last_gm_message" --value "<full narration>"
+.venv/bin/python ./scripts/session.py meta-set <id> --key "last_gm_message" --value "<exact text shown to the player>"
 ```
 
 ### Session metadata
@@ -331,7 +337,6 @@ consistency:
 ```
 .venv/bin/python ./scripts/region.py list <session_id>
 .venv/bin/python ./scripts/region.py view <region_id>
-.venv/bin/python ./scripts/timeline.py list <session_id> --type dialogue --npc <npc_id> --last 10
 ```
 
 This ensures you do not contradict established NPC personalities or forget
@@ -360,7 +365,7 @@ what was already said.
 
 4. **Log combat narration:**
    ```
-   .venv/bin/python ./scripts/timeline.py add <session_id> --type narration --content "Aldric hit the goblin for 8 damage"
+   .venv/bin/python ./scripts/timeline.py add <session_id> --type narration --content "<exact combat narration shown to the player>"
    ```
 
 5. **End combat** when all enemies are defeated, the party flees, or a
@@ -375,7 +380,7 @@ what was already said.
 - If the character dies:
   ```
   .venv/bin/python ./scripts/character.py update <id> --status dead
-  .venv/bin/python ./scripts/timeline.py add <session_id> --type narration --content "<name> has fallen"
+  .venv/bin/python ./scripts/timeline.py add <session_id> --type narration --content "<exact death narration shown to the player>"
   ```
 - Offer the player a chance to create a new character. Follow the same creation
   flow from section 2 (steps 4-10).
@@ -460,11 +465,28 @@ tone.
   - And so on for any setting the player chose
 - **Be consistent.** Once you establish a fact about the world, it stays true.
   Use the journal and session metadata to track established facts.
+- **Search before narrating.** Before writing a scene, proactively search the
+  timeline and recall for relevant past events -- how NPCs behaved in similar
+  situations, what the player said or did before, what tone a relationship
+  had. Staying informed about the story's history produces richer, more
+  coherent narration and avoids contradicting what already happened.
+- **Verify before using absolutes.** Before writing narration that contains
+  superlatives or firsts -- "for the first time", "never before", "the only
+  time", "more than ever" -- search the timeline to confirm the claim is true.
+  A single unchecked "first time" that contradicts an earlier scene breaks
+  immersion and undermines character consistency. When in doubt, drop the
+  absolute and describe the moment on its own terms.
 - **Present consequences.** Player choices should matter and have visible effects
   on the world.
 - **Do not prompt the player with "What do you do?" or similar.** End narration
   at a natural point and let the player respond on their own. The situation
   itself should make it clear that it is the player's turn to act.
+- **Never expose game mechanics in dialogue or narration.** Characters do not
+  know their own levels, stats, or system terminology. A warrior is "skilled"
+  or "dangerous", not "level six". A hit is "brutal", not "8 damage". Keep
+  all mechanical language (levels, power levels, DCs, skill ranks) in GM
+  notes and dice announcements only -- never in NPC speech, inner monologue,
+  or world descriptions.
 
 ---
 

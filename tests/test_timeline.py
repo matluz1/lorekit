@@ -16,43 +16,38 @@ def test_add_narration(run, make_session):
     assert re.search(r"TIMELINE_ADDED: \d+", r.stdout)
 
 
-def test_add_dialogue(run, make_session, make_character):
+def test_add_player_choice(run, make_session):
     sid = make_session()
-    npc_id = make_character(sid, "Merchant", "npc")
-    r = run("timeline.py", "add", sid, "--type", "dialogue", "--npc", npc_id, "--speaker", "Merchant", "--content", "Welcome to my shop!")
+    r = run("timeline.py", "add", sid, "--type", "player_choice", "--content", "I search the room for clues.")
     assert r.returncode == 0
     assert re.search(r"TIMELINE_ADDED: \d+", r.stdout)
 
 
-def test_list_all(run, make_session, make_character):
+def test_list_all(run, make_session):
     sid = make_session()
-    npc_id = make_character(sid, "Guard", "npc")
     run("timeline.py", "add", sid, "--type", "narration", "--content", "The gates stood tall.")
-    run("timeline.py", "add", sid, "--type", "dialogue", "--npc", npc_id, "--speaker", "Guard", "--content", "Halt!")
+    run("timeline.py", "add", sid, "--type", "player_choice", "--content", "I approach the gates.")
     r = run("timeline.py", "list", sid)
     assert "The gates stood tall." in r.stdout
-    assert "Halt!" in r.stdout
+    assert "I approach the gates." in r.stdout
 
 
-def test_list_by_type(run, make_session, make_character):
+def test_list_by_type(run, make_session):
     sid = make_session()
-    npc_id = make_character(sid, "Guard", "npc")
     run("timeline.py", "add", sid, "--type", "narration", "--content", "Rain fell.")
-    run("timeline.py", "add", sid, "--type", "dialogue", "--npc", npc_id, "--speaker", "Guard", "--content", "Who goes there?")
+    run("timeline.py", "add", sid, "--type", "player_choice", "--content", "I take shelter.")
     r = run("timeline.py", "list", sid, "--type", "narration")
     assert "Rain fell." in r.stdout
-    assert "Who goes there?" not in r.stdout
+    assert "I take shelter." not in r.stdout
 
 
-def test_list_by_npc(run, make_session, make_character):
+def test_list_by_type_player_choice(run, make_session):
     sid = make_session()
-    npc1 = make_character(sid, "NPC1", "npc")
-    npc2 = make_character(sid, "NPC2", "npc")
-    run("timeline.py", "add", sid, "--type", "dialogue", "--npc", npc1, "--speaker", "NPC1", "--content", "Line from NPC1")
-    run("timeline.py", "add", sid, "--type", "dialogue", "--npc", npc2, "--speaker", "NPC2", "--content", "Line from NPC2")
-    r = run("timeline.py", "list", sid, "--npc", npc1)
-    assert "Line from NPC1" in r.stdout
-    assert "Line from NPC2" not in r.stdout
+    run("timeline.py", "add", sid, "--type", "narration", "--content", "Rain fell.")
+    run("timeline.py", "add", sid, "--type", "player_choice", "--content", "I take shelter.")
+    r = run("timeline.py", "list", sid, "--type", "player_choice")
+    assert "I take shelter." in r.stdout
+    assert "Rain fell." not in r.stdout
 
 
 def test_list_last_n(run, make_session):
@@ -91,13 +86,12 @@ def test_narration_auto_indexes(run, make_session):
     assert "dragon" in r.stdout
 
 
-def test_dialogue_auto_indexes(run, make_session, make_character):
+def test_player_choice_auto_indexes(run, make_session):
     sid = make_session()
-    npc_id = make_character(sid, "Wizard", "npc")
-    run("timeline.py", "add", sid, "--type", "dialogue", "--npc", npc_id, "--speaker", "Wizard", "--content", "The spell requires moonstone")
-    r = run("recall.py", "search", sid, "--query", "magical ingredients")
+    run("timeline.py", "add", sid, "--type", "player_choice", "--content", "I draw my sword and charge at the bandit")
+    r = run("recall.py", "search", sid, "--query", "sword charge")
     assert r.returncode == 0
-    assert "moonstone" in r.stdout
+    assert "sword" in r.stdout
 
 
 # -- Validation Errors --
@@ -115,20 +109,7 @@ def test_add_missing_type_fails(run, make_session):
 
 def test_add_invalid_type_fails(run, make_session):
     sid = make_session()
-    r = run("timeline.py", "add", sid, "--type", "event", "--content", "X")
-    assert r.returncode == 1
-
-
-def test_add_dialogue_missing_npc_fails(run, make_session):
-    sid = make_session()
-    r = run("timeline.py", "add", sid, "--type", "dialogue", "--speaker", "X", "--content", "Y")
-    assert r.returncode == 1
-
-
-def test_add_dialogue_missing_speaker_fails(run, make_session, make_character):
-    sid = make_session()
-    npc_id = make_character(sid, "NPC", "npc")
-    r = run("timeline.py", "add", sid, "--type", "dialogue", "--npc", npc_id, "--content", "Y")
+    r = run("timeline.py", "add", sid, "--type", "dialogue", "--content", "X")
     assert r.returncode == 1
 
 

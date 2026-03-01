@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""timeline.py -- Unified timeline of narration and dialogue."""
+"""timeline.py -- Unified timeline of narration and player choices."""
 
 import os
 import sys
@@ -13,8 +13,8 @@ def usage():
     print()
     print("Actions:")
     print('  add <session_id> --type narration --content "<text>"')
-    print('  add <session_id> --type dialogue --npc <id> --speaker "<name>" --content "<text>"')
-    print("  list <session_id> [--type narration|dialogue] [--npc <id>] [--last <N>]")
+    print('  add <session_id> --type player_choice --content "<text>"')
+    print("  list <session_id> [--type narration|player_choice] [--last <N>]")
     print('  search <session_id> --query "<text>"')
     sys.exit(1)
 
@@ -46,36 +46,28 @@ def cmd_add(db, args):
         error("session_id required")
     session_id = args[0]
     rest = args[1:]
-    entry_type = content = npc = speaker = ""
+    entry_type = content = ""
     i = 0
     while i < len(rest):
         if rest[i] == "--type":
             entry_type = rest[i + 1]; i += 2
-        elif rest[i] == "--npc":
-            npc = rest[i + 1]; i += 2
-        elif rest[i] == "--speaker":
-            speaker = rest[i + 1]; i += 2
         elif rest[i] == "--content":
             content = rest[i + 1]; i += 2
         else:
             error(f"Unknown option: {rest[i]}")
     if not entry_type or not content:
         error("--type and --content are required")
-    if entry_type not in ("narration", "dialogue"):
-        error("--type must be narration or dialogue")
-    if entry_type == "dialogue" and (not npc or not speaker):
-        error("--npc and --speaker are required for dialogue entries")
+    if entry_type not in ("narration", "player_choice"):
+        error("--type must be narration or player_choice")
     cur = db.execute(
-        "INSERT INTO timeline (session_id, entry_type, speaker, npc_id, content) VALUES (?, ?, ?, ?, ?)",
-        (session_id, entry_type, speaker, npc if npc else None, content),
+        "INSERT INTO timeline (session_id, entry_type, content) VALUES (?, ?, ?)",
+        (session_id, entry_type, content),
     )
     db.commit()
     sql_id = cur.lastrowid
     try:
         from _vectordb import index_timeline
-        index_timeline(session_id, sql_id, entry_type, content,
-                       speaker=speaker if speaker else None,
-                       npc_id=npc if npc else None)
+        index_timeline(session_id, sql_id, entry_type, content)
     except Exception:
         pass
     print(f"TIMELINE_ADDED: {sql_id}")
@@ -86,25 +78,20 @@ def cmd_list(db, args):
         error("session_id required")
     session_id = args[0]
     rest = args[1:]
-    entry_type = npc = last = ""
+    entry_type = last = ""
     i = 0
     while i < len(rest):
         if rest[i] == "--type":
             entry_type = rest[i + 1]; i += 2
-        elif rest[i] == "--npc":
-            npc = rest[i + 1]; i += 2
         elif rest[i] == "--last":
             last = rest[i + 1]; i += 2
         else:
             error(f"Unknown option: {rest[i]}")
-    query = "SELECT id, entry_type, speaker, npc_id, content, created_at FROM timeline WHERE session_id = ?"
+    query = "SELECT id, entry_type, content, created_at FROM timeline WHERE session_id = ?"
     params = [session_id]
     if entry_type:
         query += " AND entry_type = ?"
         params.append(entry_type)
-    if npc:
-        query += " AND npc_id = ?"
-        params.append(npc)
     if last:
         query += " ORDER BY id DESC LIMIT ?"
         params.append(int(last))
@@ -131,7 +118,7 @@ def cmd_search(db, args):
     if not query_text:
         error("--query is required")
     cur = db.execute(
-        "SELECT id, entry_type, speaker, npc_id, content, created_at FROM timeline "
+        "SELECT id, entry_type, content, created_at FROM timeline "
         "WHERE session_id = ? AND content LIKE ? ORDER BY id",
         (session_id, f"%{query_text}%"),
     )

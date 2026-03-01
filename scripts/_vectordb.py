@@ -47,7 +47,7 @@ def index_journal(session_id, sql_id, entry_type, content, created_at=None):
     )
 
 
-def index_timeline(session_id, sql_id, entry_type, content, speaker=None, npc_id=None, created_at=None):
+def index_timeline(session_id, sql_id, entry_type, content, created_at=None):
     """Upsert a timeline entry into the timeline collection."""
     client = get_chroma_client()
     collection = client.get_or_create_collection("timeline")
@@ -56,10 +56,6 @@ def index_timeline(session_id, sql_id, entry_type, content, speaker=None, npc_id
         "entry_type": entry_type,
         "sql_id": int(sql_id),
     }
-    if speaker:
-        metadata["speaker"] = speaker
-    if npc_id is not None:
-        metadata["npc_id"] = str(npc_id)
     if created_at:
         metadata["created_at"] = created_at
     collection.upsert(

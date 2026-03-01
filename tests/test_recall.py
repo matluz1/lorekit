@@ -9,11 +9,10 @@ chromadb = pytest.importorskip("chromadb")
 
 # -- Reindex --
 
-def test_reindex_timeline(run, make_session, make_character):
+def test_reindex_timeline(run, make_session):
     sid = make_session()
-    npc_id = make_character(sid, "Guard", "npc")
     run("timeline.py", "add", sid, "--type", "narration", "--content", "The party entered the ancient temple")
-    run("timeline.py", "add", sid, "--type", "dialogue", "--npc", npc_id, "--speaker", "Guard", "--content", "State your business")
+    run("timeline.py", "add", sid, "--type", "player_choice", "--content", "I look around cautiously")
     r = run("recall.py", "reindex", sid)
     assert r.returncode == 0
     assert "2 timeline entries, 0 journal entries" in r.stdout
@@ -27,9 +26,8 @@ def test_reindex_journal(run, make_session):
     assert "0 timeline entries, 1 journal entries" in r.stdout
 
 
-def test_reindex_both(run, make_session, make_character):
+def test_reindex_both(run, make_session):
     sid = make_session()
-    npc_id = make_character(sid, "Guard", "npc")
     run("timeline.py", "add", sid, "--type", "narration", "--content", "Entered the city gates")
     run("journal.py", "add", sid, "--type", "note", "--content", "Player prefers combat")
     r = run("recall.py", "reindex", sid)

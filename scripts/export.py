@@ -182,18 +182,16 @@ def cmd_dump(db, args):
 
     # -- 5. Timeline --
     timeline = db.execute(
-        "SELECT entry_type, speaker, content, created_at FROM timeline"
+        "SELECT entry_type, content, created_at FROM timeline"
         " WHERE session_id = ? ORDER BY id",
         (session_id,),
     ).fetchall()
     if timeline:
         parts.append(_section("TIMELINE"))
         for t in timeline:
-            ts = t[3]
-            if t[0] == "narration":
-                parts.append(f"[{ts}] {t[2]}")
-            else:
-                parts.append(f"[{ts}] {t[1]}: \"{t[2]}\"")
+            ts = t[2]
+            label = "GM" if t[0] == "narration" else "PLAYER"
+            parts.append(f"[{ts}] [{label}] {t[1]}")
         parts.append("")
 
     # -- 6. Journal --
