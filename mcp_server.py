@@ -515,4 +515,9 @@ def export_clean() -> str:
 # ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
+    # Eagerly load the embedding model so the first vector operation
+    # doesn't pay a cold-start penalty.
+    from _vectordb import _get_model
+
+    _get_model()
     mcp.run()
