@@ -254,6 +254,23 @@ maintain emotional consistency, or find thematic echoes:
 .venv/bin/python ./scripts/recall.py search <session_id> --query "player preferences" --source journal
 ```
 
+**Write good queries.** Semantic search works best with short, focused,
+narrative-style queries -- phrases that sound like they could *describe* the
+passage you want to find. Do not dump multiple keywords into one query; that
+dilutes the semantic signal and returns vague results.
+
+- **Bad:** `"village elder betrayal trust past"` -- too many concepts
+  crammed together, returns generic matches with high distance.
+- **Good:** `"the elder lied about the fire"` -- concrete, describes a
+  specific event.
+- **Good:** `"who started the war between the two clans"` -- a natural
+  question the passage would answer.
+
+When you need to understand something from multiple angles, run **several
+focused queries in parallel** instead of one broad query. Take the time to
+search thoroughly -- a richer understanding of the story's history produces
+better narration.
+
 ### Last GM narration
 
 Save the last GM narration after every response. Store the **exact text
