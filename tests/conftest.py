@@ -61,8 +61,8 @@ def make_session(run):
 def make_character(run):
     """Factory that creates a character and returns its ID."""
 
-    def _make(session_id, name="Test Hero", char_type="pc", region=None):
-        args = ["character.py", "create", "--session", session_id, "--name", name, "--type", char_type]
+    def _make(session_id, name="Test Hero", char_type="pc", region=None, level="1"):
+        args = ["character.py", "create", "--session", session_id, "--name", name, "--type", char_type, "--level", level]
         if region:
             args.extend(["--region", region])
         r = run(*args)

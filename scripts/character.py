@@ -58,7 +58,7 @@ def main():
 
 def cmd_create(db, args):
     session = name = ""
-    level = "1"
+    level = ""
     char_type = "pc"
     region = ""
     i = 0
@@ -75,8 +75,8 @@ def cmd_create(db, args):
             region = args[i + 1]; i += 2
         else:
             error(f"Unknown option: {args[i]}")
-    if not session or not name:
-        error("--session and --name are required")
+    if not session or not name or not level:
+        error("--session, --name, and --level are required")
     if char_type not in ("pc", "npc"):
         error("--type must be pc or npc")
     region_val = int(region) if region else None
