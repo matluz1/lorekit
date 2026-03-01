@@ -19,6 +19,12 @@ python3.13 -m venv .venv
 The MCP server is configured in `.mcp.json`. On first use, the agent calls
 `init_db` to create the database.
 
+## Testing
+
+```bash
+.venv/bin/pytest tests/ -v
+```
+
 ## Playing
 
 Open your AI agent in the project directory and ask it to start a game.

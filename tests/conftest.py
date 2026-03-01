@@ -1,84 +1,73 @@
 """Shared pytest fixtures for LoreKit tests."""
 
 import os
-import subprocess
+import re
 import sys
 
 import pytest
 
-SCRIPTS_DIR = os.path.join(os.path.dirname(__file__), "..", "scripts")
+# Allow imports from project root and scripts/
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, ROOT)
+sys.path.insert(0, os.path.join(ROOT, "scripts"))
 
 
-@pytest.fixture
-def db_path(tmp_path):
-    """Create a fresh database in a temp directory and return its path."""
+def _extract_id(result):
+    """Extract integer ID from result strings like 'FOO_CREATED: 123'."""
+    m = re.search(r":\s*(\d+)", result)
+    assert m, f"Could not extract ID from: {result}"
+    return int(m.group(1))
+
+
+@pytest.fixture(autouse=True)
+def _isolate_db(tmp_path, monkeypatch):
+    """Point LoreKit at a temp database for every test."""
     db = str(tmp_path / "game.db")
-    env = os.environ.copy()
-    env["LOREKIT_DB_DIR"] = str(tmp_path)
-    env["LOREKIT_DB"] = db
-    env["LOREKIT_CHROMA_DIR"] = str(tmp_path / "chroma")
-    subprocess.run(
-        [sys.executable, os.path.join(SCRIPTS_DIR, "init_db.py")],
-        env=env,
-        check=True,
-        capture_output=True,
-    )
-    return db
+    monkeypatch.setenv("LOREKIT_DB_DIR", str(tmp_path))
+    monkeypatch.setenv("LOREKIT_DB", db)
+    monkeypatch.setenv("LOREKIT_CHROMA_DIR", str(tmp_path / "chroma"))
+    from _db import init_schema
+
+    init_schema(db)
 
 
 @pytest.fixture
-def run(db_path):
-    """Return a helper that runs a script as a subprocess."""
-
-    def _run(script, *args):
-        env = os.environ.copy()
-        env["LOREKIT_DB"] = db_path
-        env["LOREKIT_CHROMA_DIR"] = str(os.path.join(os.path.dirname(db_path), "chroma"))
-        result = subprocess.run(
-            [sys.executable, os.path.join(SCRIPTS_DIR, script), *args],
-            env=env,
-            capture_output=True,
-            text=True,
-        )
-        return result
-
-    return _run
-
-
-@pytest.fixture
-def make_session(run):
-    """Factory that creates a session and returns its ID."""
+def make_session():
+    """Factory that creates a session and returns its integer ID."""
 
     def _make(name="Test Campaign", setting="Fantasy World", system="d20 Fantasy"):
-        r = run("session.py", "create", "--name", name, "--setting", setting, "--system", system)
-        assert r.returncode == 0
-        return r.stdout.strip().split(": ")[1]
+        from mcp_server import session_create
+
+        result = session_create(name=name, setting=setting, system=system)
+        return _extract_id(result)
 
     return _make
 
 
 @pytest.fixture
-def make_character(run):
-    """Factory that creates a character and returns its ID."""
+def make_character():
+    """Factory that creates a character and returns its integer ID."""
 
-    def _make(session_id, name="Test Hero", char_type="pc", region=None, level="1"):
-        args = ["character.py", "create", "--session", session_id, "--name", name, "--type", char_type, "--level", level]
+    def _make(session_id, name="Test Hero", char_type="pc", region=None, level=1):
+        from mcp_server import character_create
+
+        kwargs = dict(session=session_id, name=name, level=level, type=char_type)
         if region:
-            args.extend(["--region", region])
-        r = run(*args)
-        assert r.returncode == 0
-        return r.stdout.strip().split(": ")[1]
+            kwargs["region"] = region
+        result = character_create(**kwargs)
+        return _extract_id(result)
 
     return _make
 
 
 @pytest.fixture
-def make_region(run):
-    """Factory that creates a region and returns its ID."""
+def make_region():
+    """Factory that creates a region and returns its integer ID."""
 
     def _make(session_id, name="Test Region", desc="A test region"):
-        r = run("region.py", "create", session_id, "--name", name, "--desc", desc)
-        assert r.returncode == 0
-        return r.stdout.strip().split(": ")[1]
+        from mcp_server import region_create
+
+        result = region_create(session_id=session_id, name=name, desc=desc)
+        return _extract_id(result)
 
     return _make

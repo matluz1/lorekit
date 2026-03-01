@@ -1,116 +1,94 @@
-"""Tests for session.py."""
+"""Tests for session management."""
 
 import re
+
+from mcp_server import (
+    session_create,
+    session_list,
+    session_meta_get,
+    session_meta_set,
+    session_update,
+    session_view,
+)
 
 
 # -- Happy Path --
 
-def test_create_session(run):
-    r = run("session.py", "create", "--name", "Quest", "--setting", "Fantasy", "--system", "d20 Fantasy")
-    assert r.returncode == 0
-    assert re.search(r"SESSION_CREATED: \d+", r.stdout)
+
+def test_create_session():
+    result = session_create(name="Quest", setting="Fantasy", system="d20 Fantasy")
+    assert re.search(r"SESSION_CREATED: \d+", result)
 
 
-def test_view_session(run, make_session):
+def test_view_session(make_session):
     sid = make_session("My Campaign", "Dark World", "PF2e")
-    r = run("session.py", "view", sid)
-    assert r.returncode == 0
-    assert "NAME: My Campaign" in r.stdout
-    assert "SETTING: Dark World" in r.stdout
-    assert "SYSTEM: PF2e" in r.stdout
-    assert "STATUS: active" in r.stdout
+    result = session_view(session_id=sid)
+    assert "NAME: My Campaign" in result
+    assert "SETTING: Dark World" in result
+    assert "SYSTEM: PF2e" in result
+    assert "STATUS: active" in result
 
 
-def test_list_sessions(run, make_session):
+def test_list_sessions(make_session):
     make_session("Camp A")
     make_session("Camp B")
-    r = run("session.py", "list")
-    assert "Camp A" in r.stdout
-    assert "Camp B" in r.stdout
+    result = session_list()
+    assert "Camp A" in result
+    assert "Camp B" in result
 
 
-def test_list_filter_status(run, make_session):
+def test_list_filter_status(make_session):
     make_session("Active Camp")
     s2 = make_session("Done Camp")
-    run("session.py", "update", s2, "--status", "finished")
-    r = run("session.py", "list", "--status", "active")
-    assert "Active Camp" in r.stdout
-    assert "Done Camp" not in r.stdout
+    session_update(session_id=s2, status="finished")
+    result = session_list(status="active")
+    assert "Active Camp" in result
+    assert "Done Camp" not in result
 
 
-def test_update_status(run, make_session):
+def test_update_status(make_session):
     sid = make_session()
-    run("session.py", "update", sid, "--status", "finished")
-    r = run("session.py", "view", sid)
-    assert "STATUS: finished" in r.stdout
+    session_update(session_id=sid, status="finished")
+    result = session_view(session_id=sid)
+    assert "STATUS: finished" in result
 
 
-def test_meta_set_and_get(run, make_session):
+def test_meta_set_and_get(make_session):
     sid = make_session()
-    run("session.py", "meta-set", sid, "--key", "difficulty", "--value", "hard")
-    r = run("session.py", "meta-get", sid, "--key", "difficulty")
-    assert "difficulty: hard" in r.stdout
+    session_meta_set(session_id=sid, key="difficulty", value="hard")
+    result = session_meta_get(session_id=sid, key="difficulty")
+    assert "difficulty: hard" in result
 
 
-def test_meta_overwrite(run, make_session):
+def test_meta_overwrite(make_session):
     sid = make_session()
-    run("session.py", "meta-set", sid, "--key", "level", "--value", "5")
-    run("session.py", "meta-set", sid, "--key", "level", "--value", "10")
-    r = run("session.py", "meta-get", sid, "--key", "level")
-    assert "level: 10" in r.stdout
+    session_meta_set(session_id=sid, key="level", value="5")
+    session_meta_set(session_id=sid, key="level", value="10")
+    result = session_meta_get(session_id=sid, key="level")
+    assert "level: 10" in result
 
 
-def test_meta_get_all(run, make_session):
+def test_meta_get_all(make_session):
     sid = make_session()
-    run("session.py", "meta-set", sid, "--key", "a", "--value", "1")
-    run("session.py", "meta-set", sid, "--key", "b", "--value", "2")
-    r = run("session.py", "meta-get", sid)
-    assert "a" in r.stdout
-    assert "b" in r.stdout
+    session_meta_set(session_id=sid, key="a", value="1")
+    session_meta_set(session_id=sid, key="b", value="2")
+    result = session_meta_get(session_id=sid)
+    assert "a" in result
+    assert "b" in result
 
 
 # -- Error Cases --
 
-def test_no_action_fails(run):
-    r = run("session.py")
-    assert r.returncode == 1
 
-
-def test_unknown_action_fails(run):
-    r = run("session.py", "foobar")
-    assert r.returncode == 1
-    assert "ERROR" in r.stderr
-
-
-def test_create_missing_name_fails(run):
-    r = run("session.py", "create", "--setting", "X", "--system", "Y")
-    assert r.returncode == 1
-
-
-def test_create_missing_setting_fails(run):
-    r = run("session.py", "create", "--name", "X", "--system", "Y")
-    assert r.returncode == 1
-
-
-def test_create_missing_system_fails(run):
-    r = run("session.py", "create", "--name", "X", "--setting", "Y")
-    assert r.returncode == 1
-
-
-def test_view_missing_id_fails(run):
-    r = run("session.py", "view")
-    assert r.returncode == 1
-
-
-def test_view_nonexistent_fails(run):
-    r = run("session.py", "view", "9999")
-    assert r.returncode == 1
-    assert "not found" in r.stderr
+def test_view_nonexistent_fails():
+    result = session_view(session_id=9999)
+    assert "not found" in result
 
 
 # -- Edge Cases --
 
-def test_special_characters_in_name(run, make_session):
+
+def test_special_characters_in_name(make_session):
     sid = make_session("O'Brien's Quest", 'Land of "Quotes"', "d20 Fantasy")
-    r = run("session.py", "view", sid)
-    assert "O'Brien's Quest" in r.stdout
+    result = session_view(session_id=sid)
+    assert "O'Brien's Quest" in result
