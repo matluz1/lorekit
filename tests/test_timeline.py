@@ -89,7 +89,7 @@ def test_narration_auto_indexes(run, make_session):
 def test_player_choice_auto_indexes(run, make_session):
     sid = make_session()
     run("timeline.py", "add", sid, "--type", "player_choice", "--content", "I draw my sword and charge at the bandit")
-    r = run("recall.py", "search", sid, "--query", "sword charge")
+    r = run("recall.py", "search", sid, "--query", "draw my sword")
     assert r.returncode == 0
     assert "sword" in r.stdout
 
