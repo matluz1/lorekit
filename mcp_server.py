@@ -5,6 +5,9 @@ import io
 import os
 import sys
 
+# Silence ChromaDB telemetry notice
+os.environ.setdefault("ANONYMIZED_TELEMETRY", "False")
+
 # Allow imports from scripts/
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "scripts"))
 
