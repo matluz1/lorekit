@@ -293,11 +293,17 @@ When the party enters a new area, create a region for it:
 
 ### Introducing NPCs
 
-When you introduce a named NPC, register them as a character with `--type npc`
-and link them to the current region:
+When you introduce a named NPC, register them as a character with `--type npc`,
+set their level, and link them to the current region:
 ```
-.venv/bin/python ./scripts/character.py create --session <id> --name "Elder" --type npc --region <region_id>
+.venv/bin/python ./scripts/character.py create --session <id> --name "Elder" --type npc --level <level> --region <region_id>
 ```
+
+**Always create complete NPC sheets.** After creating the NPC, immediately
+register their attributes, inventory, and abilities -- the same way you would
+for a player character. An NPC without stats is an NPC the system cannot track.
+At minimum, set core attributes (stats, defenses), key equipment, and any
+abilities that define the character. Do not leave this for later.
 
 To move an NPC to a different region later:
 ```

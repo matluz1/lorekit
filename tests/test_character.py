@@ -7,14 +7,14 @@ import re
 
 def test_create_pc(run, make_session):
     sid = make_session()
-    r = run("character.py", "create", "--session", sid, "--name", "Gandalf", "--type", "pc")
+    r = run("character.py", "create", "--session", sid, "--name", "Gandalf", "--type", "pc", "--level", "1")
     assert r.returncode == 0
     assert re.search(r"CHARACTER_CREATED: \d+", r.stdout)
 
 
 def test_create_npc(run, make_session):
     sid = make_session()
-    r = run("character.py", "create", "--session", sid, "--name", "Shopkeeper", "--type", "npc")
+    r = run("character.py", "create", "--session", sid, "--name", "Shopkeeper", "--type", "npc", "--level", "1")
     assert r.returncode == 0
     assert re.search(r"CHARACTER_CREATED: \d+", r.stdout)
 
@@ -173,7 +173,7 @@ def test_create_missing_name_fails(run, make_session):
 
 def test_create_invalid_type_fails(run, make_session):
     sid = make_session()
-    r = run("character.py", "create", "--session", sid, "--name", "X", "--type", "monster")
+    r = run("character.py", "create", "--session", sid, "--name", "X", "--type", "monster", "--level", "1")
     assert r.returncode == 1
     assert "pc or npc" in r.stderr
 
@@ -212,15 +212,13 @@ def test_sql_escaping_in_name(run, make_session, make_character):
 
 def test_default_type_is_pc(run, make_session):
     sid = make_session()
-    r = run("character.py", "create", "--session", sid, "--name", "Default")
+    r = run("character.py", "create", "--session", sid, "--name", "Default", "--level", "1")
     cid = r.stdout.strip().split(": ")[1]
     r = run("character.py", "view", cid)
     assert "TYPE: pc" in r.stdout
 
 
-def test_default_level_is_one(run, make_session):
+def test_create_missing_level_fails(run, make_session):
     sid = make_session()
     r = run("character.py", "create", "--session", sid, "--name", "Newbie")
-    cid = r.stdout.strip().split(": ")[1]
-    r = run("character.py", "view", cid)
-    assert "LEVEL: 1" in r.stdout
+    assert r.returncode == 1
