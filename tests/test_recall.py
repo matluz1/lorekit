@@ -67,17 +67,6 @@ def test_search_finds_relevant(make_session):
     assert "ancient temple" in result
 
 
-def test_search_returns_raw_content(make_session):
-    """Search results include raw content from SQLite alongside the summary."""
-    sid = make_session()
-    timeline_add(session_id=sid, type="narration",
-                 content="The dragon breathed fire on the village, scattering the townsfolk.",
-                 summary="Dragon attacks the village")
-    recall_reindex(session_id=sid)
-    result = recall_search(session_id=sid, query="dragon attack")
-    assert "Dragon attacks the village" in result
-    assert "breathed fire" in result
-
 
 def test_search_source_timeline(make_session):
     sid = make_session()

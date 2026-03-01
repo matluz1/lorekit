@@ -70,7 +70,7 @@ def cmd_search(args):
         return
 
     # Print results in table format
-    headers = ["source", "id", "distance", "content", "raw"]
+    headers = ["source", "id", "distance", "content"]
     widths = [len(h) for h in headers]
     str_rows = []
     for r in results:
@@ -79,7 +79,6 @@ def cmd_search(args):
             r["id"],
             f"{r['distance']:.4f}",
             r["content"],
-            r.get("raw", ""),
         ]
         str_rows.append(row)
         for j, val in enumerate(row):
