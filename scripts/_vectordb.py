@@ -246,39 +246,17 @@ def _rrf_merge(semantic_results, kw_results, n_results):
     return results
 
 
-_DEFAULT_LIMITS = {"timeline": 15, "journal": 5}
+_DEFAULT_LIMITS = {"timeline": 10, "journal": 5}
 
-
-def _resolve_raw_content(results):
-    """Attach raw content from SQLite to each result dict."""
-    from _db import require_db
-
-    if not results:
-        return results
-
-    db = require_db()
-    for r in results:
-        sql_id = r["metadata"].get("sql_id")
-        source = r["source"]
-        if sql_id is None:
-            continue
-        table = source  # "timeline" or "journal"
-        row = db.execute(
-            f"SELECT content FROM {table} WHERE id = ?", (sql_id,)
-        ).fetchone()
-        if row:
-            r["raw"] = row[0]
-
-    return results
 
 
 def hybrid_search(query, session_id, collection_name=None, n_results=0):
     """Hybrid search combining keyword (SQL LIKE) and semantic (ChromaDB) results.
 
     Uses Reciprocal Rank Fusion to merge rankings per collection.
-    Each collection has a default result limit (timeline: 15, journal: 5).
+    Each collection has a default result limit (timeline: 10, journal: 5).
     Pass n_results > 0 to override the default for the requested collection(s).
-    Returns a list of dicts with keys: source, id, content, distance, metadata, raw.
+    Returns a list of dicts with keys: source, id, content, distance, metadata.
     """
     collections = [collection_name] if collection_name else ["timeline", "journal"]
     if n_results > 0:
@@ -292,7 +270,5 @@ def hybrid_search(query, session_id, collection_name=None, n_results=0):
         sem = search(query, session_id, collection_name=col_name, n_results=fetch_n)
         kw = keyword_search(query, session_id, collection_name=col_name, n_results=fetch_n)
         results.extend(_rrf_merge(sem, kw, limit))
-
-    _resolve_raw_content(results)
 
     return results

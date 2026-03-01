@@ -259,6 +259,18 @@ recall_search(session_id=<session_id>, query="moments of betrayal")
 Prefer leaving `source` empty so the search returns results from both
 timeline and journal in a single call.
 
+**Recall search returns summaries, not full text.** This keeps results
+compact and avoids flooding the context window. When you need the full
+narration behind a result, use the `id` column from the search output
+to fetch it:
+```
+recall_search(session_id=<id>, query="dragon attack")
+# → sees timeline_271 looks relevant
+timeline_list(session_id=<id>, id="271")
+```
+This two-step approach lets you scan many results cheaply, then read
+only the entries that matter.
+
 **Write good queries.** Semantic search works best with short, focused
 queries that use **the same concrete vocabulary** that appears in the saved
 text. The timeline contains raw narration and player messages -- colloquial,

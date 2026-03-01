@@ -814,7 +814,7 @@ recall_search(session_id=1, query="dark rituals", n=10)
 | session_id | int | yes | | Session ID |
 | query | str | yes | | Search text |
 | source | str | no | "" | timeline, journal, or empty for both |
-| n | int | no | 0 | Override result count. 0 = use built-in limits (timeline: 15, journal: 5) |
+| n | int | no | 0 | Override result count. 0 = use built-in limits (timeline: 10, journal: 5) |
 
 **Output:** table with columns `source, id, distance, content`. Lower distance
 means higher relevance. Default limits apply per collection regardless of
