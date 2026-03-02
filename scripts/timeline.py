@@ -33,6 +33,7 @@ def main():
         "add": cmd_add,
         "list": cmd_list,
         "search": cmd_search,
+        "revert": cmd_revert,
     }
 
     fn = actions.get(action)
@@ -109,6 +110,66 @@ def cmd_set_summary(db, args):
         except Exception:
             pass
     print(f"SUMMARY_SET: {timeline_id}")
+
+
+def cmd_revert(db, args):
+    if not args:
+        error("session_id required")
+    session_id = args[0]
+
+    # Find the last narration
+    row = db.execute(
+        "SELECT id FROM timeline WHERE session_id = ? AND entry_type = 'narration' ORDER BY id DESC LIMIT 1",
+        (session_id,),
+    ).fetchone()
+    if not row:
+        error("No narrations to revert")
+    last_narration_id = row[0]
+
+    # Find all entries at or after the last narration
+    rows = db.execute(
+        "SELECT id, entry_type, summary FROM timeline WHERE session_id = ? AND id >= ? ORDER BY id",
+        (session_id, last_narration_id),
+    ).fetchall()
+    ids_to_delete = [r[0] for r in rows]
+    narration_ids_with_summary = [r[0] for r in rows if r[1] == "narration" and r[2]]
+
+    # Count by type for the output message
+    type_counts = {}
+    for r in rows:
+        type_counts[r[1]] = type_counts.get(r[1], 0) + 1
+
+    # Delete from SQLite
+    placeholders = ",".join("?" * len(ids_to_delete))
+    db.execute(f"DELETE FROM timeline WHERE id IN ({placeholders})", ids_to_delete)
+
+    # Restore last_gm_message to the previous narration (if any remain)
+    prev = db.execute(
+        "SELECT content FROM timeline WHERE session_id = ? AND entry_type = 'narration' ORDER BY id DESC LIMIT 1",
+        (session_id,),
+    ).fetchone()
+    if prev:
+        db.execute(
+            "INSERT OR REPLACE INTO session_meta (session_id, key, value) VALUES (?, 'last_gm_message', ?)",
+            (session_id, prev[0]),
+        )
+    else:
+        db.execute(
+            "DELETE FROM session_meta WHERE session_id = ? AND key = 'last_gm_message'",
+            (session_id,),
+        )
+    db.commit()
+
+    # Best-effort ChromaDB cleanup for deleted narrations with summaries
+    if narration_ids_with_summary:
+        try:
+            from _vectordb import delete_timeline
+            delete_timeline(narration_ids_with_summary)
+        except Exception:
+            pass
+
+    breakdown = ", ".join(f"{count} {etype}" for etype, count in sorted(type_counts.items()))
+    print(f"TIMELINE_REVERTED: {len(ids_to_delete)} entries removed ({breakdown})")
 
 
 def cmd_list(db, args):

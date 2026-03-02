@@ -701,6 +701,25 @@ timeline_set_summary(timeline_id=42, summary="<1-2 sentence summary>")
 SUMMARY_SET: 42
 ```
 
+## timeline_revert
+
+Revert the last narration and all timeline entries after it. Removes the
+entries from SQLite and ChromaDB, and restores `last_gm_message` to the
+previous narration (or clears it if none remain).
+
+```
+timeline_revert(session_id=1)
+```
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| session_id | int | yes | Session ID |
+
+**Output:**
+```
+TIMELINE_REVERTED: 3 entries removed (1 narration, 2 player_choice)
+```
+
 ## timeline_list
 
 List timeline entries.

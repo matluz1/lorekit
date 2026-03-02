@@ -411,6 +411,14 @@ def timeline_set_summary(timeline_id: int, summary: str) -> str:
     return _run_with_db(cmd_set_summary, [str(timeline_id), "--summary", summary])
 
 
+@mcp.tool()
+def timeline_revert(session_id: int) -> str:
+    """Revert the last narration and all entries after it. Cleans up the vector index and restores last_gm_message."""
+    from timeline import cmd_revert
+
+    return _run_with_db(cmd_revert, [str(session_id)])
+
+
 # ---------------------------------------------------------------------------
 # journal
 # ---------------------------------------------------------------------------

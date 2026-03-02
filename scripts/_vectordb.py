@@ -121,6 +121,19 @@ def index_timeline(session_id, sql_id, entry_type, summary, created_at=None):
     collection.upsert(**kwargs)
 
 
+def delete_timeline(sql_ids):
+    """Delete timeline entries from the ChromaDB timeline collection by SQL IDs."""
+    if not sql_ids:
+        return
+    try:
+        client = get_chroma_client()
+        collection = client.get_collection("timeline")
+    except Exception:
+        return
+    doc_ids = [f"timeline_{sid}" for sid in sql_ids]
+    collection.delete(ids=doc_ids)
+
+
 def search(query, session_id, collection_name=None, n_results=5):
     """Semantic search across timeline and/or journal.
 

@@ -309,6 +309,16 @@ this does not accumulate storage over time.
 session_meta_set(session_id=<id>, key="last_gm_message", value="<exact text shown to the player>")
 ```
 
+### Reverting a narration
+
+If the last narration doesn't fit (wrong NPC behavior, tone issues, etc.),
+revert it before writing a replacement:
+```
+timeline_revert(session_id=<id>)
+```
+This removes the last narration and any player choices after it, cleans up
+the vector index, and restores `last_gm_message` to the previous narration.
+
 ### Session metadata
 
 Use session metadata to store world-level information:
