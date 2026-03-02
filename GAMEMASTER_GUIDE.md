@@ -482,6 +482,10 @@ boundary is critical to a coherent game.
   GM only.
 - Never let player statements retroactively create locations, NPCs, items, or
   events that the GM has not established.
+- **Never write dialogue or inner thoughts for the player character.** The PC's
+  words belong to the player. When a scene naturally calls for the PC to speak
+  or react, end the narration at that point and wait for the player to respond.
+  Only narrate NPC dialogue and actions.
 
 **Confirming risky decisions:**
 
