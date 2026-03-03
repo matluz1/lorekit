@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { Box, Text } from "ink";
 import Spinner from "ink-spinner";
 
@@ -11,16 +11,81 @@ interface ChatProps {
   messages: ChatMessage[];
   streamingText: string;
   isStreaming: boolean;
+  height: number;
+  width: number;
 }
 
-export function Chat({ messages, streamingText, isStreaming }: ChatProps) {
+/**
+ * Estimate how many terminal lines a text string occupies
+ * when rendered at the given width (accounting for word wrap).
+ */
+function estimateLines(text: string, width: number): number {
+  if (width <= 0) return 1;
+  let total = 0;
+  for (const line of text.split("\n")) {
+    total += Math.max(1, Math.ceil((line.length + 1) / width));
+  }
+  return total;
+}
+
+/**
+ * Select the most recent messages that fit within the available height.
+ * Always reserves space for streaming text if present.
+ */
+function getVisibleMessages(
+  messages: ChatMessage[],
+  streamingText: string,
+  isStreaming: boolean,
+  height: number,
+  width: number
+): ChatMessage[] {
+  let remaining = height;
+
+  // Reserve space for streaming text + spinner line
+  if (isStreaming) {
+    const streamLines = streamingText
+      ? estimateLines(streamingText, width) + 1
+      : 2;
+    remaining -= streamLines;
+  }
+
+  const visible: ChatMessage[] = [];
+  for (let i = messages.length - 1; i >= 0 && remaining > 0; i--) {
+    const msg = messages[i]!;
+    // +1 for the marginBottom spacing between messages
+    const lines = estimateLines(msg.content, width) + 1;
+    if (lines > remaining && visible.length > 0) break;
+    visible.unshift(msg);
+    remaining -= lines;
+  }
+  return visible;
+}
+
+export function Chat({
+  messages,
+  streamingText,
+  isStreaming,
+  height,
+  width,
+}: ChatProps) {
+  const visible = useMemo(
+    () => getVisibleMessages(messages, streamingText, isStreaming, height, width),
+    [messages, streamingText, isStreaming, height, width]
+  );
+
   return (
-    <Box flexDirection="column" flexGrow={1}>
-      {messages.map((msg, i) => (
-        <Box key={i} marginBottom={1}>
+    <Box
+      flexDirection="column"
+      height={height}
+      overflow="hidden"
+    >
+      {visible.map((msg, i) => (
+        <Box key={messages.indexOf(msg)} marginBottom={i < visible.length - 1 ? 1 : 0}>
           {msg.role === "player" ? (
             <Text>
-              <Text color="cyan" bold>{">"} </Text>
+              <Text color="cyan" bold>
+                {">"}{" "}
+              </Text>
               <Text>{msg.content}</Text>
             </Text>
           ) : msg.role === "system" ? (
@@ -35,7 +100,7 @@ export function Chat({ messages, streamingText, isStreaming }: ChatProps) {
       {isStreaming && (
         <Box>
           <Text color="green">
-            {streamingText}
+            {streamingText || ""}
             <Text color="yellow">
               {" "}
               <Spinner type="dots" />

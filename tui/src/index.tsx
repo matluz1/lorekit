@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { App } from "./components/App.js";
 import { ClaudeProvider } from "./providers/claude.js";
+import { openDb, closeDb, getActiveSessions } from "./db.js";
 
 // Resolve paths relative to project root (one level up from tui/)
 const projectRoot = resolve(import.meta.dirname, "../..");
@@ -19,15 +20,20 @@ try {
   systemPrompt = "You are a tabletop RPG game master.";
 }
 
-// CLI args: <model> [session-id]
+// CLI args: <model> [claude-session-id]
 const model = process.argv[2];
+const claudeSessionId = process.argv[3] || undefined;
+
 if (!model) {
-  console.error("Usage: npx tsx src/index.tsx <model> [session-id]");
+  console.error("Usage: npx tsx src/index.tsx <model> [claude-session-id]");
   process.exit(1);
 }
-const sessionId = process.argv[3] || undefined;
 
-// Provider setup — only place that knows about Claude Code
+// Open read-only DB for sidebar, auto-detect active LoreKit session
+openDb(projectRoot);
+const activeSessions = getActiveSessions();
+const lkSessionId = activeSessions.length > 0 ? activeSessions[0]!.id : undefined;
+
 const provider = new ClaudeProvider();
 
 const app = render(
@@ -38,15 +44,19 @@ const app = render(
       mcpConfig,
       cwd: projectRoot,
       model,
-      sessionId,
+      sessionId: claudeSessionId,
       allowedTools: ["mcp__lorekit__*"],
       persist: true,
     }}
     model={model}
-    sessionId={sessionId}
+    sessionId={claudeSessionId}
+    lkSessionId={lkSessionId}
   />,
-  { exitOnCtrlC: true }
+  {
+    exitOnCtrlC: true,
+    incrementalRendering: true, // only rewrite changed lines — eliminates flicker
+  }
 );
 
-// Keep the process alive until the user exits
 await app.waitUntilExit();
+closeDb();
