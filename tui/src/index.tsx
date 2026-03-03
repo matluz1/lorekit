@@ -36,6 +36,7 @@ const app = render(
     providerOpts={{
       systemPrompt,
       mcpConfig,
+      cwd: projectRoot,
       model,
       sessionId,
       allowedTools: ["mcp__lorekit__*"],

@@ -121,6 +121,7 @@ class PersistentProcess implements AgentProcess {
 
     this.proc = spawn("claude", args, {
       stdio: ["pipe", "pipe", "pipe"],
+      cwd: opts.cwd || undefined,
     });
 
     // Capture stderr for error reporting
@@ -264,6 +265,7 @@ class EphemeralProcess implements AgentProcess {
 
     this.proc = spawn("claude", args, {
       stdio: ["pipe", "pipe", "pipe"],
+      cwd: this.opts.cwd || undefined,
     });
 
     const rl = createInterface({ input: this.proc.stdout! });

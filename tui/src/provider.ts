@@ -12,6 +12,7 @@ export type ErrorHandler = (msg: string) => void;
 export interface ProviderOptions {
   systemPrompt: string;
   mcpConfig: string;
+  cwd: string;
   model: string;
   sessionId?: string;
   allowedTools: string[];
