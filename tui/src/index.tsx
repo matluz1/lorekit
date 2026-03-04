@@ -55,6 +55,7 @@ const app = render(
   {
     exitOnCtrlC: true,
     incrementalRendering: true, // only rewrite changed lines — eliminates flicker
+    maxFps: 60,
   }
 );
 

@@ -219,7 +219,17 @@ class PersistentProcess implements AgentProcess {
 
       const chunk = parseChunk(line);
       if (chunk) {
-        yield chunk;
+        // Drip text one character at a time for smooth streaming.
+        // setTimeout(0) yields to the event loop so Ink can render between chars.
+        if (chunk.type === "text") {
+          const text = chunk.content;
+          for (let i = 0; i < text.length; i += 4) {
+            yield { type: "text", content: text.slice(i, i + 4) };
+            await new Promise(resolve => setImmediate(resolve));
+          }
+        } else {
+          yield chunk;
+        }
       }
 
       // Check if this is a result message (end of this turn)
