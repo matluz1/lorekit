@@ -141,6 +141,35 @@ export function getTimeline(
     .all(sessionId, last) as TimelineEntry[];
 }
 
+// ── NPC queries ───────────────────────────────────────
+
+export function getCharacter(characterId: number): Character | undefined {
+  return db!
+    .prepare(
+      "SELECT id, name, level, status, type, region_id FROM characters WHERE id = ?"
+    )
+    .get(characterId) as Character | undefined;
+}
+
+export function getSession(sessionId: number): Session | undefined {
+  return db!
+    .prepare(
+      "SELECT id, name, setting, system_type, status FROM sessions WHERE id = ?"
+    )
+    .get(sessionId) as Session | undefined;
+}
+
+export function getNPCsByName(
+  sessionId: number,
+  name: string
+): Character[] {
+  return db!
+    .prepare(
+      "SELECT id, name, level, status, type, region_id FROM characters WHERE session_id = ? AND type = 'npc' AND name LIKE ? AND status = 'alive'"
+    )
+    .all(sessionId, `%${name}%`) as Character[];
+}
+
 // ── Sidebar aggregate ──────────────────────────────────
 
 export interface SidebarData {

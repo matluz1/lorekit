@@ -274,25 +274,54 @@ class EphemeralProcess implements AgentProcess {
     ];
 
     this.proc = spawn("claude", args, {
-      stdio: ["pipe", "pipe", "pipe"],
+      stdio: ["ignore", "pipe", "pipe"],
       cwd: this.opts.cwd || undefined,
     });
 
+    // Capture stderr for error reporting
+    const stderrChunks: string[] = [];
+    this.proc.stderr?.on("data", (data: Buffer) => {
+      const text = data.toString().trim();
+      if (text) stderrChunks.push(text);
+    });
+
+    this.proc.stdout?.on("error", () => {});
+
     const rl = createInterface({ input: this.proc.stdout! });
 
+    let gotResult = false;
     for await (const line of rl) {
       const chunk = parseChunk(line);
-      if (chunk) yield chunk;
+      if (chunk) {
+        if (chunk.type === "text") {
+          const text = chunk.content;
+          for (let i = 0; i < text.length; i += 4) {
+            yield { type: "text", content: text.slice(i, i + 4) };
+            await new Promise(resolve => setImmediate(resolve));
+          }
+        } else {
+          yield chunk;
+        }
+      }
+
+      // Break on result message (end of turn) — don't wait for process close
+      try {
+        const msg = JSON.parse(line);
+        if (msg.type === "result") {
+          gotResult = true;
+          break;
+        }
+      } catch {}
     }
 
-    // Wait for process to exit
-    await new Promise<void>((resolve) => {
-      if (this.proc!.exitCode !== null) {
-        resolve();
-      } else {
-        this.proc!.on("exit", () => resolve());
-      }
-    });
+    // If we never got a result, report stderr
+    if (!gotResult && stderrChunks.length > 0) {
+      yield { type: "error", content: stderrChunks.join("\n") };
+    }
+
+    // Clean up
+    rl.close();
+    this.proc.kill();
   }
 
   stop() {
