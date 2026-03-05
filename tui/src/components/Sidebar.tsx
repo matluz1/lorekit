@@ -1,13 +1,22 @@
 import React from "react";
 import { Box, Text } from "ink";
+import Spinner from "ink-spinner";
 import type { SidebarData } from "../db.js";
+import type { ToolCallEntry } from "./App.js";
 
 interface SidebarProps {
   data: SidebarData | null;
   height: number;
+  toolCalls: ToolCallEntry[];
+  isStreaming: boolean;
 }
 
-export function Sidebar({ data, height }: SidebarProps) {
+/** Strip the "mcp__lorekit__" prefix for display. */
+function shortToolName(name: string): string {
+  return name.replace(/^mcp__lorekit__/, "");
+}
+
+export function Sidebar({ data, height, toolCalls, isStreaming }: SidebarProps) {
   if (!data) {
     return (
       <Box
@@ -24,36 +33,37 @@ export function Sidebar({ data, height }: SidebarProps) {
     );
   }
 
-  // Divide height among 3 panels: char ~50%, region ~20%, timeline ~30%
-  const charH = Math.max(5, Math.floor(height * 0.5));
+  // Divide height: PC compact ~4, tool activity ~30%, region ~20%, timeline rest
+  const pcH = 4;
+  const toolH = Math.max(4, Math.floor(height * 0.3));
   const regionH = Math.max(3, Math.floor(height * 0.2));
-  const timelineH = Math.max(3, height - charH - regionH);
+  const timelineH = Math.max(3, height - pcH - toolH - regionH);
 
   return (
     <Box flexDirection="column" height={height} overflow="hidden">
-      <CharSheet data={data} height={charH} />
+      <CompactPC data={data} height={pcH} />
+      <ToolActivity toolCalls={toolCalls} isStreaming={isStreaming} height={toolH} />
       <RegionPanel data={data} height={regionH} />
       <TimelinePanel data={data} height={timelineH} />
     </Box>
   );
 }
 
-// ── Character Sheet ────────────────────────────────────
+// ── Compact PC ────────────────────────────────────────
 
-function CharSheet({
+function CompactPC({
   data,
   height,
 }: {
   data: SidebarData;
   height: number;
 }) {
-  const { pc, attrs, inventory, abilities } = data;
+  const { pc, attrs } = data;
 
-  // Group attributes by category
-  const grouped: Record<string, { key: string; value: string }[]> = {};
-  for (const a of attrs) {
-    (grouped[a.category] ??= []).push({ key: a.key, value: a.value });
-  }
+  // Find HP from attributes
+  const hp = attrs.find(
+    (a) => a.key === "hit_points" || a.key === "hp"
+  );
 
   return (
     <Box
@@ -68,53 +78,73 @@ function CharSheet({
         {pc.name}
       </Text>
       <Text dimColor>
-        Lvl {pc.level} · {pc.status}
+        Lvl {pc.level}
+        {hp ? ` · HP ${hp.value}` : ""}
       </Text>
+    </Box>
+  );
+}
 
-      {/* Identity / stats attributes */}
-      {Object.entries(grouped).map(([cat, items]) => (
-        <Box key={cat} flexDirection="column">
-          {items.map((item) => (
-            <Text key={item.key} wrap="truncate-end">
-              <Text dimColor>{item.key}: </Text>
-              {item.value}
-            </Text>
-          ))}
-        </Box>
-      ))}
+// ── Tool Activity ─────────────────────────────────────
 
-      {/* Inventory */}
-      {inventory.length > 0 && (
-        <Box flexDirection="column">
-          <Text color="yellow" dimColor>
-            Inventory
-          </Text>
-          {inventory.map((item) => (
-            <Text key={item.id} wrap="truncate-end">
-              {item.equipped ? "[E] " : "    "}
-              {item.name}
-              {item.quantity > 1 ? ` x${item.quantity}` : ""}
-            </Text>
-          ))}
-        </Box>
-      )}
+function ToolActivity({
+  toolCalls,
+  isStreaming,
+  height,
+}: {
+  toolCalls: ToolCallEntry[];
+  isStreaming: boolean;
+  height: number;
+}) {
+  // Show most recent calls that fit, newest last
+  const maxEntries = Math.max(1, height - 3); // -3 for border + header
+  const visible = toolCalls.slice(-maxEntries);
 
-      {/* Abilities */}
-      {abilities.length > 0 && (
-        <Box flexDirection="column">
-          <Text color="yellow" dimColor>
-            Abilities
-          </Text>
-          {abilities.map((ab) => (
-            <Text key={ab.name} wrap="truncate-end">
-              {ab.name}
-              <Text dimColor>
-                {" "}
-                ({ab.uses})
+  return (
+    <Box
+      flexDirection="column"
+      borderStyle="single"
+      borderColor="cyan"
+      paddingX={1}
+      height={height}
+      overflow="hidden"
+    >
+      <Text color="cyan" bold>
+        GM Tools
+      </Text>
+      {visible.length === 0 && !isStreaming ? (
+        <Text dimColor italic>
+          Waiting for turn
+        </Text>
+      ) : visible.length === 0 && isStreaming ? (
+        <Text dimColor italic>
+          <Spinner type="dots" />{" "}Thinking…
+        </Text>
+      ) : (
+        visible.map((tc, i) => {
+          const name = shortToolName(tc.name);
+          const isNpcSpeak = name === "npc_speak";
+          const isLast = i === visible.length - 1 && isStreaming;
+          const isFailed = tc.error === true;
+          return (
+            <Box key={`${tc.ts}-${i}`}>
+              <Text
+                color={isFailed ? "red" : isNpcSpeak ? "red" : "cyan"}
+                bold={isNpcSpeak}
+              >
+                {isFailed ? (
+                  <Text color="red">x </Text>
+                ) : isLast ? (
+                  <><Spinner type="dots" />{" "}</>
+                ) : (
+                  <Text color="green">+ </Text>
+                )}
+                {name}
+                {isFailed && <Text color="red" dimColor> FAILED</Text>}
               </Text>
-            </Text>
-          ))}
-        </Box>
+            </Box>
+          );
+        })
       )}
     </Box>
   );
@@ -150,9 +180,6 @@ function RegionPanel({
       )}
       {regionNPCs.length > 0 && (
         <Box flexDirection="column">
-          <Text color="blue" dimColor>
-            NPCs
-          </Text>
           {regionNPCs.map((npc) => (
             <Text key={npc.id} wrap="truncate-end">
               {npc.name}

@@ -26,15 +26,16 @@ function parseChunk(line: string): StreamChunk | null {
     const evt = msg.event;
     if (!evt) return null;
 
+    if (evt.type === "content_block_start" && evt.content_block?.type === "tool_use") {
+      return { type: "tool_use", content: evt.content_block.name ?? "" };
+    }
+
     if (evt.type === "content_block_delta") {
       if (evt.delta?.type === "text_delta" && evt.delta.text) {
         return { type: "text", content: evt.delta.text };
       }
-      if (evt.delta?.type === "input_json_delta" && evt.delta.partial_json) {
-        return { type: "tool_use", content: evt.delta.partial_json };
-      }
     }
-    // Skip pings, message_start, content_block_start/stop, message_delta, message_stop
+    // Skip pings, message_start, content_block_stop, message_delta, message_stop, input_json_delta
     return null;
   }
 
@@ -50,6 +51,22 @@ function parseChunk(line: string): StreamChunk | null {
   // System init message
   if (msg.type === "system" && msg.subtype === "init") {
     return { type: "system", content: msg.session_id ?? "" };
+  }
+
+  // Tool result messages (verbose mode complete messages)
+  const content = msg.content ?? msg.message?.content;
+  if (Array.isArray(content)) {
+    for (const block of content) {
+      if (block.type === "tool_result") {
+        const text = typeof block.content === "string"
+          ? block.content
+          : JSON.stringify(block.content);
+        // Surface errors — either explicit is_error or content starting with ERROR:
+        if (block.is_error || text.startsWith("ERROR:")) {
+          return { type: "tool_result", content: text };
+        }
+      }
+    }
   }
 
   return null;

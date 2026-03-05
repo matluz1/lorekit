@@ -816,6 +816,41 @@ Ordered oldest first.
 
 ---
 
+## npc_speak
+
+Make an NPC speak in character. Spawns an ephemeral AI process that uses
+the NPC's personality, attributes, inventory, abilities, and recent timeline
+to generate an in-character response.
+
+```
+npc_speak(session_id=1, npc_id=3, message="The player asks the elder about the curse on the forest.")
+```
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| session_id | int | yes | Session ID |
+| npc_id | int | yes | NPC character ID |
+| message | str | yes | Situation description and what the PC said |
+
+The `message` should describe the context and the player's words. The tool
+returns the NPC's in-character response as plain text.
+
+**Output (success):**
+```
+"The curse? Aye, it started three winters ago when the stone was taken from the shrine. You'd do well to stay out of those woods after dark."
+```
+
+**Output (NPC not found):**
+```
+ERROR: NPC #99 not found in session #1
+```
+
+The NPC gets all relevant context (personality, attributes, inventory,
+abilities, recent timeline) baked into its system prompt. Each call is
+independent — there is no persistent NPC process.
+
+---
+
 ## recall_search
 
 Semantic search across timeline entries and journal notes. Finds relevant

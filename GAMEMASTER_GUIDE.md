@@ -413,6 +413,43 @@ region_view(region_id=<region_id>)
 This ensures you do not contradict established NPC personalities or forget
 what was already said.
 
+### NPC Dialogue — MANDATORY
+
+**CRITICAL RULE: You MUST call `npc_speak` every time an NPC speaks dialogue.**
+You are NOT allowed to write NPC dialogue yourself. Any NPC line of dialogue
+that does not come from `npc_speak` is a rules violation. This is not optional.
+
+The tool spawns a dedicated AI process that stays in character using the NPC's
+personality, attributes, inventory, abilities, and memory of past events. You
+cannot replicate this — you do not have access to the NPC's internal state.
+
+**Workflow:**
+1. Use `character_list` or `character_view` to find the NPC's ID.
+2. Call `npc_speak` with the session ID, NPC ID, and a message describing
+   the situation and what the player character said:
+   ```
+   npc_speak(session_id=<id>, npc_id=<npc_id>, message="The player approaches the elder in the village square and asks about the curse on the forest.")
+   ```
+3. Take the NPC's response verbatim and present it as dialogue. You may add
+   stage directions, body language, or scene description **around** the
+   dialogue, but you MUST NOT alter, rephrase, summarize, or replace the
+   NPC's actual words.
+4. For multi-turn conversations, call `npc_speak` again for each exchange.
+   The timeline accumulates naturally, so the NPC will have context from
+   previous turns.
+
+**The `message` parameter** should include:
+- What the player character said or asked
+- The current situation (location, mood, context)
+- Any relevant context the NPC should be aware of
+
+**The only exceptions** where you narrate NPC speech yourself:
+- Generic unnamed crowd reactions ("the crowd murmurs")
+- Brief combat taunts during active combat rounds, for pacing
+- NPCs the player cannot currently interact with (unconscious, too far away)
+
+For **any named NPC** the player is talking to: call `npc_speak`. No exceptions.
+
 ---
 
 ## 6. Combat Flow

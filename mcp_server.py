@@ -535,6 +535,190 @@ def export_clean() -> str:
 
 
 # ---------------------------------------------------------------------------
+# npc_speak
+# ---------------------------------------------------------------------------
+
+
+# Read-only MCP tools NPCs are allowed to use.
+_NPC_ALLOWED_TOOLS = [
+    "mcp__lorekit__character_view",
+    "mcp__lorekit__character_get_attr",
+    "mcp__lorekit__character_get_items",
+    "mcp__lorekit__character_get_abilities",
+    "mcp__lorekit__roll_dice",
+    "mcp__lorekit__timeline_list",
+    "mcp__lorekit__timeline_search",
+    "mcp__lorekit__journal_list",
+    "mcp__lorekit__journal_search",
+    "mcp__lorekit__recall_search",
+    "mcp__lorekit__region_view",
+    "mcp__lorekit__character_list",
+]
+
+_DEFAULT_NPC_MODEL = "haiku"
+
+
+def _build_npc_prompt(db, npc_id: int, session_id: int) -> tuple[str, str, str] | None:
+    """Build NPC system prompt, model, and name from DB data.
+
+    Returns (system_prompt, model, npc_name) or None if NPC/session not found.
+    """
+    import sqlite3
+    db.row_factory = sqlite3.Row
+
+    npc = db.execute(
+        "SELECT id, name FROM characters WHERE id = ? AND type = 'npc'", (npc_id,)
+    ).fetchone()
+    if not npc:
+        return None
+
+    session = db.execute(
+        "SELECT setting, system_type FROM sessions WHERE id = ?", (session_id,)
+    ).fetchone()
+    if not session:
+        return None
+
+    npc_name = npc["name"]
+    setting = session["setting"]
+    system_type = session["system_type"]
+
+    # Attributes
+    attrs = db.execute(
+        "SELECT category, key, value FROM character_attributes WHERE character_id = ?",
+        (npc_id,),
+    ).fetchall()
+
+    personality = "a common NPC"
+    model = _DEFAULT_NPC_MODEL
+    identity_lines = []
+    for a in attrs:
+        if a["category"] == "identity" and a["key"] == "personality":
+            personality = a["value"]
+        elif a["category"] == "system" and a["key"] == "model":
+            model = a["value"]
+        if a["category"] != "system":
+            identity_lines.append(f"  {a['key']}: {a['value']}")
+
+    # Inventory
+    items = db.execute(
+        "SELECT name, quantity, equipped FROM character_inventory WHERE character_id = ?",
+        (npc_id,),
+    ).fetchall()
+    inv_lines = []
+    for item in items:
+        line = f"  {item['name']}"
+        if item["quantity"] > 1:
+            line += f" x{item['quantity']}"
+        if item["equipped"]:
+            line += " (equipped)"
+        inv_lines.append(line)
+
+    # Abilities
+    abilities = db.execute(
+        "SELECT name, uses, description FROM character_abilities WHERE character_id = ?",
+        (npc_id,),
+    ).fetchall()
+    ability_lines = [f"  {ab['name']} ({ab['uses']}): {ab['description']}" for ab in abilities]
+
+    # Recent timeline for context
+    timeline = db.execute(
+        "SELECT entry_type, content, summary FROM timeline WHERE session_id = ? ORDER BY id DESC LIMIT 10",
+        (session_id,),
+    ).fetchall()
+    timeline_section = ""
+    if timeline:
+        entries = []
+        for e in reversed(timeline):
+            entries.append(f"- {e['summary'] or e['content'][:150]}")
+        timeline_section = "Recent events:\n" + "\n".join(entries) + "\n\n"
+
+    system_prompt = f"""You are {npc_name}, {personality}.
+
+World setting: {setting}
+Rule system: {system_type}
+
+Your attributes:
+{chr(10).join(identity_lines) if identity_lines else "  (none)"}
+
+Your inventory:
+{chr(10).join(inv_lines) if inv_lines else "  (none)"}
+
+Your abilities:
+{chr(10).join(ability_lines) if ability_lines else "  (none)"}
+
+{timeline_section}Rules:
+- Respond only as this character, in first person
+- You only know what this character would reasonably know
+- Do not invent world facts beyond what is provided in your context
+- Be concise
+- Stay in character at all times
+- Do not narrate the player's actions or put words in their mouth
+- NEVER make attacks, deal damage, or resolve combat mechanics — combat is handled exclusively by the Game Master, not in dialogue
+- This is a conversation. You may describe body language, emotions, and intentions, but do not roll dice or execute game actions"""
+
+    return system_prompt, model, npc_name
+
+
+@mcp.tool()
+def npc_speak(session_id: int, npc_id: int, message: str) -> str:
+    """Make an NPC speak in character. Spawns an ephemeral AI process for the NPC.
+
+    The GM should call this whenever the player wants to talk to an NPC.
+    The message param should describe the situation and what the PC said.
+    Returns the NPC's in-character response.
+    """
+    import subprocess
+
+    from _db import require_db
+
+    db = require_db()
+    try:
+        result = _build_npc_prompt(db, npc_id, session_id)
+        if not result:
+            return f"ERROR: NPC #{npc_id} not found in session #{session_id}"
+        system_prompt, model, npc_name = result
+    finally:
+        db.close()
+
+    project_root = os.path.dirname(os.path.abspath(__file__))
+    mcp_config = os.path.join(project_root, ".mcp.json")
+
+    cmd = [
+        "claude",
+        "-p",
+        "--output-format", "text",
+        "--no-session-persistence",
+        "--permission-mode", "bypassPermissions",
+        "--tools", "",
+        "--mcp-config", mcp_config,
+        "--strict-mcp-config",
+        "--allowed-tools", *_NPC_ALLOWED_TOOLS,
+        "--model", model,
+        "--system-prompt", system_prompt,
+    ]
+    cmd.append(message)
+
+    try:
+        proc = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=120,
+            cwd=project_root,
+            stdin=subprocess.DEVNULL,
+        )
+        if proc.returncode != 0:
+            stderr = proc.stderr.strip()
+            return f"ERROR: NPC process failed: {stderr or 'unknown error'}"
+        return proc.stdout.strip() or f"{npc_name} says nothing."
+    except subprocess.TimeoutExpired:
+        return f"ERROR: NPC response timed out"
+    except FileNotFoundError:
+        return "ERROR: 'claude' CLI not found. Ensure it is installed and on PATH."
+
+
+
+# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 
