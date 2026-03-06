@@ -535,7 +535,7 @@ def export_clean() -> str:
 
 
 # ---------------------------------------------------------------------------
-# npc_speak
+# npc_interact
 # ---------------------------------------------------------------------------
 
 
@@ -556,6 +556,20 @@ _NPC_ALLOWED_TOOLS = [
 ]
 
 _DEFAULT_NPC_MODEL = "haiku"
+
+
+def _load_npc_guides() -> str:
+    """Load SHARED_GUIDE.md + NPC_GUIDE.md from project root."""
+    project_root = os.path.dirname(os.path.abspath(__file__))
+    parts = []
+    for fname in ("SHARED_GUIDE.md", "NPC_GUIDE.md"):
+        path = os.path.join(project_root, fname)
+        try:
+            with open(path, "r") as f:
+                parts.append(f.read())
+        except FileNotFoundError:
+            pass
+    return "\n\n".join(parts)
 
 
 def _build_npc_prompt(db, npc_id: int, session_id: int) -> tuple[str, str, str] | None:
@@ -632,6 +646,8 @@ def _build_npc_prompt(db, npc_id: int, session_id: int) -> tuple[str, str, str] 
             entries.append(f"- {e['summary'] or e['content'][:150]}")
         timeline_section = "Recent events:\n" + "\n".join(entries) + "\n\n"
 
+    guides = _load_npc_guides()
+
     system_prompt = f"""You are {npc_name}, {personality}.
 
 World setting: {setting}
@@ -646,21 +662,13 @@ Your inventory:
 Your abilities:
 {chr(10).join(ability_lines) if ability_lines else "  (none)"}
 
-{timeline_section}Rules:
-- Respond only as this character, in first person
-- You only know what this character would reasonably know
-- Do not invent world facts beyond what is provided in your context
-- Be concise
-- Stay in character at all times
-- Do not narrate the player's actions or put words in their mouth
-- NEVER make attacks, deal damage, or resolve combat mechanics — combat is handled exclusively by the Game Master, not in dialogue
-- This is a conversation. You may describe body language, emotions, and intentions, but do not roll dice or execute game actions"""
+{timeline_section}{guides}"""
 
     return system_prompt, model, npc_name
 
 
 @mcp.tool()
-def npc_speak(session_id: int, npc_id: int, message: str) -> str:
+def npc_interact(session_id: int, npc_id: int, message: str) -> str:
     """Make an NPC speak in character. Spawns an ephemeral AI process for the NPC.
 
     The GM should call this whenever the player wants to talk to an NPC.

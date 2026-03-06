@@ -123,14 +123,14 @@ function ToolActivity({
       ) : (
         visible.map((tc, i) => {
           const name = shortToolName(tc.name);
-          const isNpcSpeak = name === "npc_speak";
+          const isNpcInteract = name === "npc_interact";
           const isLast = i === visible.length - 1 && isStreaming;
           const isFailed = tc.error === true;
           return (
             <Box key={`${tc.ts}-${i}`}>
               <Text
-                color={isFailed ? "red" : isNpcSpeak ? "red" : "cyan"}
-                bold={isNpcSpeak}
+                color={isFailed ? "red" : isNpcInteract ? "red" : "cyan"}
+                bold={isNpcInteract}
               >
                 {isFailed ? (
                   <Text color="red">x </Text>

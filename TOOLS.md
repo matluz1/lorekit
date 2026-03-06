@@ -816,14 +816,15 @@ Ordered oldest first.
 
 ---
 
-## npc_speak
+## npc_interact
 
-Make an NPC speak in character. Spawns an ephemeral AI process that uses
+Interact with an NPC in character. Spawns an ephemeral AI process that uses
 the NPC's personality, attributes, inventory, abilities, and recent timeline
-to generate an in-character response.
+to generate an in-character response. The NPC can speak, roll dice, and
+search past events for context.
 
 ```
-npc_speak(session_id=1, npc_id=3, message="The player asks the elder about the curse on the forest.")
+npc_interact(session_id=1, npc_id=3, message="The player asks the elder about the curse on the forest.")
 ```
 
 | Parameter | Type | Required | Description |

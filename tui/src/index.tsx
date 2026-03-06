@@ -12,10 +12,9 @@ const mcpConfig = resolve(projectRoot, ".mcp.json");
 
 let systemPrompt: string;
 try {
-  systemPrompt = readFileSync(
-    resolve(projectRoot, "GAMEMASTER_GUIDE.md"),
-    "utf-8"
-  );
+  const shared = readFileSync(resolve(projectRoot, "SHARED_GUIDE.md"), "utf-8");
+  const gm = readFileSync(resolve(projectRoot, "GAMEMASTER_GUIDE.md"), "utf-8");
+  systemPrompt = shared + "\n\n" + gm;
 } catch {
   systemPrompt = "You are a tabletop RPG game master.";
 }
