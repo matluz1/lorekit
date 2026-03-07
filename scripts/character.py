@@ -57,6 +57,18 @@ def main():
     print(fn(db, args))
 
 
+def create(db, session_id: int, name: str, level: int, char_type: str = "pc", region_id: int = 0) -> str:
+    if char_type not in ("pc", "npc"):
+        raise LoreKitError("type must be pc or npc")
+    region_val = region_id if region_id else None
+    cur = db.execute(
+        "INSERT INTO characters (session_id, name, level, type, region_id) VALUES (?, ?, ?, ?, ?)",
+        (session_id, name, level, char_type, region_val),
+    )
+    db.commit()
+    return f"CHARACTER_CREATED: {cur.lastrowid}"
+
+
 def cmd_create(db, args):
     _, p = parse_args(args, {
         "--session": ("session", True, ""),
@@ -65,28 +77,19 @@ def cmd_create(db, args):
         "--type": ("char_type", False, "pc"),
         "--region": ("region", False, ""),
     })
-    if p["char_type"] not in ("pc", "npc"):
-        raise LoreKitError("--type must be pc or npc")
-    region_val = int(p["region"]) if p["region"] else None
-    cur = db.execute(
-        "INSERT INTO characters (session_id, name, level, type, region_id) VALUES (?, ?, ?, ?, ?)",
-        (int(p["session"]), p["name"], int(p["level"]), p["char_type"], region_val),
-    )
-    db.commit()
-    return f"CHARACTER_CREATED: {cur.lastrowid}"
+    return create(db, int(p["session"]), p["name"], int(p["level"]), p["char_type"], int(p["region"]) if p["region"] else 0)
 
 
-def cmd_view(db, args):
-    cid, _ = parse_args(args, {}, positional="character_id")
+def view(db, character_id: int) -> str:
     row = db.execute(
         "SELECT c.id, c.session_id, c.name, c.level, c.status, c.type, "
         "COALESCE(r.name, ''), c.created_at "
         "FROM characters c LEFT JOIN regions r ON c.region_id = r.id "
         "WHERE c.id = ?",
-        (cid,),
+        (character_id,),
     ).fetchone()
     if row is None:
-        raise LoreKitError(f"Character {cid} not found")
+        raise LoreKitError(f"Character {character_id} not found")
     lines = [
         f"ID: {row[0]}",
         f"SESSION: {row[1]}",
@@ -102,7 +105,7 @@ def cmd_view(db, args):
     cur = db.execute(
         "SELECT category, key, value FROM character_attributes "
         "WHERE character_id = ? ORDER BY category, key",
-        (cid,),
+        (character_id,),
     )
     lines.append(format_table(cur))
     lines.append("")
@@ -110,7 +113,7 @@ def cmd_view(db, args):
     cur = db.execute(
         "SELECT id, name, description, quantity, equipped FROM character_inventory "
         "WHERE character_id = ? ORDER BY name",
-        (cid,),
+        (character_id,),
     )
     lines.append(format_table(cur))
     lines.append("")
@@ -118,10 +121,29 @@ def cmd_view(db, args):
     cur = db.execute(
         "SELECT id, name, category, uses, description FROM character_abilities "
         "WHERE character_id = ? ORDER BY category, name",
-        (cid,),
+        (character_id,),
     )
     lines.append(format_table(cur))
     return "\n".join(lines)
+
+
+def cmd_view(db, args):
+    cid, _ = parse_args(args, {}, positional="character_id")
+    return view(db, int(cid))
+
+
+def list_chars(db, session_id: int, char_type: str = "", region_id: int = 0) -> str:
+    query = "SELECT id, name, type, level, status FROM characters WHERE session_id = ?"
+    params: list = [session_id]
+    if char_type:
+        query += " AND type = ?"
+        params.append(char_type)
+    if region_id:
+        query += " AND region_id = ?"
+        params.append(region_id)
+    query += " ORDER BY id"
+    cur = db.execute(query, params)
+    return format_table(cur)
 
 
 def cmd_list(db, args):
@@ -130,17 +152,24 @@ def cmd_list(db, args):
         "--type": ("char_type", False, ""),
         "--region": ("region", False, ""),
     })
-    query = "SELECT id, name, type, level, status FROM characters WHERE session_id = ?"
-    params = [p["session"]]
-    if p["char_type"]:
-        query += " AND type = ?"
-        params.append(p["char_type"])
-    if p["region"]:
-        query += " AND region_id = ?"
-        params.append(p["region"])
-    query += " ORDER BY id"
-    cur = db.execute(query, params)
-    return format_table(cur)
+    return list_chars(db, int(p["session"]), p["char_type"], int(p["region"]) if p["region"] else 0)
+
+
+def update(db, character_id: int, name: str = "", level: int = 0, status: str = "", region_id: int = 0) -> str:
+    _COLUMN_MAP = {"name": ("name", str), "level": ("level", int), "status": ("status", str), "region_id": ("region_id", int)}
+    values = {"name": name, "level": level, "status": status, "region_id": region_id}
+    sets = []
+    params = []
+    for key, (col, typ) in _COLUMN_MAP.items():
+        if values[key]:
+            sets.append(f"{col} = ?")
+            params.append(typ(values[key]))
+    if not sets:
+        raise LoreKitError("Provide name, level, status, and/or region")
+    params.append(character_id)
+    db.execute(f"UPDATE characters SET {','.join(sets)} WHERE id = ?", params)
+    db.commit()
+    return f"CHARACTER_UPDATED: {character_id}"
 
 
 def cmd_update(db, args):
@@ -150,19 +179,17 @@ def cmd_update(db, args):
         "--status": ("status", False, ""),
         "--region": ("region", False, ""),
     }, positional="character_id")
-    _COLUMN_MAP = {"name": ("name", str), "level": ("level", int), "status": ("status", str), "region": ("region_id", int)}
-    sets = []
-    params = []
-    for key, (col, typ) in _COLUMN_MAP.items():
-        if p[key]:
-            sets.append(f"{col} = ?")
-            params.append(typ(p[key]))
-    if not sets:
-        raise LoreKitError("Provide --name, --level, --status, and/or --region")
-    params.append(cid)
-    db.execute(f"UPDATE characters SET {','.join(sets)} WHERE id = ?", params)
+    return update(db, int(cid), p["name"], int(p["level"]) if p["level"] else 0, p["status"], int(p["region"]) if p["region"] else 0)
+
+
+def set_attr(db, character_id: int, category: str, key: str, value: str) -> str:
+    db.execute(
+        "INSERT INTO character_attributes (character_id, category, key, value) "
+        "VALUES (?, ?, ?, ?) ON CONFLICT(character_id, category, key) DO UPDATE SET value = excluded.value",
+        (character_id, category, key, value),
+    )
     db.commit()
-    return f"CHARACTER_UPDATED: {cid}"
+    return f"ATTR_SET: {key} = {value}"
 
 
 def cmd_set_attr(db, args):
@@ -171,32 +198,42 @@ def cmd_set_attr(db, args):
         "--key": ("key", True, ""),
         "--value": ("value", True, ""),
     }, positional="character_id")
-    db.execute(
-        "INSERT INTO character_attributes (character_id, category, key, value) "
-        "VALUES (?, ?, ?, ?) ON CONFLICT(character_id, category, key) DO UPDATE SET value = excluded.value",
-        (cid, p["category"], p["key"], p["value"]),
-    )
-    db.commit()
-    return f"ATTR_SET: {p['key']} = {p['value']}"
+    return set_attr(db, int(cid), p["category"], p["key"], p["value"])
+
+
+def get_attr(db, character_id: int, category: str = "") -> str:
+    if category:
+        cur = db.execute(
+            "SELECT key, value FROM character_attributes "
+            "WHERE character_id = ? AND category = ? ORDER BY key",
+            (character_id, category),
+        )
+    else:
+        cur = db.execute(
+            "SELECT category, key, value FROM character_attributes "
+            "WHERE character_id = ? ORDER BY category, key",
+            (character_id,),
+        )
+    return format_table(cur)
 
 
 def cmd_get_attr(db, args):
     cid, p = parse_args(args, {
         "--category": ("category", False, ""),
     }, positional="character_id")
-    if p["category"]:
-        cur = db.execute(
-            "SELECT key, value FROM character_attributes "
-            "WHERE character_id = ? AND category = ? ORDER BY key",
-            (cid, p["category"]),
-        )
-    else:
-        cur = db.execute(
-            "SELECT category, key, value FROM character_attributes "
-            "WHERE character_id = ? ORDER BY category, key",
-            (cid,),
-        )
-    return format_table(cur)
+    return get_attr(db, int(cid), p["category"])
+
+
+def set_item(db, character_id: int, name: str, desc: str = "", qty: int = 1, equipped: int = 0) -> str:
+    cur = db.execute(
+        "INSERT INTO character_inventory (character_id, name, description, quantity, equipped) "
+        "VALUES (?, ?, ?, ?, ?) "
+        "ON CONFLICT(character_id, name) DO UPDATE SET "
+        "description = excluded.description, quantity = excluded.quantity, equipped = excluded.equipped",
+        (character_id, name, desc, qty, equipped),
+    )
+    db.commit()
+    return f"ITEM_SET: {cur.lastrowid}"
 
 
 def cmd_set_item(db, args):
@@ -206,32 +243,44 @@ def cmd_set_item(db, args):
         "--qty": ("qty", False, "1"),
         "--equipped": ("equipped", False, "0"),
     }, positional="character_id")
-    cur = db.execute(
-        "INSERT INTO character_inventory (character_id, name, description, quantity, equipped) "
-        "VALUES (?, ?, ?, ?, ?) "
-        "ON CONFLICT(character_id, name) DO UPDATE SET "
-        "description = excluded.description, quantity = excluded.quantity, equipped = excluded.equipped",
-        (cid, p["name"], p["desc"], int(p["qty"]), int(p["equipped"])),
-    )
-    db.commit()
-    return f"ITEM_SET: {cur.lastrowid}"
+    return set_item(db, int(cid), p["name"], p["desc"], int(p["qty"]), int(p["equipped"]))
 
 
-def cmd_get_items(db, args):
-    cid, _ = parse_args(args, {}, positional="character_id")
+def get_items(db, character_id: int) -> str:
     cur = db.execute(
         "SELECT id, name, description, quantity, equipped FROM character_inventory "
         "WHERE character_id = ? ORDER BY name",
-        (cid,),
+        (character_id,),
     )
     return format_table(cur)
 
 
+def cmd_get_items(db, args):
+    cid, _ = parse_args(args, {}, positional="character_id")
+    return get_items(db, int(cid))
+
+
+def remove_item(db, item_id: int) -> str:
+    db.execute("DELETE FROM character_inventory WHERE id = ?", (item_id,))
+    db.commit()
+    return f"ITEM_REMOVED: {item_id}"
+
+
 def cmd_remove_item(db, args):
     iid, _ = parse_args(args, {}, positional="item_id")
-    db.execute("DELETE FROM character_inventory WHERE id = ?", (iid,))
+    return remove_item(db, int(iid))
+
+
+def set_ability(db, character_id: int, name: str, desc: str, category: str, uses: str = "at_will") -> str:
+    cur = db.execute(
+        "INSERT INTO character_abilities (character_id, name, description, category, uses) "
+        "VALUES (?, ?, ?, ?, ?) "
+        "ON CONFLICT(character_id, name) DO UPDATE SET "
+        "description = excluded.description, category = excluded.category, uses = excluded.uses",
+        (character_id, name, desc, category, uses),
+    )
     db.commit()
-    return f"ITEM_REMOVED: {iid}"
+    return f"ABILITY_SET: {cur.lastrowid}"
 
 
 def cmd_set_ability(db, args):
@@ -241,25 +290,21 @@ def cmd_set_ability(db, args):
         "--category": ("category", True, ""),
         "--uses": ("uses", False, "at_will"),
     }, positional="character_id")
+    return set_ability(db, int(cid), p["name"], p["desc"], p["category"], p["uses"])
+
+
+def get_abilities(db, character_id: int) -> str:
     cur = db.execute(
-        "INSERT INTO character_abilities (character_id, name, description, category, uses) "
-        "VALUES (?, ?, ?, ?, ?) "
-        "ON CONFLICT(character_id, name) DO UPDATE SET "
-        "description = excluded.description, category = excluded.category, uses = excluded.uses",
-        (cid, p["name"], p["desc"], p["category"], p["uses"]),
+        "SELECT id, name, category, uses, description FROM character_abilities "
+        "WHERE character_id = ? ORDER BY category, name",
+        (character_id,),
     )
-    db.commit()
-    return f"ABILITY_SET: {cur.lastrowid}"
+    return format_table(cur)
 
 
 def cmd_get_abilities(db, args):
     cid, _ = parse_args(args, {}, positional="character_id")
-    cur = db.execute(
-        "SELECT id, name, category, uses, description FROM character_abilities "
-        "WHERE character_id = ? ORDER BY category, name",
-        (cid,),
-    )
-    return format_table(cur)
+    return get_abilities(db, int(cid))
 
 
 if __name__ == "__main__":

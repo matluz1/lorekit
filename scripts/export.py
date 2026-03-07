@@ -30,7 +30,7 @@ def _subsection(title):
     return f"--- {title} ---"
 
 
-def cmd_clean(db, args):
+def clean(db) -> str:
     if os.path.isdir(EXPORT_DIR):
         shutil.rmtree(EXPORT_DIR)
         return f"CLEANED: {EXPORT_DIR}"
@@ -38,9 +38,11 @@ def cmd_clean(db, args):
         return "Nothing to clean."
 
 
-def cmd_dump(db, args):
-    session_id, _ = parse_args(args, {}, positional="session_id")
+def cmd_clean(db, args):
+    return clean(db)
 
+
+def dump(db, session_id: int) -> str:
     # Validate session exists
     session = db.execute(
         "SELECT id, name, setting, system_type, status, created_at, updated_at"
@@ -212,6 +214,11 @@ def cmd_dump(db, args):
     with open(output_file, "w", encoding="utf-8") as f:
         f.write(output)
     return f"EXPORTED: {output_file}"
+
+
+def cmd_dump(db, args):
+    session_id, _ = parse_args(args, {}, positional="session_id")
+    return dump(db, int(session_id))
 
 
 def main():

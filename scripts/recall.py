@@ -39,20 +39,14 @@ def main():
     print(fn(db, args))
 
 
-def cmd_search(db, args):
-    sid, p = parse_args(args, {
-        "--query": ("query_text", True, ""),
-        "--source": ("source", False, ""),
-        "--n": ("n_results", False, "0"),
-    }, positional="session_id")
-
+def search(db, session_id: int, query_text: str, source: str = "", n_results: int = 0) -> str:
     from _vectordb import is_available, hybrid_search
 
     if not is_available():
         raise LoreKitError("chromadb is not installed")
 
-    collection_name = p["source"] if p["source"] else None
-    results = hybrid_search(p["query_text"], sid, db, collection_name=collection_name, n_results=int(p["n_results"]))
+    collection_name = source if source else None
+    results = hybrid_search(query_text, session_id, db, collection_name=collection_name, n_results=n_results)
 
     if not results:
         return "No results found."
@@ -81,9 +75,16 @@ def cmd_search(db, args):
     return "\n".join(lines)
 
 
-def cmd_reindex(db, args):
-    sid, _ = parse_args(args, {}, positional="session_id")
+def cmd_search(db, args):
+    sid, p = parse_args(args, {
+        "--query": ("query_text", True, ""),
+        "--source": ("source", False, ""),
+        "--n": ("n_results", False, "0"),
+    }, positional="session_id")
+    return search(db, int(sid), p["query_text"], p["source"], int(p["n_results"]))
 
+
+def reindex(db, session_id: int) -> str:
     from _vectordb import is_available, get_chroma_client, index_journal, index_timeline
 
     if not is_available():
@@ -94,7 +95,7 @@ def cmd_reindex(db, args):
     # Delete only this session's entries from each collection, then re-add
     for col_name in ("timeline", "journal"):
         col = client.get_or_create_collection(col_name)
-        existing = col.get(where={"session_id": str(sid)})
+        existing = col.get(where={"session_id": str(session_id)})
         if existing["ids"]:
             col.delete(ids=existing["ids"])
 
@@ -104,7 +105,7 @@ def cmd_reindex(db, args):
 
     cur = db.execute(
         "SELECT id, entry_type, summary, created_at FROM timeline WHERE session_id = ?",
-        (sid,),
+        (session_id,),
     )
     for row in cur.fetchall():
         sql_id, entry_type, summary, created_at = row
@@ -112,22 +113,27 @@ def cmd_reindex(db, args):
             if entry_type == "narration" and not summary:
                 skipped_count += 1
             continue
-        index_timeline(sid, sql_id, entry_type, summary, created_at=created_at)
+        index_timeline(session_id, sql_id, entry_type, summary, created_at=created_at)
         timeline_count += 1
 
     cur = db.execute(
         "SELECT id, entry_type, content, created_at FROM journal WHERE session_id = ?",
-        (sid,),
+        (session_id,),
     )
     for row in cur.fetchall():
         sql_id, entry_type, content, created_at = row
-        index_journal(sid, sql_id, entry_type, content, created_at)
+        index_journal(session_id, sql_id, entry_type, content, created_at)
         journal_count += 1
 
     msg = f"REINDEX_COMPLETE: {timeline_count} timeline entries, {journal_count} journal entries"
     if skipped_count:
         msg += f" ({skipped_count} narrations skipped -- no summary)"
     return msg
+
+
+def cmd_reindex(db, args):
+    sid, _ = parse_args(args, {}, positional="session_id")
+    return reindex(db, int(sid))
 
 
 if __name__ == "__main__":

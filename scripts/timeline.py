@@ -54,6 +54,25 @@ def _resolve_narrative_time(db, session_id, explicit_time):
     return row[0] if row else ""
 
 
+def add(db, session_id: int, entry_type: str, content: str, summary: str = "", narrative_time: str = "") -> str:
+    if entry_type not in ("narration", "player_choice"):
+        raise LoreKitError("type must be narration or player_choice")
+    nt = _resolve_narrative_time(db, session_id, narrative_time)
+    cur = db.execute(
+        "INSERT INTO timeline (session_id, entry_type, content, summary, narrative_time) VALUES (?, ?, ?, ?, ?)",
+        (session_id, entry_type, content, summary, nt),
+    )
+    db.commit()
+    sql_id = cur.lastrowid
+    if entry_type == "narration" and summary:
+        try:
+            from _vectordb import index_timeline
+            index_timeline(session_id, sql_id, entry_type, summary)
+        except Exception:
+            pass
+    return f"TIMELINE_ADDED: {sql_id}"
+
+
 def cmd_add(db, args):
     sid, p = parse_args(args, {
         "--type": ("entry_type", True, ""),
@@ -61,56 +80,43 @@ def cmd_add(db, args):
         "--summary": ("summary", False, ""),
         "--time": ("narrative_time", False, ""),
     }, positional="session_id")
-    if p["entry_type"] not in ("narration", "player_choice"):
-        raise LoreKitError("--type must be narration or player_choice")
-    nt = _resolve_narrative_time(db, int(sid), p["narrative_time"])
-    cur = db.execute(
-        "INSERT INTO timeline (session_id, entry_type, content, summary, narrative_time) VALUES (?, ?, ?, ?, ?)",
-        (sid, p["entry_type"], p["content"], p["summary"], nt),
+    return add(db, int(sid), p["entry_type"], p["content"], p["summary"], p["narrative_time"])
+
+
+def set_summary(db, timeline_id: int, summary: str) -> str:
+    row = db.execute(
+        "SELECT session_id, entry_type FROM timeline WHERE id = ?",
+        (timeline_id,),
+    ).fetchone()
+    if not row:
+        raise LoreKitError(f"Timeline entry {timeline_id} not found")
+    session_id, entry_type = row
+    db.execute(
+        "UPDATE timeline SET summary = ? WHERE id = ?",
+        (summary, timeline_id),
     )
     db.commit()
-    sql_id = cur.lastrowid
-    if p["entry_type"] == "narration" and p["summary"]:
+    if entry_type == "narration":
         try:
             from _vectordb import index_timeline
-            index_timeline(sid, sql_id, p["entry_type"], p["summary"])
+            index_timeline(session_id, timeline_id, entry_type, summary)
         except Exception:
             pass
-    return f"TIMELINE_ADDED: {sql_id}"
+    return f"SUMMARY_SET: {timeline_id}"
 
 
 def cmd_set_summary(db, args):
     tid, p = parse_args(args, {
         "--summary": ("summary", True, ""),
     }, positional="timeline_id")
-    row = db.execute(
-        "SELECT session_id, entry_type FROM timeline WHERE id = ?",
-        (tid,),
-    ).fetchone()
-    if not row:
-        raise LoreKitError(f"Timeline entry {tid} not found")
-    session_id, entry_type = row
-    db.execute(
-        "UPDATE timeline SET summary = ? WHERE id = ?",
-        (p["summary"], tid),
-    )
-    db.commit()
-    if entry_type == "narration":
-        try:
-            from _vectordb import index_timeline
-            index_timeline(session_id, tid, entry_type, p["summary"])
-        except Exception:
-            pass
-    return f"SUMMARY_SET: {tid}"
+    return set_summary(db, int(tid), p["summary"])
 
 
-def cmd_revert(db, args):
-    sid, _ = parse_args(args, {}, positional="session_id")
-
+def revert(db, session_id: int) -> str:
     # Find the last narration
     row = db.execute(
         "SELECT id FROM timeline WHERE session_id = ? AND entry_type = 'narration' ORDER BY id DESC LIMIT 1",
-        (sid,),
+        (session_id,),
     ).fetchone()
     if not row:
         raise LoreKitError("No narrations to revert")
@@ -119,7 +125,7 @@ def cmd_revert(db, args):
     # Find all entries at or after the last narration
     rows = db.execute(
         "SELECT id, entry_type, summary FROM timeline WHERE session_id = ? AND id >= ? ORDER BY id",
-        (sid, last_narration_id),
+        (session_id, last_narration_id),
     ).fetchall()
     ids_to_delete = [r[0] for r in rows]
     narration_ids_with_summary = [r[0] for r in rows if r[1] == "narration" and r[2]]
@@ -136,17 +142,17 @@ def cmd_revert(db, args):
     # Restore last_gm_message to the previous narration (if any remain)
     prev = db.execute(
         "SELECT content FROM timeline WHERE session_id = ? AND entry_type = 'narration' ORDER BY id DESC LIMIT 1",
-        (sid,),
+        (session_id,),
     ).fetchone()
     if prev:
         db.execute(
             "INSERT OR REPLACE INTO session_meta (session_id, key, value) VALUES (?, 'last_gm_message', ?)",
-            (sid, prev[0]),
+            (session_id, prev[0]),
         )
     else:
         db.execute(
             "DELETE FROM session_meta WHERE session_id = ? AND key = 'last_gm_message'",
-            (sid,),
+            (session_id,),
         )
     db.commit()
 
@@ -162,34 +168,33 @@ def cmd_revert(db, args):
     return f"TIMELINE_REVERTED: {len(ids_to_delete)} entries removed ({breakdown})"
 
 
-def cmd_list(db, args):
-    sid, p = parse_args(args, {
-        "--type": ("entry_type", False, ""),
-        "--last": ("last", False, ""),
-        "--id": ("entry_id", False, ""),
-    }, positional="session_id")
-    if p["entry_id"]:
-        entry_id = p["entry_id"]
+def cmd_revert(db, args):
+    sid, _ = parse_args(args, {}, positional="session_id")
+    return revert(db, int(sid))
+
+
+def list_entries(db, session_id: int, entry_type: str = "", last: int = 0, entry_id: str = "") -> str:
+    if entry_id:
         if "-" in entry_id:
             id_from, id_to = entry_id.split("-", 1)
             cur = db.execute(
                 "SELECT id, entry_type, content, created_at FROM timeline WHERE session_id = ? AND id BETWEEN ? AND ? ORDER BY id",
-                (sid, int(id_from), int(id_to)),
+                (session_id, int(id_from), int(id_to)),
             )
         else:
             cur = db.execute(
                 "SELECT id, entry_type, content, created_at FROM timeline WHERE session_id = ? AND id = ?",
-                (sid, int(entry_id)),
+                (session_id, int(entry_id)),
             )
         return format_table(cur)
     query = "SELECT id, entry_type, content, created_at FROM timeline WHERE session_id = ?"
-    params = [sid]
-    if p["entry_type"]:
+    params: list = [session_id]
+    if entry_type:
         query += " AND entry_type = ?"
-        params.append(p["entry_type"])
-    if p["last"]:
+        params.append(entry_type)
+    if last:
         query += " ORDER BY id DESC LIMIT ?"
-        params.append(int(p["last"]))
+        params.append(last)
         # Wrap to re-order ascending
         query = f"SELECT * FROM ({query}) ORDER BY id"
     else:
@@ -198,16 +203,29 @@ def cmd_list(db, args):
     return format_table(cur)
 
 
+def cmd_list(db, args):
+    sid, p = parse_args(args, {
+        "--type": ("entry_type", False, ""),
+        "--last": ("last", False, ""),
+        "--id": ("entry_id", False, ""),
+    }, positional="session_id")
+    return list_entries(db, int(sid), p["entry_type"], int(p["last"]) if p["last"] else 0, p["entry_id"])
+
+
+def search(db, session_id: int, query_text: str) -> str:
+    cur = db.execute(
+        "SELECT id, entry_type, content, created_at FROM timeline "
+        "WHERE session_id = ? AND content LIKE ? ORDER BY id",
+        (session_id, f"%{query_text}%"),
+    )
+    return format_table(cur)
+
+
 def cmd_search(db, args):
     sid, p = parse_args(args, {
         "--query": ("query_text", True, ""),
     }, positional="session_id")
-    cur = db.execute(
-        "SELECT id, entry_type, content, created_at FROM timeline "
-        "WHERE session_id = ? AND content LIKE ? ORDER BY id",
-        (sid, f"%{p['query_text']}%"),
-    )
-    return format_table(cur)
+    return search(db, int(sid), p["query_text"])
 
 
 if __name__ == "__main__":

@@ -54,25 +54,43 @@ def _resolve_narrative_time(db, session_id, explicit_time):
     return row[0] if row else ""
 
 
+def add(db, session_id: int, entry_type: str, content: str, narrative_time: str = "") -> str:
+    nt = _resolve_narrative_time(db, session_id, narrative_time)
+    cur = db.execute(
+        "INSERT INTO journal (session_id, entry_type, content, narrative_time) VALUES (?, ?, ?, ?)",
+        (session_id, entry_type, content, nt),
+    )
+    db.commit()
+    sql_id = cur.lastrowid
+    try:
+        from _vectordb import index_journal
+        index_journal(session_id, sql_id, entry_type, content)
+    except Exception:
+        pass
+    return f"JOURNAL_ADDED: {sql_id}"
+
+
 def cmd_add(db, args):
     sid, p = parse_args(args, {
         "--type": ("entry_type", True, ""),
         "--content": ("content", True, ""),
         "--time": ("narrative_time", False, ""),
     }, positional="session_id")
-    nt = _resolve_narrative_time(db, int(sid), p["narrative_time"])
-    cur = db.execute(
-        "INSERT INTO journal (session_id, entry_type, content, narrative_time) VALUES (?, ?, ?, ?)",
-        (sid, p["entry_type"], p["content"], nt),
-    )
-    db.commit()
-    sql_id = cur.lastrowid
-    try:
-        from _vectordb import index_journal
-        index_journal(sid, sql_id, p["entry_type"], p["content"])
-    except Exception:
-        pass
-    return f"JOURNAL_ADDED: {sql_id}"
+    return add(db, int(sid), p["entry_type"], p["content"], p["narrative_time"])
+
+
+def list_entries(db, session_id: int, entry_type: str = "", last: int = 0) -> str:
+    query = "SELECT id, entry_type, content, created_at FROM journal WHERE session_id = ?"
+    params: list = [session_id]
+    if entry_type:
+        query += " AND entry_type = ?"
+        params.append(entry_type)
+    query += " ORDER BY id DESC"
+    if last:
+        query += " LIMIT ?"
+        params.append(last)
+    cur = db.execute(query, params)
+    return format_table(cur)
 
 
 def cmd_list(db, args):
@@ -80,16 +98,15 @@ def cmd_list(db, args):
         "--type": ("entry_type", False, ""),
         "--last": ("last", False, ""),
     }, positional="session_id")
-    query = "SELECT id, entry_type, content, created_at FROM journal WHERE session_id = ?"
-    params = [sid]
-    if p["entry_type"]:
-        query += " AND entry_type = ?"
-        params.append(p["entry_type"])
-    query += " ORDER BY id DESC"
-    if p["last"]:
-        query += " LIMIT ?"
-        params.append(int(p["last"]))
-    cur = db.execute(query, params)
+    return list_entries(db, int(sid), p["entry_type"], int(p["last"]) if p["last"] else 0)
+
+
+def search(db, session_id: int, query_text: str) -> str:
+    cur = db.execute(
+        "SELECT id, entry_type, content, created_at FROM journal "
+        "WHERE session_id = ? AND content LIKE ? ORDER BY id",
+        (session_id, f"%{query_text}%"),
+    )
     return format_table(cur)
 
 
@@ -97,12 +114,7 @@ def cmd_search(db, args):
     sid, p = parse_args(args, {
         "--query": ("query_text", True, ""),
     }, positional="session_id")
-    cur = db.execute(
-        "SELECT id, entry_type, content, created_at FROM journal "
-        "WHERE session_id = ? AND content LIKE ? ORDER BY id",
-        (sid, f"%{p['query_text']}%"),
-    )
-    return format_table(cur)
+    return search(db, int(sid), p["query_text"])
 
 
 if __name__ == "__main__":

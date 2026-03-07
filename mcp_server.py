@@ -21,13 +21,13 @@ mcp = FastMCP("lorekit", host="127.0.0.1", port=NPC_MCP_PORT)
 # ---------------------------------------------------------------------------
 
 
-def _run_with_db(fn, args_list):
-    """Get a DB connection, call fn(db, args_list), close DB."""
+def _run_with_db(fn, *args, **kwargs):
+    """Get a DB connection, call fn(db, ...), close DB."""
     from _db import require_db, LoreKitError
 
     db = require_db()
     try:
-        return fn(db, args_list)
+        return fn(db, *args, **kwargs)
     except LoreKitError as e:
         return f"ERROR: {e}"
     finally:
@@ -56,54 +56,48 @@ def init_db() -> str:
 
 def session_create(name: str, setting: str, system: str) -> str:
     """Create a new adventure session. (Internal — use session_setup instead.)"""
-    from session import cmd_create
+    from session import create
 
-    return _run_with_db(cmd_create, ["--name", name, "--setting", setting, "--system", system])
+    return _run_with_db(create, name, setting, system)
 
 
 def session_view(session_id: int) -> str:
     """View session details. (Internal — use session_resume or session_list instead.)"""
-    from session import cmd_view
+    from session import view
 
-    return _run_with_db(cmd_view, [str(session_id)])
+    return _run_with_db(view, session_id)
 
 
 @mcp.tool()
 def session_list(status: str = "") -> str:
     """List sessions. Optionally filter by status (active/finished)."""
-    from session import cmd_list
+    from session import list_sessions
 
-    args = []
-    if status:
-        args += ["--status", status]
-    return _run_with_db(cmd_list, args)
+    return _run_with_db(list_sessions, status)
 
 
 @mcp.tool()
 def session_update(session_id: int, status: str) -> str:
     """Update session status."""
-    from session import cmd_update
+    from session import update
 
-    return _run_with_db(cmd_update, [str(session_id), "--status", status])
+    return _run_with_db(update, session_id, status)
 
 
 @mcp.tool()
 def session_meta_set(session_id: int, key: str, value: str) -> str:
     """Set a session metadata key-value pair. Overwrites if key exists."""
-    from session import cmd_meta_set
+    from session import meta_set
 
-    return _run_with_db(cmd_meta_set, [str(session_id), "--key", key, "--value", value])
+    return _run_with_db(meta_set, session_id, key, value)
 
 
 @mcp.tool()
 def session_meta_get(session_id: int, key: str = "") -> str:
     """Get session metadata. If key is empty, returns all metadata."""
-    from session import cmd_meta_get
+    from session import meta_get
 
-    args = [str(session_id)]
-    if key:
-        args += ["--key", key]
-    return _run_with_db(cmd_meta_get, args)
+    return _run_with_db(meta_get, session_id, key)
 
 
 # ---------------------------------------------------------------------------
@@ -114,68 +108,50 @@ def session_meta_get(session_id: int, key: str = "") -> str:
 @mcp.tool()
 def story_set(session_id: int, size: str, premise: str) -> str:
     """Create or overwrite the story plan for a session. Size: oneshot, short, campaign."""
-    from story import cmd_set
+    from story import set_story
 
-    return _run_with_db(cmd_set, [str(session_id), "--size", size, "--premise", premise])
+    return _run_with_db(set_story, session_id, size, premise)
 
 
 @mcp.tool()
 def story_view(session_id: int, act_id: int = 0) -> str:
     """Show the story premise and all acts. If act_id is given, show full details for that act only."""
     if act_id:
-        from story import cmd_view_act
-        return _run_with_db(cmd_view_act, [str(act_id)])
-    from story import cmd_view
-    return _run_with_db(cmd_view, [str(session_id)])
+        from story import view_act
+        return _run_with_db(view_act, act_id)
+    from story import view
+    return _run_with_db(view, session_id)
 
 
 @mcp.tool()
 def story_add_act(session_id: int, title: str, desc: str = "", goal: str = "", event: str = "") -> str:
     """Append an act to the story. Order is auto-assigned."""
-    from story import cmd_add_act
+    from story import add_act
 
-    args = [str(session_id), "--title", title]
-    if desc:
-        args += ["--desc", desc]
-    if goal:
-        args += ["--goal", goal]
-    if event:
-        args += ["--event", event]
-    return _run_with_db(cmd_add_act, args)
+    return _run_with_db(add_act, session_id, title, desc, goal, event)
 
 
 def story_view_act(act_id: int) -> str:
     """Show full details for a single act. (Internal — use story_view with act_id instead.)"""
-    from story import cmd_view_act
+    from story import view_act
 
-    return _run_with_db(cmd_view_act, [str(act_id)])
+    return _run_with_db(view_act, act_id)
 
 
 @mcp.tool()
 def story_update_act(act_id: int, title: str = "", desc: str = "", goal: str = "", event: str = "", status: str = "") -> str:
     """Update one or more fields on an act."""
-    from story import cmd_update_act
+    from story import update_act
 
-    args = [str(act_id)]
-    if title:
-        args += ["--title", title]
-    if desc:
-        args += ["--desc", desc]
-    if goal:
-        args += ["--goal", goal]
-    if event:
-        args += ["--event", event]
-    if status:
-        args += ["--status", status]
-    return _run_with_db(cmd_update_act, args)
+    return _run_with_db(update_act, act_id, title, desc, goal, event, status)
 
 
 @mcp.tool()
 def story_advance(session_id: int) -> str:
     """Complete the current active act and activate the next pending one."""
-    from story import cmd_advance
+    from story import advance
 
-    return _run_with_db(cmd_advance, [str(session_id)])
+    return _run_with_db(advance, session_id)
 
 
 # ---------------------------------------------------------------------------
@@ -185,108 +161,81 @@ def story_advance(session_id: int) -> str:
 
 def character_create(session: int, name: str, level: int, type: str = "pc", region: int = 0) -> str:
     """Create a character. Type: pc or npc. Region is optional (0 = none)."""
-    from character import cmd_create
+    from character import create
 
-    args = ["--session", str(session), "--name", name, "--level", str(level), "--type", type]
-    if region:
-        args += ["--region", str(region)]
-    return _run_with_db(cmd_create, args)
+    return _run_with_db(create, session, name, level, type, region)
 
 
 @mcp.tool()
 def character_view(character_id: int) -> str:
     """View full character sheet: identity, attributes, inventory, abilities."""
-    from character import cmd_view
+    from character import view
 
-    return _run_with_db(cmd_view, [str(character_id)])
+    return _run_with_db(view, character_id)
 
 
 @mcp.tool()
 def character_list(session: int, type: str = "", region: int = 0) -> str:
     """List characters in a session. Optionally filter by type and/or region."""
-    from character import cmd_list
+    from character import list_chars
 
-    args = ["--session", str(session)]
-    if type:
-        args += ["--type", type]
-    if region:
-        args += ["--region", str(region)]
-    return _run_with_db(cmd_list, args)
+    return _run_with_db(list_chars, session, type, region)
 
 
 def character_update(character_id: int, name: str = "", level: int = 0, status: str = "", region: int = 0) -> str:
     """Update character fields. Only provided fields are changed."""
-    from character import cmd_update
+    from character import update
 
-    args = [str(character_id)]
-    if name:
-        args += ["--name", name]
-    if level:
-        args += ["--level", str(level)]
-    if status:
-        args += ["--status", status]
-    if region:
-        args += ["--region", str(region)]
-    return _run_with_db(cmd_update, args)
+    return _run_with_db(update, character_id, name, level, status, region)
 
 
 def character_set_attr(character_id: int, category: str, key: str, value: str) -> str:
     """Set a character attribute. Overwrites if category+key exists."""
-    from character import cmd_set_attr
+    from character import set_attr
 
-    return _run_with_db(cmd_set_attr, [str(character_id), "--category", category, "--key", key, "--value", value])
+    return _run_with_db(set_attr, character_id, category, key, value)
 
 
 def character_get_attr(character_id: int, category: str = "") -> str:
     """Get character attributes. Optionally filter by category."""
-    from character import cmd_get_attr
+    from character import get_attr
 
-    args = [str(character_id)]
-    if category:
-        args += ["--category", category]
-    return _run_with_db(cmd_get_attr, args)
+    return _run_with_db(get_attr, character_id, category)
 
 
 def character_set_item(character_id: int, name: str, desc: str = "", qty: int = 1, equipped: int = 0) -> str:
     """Add an item to a character's inventory."""
-    from character import cmd_set_item
+    from character import set_item
 
-    args = [str(character_id), "--name", name]
-    if desc:
-        args += ["--desc", desc]
-    if qty != 1:
-        args += ["--qty", str(qty)]
-    if equipped:
-        args += ["--equipped", str(equipped)]
-    return _run_with_db(cmd_set_item, args)
+    return _run_with_db(set_item, character_id, name, desc, qty, equipped)
 
 
 def character_get_items(character_id: int) -> str:
     """List all items in a character's inventory."""
-    from character import cmd_get_items
+    from character import get_items
 
-    return _run_with_db(cmd_get_items, [str(character_id)])
+    return _run_with_db(get_items, character_id)
 
 
 def character_remove_item(item_id: int) -> str:
     """Remove an item from inventory by item ID."""
-    from character import cmd_remove_item
+    from character import remove_item
 
-    return _run_with_db(cmd_remove_item, [str(item_id)])
+    return _run_with_db(remove_item, item_id)
 
 
 def character_set_ability(character_id: int, name: str, desc: str, category: str, uses: str = "at_will") -> str:
     """Add an ability to a character."""
-    from character import cmd_set_ability
+    from character import set_ability
 
-    return _run_with_db(cmd_set_ability, [str(character_id), "--name", name, "--desc", desc, "--category", category, "--uses", uses])
+    return _run_with_db(set_ability, character_id, name, desc, category, uses)
 
 
 def character_get_abilities(character_id: int) -> str:
     """List all abilities of a character."""
-    from character import cmd_get_abilities
+    from character import get_abilities
 
-    return _run_with_db(cmd_get_abilities, [str(character_id)])
+    return _run_with_db(get_abilities, character_id)
 
 
 # ---------------------------------------------------------------------------
@@ -297,45 +246,33 @@ def character_get_abilities(character_id: int) -> str:
 @mcp.tool()
 def region_create(session_id: int, name: str, desc: str = "", parent_id: int = 0) -> str:
     """Create a region in a session. Set parent_id to nest under another region."""
-    from region import cmd_create
+    from region import create
 
-    args = [str(session_id), "--name", name]
-    if desc:
-        args += ["--desc", desc]
-    if parent_id:
-        args += ["--parent", str(parent_id)]
-    return _run_with_db(cmd_create, args)
+    return _run_with_db(create, session_id, name, desc, parent_id)
 
 
 @mcp.tool()
 def region_list(session_id: int) -> str:
     """List all regions in a session."""
-    from region import cmd_list
+    from region import list_regions
 
-    return _run_with_db(cmd_list, [str(session_id)])
+    return _run_with_db(list_regions, session_id)
 
 
 @mcp.tool()
 def region_view(region_id: int) -> str:
     """View region details and all NPCs linked to it."""
-    from region import cmd_view
+    from region import view
 
-    return _run_with_db(cmd_view, [str(region_id)])
+    return _run_with_db(view, region_id)
 
 
 @mcp.tool()
 def region_update(region_id: int, name: str = "", desc: str = "", parent_id: int = 0) -> str:
     """Update region name, description, and/or parent."""
-    from region import cmd_update
+    from region import update
 
-    args = [str(region_id)]
-    if name:
-        args += ["--name", name]
-    if desc:
-        args += ["--desc", desc]
-    if parent_id:
-        args += ["--parent", str(parent_id)]
-    return _run_with_db(cmd_update, args)
+    return _run_with_db(update, region_id, name, desc, parent_id)
 
 
 # ---------------------------------------------------------------------------
@@ -345,52 +282,43 @@ def region_update(region_id: int, name: str = "", desc: str = "", parent_id: int
 
 def timeline_add(session_id: int, type: str, content: str, summary: str = "", narrative_time: str = "") -> str:
     """Add a timeline entry. Type: narration or player_choice. Stamps with current narrative clock unless overridden."""
-    from timeline import cmd_add
+    from timeline import add
 
-    args = [str(session_id), "--type", type, "--content", content]
-    if summary:
-        args += ["--summary", summary]
-    if narrative_time:
-        args += ["--time", narrative_time]
-    return _run_with_db(cmd_add, args)
+    return _run_with_db(add, session_id, type, content, summary, narrative_time)
 
 
 @mcp.tool()
 def timeline_list(session_id: int, type: str = "", last: int = 0, id: str = "") -> str:
     """List timeline entries. Optionally filter by type and/or limit to last N."""
-    from timeline import cmd_list
+    from timeline import list_entries
 
-    args = [str(session_id)]
-    if id:
-        args += ["--id", id]
-    elif type:
-        args += ["--type", type]
-    if not id and last:
-        args += ["--last", str(last)]
-    return _run_with_db(cmd_list, args)
+    entry_id = id
+    if entry_id:
+        return _run_with_db(list_entries, session_id, entry_id=entry_id)
+    return _run_with_db(list_entries, session_id, type, last)
 
 
 def timeline_search(session_id: int, query: str) -> str:
     """Search timeline content by keyword (case-insensitive)."""
-    from timeline import cmd_search
+    from timeline import search
 
-    return _run_with_db(cmd_search, [str(session_id), "--query", query])
+    return _run_with_db(search, session_id, query)
 
 
 @mcp.tool()
 def timeline_set_summary(timeline_id: int, summary: str) -> str:
     """Set the summary for an existing timeline entry. Re-indexes for semantic search."""
-    from timeline import cmd_set_summary
+    from timeline import set_summary
 
-    return _run_with_db(cmd_set_summary, [str(timeline_id), "--summary", summary])
+    return _run_with_db(set_summary, timeline_id, summary)
 
 
 @mcp.tool()
 def timeline_revert(session_id: int) -> str:
     """Revert the last narration and all entries after it. Cleans up the vector index and restores last_gm_message."""
-    from timeline import cmd_revert
+    from timeline import revert
 
-    return _run_with_db(cmd_revert, [str(session_id)])
+    return _run_with_db(revert, session_id)
 
 
 # ---------------------------------------------------------------------------
@@ -401,32 +329,24 @@ def timeline_revert(session_id: int) -> str:
 @mcp.tool()
 def journal_add(session_id: int, type: str, content: str, narrative_time: str = "") -> str:
     """Add a journal entry. Types: event, combat, discovery, npc, decision, note. Stamps with current narrative clock unless overridden."""
-    from journal import cmd_add
+    from journal import add
 
-    args = [str(session_id), "--type", type, "--content", content]
-    if narrative_time:
-        args += ["--time", narrative_time]
-    return _run_with_db(cmd_add, args)
+    return _run_with_db(add, session_id, type, content, narrative_time)
 
 
 @mcp.tool()
 def journal_list(session_id: int, type: str = "", last: int = 0) -> str:
     """List journal entries. Optionally filter by type and/or limit to last N."""
-    from journal import cmd_list
+    from journal import list_entries
 
-    args = [str(session_id)]
-    if type:
-        args += ["--type", type]
-    if last:
-        args += ["--last", str(last)]
-    return _run_with_db(cmd_list, args)
+    return _run_with_db(list_entries, session_id, type, last)
 
 
 def journal_search(session_id: int, query: str) -> str:
     """Search journal content by keyword (case-insensitive)."""
-    from journal import cmd_search
+    from journal import search
 
-    return _run_with_db(cmd_search, [str(session_id), "--query", query])
+    return _run_with_db(search, session_id, query)
 
 
 # ---------------------------------------------------------------------------
@@ -437,25 +357,25 @@ def journal_search(session_id: int, query: str) -> str:
 @mcp.tool()
 def time_get(session_id: int) -> str:
     """Get the current in-game narrative time for a session."""
-    from narrative_time import cmd_get
+    from narrative_time import get_time
 
-    return _run_with_db(cmd_get, [str(session_id)])
+    return _run_with_db(get_time, session_id)
 
 
 @mcp.tool()
 def time_set(session_id: int, datetime: str) -> str:
     """Set the in-game narrative time (ISO 8601, e.g. '1347-03-15T14:00')."""
-    from narrative_time import cmd_set
+    from narrative_time import set_time
 
-    return _run_with_db(cmd_set, [str(session_id), "--datetime", datetime])
+    return _run_with_db(set_time, session_id, datetime)
 
 
 @mcp.tool()
 def time_advance(session_id: int, amount: int, unit: str) -> str:
     """Advance the in-game clock. Units: minutes, hours, days, weeks, months, years."""
-    from narrative_time import cmd_advance
+    from narrative_time import advance
 
-    return _run_with_db(cmd_advance, [str(session_id), "--amount", str(amount), "--unit", unit])
+    return _run_with_db(advance, session_id, amount, unit)
 
 
 # ---------------------------------------------------------------------------
@@ -501,20 +421,20 @@ def recall_search(session_id: int, query: str, source: str = "", n: int = 0, mod
     n: override result count (0 = defaults). Only applies to semantic mode.
     """
     if mode == "keyword":
-        from timeline import cmd_search as tl_search
-        from journal import cmd_search as jn_search
+        from timeline import search as tl_search
+        from journal import search as jn_search
         from _db import require_db, LoreKitError
 
         db = require_db()
         try:
             parts = []
             if source in ("", "timeline"):
-                r = tl_search(db, [str(session_id), "--query", query])
+                r = tl_search(db, session_id, query)
                 if source == "":
                     parts.append("--- TIMELINE ---")
                 parts.append(r)
             if source in ("", "journal"):
-                r = jn_search(db, [str(session_id), "--query", query])
+                r = jn_search(db, session_id, query)
                 if source == "":
                     parts.append("\n--- JOURNAL ---")
                 parts.append(r)
@@ -524,22 +444,17 @@ def recall_search(session_id: int, query: str, source: str = "", n: int = 0, mod
         finally:
             db.close()
 
-    from recall import cmd_search
+    from recall import search
 
-    args = [str(session_id), "--query", query]
-    if source:
-        args += ["--source", source]
-    if n > 0:
-        args += ["--n", str(n)]
-    return _run_with_db(cmd_search, args)
+    return _run_with_db(search, session_id, query, source, n)
 
 
 @mcp.tool()
 def recall_reindex(session_id: int) -> str:
     """Rebuild vector collections from SQL data for a session."""
-    from recall import cmd_reindex
+    from recall import reindex
 
-    return _run_with_db(cmd_reindex, [str(session_id)])
+    return _run_with_db(reindex, session_id)
 
 
 # ---------------------------------------------------------------------------
@@ -550,17 +465,17 @@ def recall_reindex(session_id: int) -> str:
 @mcp.tool()
 def export_dump(session_id: int) -> str:
     """Export all session data to .export/session_<id>.txt."""
-    from export import cmd_dump
+    from export import dump
 
-    return _run_with_db(cmd_dump, [str(session_id)])
+    return _run_with_db(dump, session_id)
 
 
 @mcp.tool()
 def export_clean() -> str:
     """Remove the .export/ directory and all files inside it."""
-    from export import cmd_clean
+    from export import clean
 
-    return _run_with_db(cmd_clean, [])
+    return _run_with_db(clean)
 
 
 # ---------------------------------------------------------------------------
@@ -589,31 +504,21 @@ def turn_save(
         return "ERROR: Provide at least one of narration or player_choice"
 
     from _db import require_db, LoreKitError
-    from timeline import cmd_add
-    from session import cmd_meta_set
+    from timeline import add as tl_add
+    from session import meta_set
 
     db = require_db()
     try:
         results = []
 
         if narration:
-            args = [str(session_id), "--type", "narration", "--content", narration]
-            if summary:
-                args += ["--summary", summary]
-            if narrative_time:
-                args += ["--time", narrative_time]
-            r = cmd_add(db, args)
+            r = tl_add(db, session_id, "narration", narration, summary, narrative_time)
             results.append(r)
-
-            # Update last_gm_message
-            r = cmd_meta_set(db, [str(session_id), "--key", "last_gm_message", "--value", narration])
+            r = meta_set(db, session_id, "last_gm_message", narration)
             results.append(r)
 
         if player_choice:
-            pc_args = [str(session_id), "--type", "player_choice", "--content", player_choice]
-            if narrative_time:
-                pc_args += ["--time", narrative_time]
-            r = cmd_add(db, pc_args)
+            r = tl_add(db, session_id, "player_choice", player_choice, narrative_time=narrative_time)
             results.append(r)
 
         return "\n".join(results)
@@ -643,7 +548,7 @@ def character_build(
     import json as _json
 
     from _db import require_db, LoreKitError
-    from character import cmd_create, cmd_set_attr, cmd_set_item, cmd_set_ability
+    from character import create as char_create, set_attr, set_item, set_ability
 
     try:
         attrs_list = _json.loads(attrs)
@@ -654,39 +559,22 @@ def character_build(
 
     db = require_db()
     try:
-        # Create character
-        create_args = ["--session", str(session), "--name", name, "--level", str(level), "--type", type]
-        if region:
-            create_args += ["--region", str(region)]
-        r = cmd_create(db, create_args)
+        r = char_create(db, session, name, level, type, region)
         char_id = int(r.split(": ")[1])
 
-        # Set attributes
         attr_count = 0
         for a in attrs_list:
-            cmd_set_attr(db, [str(char_id), "--category", a["category"], "--key", a["key"], "--value", str(a["value"])])
+            set_attr(db, char_id, a["category"], a["key"], str(a["value"]))
             attr_count += 1
 
-        # Set items
         item_count = 0
         for it in items_list:
-            args = [str(char_id), "--name", it["name"]]
-            if it.get("desc"):
-                args += ["--desc", it["desc"]]
-            if it.get("qty") and it["qty"] != 1:
-                args += ["--qty", str(it["qty"])]
-            if it.get("equipped"):
-                args += ["--equipped", str(it["equipped"])]
-            cmd_set_item(db, args)
+            set_item(db, char_id, it["name"], it.get("desc", ""), it.get("qty", 1), it.get("equipped", 0))
             item_count += 1
 
-        # Set abilities
         ability_count = 0
         for ab in abilities_list:
-            args = [str(char_id), "--name", ab["name"], "--desc", ab["desc"], "--category", ab["category"]]
-            if ab.get("uses"):
-                args += ["--uses", ab["uses"]]
-            cmd_set_ability(db, args)
+            set_ability(db, char_id, ab["name"], ab["desc"], ab["category"], ab.get("uses", "at_will"))
             ability_count += 1
 
         return f"CHARACTER_BUILT: {char_id} (attrs={attr_count}, items={item_count}, abilities={ability_count})"
@@ -719,9 +607,9 @@ def session_setup(
     import json as _json
 
     from _db import require_db, LoreKitError
-    from session import cmd_create as sess_create, cmd_meta_set
-    from story import cmd_set as story_set_fn, cmd_add_act, cmd_update_act
-    from region import cmd_create as region_create_fn
+    from session import create as sess_create, meta_set
+    from story import set_story as story_set_fn, add_act, update_act
+    from region import create as region_create_fn
 
     try:
         meta_dict = _json.loads(meta)
@@ -732,61 +620,43 @@ def session_setup(
 
     db = require_db()
     try:
-        # Create session
-        r = sess_create(db, ["--name", name, "--setting", setting, "--system", system])
+        r = sess_create(db, name, setting, system)
         sid = int(r.split(": ")[1])
         parts = [r]
 
-        # Set metadata
         meta_count = 0
         for k, v in meta_dict.items():
-            cmd_meta_set(db, [str(sid), "--key", k, "--value", str(v)])
+            meta_set(db, sid, k, str(v))
             meta_count += 1
         if meta_count:
             parts.append(f"META_SET: {meta_count} keys")
 
-        # Set narrative time
         if narrative_time:
-            cmd_meta_set(db, [str(sid), "--key", "narrative_time", "--value", narrative_time])
+            meta_set(db, sid, "narrative_time", narrative_time)
             parts.append(f"TIME_SET: {narrative_time}")
 
-        # Create story
         if story_size and story_premise:
-            r = story_set_fn(db, [str(sid), "--size", story_size, "--premise", story_premise])
+            r = story_set_fn(db, sid, story_size, story_premise)
             parts.append(r)
 
-        # Create acts
         first_act_id = None
         act_count = 0
         for act in acts_list:
-            args = [str(sid), "--title", act["title"]]
-            if act.get("desc"):
-                args += ["--desc", act["desc"]]
-            if act.get("goal"):
-                args += ["--goal", act["goal"]]
-            if act.get("event"):
-                args += ["--event", act["event"]]
-            r = cmd_add_act(db, args)
+            r = add_act(db, sid, act["title"], act.get("desc", ""), act.get("goal", ""), act.get("event", ""))
             if first_act_id is None:
                 first_act_id = int(r.split(": ")[1])
             act_count += 1
 
         if first_act_id is not None:
-            cmd_update_act(db, [str(first_act_id), "--status", "active"])
+            update_act(db, first_act_id, status="active")
             parts.append(f"ACTS_ADDED: {act_count} (first act set to active)")
 
-        # Create regions (with children)
         region_count = 0
 
-        def _create_regions(region_list, parent_id=None):
+        def _create_regions(region_list, parent_id=0):
             nonlocal region_count
             for reg in region_list:
-                args = [str(sid), "--name", reg["name"]]
-                if reg.get("desc"):
-                    args += ["--desc", reg["desc"]]
-                if parent_id:
-                    args += ["--parent", str(parent_id)]
-                r = region_create_fn(db, args)
+                r = region_create_fn(db, sid, reg["name"], reg.get("desc", ""), parent_id)
                 rid = int(r.split(": ")[1])
                 region_count += 1
                 if reg.get("children"):
@@ -814,26 +684,23 @@ def session_resume(session_id: int) -> str:
     import sqlite3
 
     from _db import require_db, LoreKitError, format_table
-    from session import cmd_view as sess_view, cmd_meta_get
-    from story import cmd_view as story_view_fn
-    from character import cmd_view as char_view, cmd_list as char_list
-    from region import cmd_list as region_list_fn
-    from timeline import cmd_list as timeline_list_fn
-    from journal import cmd_list as journal_list_fn
+    from session import view as sess_view, meta_get
+    from story import view as story_view_fn
+    from character import view as char_view
+    from region import list_regions as region_list_fn
+    from timeline import list_entries as timeline_list_fn
+    from journal import list_entries as journal_list_fn
 
     db = require_db()
     try:
         parts = []
 
-        # Session details
         parts.append("=== SESSION ===")
-        parts.append(sess_view(db, [str(session_id)]))
+        parts.append(sess_view(db, session_id))
 
-        # All metadata
         parts.append("\n=== METADATA ===")
-        parts.append(cmd_meta_get(db, [str(session_id)]))
+        parts.append(meta_get(db, session_id))
 
-        # Narrative time
         nt_row = db.execute(
             "SELECT value FROM session_meta WHERE session_id = ? AND key = 'narrative_time'",
             (session_id,),
@@ -842,12 +709,10 @@ def session_resume(session_id: int) -> str:
             parts.append(f"\n=== NARRATIVE TIME ===")
             parts.append(f"CURRENT: {nt_row[0]}")
 
-        # Story + acts
         parts.append("\n=== STORY ===")
         try:
-            parts.append(story_view_fn(db, [str(session_id)]))
+            parts.append(story_view_fn(db, session_id))
 
-            # Show active act details
             db.row_factory = sqlite3.Row
             active_act = db.execute(
                 "SELECT id, act_order, title, description, goal, event "
@@ -866,7 +731,6 @@ def session_resume(session_id: int) -> str:
         except LoreKitError:
             parts.append("(no story set)")
 
-        # All PCs with full sheets
         parts.append("\n=== PLAYER CHARACTERS ===")
         db.row_factory = sqlite3.Row
         pcs = db.execute(
@@ -876,22 +740,19 @@ def session_resume(session_id: int) -> str:
         db.row_factory = None
         if pcs:
             for pc in pcs:
-                parts.append(char_view(db, [str(pc["id"])]))
+                parts.append(char_view(db, pc["id"]))
                 parts.append("")
         else:
             parts.append("(no PCs)")
 
-        # Regions
         parts.append("=== REGIONS ===")
-        parts.append(region_list_fn(db, [str(session_id)]))
+        parts.append(region_list_fn(db, session_id))
 
-        # Last 20 timeline entries
         parts.append("\n=== RECENT TIMELINE (last 20) ===")
-        parts.append(timeline_list_fn(db, [str(session_id), "--last", "20"]))
+        parts.append(timeline_list_fn(db, session_id, last=20))
 
-        # Last 5 journal notes
         parts.append("\n=== RECENT JOURNAL (last 5) ===")
-        parts.append(journal_list_fn(db, [str(session_id), "--last", "5"]))
+        parts.append(journal_list_fn(db, session_id, last=5))
 
         return "\n".join(parts)
     except LoreKitError as e:
@@ -921,7 +782,7 @@ def character_sheet_update(
     import json as _json
 
     from _db import require_db, LoreKitError
-    from character import cmd_update, cmd_set_attr, cmd_set_item, cmd_set_ability, cmd_remove_item
+    from character import update as char_update, set_attr, set_item, set_ability, remove_item
 
     try:
         attrs_list = _json.loads(attrs)
@@ -935,31 +796,21 @@ def character_sheet_update(
     try:
         results = []
 
-        # Update core fields
-        update_args = [str(character_id)]
-        if level:
-            update_args += ["--level", str(level)]
-        if status:
-            update_args += ["--status", status]
-        if region:
-            update_args += ["--region", str(region)]
-        if len(update_args) > 1:
-            r = cmd_update(db, update_args)
+        if level or status or region:
+            r = char_update(db, character_id, level=level, status=status, region_id=region)
             results.append(r)
 
-        # Set attributes
         attr_count = 0
         for a in attrs_list:
-            cmd_set_attr(db, [str(character_id), "--category", a["category"], "--key", a["key"], "--value", str(a["value"])])
+            set_attr(db, character_id, a["category"], a["key"], str(a["value"]))
             attr_count += 1
         if attr_count:
             results.append(f"ATTRS_SET: {attr_count}")
 
-        # Remove items (by name or ID)
         remove_count = 0
         for item_ref in remove_list:
             if isinstance(item_ref, int):
-                cmd_remove_item(db, [str(item_ref)])
+                remove_item(db, item_ref)
                 remove_count += 1
             elif isinstance(item_ref, str):
                 row = db.execute(
@@ -967,33 +818,21 @@ def character_sheet_update(
                     (character_id, item_ref),
                 ).fetchone()
                 if row:
-                    cmd_remove_item(db, [str(row[0])])
+                    remove_item(db, row[0])
                     remove_count += 1
         if remove_count:
             results.append(f"ITEMS_REMOVED: {remove_count}")
 
-        # Set items
         item_count = 0
         for it in items_list:
-            args = [str(character_id), "--name", it["name"]]
-            if it.get("desc"):
-                args += ["--desc", it["desc"]]
-            if it.get("qty") and it["qty"] != 1:
-                args += ["--qty", str(it["qty"])]
-            if it.get("equipped"):
-                args += ["--equipped", str(it["equipped"])]
-            cmd_set_item(db, args)
+            set_item(db, character_id, it["name"], it.get("desc", ""), it.get("qty", 1), it.get("equipped", 0))
             item_count += 1
         if item_count:
             results.append(f"ITEMS_SET: {item_count}")
 
-        # Set abilities
         ability_count = 0
         for ab in abilities_list:
-            args = [str(character_id), "--name", ab["name"], "--desc", ab["desc"], "--category", ab["category"]]
-            if ab.get("uses"):
-                args += ["--uses", ab["uses"]]
-            cmd_set_ability(db, args)
+            set_ability(db, character_id, ab["name"], ab["desc"], ab["category"], ab.get("uses", "at_will"))
             ability_count += 1
         if ability_count:
             results.append(f"ABILITIES_SET: {ability_count}")

@@ -47,29 +47,32 @@ def main():
     print(fn(db, args))
 
 
+def set_story(db, session_id: int, size: str, premise: str) -> str:
+    db.execute(
+        "INSERT INTO stories (session_id, adventure_size, premise) VALUES (?, ?, ?)"
+        " ON CONFLICT(session_id) DO UPDATE SET adventure_size = excluded.adventure_size,"
+        " premise = excluded.premise",
+        (session_id, size, premise),
+    )
+    db.commit()
+    return f"STORY_SET: {session_id}"
+
+
 def cmd_set(db, args):
     sid, p = parse_args(args, {
         "--size": ("size", True, ""),
         "--premise": ("premise", True, ""),
     }, positional="session_id")
-    db.execute(
-        "INSERT INTO stories (session_id, adventure_size, premise) VALUES (?, ?, ?)"
-        " ON CONFLICT(session_id) DO UPDATE SET adventure_size = excluded.adventure_size,"
-        " premise = excluded.premise",
-        (sid, p["size"], p["premise"]),
-    )
-    db.commit()
-    return f"STORY_SET: {sid}"
+    return set_story(db, int(sid), p["size"], p["premise"])
 
 
-def cmd_view(db, args):
-    sid, _ = parse_args(args, {}, positional="session_id")
+def view(db, session_id: int) -> str:
     row = db.execute(
         "SELECT id, session_id, adventure_size, premise, created_at FROM stories WHERE session_id = ?",
-        (sid,),
+        (session_id,),
     ).fetchone()
     if row is None:
-        raise LoreKitError(f"No story found for session {sid}")
+        raise LoreKitError(f"No story found for session {session_id}")
     lines = [
         f"ID: {row[0]}",
         f"SESSION: {row[1]}",
@@ -81,10 +84,30 @@ def cmd_view(db, args):
     ]
     cur = db.execute(
         "SELECT act_order, title, status FROM story_acts WHERE session_id = ? ORDER BY act_order",
-        (sid,),
+        (session_id,),
     )
     lines.append(format_table(cur))
     return "\n".join(lines)
+
+
+def cmd_view(db, args):
+    sid, _ = parse_args(args, {}, positional="session_id")
+    return view(db, int(sid))
+
+
+def add_act(db, session_id: int, title: str, desc: str = "", goal: str = "", event: str = "") -> str:
+    row = db.execute(
+        "SELECT COALESCE(MAX(act_order), 0) FROM story_acts WHERE session_id = ?",
+        (session_id,),
+    ).fetchone()
+    next_order = row[0] + 1
+    cur = db.execute(
+        "INSERT INTO story_acts (session_id, act_order, title, description, goal, event)"
+        " VALUES (?, ?, ?, ?, ?, ?)",
+        (session_id, next_order, title, desc, goal, event),
+    )
+    db.commit()
+    return f"ACT_ADDED: {cur.lastrowid}"
 
 
 def cmd_add_act(db, args):
@@ -94,29 +117,17 @@ def cmd_add_act(db, args):
         "--goal": ("goal", False, ""),
         "--event": ("event", False, ""),
     }, positional="session_id")
-    row = db.execute(
-        "SELECT COALESCE(MAX(act_order), 0) FROM story_acts WHERE session_id = ?",
-        (sid,),
-    ).fetchone()
-    next_order = row[0] + 1
-    cur = db.execute(
-        "INSERT INTO story_acts (session_id, act_order, title, description, goal, event)"
-        " VALUES (?, ?, ?, ?, ?, ?)",
-        (sid, next_order, p["title"], p["desc"], p["goal"], p["event"]),
-    )
-    db.commit()
-    return f"ACT_ADDED: {cur.lastrowid}"
+    return add_act(db, int(sid), p["title"], p["desc"], p["goal"], p["event"])
 
 
-def cmd_view_act(db, args):
-    aid, _ = parse_args(args, {}, positional="act_id")
+def view_act(db, act_id: int) -> str:
     row = db.execute(
         "SELECT id, session_id, act_order, title, description, goal, event, status, created_at"
         " FROM story_acts WHERE id = ?",
-        (aid,),
+        (act_id,),
     ).fetchone()
     if row is None:
-        raise LoreKitError(f"Act {aid} not found")
+        raise LoreKitError(f"Act {act_id} not found")
     lines = [
         f"ID: {row[0]}",
         f"SESSION: {row[1]}",
@@ -131,6 +142,28 @@ def cmd_view_act(db, args):
     return "\n".join(lines)
 
 
+def cmd_view_act(db, args):
+    aid, _ = parse_args(args, {}, positional="act_id")
+    return view_act(db, int(aid))
+
+
+def update_act(db, act_id: int, title: str = "", desc: str = "", goal: str = "", event: str = "", status: str = "") -> str:
+    _COLUMN_MAP = {"title": "title", "desc": "description", "goal": "goal", "event": "event", "status": "status"}
+    values = {"title": title, "desc": desc, "goal": goal, "event": event, "status": status}
+    sets = []
+    params = []
+    for key, col in _COLUMN_MAP.items():
+        if values[key]:
+            sets.append(f"{col} = ?")
+            params.append(values[key])
+    if not sets:
+        raise LoreKitError("Provide at least one option to update")
+    params.append(act_id)
+    db.execute(f"UPDATE story_acts SET {','.join(sets)} WHERE id = ?", params)
+    db.commit()
+    return f"ACT_UPDATED: {act_id}"
+
+
 def cmd_update_act(db, args):
     aid, p = parse_args(args, {
         "--title": ("title", False, ""),
@@ -139,27 +172,14 @@ def cmd_update_act(db, args):
         "--event": ("event", False, ""),
         "--status": ("status", False, ""),
     }, positional="act_id")
-    _COLUMN_MAP = {"title": "title", "desc": "description", "goal": "goal", "event": "event", "status": "status"}
-    sets = []
-    params = []
-    for key, col in _COLUMN_MAP.items():
-        if p[key]:
-            sets.append(f"{col} = ?")
-            params.append(p[key])
-    if not sets:
-        raise LoreKitError("Provide at least one option to update")
-    params.append(aid)
-    db.execute(f"UPDATE story_acts SET {','.join(sets)} WHERE id = ?", params)
-    db.commit()
-    return f"ACT_UPDATED: {aid}"
+    return update_act(db, int(aid), p["title"], p["desc"], p["goal"], p["event"], p["status"])
 
 
-def cmd_advance(db, args):
-    sid, _ = parse_args(args, {}, positional="session_id")
+def advance(db, session_id: int) -> str:
     active = db.execute(
         "SELECT id, act_order FROM story_acts WHERE session_id = ? AND status = 'active'"
         " ORDER BY act_order LIMIT 1",
-        (sid,),
+        (session_id,),
     ).fetchone()
     if active is None:
         raise LoreKitError("No active act to advance")
@@ -168,7 +188,7 @@ def cmd_advance(db, args):
     next_act = db.execute(
         "SELECT id, act_order FROM story_acts WHERE session_id = ? AND act_order > ? AND status = 'pending'"
         " ORDER BY act_order LIMIT 1",
-        (sid, active_order),
+        (session_id, active_order),
     ).fetchone()
     if next_act is None:
         db.commit()
@@ -176,6 +196,11 @@ def cmd_advance(db, args):
     db.execute("UPDATE story_acts SET status = 'active' WHERE id = ?", (next_act[0],))
     db.commit()
     return f"ACT_ADVANCED: completed act {active_order}, activated act {next_act[1]}"
+
+
+def cmd_advance(db, args):
+    sid, _ = parse_args(args, {}, positional="session_id")
+    return advance(db, int(sid))
 
 
 if __name__ == "__main__":

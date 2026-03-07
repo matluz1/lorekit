@@ -31,33 +31,32 @@ def _set_narrative_time(db, session_id, dt_str):
     db.commit()
 
 
-def cmd_get(db, args):
-    sid, _ = parse_args(args, {}, positional="session_id")
-    nt = _get_narrative_time(db, int(sid))
+def get_time(db, session_id: int) -> str:
+    nt = _get_narrative_time(db, session_id)
     if not nt:
         return "NARRATIVE_TIME: (not set)"
     return f"NARRATIVE_TIME: {nt}"
+
+
+def cmd_get(db, args):
+    sid, _ = parse_args(args, {}, positional="session_id")
+    return get_time(db, int(sid))
+
+
+def set_time(db, session_id: int, dt_str: str) -> str:
+    _set_narrative_time(db, session_id, dt_str)
+    return f"TIME_SET: {dt_str}"
 
 
 def cmd_set(db, args):
     sid, p = parse_args(args, {
         "--datetime": ("datetime", True, ""),
     }, positional="session_id")
-    _set_narrative_time(db, int(sid), p["datetime"])
-    return f"TIME_SET: {p['datetime']}"
+    return set_time(db, int(sid), p["datetime"])
 
 
-def cmd_advance(db, args):
+def advance(db, session_id: int, amount: int, unit: str) -> str:
     from datetime import datetime, timedelta
-
-    sid, p = parse_args(args, {
-        "--amount": ("amount", True, ""),
-        "--unit": ("unit", True, ""),
-    }, positional="session_id")
-
-    session_id = int(sid)
-    amount = int(p["amount"])
-    unit = p["unit"]
 
     if unit not in _VALID_UNITS:
         raise LoreKitError(f"Invalid unit '{unit}'. Must be one of: {', '.join(_VALID_UNITS)}")
@@ -106,6 +105,14 @@ def cmd_advance(db, args):
     new_time = dt.strftime("%Y-%m-%dT%H:%M")
     _set_narrative_time(db, session_id, new_time)
     return f"TIME_ADVANCED: {current} → {new_time} (+{amount} {unit})"
+
+
+def cmd_advance(db, args):
+    sid, p = parse_args(args, {
+        "--amount": ("amount", True, ""),
+        "--unit": ("unit", True, ""),
+    }, positional="session_id")
+    return advance(db, int(sid), int(p["amount"]), p["unit"])
 
 
 def main():
