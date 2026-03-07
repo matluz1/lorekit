@@ -6,6 +6,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _db import require_db, format_table, LoreKitError
+from _args import parse_args
 
 
 def usage():
@@ -57,50 +58,35 @@ def main():
 
 
 def cmd_create(db, args):
-    session = name = ""
-    level = ""
-    char_type = "pc"
-    region = ""
-    i = 0
-    while i < len(args):
-        if args[i] == "--session":
-            session = args[i + 1]; i += 2
-        elif args[i] == "--name":
-            name = args[i + 1]; i += 2
-        elif args[i] == "--level":
-            level = args[i + 1]; i += 2
-        elif args[i] == "--type":
-            char_type = args[i + 1]; i += 2
-        elif args[i] == "--region":
-            region = args[i + 1]; i += 2
-        else:
-            raise LoreKitError(f"Unknown option: {args[i]}")
-    if not session or not name or not level:
-        raise LoreKitError("--session, --name, and --level are required")
-    if char_type not in ("pc", "npc"):
+    _, p = parse_args(args, {
+        "--session": ("session", True, ""),
+        "--name": ("name", True, ""),
+        "--level": ("level", True, ""),
+        "--type": ("char_type", False, "pc"),
+        "--region": ("region", False, ""),
+    })
+    if p["char_type"] not in ("pc", "npc"):
         raise LoreKitError("--type must be pc or npc")
-    region_val = int(region) if region else None
+    region_val = int(p["region"]) if p["region"] else None
     cur = db.execute(
         "INSERT INTO characters (session_id, name, level, type, region_id) VALUES (?, ?, ?, ?, ?)",
-        (int(session), name, int(level), char_type, region_val),
+        (int(p["session"]), p["name"], int(p["level"]), p["char_type"], region_val),
     )
     db.commit()
     return f"CHARACTER_CREATED: {cur.lastrowid}"
 
 
 def cmd_view(db, args):
-    if not args:
-        raise LoreKitError("character_id required")
-    char_id = args[0]
+    cid, _ = parse_args(args, {}, positional="character_id")
     row = db.execute(
         "SELECT c.id, c.session_id, c.name, c.level, c.status, c.type, "
         "COALESCE(r.name, ''), c.created_at "
         "FROM characters c LEFT JOIN regions r ON c.region_id = r.id "
         "WHERE c.id = ?",
-        (char_id,),
+        (cid,),
     ).fetchone()
     if row is None:
-        raise LoreKitError(f"Character {char_id} not found")
+        raise LoreKitError(f"Character {cid} not found")
     lines = [
         f"ID: {row[0]}",
         f"SESSION: {row[1]}",
@@ -116,7 +102,7 @@ def cmd_view(db, args):
     cur = db.execute(
         "SELECT category, key, value FROM character_attributes "
         "WHERE character_id = ? ORDER BY category, key",
-        (char_id,),
+        (cid,),
     )
     lines.append(format_table(cur))
     lines.append("")
@@ -124,7 +110,7 @@ def cmd_view(db, args):
     cur = db.execute(
         "SELECT id, name, description, quantity, equipped FROM character_inventory "
         "WHERE character_id = ? ORDER BY name",
-        (char_id,),
+        (cid,),
     )
     lines.append(format_table(cur))
     lines.append("")
@@ -132,215 +118,146 @@ def cmd_view(db, args):
     cur = db.execute(
         "SELECT id, name, category, uses, description FROM character_abilities "
         "WHERE character_id = ? ORDER BY category, name",
-        (char_id,),
+        (cid,),
     )
     lines.append(format_table(cur))
     return "\n".join(lines)
 
 
 def cmd_list(db, args):
-    session = char_type = region = ""
-    i = 0
-    while i < len(args):
-        if args[i] == "--session":
-            session = args[i + 1]; i += 2
-        elif args[i] == "--type":
-            char_type = args[i + 1]; i += 2
-        elif args[i] == "--region":
-            region = args[i + 1]; i += 2
-        else:
-            raise LoreKitError(f"Unknown option: {args[i]}")
-    if not session:
-        raise LoreKitError("--session is required")
+    _, p = parse_args(args, {
+        "--session": ("session", True, ""),
+        "--type": ("char_type", False, ""),
+        "--region": ("region", False, ""),
+    })
     query = "SELECT id, name, type, level, status FROM characters WHERE session_id = ?"
-    params = [session]
-    if char_type:
+    params = [p["session"]]
+    if p["char_type"]:
         query += " AND type = ?"
-        params.append(char_type)
-    if region:
+        params.append(p["char_type"])
+    if p["region"]:
         query += " AND region_id = ?"
-        params.append(region)
+        params.append(p["region"])
     query += " ORDER BY id"
     cur = db.execute(query, params)
     return format_table(cur)
 
 
 def cmd_update(db, args):
-    if not args:
-        raise LoreKitError("character_id required")
-    char_id = args[0]
-    rest = args[1:]
+    cid, p = parse_args(args, {
+        "--name": ("name", False, ""),
+        "--level": ("level", False, ""),
+        "--status": ("status", False, ""),
+        "--region": ("region", False, ""),
+    }, positional="character_id")
+    _COLUMN_MAP = {"name": ("name", str), "level": ("level", int), "status": ("status", str), "region": ("region_id", int)}
     sets = []
     params = []
-    i = 0
-    while i < len(rest):
-        if rest[i] == "--name":
-            sets.append("name = ?")
-            params.append(rest[i + 1]); i += 2
-        elif rest[i] == "--level":
-            sets.append("level = ?")
-            params.append(int(rest[i + 1])); i += 2
-        elif rest[i] == "--status":
-            sets.append("status = ?")
-            params.append(rest[i + 1]); i += 2
-        elif rest[i] == "--region":
-            sets.append("region_id = ?")
-            params.append(int(rest[i + 1])); i += 2
-        else:
-            raise LoreKitError(f"Unknown option: {rest[i]}")
+    for key, (col, typ) in _COLUMN_MAP.items():
+        if p[key]:
+            sets.append(f"{col} = ?")
+            params.append(typ(p[key]))
     if not sets:
         raise LoreKitError("Provide --name, --level, --status, and/or --region")
-    params.append(char_id)
+    params.append(cid)
     db.execute(f"UPDATE characters SET {','.join(sets)} WHERE id = ?", params)
     db.commit()
-    return f"CHARACTER_UPDATED: {char_id}"
+    return f"CHARACTER_UPDATED: {cid}"
 
 
 def cmd_set_attr(db, args):
-    if not args:
-        raise LoreKitError("character_id required")
-    char_id = args[0]
-    rest = args[1:]
-    category = key = value = ""
-    i = 0
-    while i < len(rest):
-        if rest[i] == "--category":
-            category = rest[i + 1]; i += 2
-        elif rest[i] == "--key":
-            key = rest[i + 1]; i += 2
-        elif rest[i] == "--value":
-            value = rest[i + 1]; i += 2
-        else:
-            raise LoreKitError(f"Unknown option: {rest[i]}")
-    if not category or not key or not value:
-        raise LoreKitError("--category, --key, and --value are required")
+    cid, p = parse_args(args, {
+        "--category": ("category", True, ""),
+        "--key": ("key", True, ""),
+        "--value": ("value", True, ""),
+    }, positional="character_id")
     db.execute(
         "INSERT INTO character_attributes (character_id, category, key, value) "
         "VALUES (?, ?, ?, ?) ON CONFLICT(character_id, category, key) DO UPDATE SET value = excluded.value",
-        (char_id, category, key, value),
+        (cid, p["category"], p["key"], p["value"]),
     )
     db.commit()
-    return f"ATTR_SET: {key} = {value}"
+    return f"ATTR_SET: {p['key']} = {p['value']}"
 
 
 def cmd_get_attr(db, args):
-    if not args:
-        raise LoreKitError("character_id required")
-    char_id = args[0]
-    rest = args[1:]
-    category = ""
-    i = 0
-    while i < len(rest):
-        if rest[i] == "--category":
-            category = rest[i + 1]; i += 2
-        else:
-            raise LoreKitError(f"Unknown option: {rest[i]}")
-    if category:
+    cid, p = parse_args(args, {
+        "--category": ("category", False, ""),
+    }, positional="character_id")
+    if p["category"]:
         cur = db.execute(
             "SELECT key, value FROM character_attributes "
             "WHERE character_id = ? AND category = ? ORDER BY key",
-            (char_id, category),
+            (cid, p["category"]),
         )
     else:
         cur = db.execute(
             "SELECT category, key, value FROM character_attributes "
             "WHERE character_id = ? ORDER BY category, key",
-            (char_id,),
+            (cid,),
         )
     return format_table(cur)
 
 
 def cmd_set_item(db, args):
-    if not args:
-        raise LoreKitError("character_id required")
-    char_id = args[0]
-    rest = args[1:]
-    name = ""
-    desc = ""
-    qty = 1
-    equipped = 0
-    i = 0
-    while i < len(rest):
-        if rest[i] == "--name":
-            name = rest[i + 1]; i += 2
-        elif rest[i] == "--desc":
-            desc = rest[i + 1]; i += 2
-        elif rest[i] == "--qty":
-            qty = int(rest[i + 1]); i += 2
-        elif rest[i] == "--equipped":
-            equipped = int(rest[i + 1]); i += 2
-        else:
-            raise LoreKitError(f"Unknown option: {rest[i]}")
-    if not name:
-        raise LoreKitError("--name is required")
+    cid, p = parse_args(args, {
+        "--name": ("name", True, ""),
+        "--desc": ("desc", False, ""),
+        "--qty": ("qty", False, "1"),
+        "--equipped": ("equipped", False, "0"),
+    }, positional="character_id")
     cur = db.execute(
         "INSERT INTO character_inventory (character_id, name, description, quantity, equipped) "
-        "VALUES (?, ?, ?, ?, ?)",
-        (char_id, name, desc, qty, equipped),
+        "VALUES (?, ?, ?, ?, ?) "
+        "ON CONFLICT(character_id, name) DO UPDATE SET "
+        "description = excluded.description, quantity = excluded.quantity, equipped = excluded.equipped",
+        (cid, p["name"], p["desc"], int(p["qty"]), int(p["equipped"])),
     )
     db.commit()
-    return f"ITEM_ADDED: {cur.lastrowid}"
+    return f"ITEM_SET: {cur.lastrowid}"
 
 
 def cmd_get_items(db, args):
-    if not args:
-        raise LoreKitError("character_id required")
-    char_id = args[0]
+    cid, _ = parse_args(args, {}, positional="character_id")
     cur = db.execute(
         "SELECT id, name, description, quantity, equipped FROM character_inventory "
         "WHERE character_id = ? ORDER BY name",
-        (char_id,),
+        (cid,),
     )
     return format_table(cur)
 
 
 def cmd_remove_item(db, args):
-    if not args:
-        raise LoreKitError("item_id required")
-    item_id = args[0]
-    db.execute("DELETE FROM character_inventory WHERE id = ?", (item_id,))
+    iid, _ = parse_args(args, {}, positional="item_id")
+    db.execute("DELETE FROM character_inventory WHERE id = ?", (iid,))
     db.commit()
-    return f"ITEM_REMOVED: {item_id}"
+    return f"ITEM_REMOVED: {iid}"
 
 
 def cmd_set_ability(db, args):
-    if not args:
-        raise LoreKitError("character_id required")
-    char_id = args[0]
-    rest = args[1:]
-    name = desc = category = ""
-    uses = "at_will"
-    i = 0
-    while i < len(rest):
-        if rest[i] == "--name":
-            name = rest[i + 1]; i += 2
-        elif rest[i] == "--desc":
-            desc = rest[i + 1]; i += 2
-        elif rest[i] == "--category":
-            category = rest[i + 1]; i += 2
-        elif rest[i] == "--uses":
-            uses = rest[i + 1]; i += 2
-        else:
-            raise LoreKitError(f"Unknown option: {rest[i]}")
-    if not name or not desc or not category:
-        raise LoreKitError("--name, --desc, and --category are required")
+    cid, p = parse_args(args, {
+        "--name": ("name", True, ""),
+        "--desc": ("desc", True, ""),
+        "--category": ("category", True, ""),
+        "--uses": ("uses", False, "at_will"),
+    }, positional="character_id")
     cur = db.execute(
         "INSERT INTO character_abilities (character_id, name, description, category, uses) "
-        "VALUES (?, ?, ?, ?, ?)",
-        (char_id, name, desc, category, uses),
+        "VALUES (?, ?, ?, ?, ?) "
+        "ON CONFLICT(character_id, name) DO UPDATE SET "
+        "description = excluded.description, category = excluded.category, uses = excluded.uses",
+        (cid, p["name"], p["desc"], p["category"], p["uses"]),
     )
     db.commit()
-    return f"ABILITY_ADDED: {cur.lastrowid}"
+    return f"ABILITY_SET: {cur.lastrowid}"
 
 
 def cmd_get_abilities(db, args):
-    if not args:
-        raise LoreKitError("character_id required")
-    char_id = args[0]
+    cid, _ = parse_args(args, {}, positional="character_id")
     cur = db.execute(
         "SELECT id, name, category, uses, description FROM character_abilities "
         "WHERE character_id = ? ORDER BY category, name",
-        (char_id,),
+        (cid,),
     )
     return format_table(cur)
 

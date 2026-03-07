@@ -6,6 +6,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _db import require_db, format_table, LoreKitError
+from _args import parse_args
 
 
 def usage():
@@ -43,50 +44,35 @@ def main():
 
 
 def cmd_create(db, args):
-    if not args:
-        raise LoreKitError("session_id required")
-    session_id = args[0]
-    rest = args[1:]
-    name = desc = ""
-    i = 0
-    while i < len(rest):
-        if rest[i] == "--name":
-            name = rest[i + 1]; i += 2
-        elif rest[i] == "--desc":
-            desc = rest[i + 1]; i += 2
-        else:
-            raise LoreKitError(f"Unknown option: {rest[i]}")
-    if not name:
-        raise LoreKitError("--name is required")
+    sid, p = parse_args(args, {
+        "--name": ("name", True, ""),
+        "--desc": ("desc", False, ""),
+    }, positional="session_id")
     cur = db.execute(
         "INSERT INTO regions (session_id, name, description) VALUES (?, ?, ?)",
-        (session_id, name, desc),
+        (sid, p["name"], p["desc"]),
     )
     db.commit()
     return f"REGION_CREATED: {cur.lastrowid}"
 
 
 def cmd_list(db, args):
-    if not args:
-        raise LoreKitError("session_id required")
-    session_id = args[0]
+    sid, _ = parse_args(args, {}, positional="session_id")
     cur = db.execute(
         "SELECT id, name, description, created_at FROM regions WHERE session_id = ? ORDER BY id",
-        (session_id,),
+        (sid,),
     )
     return format_table(cur)
 
 
 def cmd_view(db, args):
-    if not args:
-        raise LoreKitError("region_id required")
-    region_id = args[0]
+    rid, _ = parse_args(args, {}, positional="region_id")
     row = db.execute(
         "SELECT id, session_id, name, description, created_at FROM regions WHERE id = ?",
-        (region_id,),
+        (rid,),
     ).fetchone()
     if row is None:
-        raise LoreKitError(f"Region {region_id} not found")
+        raise LoreKitError(f"Region {rid} not found")
     lines = [
         f"ID: {row[0]}",
         f"SESSION: {row[1]}",
@@ -98,35 +84,30 @@ def cmd_view(db, args):
     ]
     cur = db.execute(
         "SELECT id, name, level, status FROM characters WHERE region_id = ? AND type = 'npc' ORDER BY id",
-        (region_id,),
+        (rid,),
     )
     lines.append(format_table(cur))
     return "\n".join(lines)
 
 
 def cmd_update(db, args):
-    if not args:
-        raise LoreKitError("region_id required")
-    region_id = args[0]
-    rest = args[1:]
+    rid, p = parse_args(args, {
+        "--name": ("name", False, ""),
+        "--desc": ("desc", False, ""),
+    }, positional="region_id")
+    _COLUMN_MAP = {"name": "name", "desc": "description"}
     sets = []
     params = []
-    i = 0
-    while i < len(rest):
-        if rest[i] == "--name":
-            sets.append("name = ?")
-            params.append(rest[i + 1]); i += 2
-        elif rest[i] == "--desc":
-            sets.append("description = ?")
-            params.append(rest[i + 1]); i += 2
-        else:
-            raise LoreKitError(f"Unknown option: {rest[i]}")
+    for key, col in _COLUMN_MAP.items():
+        if p[key]:
+            sets.append(f"{col} = ?")
+            params.append(p[key])
     if not sets:
         raise LoreKitError("Provide --name and/or --desc")
-    params.append(region_id)
+    params.append(rid)
     db.execute(f"UPDATE regions SET {','.join(sets)} WHERE id = ?", params)
     db.commit()
-    return f"REGION_UPDATED: {region_id}"
+    return f"REGION_UPDATED: {rid}"
 
 
 if __name__ == "__main__":

@@ -508,7 +508,7 @@ character_set_item(character_id=1, name="Longsword", desc="A fine steel blade", 
 
 **Output:**
 ```
-ITEM_ADDED: 1
+ITEM_SET: 1
 ```
 
 ## character_get_items
@@ -560,7 +560,7 @@ character_set_ability(character_id=1, name="Flame Burst", desc="3d6 fire damage 
 
 **Output:**
 ```
-ABILITY_ADDED: 1
+ABILITY_SET: 1
 ```
 
 ## character_get_abilities

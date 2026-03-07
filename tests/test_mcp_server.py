@@ -140,7 +140,7 @@ def test_character_item():
     session_create(name="Test", setting="Fantasy", system="d20")
     character_create(session=1, name="Aldric", level=1)
     result = character_set_item(character_id=1, name="Sword", desc="Sharp")
-    assert "ITEM_ADDED:" in result
+    assert "ITEM_SET:" in result
     result = character_get_items(character_id=1)
     assert "Sword" in result
     result = character_remove_item(item_id=1)
@@ -153,7 +153,7 @@ def test_character_ability():
     session_create(name="Test", setting="Fantasy", system="d20")
     character_create(session=1, name="Aldric", level=1)
     result = character_set_ability(character_id=1, name="Flame Burst", desc="3d6 fire", category="spell")
-    assert "ABILITY_ADDED:" in result
+    assert "ABILITY_SET:" in result
     result = character_get_abilities(character_id=1)
     assert "Flame Burst" in result
 

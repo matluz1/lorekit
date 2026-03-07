@@ -6,6 +6,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _db import require_db, LoreKitError
+from _args import parse_args
 
 
 def usage():
@@ -39,33 +40,19 @@ def main():
 
 
 def cmd_search(db, args):
-    if not args:
-        raise LoreKitError("session_id required")
-    session_id = args[0]
-    rest = args[1:]
-    query_text = ""
-    source = ""
-    n_results = 0
-    i = 0
-    while i < len(rest):
-        if rest[i] == "--query":
-            query_text = rest[i + 1]; i += 2
-        elif rest[i] == "--source":
-            source = rest[i + 1]; i += 2
-        elif rest[i] == "--n":
-            n_results = int(rest[i + 1]); i += 2
-        else:
-            raise LoreKitError(f"Unknown option: {rest[i]}")
-    if not query_text:
-        raise LoreKitError("--query is required")
+    sid, p = parse_args(args, {
+        "--query": ("query_text", True, ""),
+        "--source": ("source", False, ""),
+        "--n": ("n_results", False, "0"),
+    }, positional="session_id")
 
     from _vectordb import is_available, hybrid_search
 
     if not is_available():
         raise LoreKitError("chromadb is not installed")
 
-    collection_name = source if source else None
-    results = hybrid_search(query_text, session_id, db, collection_name=collection_name, n_results=n_results)
+    collection_name = p["source"] if p["source"] else None
+    results = hybrid_search(p["query_text"], sid, db, collection_name=collection_name, n_results=int(p["n_results"]))
 
     if not results:
         return "No results found."
@@ -95,9 +82,7 @@ def cmd_search(db, args):
 
 
 def cmd_reindex(db, args):
-    if not args:
-        raise LoreKitError("session_id required")
-    session_id = args[0]
+    sid, _ = parse_args(args, {}, positional="session_id")
 
     from _vectordb import is_available, get_chroma_client, index_journal, index_timeline
 
@@ -123,29 +108,29 @@ def cmd_reindex(db, args):
     skipped_count = 0
     journal_count = 0
 
-    for sid in all_session_ids:
+    for s in all_session_ids:
         cur = db.execute(
             "SELECT id, entry_type, summary, created_at FROM timeline WHERE session_id = ?",
-            (sid,),
+            (s,),
         )
         for row in cur.fetchall():
             sql_id, entry_type, summary, created_at = row
             if entry_type != "narration" or not summary:
-                if str(sid) == str(session_id) and entry_type == "narration" and not summary:
+                if str(s) == str(sid) and entry_type == "narration" and not summary:
                     skipped_count += 1
                 continue
-            index_timeline(sid, sql_id, entry_type, summary, created_at=created_at)
-            if str(sid) == str(session_id):
+            index_timeline(s, sql_id, entry_type, summary, created_at=created_at)
+            if str(s) == str(sid):
                 timeline_count += 1
 
         cur = db.execute(
             "SELECT id, entry_type, content, created_at FROM journal WHERE session_id = ?",
-            (sid,),
+            (s,),
         )
         for row in cur.fetchall():
             sql_id, entry_type, content, created_at = row
-            index_journal(sid, sql_id, entry_type, content, created_at)
-            if str(sid) == str(session_id):
+            index_journal(s, sql_id, entry_type, content, created_at)
+            if str(s) == str(sid):
                 journal_count += 1
 
     msg = f"REINDEX_COMPLETE: {timeline_count} timeline entries, {journal_count} journal entries"

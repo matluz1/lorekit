@@ -6,6 +6,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _db import require_db, format_table, LoreKitError
+from _args import parse_args
 
 
 def usage():
@@ -43,81 +44,50 @@ def main():
 
 
 def cmd_add(db, args):
-    if not args:
-        raise LoreKitError("session_id required")
-    session_id = args[0]
-    rest = args[1:]
-    entry_type = content = ""
-    i = 0
-    while i < len(rest):
-        if rest[i] == "--type":
-            entry_type = rest[i + 1]; i += 2
-        elif rest[i] == "--content":
-            content = rest[i + 1]; i += 2
-        else:
-            raise LoreKitError(f"Unknown option: {rest[i]}")
-    if not entry_type or not content:
-        raise LoreKitError("--type and --content are required")
+    sid, p = parse_args(args, {
+        "--type": ("entry_type", True, ""),
+        "--content": ("content", True, ""),
+    }, positional="session_id")
     cur = db.execute(
         "INSERT INTO journal (session_id, entry_type, content) VALUES (?, ?, ?)",
-        (session_id, entry_type, content),
+        (sid, p["entry_type"], p["content"]),
     )
     db.commit()
     sql_id = cur.lastrowid
     try:
         from _vectordb import index_journal
-        index_journal(session_id, sql_id, entry_type, content)
+        index_journal(sid, sql_id, p["entry_type"], p["content"])
     except Exception:
         pass
     return f"JOURNAL_ADDED: {sql_id}"
 
 
 def cmd_list(db, args):
-    if not args:
-        raise LoreKitError("session_id required")
-    session_id = args[0]
-    rest = args[1:]
-    entry_type = ""
-    last = ""
-    i = 0
-    while i < len(rest):
-        if rest[i] == "--type":
-            entry_type = rest[i + 1]; i += 2
-        elif rest[i] == "--last":
-            last = rest[i + 1]; i += 2
-        else:
-            raise LoreKitError(f"Unknown option: {rest[i]}")
+    sid, p = parse_args(args, {
+        "--type": ("entry_type", False, ""),
+        "--last": ("last", False, ""),
+    }, positional="session_id")
     query = "SELECT id, entry_type, content, created_at FROM journal WHERE session_id = ?"
-    params = [session_id]
-    if entry_type:
+    params = [sid]
+    if p["entry_type"]:
         query += " AND entry_type = ?"
-        params.append(entry_type)
+        params.append(p["entry_type"])
     query += " ORDER BY id DESC"
-    if last:
+    if p["last"]:
         query += " LIMIT ?"
-        params.append(int(last))
+        params.append(int(p["last"]))
     cur = db.execute(query, params)
     return format_table(cur)
 
 
 def cmd_search(db, args):
-    if not args:
-        raise LoreKitError("session_id required")
-    session_id = args[0]
-    rest = args[1:]
-    query_text = ""
-    i = 0
-    while i < len(rest):
-        if rest[i] == "--query":
-            query_text = rest[i + 1]; i += 2
-        else:
-            raise LoreKitError(f"Unknown option: {rest[i]}")
-    if not query_text:
-        raise LoreKitError("--query is required")
+    sid, p = parse_args(args, {
+        "--query": ("query_text", True, ""),
+    }, positional="session_id")
     cur = db.execute(
         "SELECT id, entry_type, content, created_at FROM journal "
         "WHERE session_id = ? AND content LIKE ? ORDER BY id",
-        (session_id, f"%{query_text}%"),
+        (sid, f"%{p['query_text']}%"),
     )
     return format_table(cur)
 

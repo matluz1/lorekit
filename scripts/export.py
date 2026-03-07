@@ -7,6 +7,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _db import require_db, LoreKitError
+from _args import parse_args
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 EXPORT_DIR = os.path.join(PROJECT_ROOT, ".export")
@@ -38,9 +39,7 @@ def cmd_clean(db, args):
 
 
 def cmd_dump(db, args):
-    if not args:
-        raise LoreKitError("session_id required")
-    session_id = args[0]
+    session_id, _ = parse_args(args, {}, positional="session_id")
 
     # Validate session exists
     session = db.execute(
