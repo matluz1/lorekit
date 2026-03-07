@@ -6,7 +6,7 @@ import shutil
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _db import require_db, error
+from _db import require_db, LoreKitError
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 EXPORT_DIR = os.path.join(PROJECT_ROOT, ".export")
@@ -32,14 +32,14 @@ def _subsection(title):
 def cmd_clean(db, args):
     if os.path.isdir(EXPORT_DIR):
         shutil.rmtree(EXPORT_DIR)
-        print(f"CLEANED: {EXPORT_DIR}")
+        return f"CLEANED: {EXPORT_DIR}"
     else:
-        print("Nothing to clean.")
+        return "Nothing to clean."
 
 
 def cmd_dump(db, args):
     if not args:
-        error("session_id required")
+        raise LoreKitError("session_id required")
     session_id = args[0]
 
     # Validate session exists
@@ -49,7 +49,7 @@ def cmd_dump(db, args):
         (session_id,),
     ).fetchone()
     if session is None:
-        error(f"Session {session_id} not found")
+        raise LoreKitError(f"Session {session_id} not found")
 
     parts = []
 
@@ -212,7 +212,7 @@ def cmd_dump(db, args):
     output_file = os.path.join(EXPORT_DIR, f"session_{session_id}.txt")
     with open(output_file, "w", encoding="utf-8") as f:
         f.write(output)
-    print(f"EXPORTED: {output_file}")
+    return f"EXPORTED: {output_file}"
 
 
 def main():
@@ -232,8 +232,8 @@ def main():
 
     fn = actions.get(action)
     if fn is None:
-        error(f"Unknown action: {action}")
-    fn(db, args)
+        raise LoreKitError(f"Unknown action: {action}")
+    print(fn(db, args))
 
 
 if __name__ == "__main__":

@@ -5,7 +5,7 @@ import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _db import require_db, print_table, error
+from _db import require_db, format_table, LoreKitError
 
 
 def usage():
@@ -38,13 +38,13 @@ def main():
 
     fn = actions.get(action)
     if fn is None:
-        error(f"Unknown action: {action}")
-    fn(db, args)
+        raise LoreKitError(f"Unknown action: {action}")
+    print(fn(db, args))
 
 
 def cmd_add(db, args):
     if not args:
-        error("session_id required")
+        raise LoreKitError("session_id required")
     session_id = args[0]
     rest = args[1:]
     entry_type = content = summary = ""
@@ -57,11 +57,11 @@ def cmd_add(db, args):
         elif rest[i] == "--summary":
             summary = rest[i + 1]; i += 2
         else:
-            error(f"Unknown option: {rest[i]}")
+            raise LoreKitError(f"Unknown option: {rest[i]}")
     if not entry_type or not content:
-        error("--type and --content are required")
+        raise LoreKitError("--type and --content are required")
     if entry_type not in ("narration", "player_choice"):
-        error("--type must be narration or player_choice")
+        raise LoreKitError("--type must be narration or player_choice")
     cur = db.execute(
         "INSERT INTO timeline (session_id, entry_type, content, summary) VALUES (?, ?, ?, ?)",
         (session_id, entry_type, content, summary),
@@ -74,12 +74,12 @@ def cmd_add(db, args):
             index_timeline(session_id, sql_id, entry_type, summary)
         except Exception:
             pass
-    print(f"TIMELINE_ADDED: {sql_id}")
+    return f"TIMELINE_ADDED: {sql_id}"
 
 
 def cmd_set_summary(db, args):
     if not args:
-        error("timeline_id required")
+        raise LoreKitError("timeline_id required")
     timeline_id = args[0]
     rest = args[1:]
     summary = ""
@@ -88,15 +88,15 @@ def cmd_set_summary(db, args):
         if rest[i] == "--summary":
             summary = rest[i + 1]; i += 2
         else:
-            error(f"Unknown option: {rest[i]}")
+            raise LoreKitError(f"Unknown option: {rest[i]}")
     if not summary:
-        error("--summary is required")
+        raise LoreKitError("--summary is required")
     row = db.execute(
         "SELECT session_id, entry_type FROM timeline WHERE id = ?",
         (timeline_id,),
     ).fetchone()
     if not row:
-        error(f"Timeline entry {timeline_id} not found")
+        raise LoreKitError(f"Timeline entry {timeline_id} not found")
     session_id, entry_type = row
     db.execute(
         "UPDATE timeline SET summary = ? WHERE id = ?",
@@ -109,12 +109,12 @@ def cmd_set_summary(db, args):
             index_timeline(session_id, timeline_id, entry_type, summary)
         except Exception:
             pass
-    print(f"SUMMARY_SET: {timeline_id}")
+    return f"SUMMARY_SET: {timeline_id}"
 
 
 def cmd_revert(db, args):
     if not args:
-        error("session_id required")
+        raise LoreKitError("session_id required")
     session_id = args[0]
 
     # Find the last narration
@@ -123,7 +123,7 @@ def cmd_revert(db, args):
         (session_id,),
     ).fetchone()
     if not row:
-        error("No narrations to revert")
+        raise LoreKitError("No narrations to revert")
     last_narration_id = row[0]
 
     # Find all entries at or after the last narration
@@ -169,12 +169,12 @@ def cmd_revert(db, args):
             pass
 
     breakdown = ", ".join(f"{count} {etype}" for etype, count in sorted(type_counts.items()))
-    print(f"TIMELINE_REVERTED: {len(ids_to_delete)} entries removed ({breakdown})")
+    return f"TIMELINE_REVERTED: {len(ids_to_delete)} entries removed ({breakdown})"
 
 
 def cmd_list(db, args):
     if not args:
-        error("session_id required")
+        raise LoreKitError("session_id required")
     session_id = args[0]
     rest = args[1:]
     entry_type = last = entry_id = ""
@@ -187,7 +187,7 @@ def cmd_list(db, args):
         elif rest[i] == "--id":
             entry_id = rest[i + 1]; i += 2
         else:
-            error(f"Unknown option: {rest[i]}")
+            raise LoreKitError(f"Unknown option: {rest[i]}")
     if entry_id:
         if "-" in entry_id:
             id_from, id_to = entry_id.split("-", 1)
@@ -200,8 +200,7 @@ def cmd_list(db, args):
                 "SELECT id, entry_type, content, created_at FROM timeline WHERE session_id = ? AND id = ?",
                 (session_id, int(entry_id)),
             )
-        print_table(cur)
-        return
+        return format_table(cur)
     query = "SELECT id, entry_type, content, created_at FROM timeline WHERE session_id = ?"
     params = [session_id]
     if entry_type:
@@ -215,12 +214,12 @@ def cmd_list(db, args):
     else:
         query += " ORDER BY id"
     cur = db.execute(query, params)
-    print_table(cur)
+    return format_table(cur)
 
 
 def cmd_search(db, args):
     if not args:
-        error("session_id required")
+        raise LoreKitError("session_id required")
     session_id = args[0]
     rest = args[1:]
     query_text = ""
@@ -229,15 +228,15 @@ def cmd_search(db, args):
         if rest[i] == "--query":
             query_text = rest[i + 1]; i += 2
         else:
-            error(f"Unknown option: {rest[i]}")
+            raise LoreKitError(f"Unknown option: {rest[i]}")
     if not query_text:
-        error("--query is required")
+        raise LoreKitError("--query is required")
     cur = db.execute(
         "SELECT id, entry_type, content, created_at FROM timeline "
         "WHERE session_id = ? AND content LIKE ? ORDER BY id",
         (session_id, f"%{query_text}%"),
     )
-    print_table(cur)
+    return format_table(cur)
 
 
 if __name__ == "__main__":

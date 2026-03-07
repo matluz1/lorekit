@@ -5,6 +5,8 @@ import re
 import secrets
 import sys
 
+from _db import LoreKitError
+
 
 def usage():
     name = "rolldice.py"
@@ -25,9 +27,10 @@ def roll_expr(expr: str) -> dict:
 
     m = re.fullmatch(r"([0-9]*)d([0-9]+)(kh([0-9]+))?([+-]([0-9]+))?", expr)
     if not m:
-        print(f"ERROR: Invalid dice expression: {expr}", file=sys.stderr)
-        print("Expected format: [N]d<sides>[kh<keep>][+/-<modifier>]", file=sys.stderr)
-        sys.exit(1)
+        raise LoreKitError(
+            f"Invalid dice expression: {expr}\n"
+            "Expected format: [N]d<sides>[kh<keep>][+/-<modifier>]"
+        )
 
     num = int(m.group(1)) if m.group(1) else 1
     sides = int(m.group(2))
@@ -36,17 +39,14 @@ def roll_expr(expr: str) -> dict:
     mod_val = int(m.group(6)) if m.group(6) else 0
 
     if num < 1:
-        print("ERROR: Number of dice must be at least 1", file=sys.stderr)
-        sys.exit(1)
+        raise LoreKitError("Number of dice must be at least 1")
 
     if sides < 2:
-        print("ERROR: Dice must have at least 2 sides", file=sys.stderr)
-        sys.exit(1)
+        raise LoreKitError("Dice must have at least 2 sides")
 
     if keep is not None:
         if keep < 1 or keep > num:
-            print(f"ERROR: Keep count must be between 1 and {num}", file=sys.stderr)
-            sys.exit(1)
+            raise LoreKitError(f"Keep count must be between 1 and {num}")
 
     rolls = [secrets.randbelow(sides) + 1 for _ in range(num)]
 

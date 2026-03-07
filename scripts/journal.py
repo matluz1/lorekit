@@ -5,7 +5,7 @@ import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _db import require_db, print_table, error
+from _db import require_db, format_table, LoreKitError
 
 
 def usage():
@@ -38,13 +38,13 @@ def main():
 
     fn = actions.get(action)
     if fn is None:
-        error(f"Unknown action: {action}")
-    fn(db, args)
+        raise LoreKitError(f"Unknown action: {action}")
+    print(fn(db, args))
 
 
 def cmd_add(db, args):
     if not args:
-        error("session_id required")
+        raise LoreKitError("session_id required")
     session_id = args[0]
     rest = args[1:]
     entry_type = content = ""
@@ -55,9 +55,9 @@ def cmd_add(db, args):
         elif rest[i] == "--content":
             content = rest[i + 1]; i += 2
         else:
-            error(f"Unknown option: {rest[i]}")
+            raise LoreKitError(f"Unknown option: {rest[i]}")
     if not entry_type or not content:
-        error("--type and --content are required")
+        raise LoreKitError("--type and --content are required")
     cur = db.execute(
         "INSERT INTO journal (session_id, entry_type, content) VALUES (?, ?, ?)",
         (session_id, entry_type, content),
@@ -69,12 +69,12 @@ def cmd_add(db, args):
         index_journal(session_id, sql_id, entry_type, content)
     except Exception:
         pass
-    print(f"JOURNAL_ADDED: {sql_id}")
+    return f"JOURNAL_ADDED: {sql_id}"
 
 
 def cmd_list(db, args):
     if not args:
-        error("session_id required")
+        raise LoreKitError("session_id required")
     session_id = args[0]
     rest = args[1:]
     entry_type = ""
@@ -86,7 +86,7 @@ def cmd_list(db, args):
         elif rest[i] == "--last":
             last = rest[i + 1]; i += 2
         else:
-            error(f"Unknown option: {rest[i]}")
+            raise LoreKitError(f"Unknown option: {rest[i]}")
     query = "SELECT id, entry_type, content, created_at FROM journal WHERE session_id = ?"
     params = [session_id]
     if entry_type:
@@ -97,12 +97,12 @@ def cmd_list(db, args):
         query += " LIMIT ?"
         params.append(int(last))
     cur = db.execute(query, params)
-    print_table(cur)
+    return format_table(cur)
 
 
 def cmd_search(db, args):
     if not args:
-        error("session_id required")
+        raise LoreKitError("session_id required")
     session_id = args[0]
     rest = args[1:]
     query_text = ""
@@ -111,15 +111,15 @@ def cmd_search(db, args):
         if rest[i] == "--query":
             query_text = rest[i + 1]; i += 2
         else:
-            error(f"Unknown option: {rest[i]}")
+            raise LoreKitError(f"Unknown option: {rest[i]}")
     if not query_text:
-        error("--query is required")
+        raise LoreKitError("--query is required")
     cur = db.execute(
         "SELECT id, entry_type, content, created_at FROM journal "
         "WHERE session_id = ? AND content LIKE ? ORDER BY id",
         (session_id, f"%{query_text}%"),
     )
-    print_table(cur)
+    return format_table(cur)
 
 
 if __name__ == "__main__":

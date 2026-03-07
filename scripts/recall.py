@@ -5,7 +5,7 @@ import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _db import require_db, error
+from _db import require_db, LoreKitError
 
 
 def usage():
@@ -32,13 +32,13 @@ def main():
 
     fn = actions.get(action)
     if fn is None:
-        error(f"Unknown action: {action}")
-    fn(args)
+        raise LoreKitError(f"Unknown action: {action}")
+    print(fn(args))
 
 
 def cmd_search(args):
     if not args:
-        error("session_id required")
+        raise LoreKitError("session_id required")
     session_id = args[0]
     rest = args[1:]
     query_text = ""
@@ -53,23 +53,22 @@ def cmd_search(args):
         elif rest[i] == "--n":
             n_results = int(rest[i + 1]); i += 2
         else:
-            error(f"Unknown option: {rest[i]}")
+            raise LoreKitError(f"Unknown option: {rest[i]}")
     if not query_text:
-        error("--query is required")
+        raise LoreKitError("--query is required")
 
     from _vectordb import is_available, hybrid_search
 
     if not is_available():
-        error("chromadb is not installed")
+        raise LoreKitError("chromadb is not installed")
 
     collection_name = source if source else None
     results = hybrid_search(query_text, session_id, collection_name=collection_name, n_results=n_results)
 
     if not results:
-        print("No results found.")
-        return
+        return "No results found."
 
-    # Print results in table format
+    # Format results as table
     headers = ["source", "id", "distance", "content"]
     widths = [len(h) for h in headers]
     str_rows = []
@@ -85,21 +84,23 @@ def cmd_search(args):
             widths[j] = max(widths[j], len(val))
     widths = [max(w, 1) for w in widths]
     sep = "  "
-    print(sep.join(h.ljust(w) for h, w in zip(headers, widths)))
-    print(sep.join("-" * w for w in widths))
+    lines = []
+    lines.append(sep.join(h.ljust(w) for h, w in zip(headers, widths)))
+    lines.append(sep.join("-" * w for w in widths))
     for row in str_rows:
-        print(sep.join(val.ljust(w) for val, w in zip(row, widths)))
+        lines.append(sep.join(val.ljust(w) for val, w in zip(row, widths)))
+    return "\n".join(lines)
 
 
 def cmd_reindex(args):
     if not args:
-        error("session_id required")
+        raise LoreKitError("session_id required")
     session_id = args[0]
 
     from _vectordb import is_available, get_chroma_client, index_journal, index_timeline
 
     if not is_available():
-        error("chromadb is not installed")
+        raise LoreKitError("chromadb is not installed")
 
     db = require_db()
     client = get_chroma_client()
@@ -151,7 +152,7 @@ def cmd_reindex(args):
         msg += f" ({skipped_count} narrations skipped -- no summary)"
     if len(all_session_ids) > 1:
         msg += f" (rebuilt all {len(all_session_ids)} sessions)"
-    print(msg)
+    return msg
 
 
 if __name__ == "__main__":

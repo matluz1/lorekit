@@ -6,45 +6,27 @@ import sys
 # ---- helpers ---------------------------------------------------------------
 
 
-def test_run_cmd_captures_stdout():
-    from mcp_server import _run_cmd
-
-    result = _run_cmd(print, "hello world")
-    assert result == "hello world"
-
-
-def test_run_cmd_captures_stderr():
-    import sys
-    from mcp_server import _run_cmd
-
-    def _print_stderr():
-        print("oops", file=sys.stderr)
-
-    result = _run_cmd(_print_stderr)
-    assert result == "oops"
-
-
-def test_run_cmd_catches_system_exit():
-    from mcp_server import _run_cmd
-
-    def _exit():
-        print("before exit")
-        sys.exit(1)
-
-    result = _run_cmd(_exit)
-    assert "before exit" in result
-
-
 def test_run_with_db():
     from mcp_server import _run_with_db
 
     def _check_db(db, args):
         assert db is not None
         assert args == ["test"]
-        print("OK")
+        return "OK"
 
     result = _run_with_db(_check_db, ["test"])
     assert result == "OK"
+
+
+def test_run_with_db_catches_error():
+    from mcp_server import _run_with_db
+    from _db import LoreKitError
+
+    def _raise_error(db, args):
+        raise LoreKitError("test error")
+
+    result = _run_with_db(_raise_error, [])
+    assert "ERROR: test error" in result
 
 
 # ---- init_db ---------------------------------------------------------------

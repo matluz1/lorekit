@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """LoreKit MCP server -- long-lived process with cached embedding model."""
 
-import io
 import os
 import sys
 
@@ -22,38 +21,27 @@ mcp = FastMCP("lorekit", host="127.0.0.1", port=NPC_MCP_PORT)
 # ---------------------------------------------------------------------------
 
 
-def _run_cmd(fn, *args):
-    """Call fn(*args), capturing stdout/stderr and catching SystemExit."""
-    old_out, old_err = sys.stdout, sys.stderr
-    buf_out, buf_err = io.StringIO(), io.StringIO()
-    try:
-        sys.stdout, sys.stderr = buf_out, buf_err
-        fn(*args)
-    except SystemExit:
-        pass
-    finally:
-        sys.stdout, sys.stderr = old_out, old_err
-    err = buf_err.getvalue().strip()
-    out = buf_out.getvalue().strip()
-    if err and out:
-        return f"{out}\n{err}"
-    return err or out
-
-
 def _run_with_db(fn, args_list):
     """Get a DB connection, call fn(db, args_list), close DB."""
-    from _db import require_db
+    from _db import require_db, LoreKitError
 
     db = require_db()
     try:
-        return _run_cmd(fn, db, args_list)
+        return fn(db, args_list)
+    except LoreKitError as e:
+        return f"ERROR: {e}"
     finally:
         db.close()
 
 
 def _run_no_db(fn, args_list):
     """Call fn(args_list) without a DB connection (for recall.py)."""
-    return _run_cmd(fn, args_list)
+    from _db import LoreKitError
+
+    try:
+        return fn(args_list)
+    except LoreKitError as e:
+        return f"ERROR: {e}"
 
 
 # ---------------------------------------------------------------------------
@@ -464,21 +452,16 @@ def roll_dice(expression: str) -> str:
     """Roll dice using tabletop notation. Format: [N]d<sides>[kh<keep>][+/-mod]. Separate multiple expressions with spaces."""
     from rolldice import roll_expr, format_result
 
+    from _db import LoreKitError
+
     expressions = expression.split()
     results = []
     for expr in expressions:
-        # roll_expr prints to stderr and calls sys.exit(1) on invalid input
-        err_buf = io.StringIO()
-        old_stderr = sys.stderr
         try:
-            sys.stderr = err_buf
             r = roll_expr(expr)
             results.append((expr, r))
-        except SystemExit:
-            sys.stderr = old_stderr
-            return err_buf.getvalue().strip()
-        finally:
-            sys.stderr = old_stderr
+        except LoreKitError as e:
+            return f"ERROR: {e}"
 
     if len(results) == 1:
         return format_result(results[0][1])

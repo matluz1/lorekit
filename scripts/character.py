@@ -5,7 +5,7 @@ import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _db import require_db, print_table, error
+from _db import require_db, format_table, LoreKitError
 
 
 def usage():
@@ -52,8 +52,8 @@ def main():
 
     fn = actions.get(action)
     if fn is None:
-        error(f"Unknown action: {action}")
-    fn(db, args)
+        raise LoreKitError(f"Unknown action: {action}")
+    print(fn(db, args))
 
 
 def cmd_create(db, args):
@@ -74,23 +74,23 @@ def cmd_create(db, args):
         elif args[i] == "--region":
             region = args[i + 1]; i += 2
         else:
-            error(f"Unknown option: {args[i]}")
+            raise LoreKitError(f"Unknown option: {args[i]}")
     if not session or not name or not level:
-        error("--session, --name, and --level are required")
+        raise LoreKitError("--session, --name, and --level are required")
     if char_type not in ("pc", "npc"):
-        error("--type must be pc or npc")
+        raise LoreKitError("--type must be pc or npc")
     region_val = int(region) if region else None
     cur = db.execute(
         "INSERT INTO characters (session_id, name, level, type, region_id) VALUES (?, ?, ?, ?, ?)",
         (int(session), name, int(level), char_type, region_val),
     )
     db.commit()
-    print(f"CHARACTER_CREATED: {cur.lastrowid}")
+    return f"CHARACTER_CREATED: {cur.lastrowid}"
 
 
 def cmd_view(db, args):
     if not args:
-        error("character_id required")
+        raise LoreKitError("character_id required")
     char_id = args[0]
     row = db.execute(
         "SELECT c.id, c.session_id, c.name, c.level, c.status, c.type, "
@@ -100,39 +100,42 @@ def cmd_view(db, args):
         (char_id,),
     ).fetchone()
     if row is None:
-        error(f"Character {char_id} not found")
-    print(f"ID: {row[0]}")
-    print(f"SESSION: {row[1]}")
-    print(f"NAME: {row[2]}")
-    print(f"TYPE: {row[5]}")
-    print(f"LEVEL: {row[3]}")
-    print(f"STATUS: {row[4]}")
-    print(f"REGION: {row[6]}")
-    print(f"CREATED: {row[7]}")
-    print()
-    print("--- ATTRIBUTES ---")
+        raise LoreKitError(f"Character {char_id} not found")
+    lines = [
+        f"ID: {row[0]}",
+        f"SESSION: {row[1]}",
+        f"NAME: {row[2]}",
+        f"TYPE: {row[5]}",
+        f"LEVEL: {row[3]}",
+        f"STATUS: {row[4]}",
+        f"REGION: {row[6]}",
+        f"CREATED: {row[7]}",
+        "",
+        "--- ATTRIBUTES ---",
+    ]
     cur = db.execute(
         "SELECT category, key, value FROM character_attributes "
         "WHERE character_id = ? ORDER BY category, key",
         (char_id,),
     )
-    print_table(cur)
-    print()
-    print("--- INVENTORY ---")
+    lines.append(format_table(cur))
+    lines.append("")
+    lines.append("--- INVENTORY ---")
     cur = db.execute(
         "SELECT id, name, description, quantity, equipped FROM character_inventory "
         "WHERE character_id = ? ORDER BY name",
         (char_id,),
     )
-    print_table(cur)
-    print()
-    print("--- ABILITIES ---")
+    lines.append(format_table(cur))
+    lines.append("")
+    lines.append("--- ABILITIES ---")
     cur = db.execute(
         "SELECT id, name, category, uses, description FROM character_abilities "
         "WHERE character_id = ? ORDER BY category, name",
         (char_id,),
     )
-    print_table(cur)
+    lines.append(format_table(cur))
+    return "\n".join(lines)
 
 
 def cmd_list(db, args):
@@ -146,9 +149,9 @@ def cmd_list(db, args):
         elif args[i] == "--region":
             region = args[i + 1]; i += 2
         else:
-            error(f"Unknown option: {args[i]}")
+            raise LoreKitError(f"Unknown option: {args[i]}")
     if not session:
-        error("--session is required")
+        raise LoreKitError("--session is required")
     query = "SELECT id, name, type, level, status FROM characters WHERE session_id = ?"
     params = [session]
     if char_type:
@@ -159,12 +162,12 @@ def cmd_list(db, args):
         params.append(region)
     query += " ORDER BY id"
     cur = db.execute(query, params)
-    print_table(cur)
+    return format_table(cur)
 
 
 def cmd_update(db, args):
     if not args:
-        error("character_id required")
+        raise LoreKitError("character_id required")
     char_id = args[0]
     rest = args[1:]
     sets = []
@@ -184,18 +187,18 @@ def cmd_update(db, args):
             sets.append("region_id = ?")
             params.append(int(rest[i + 1])); i += 2
         else:
-            error(f"Unknown option: {rest[i]}")
+            raise LoreKitError(f"Unknown option: {rest[i]}")
     if not sets:
-        error("Provide --name, --level, --status, and/or --region")
+        raise LoreKitError("Provide --name, --level, --status, and/or --region")
     params.append(char_id)
     db.execute(f"UPDATE characters SET {','.join(sets)} WHERE id = ?", params)
     db.commit()
-    print(f"CHARACTER_UPDATED: {char_id}")
+    return f"CHARACTER_UPDATED: {char_id}"
 
 
 def cmd_set_attr(db, args):
     if not args:
-        error("character_id required")
+        raise LoreKitError("character_id required")
     char_id = args[0]
     rest = args[1:]
     category = key = value = ""
@@ -208,21 +211,21 @@ def cmd_set_attr(db, args):
         elif rest[i] == "--value":
             value = rest[i + 1]; i += 2
         else:
-            error(f"Unknown option: {rest[i]}")
+            raise LoreKitError(f"Unknown option: {rest[i]}")
     if not category or not key or not value:
-        error("--category, --key, and --value are required")
+        raise LoreKitError("--category, --key, and --value are required")
     db.execute(
         "INSERT INTO character_attributes (character_id, category, key, value) "
         "VALUES (?, ?, ?, ?) ON CONFLICT(character_id, category, key) DO UPDATE SET value = excluded.value",
         (char_id, category, key, value),
     )
     db.commit()
-    print(f"ATTR_SET: {key} = {value}")
+    return f"ATTR_SET: {key} = {value}"
 
 
 def cmd_get_attr(db, args):
     if not args:
-        error("character_id required")
+        raise LoreKitError("character_id required")
     char_id = args[0]
     rest = args[1:]
     category = ""
@@ -231,7 +234,7 @@ def cmd_get_attr(db, args):
         if rest[i] == "--category":
             category = rest[i + 1]; i += 2
         else:
-            error(f"Unknown option: {rest[i]}")
+            raise LoreKitError(f"Unknown option: {rest[i]}")
     if category:
         cur = db.execute(
             "SELECT key, value FROM character_attributes "
@@ -244,12 +247,12 @@ def cmd_get_attr(db, args):
             "WHERE character_id = ? ORDER BY category, key",
             (char_id,),
         )
-    print_table(cur)
+    return format_table(cur)
 
 
 def cmd_set_item(db, args):
     if not args:
-        error("character_id required")
+        raise LoreKitError("character_id required")
     char_id = args[0]
     rest = args[1:]
     name = ""
@@ -267,42 +270,42 @@ def cmd_set_item(db, args):
         elif rest[i] == "--equipped":
             equipped = int(rest[i + 1]); i += 2
         else:
-            error(f"Unknown option: {rest[i]}")
+            raise LoreKitError(f"Unknown option: {rest[i]}")
     if not name:
-        error("--name is required")
+        raise LoreKitError("--name is required")
     cur = db.execute(
         "INSERT INTO character_inventory (character_id, name, description, quantity, equipped) "
         "VALUES (?, ?, ?, ?, ?)",
         (char_id, name, desc, qty, equipped),
     )
     db.commit()
-    print(f"ITEM_ADDED: {cur.lastrowid}")
+    return f"ITEM_ADDED: {cur.lastrowid}"
 
 
 def cmd_get_items(db, args):
     if not args:
-        error("character_id required")
+        raise LoreKitError("character_id required")
     char_id = args[0]
     cur = db.execute(
         "SELECT id, name, description, quantity, equipped FROM character_inventory "
         "WHERE character_id = ? ORDER BY name",
         (char_id,),
     )
-    print_table(cur)
+    return format_table(cur)
 
 
 def cmd_remove_item(db, args):
     if not args:
-        error("item_id required")
+        raise LoreKitError("item_id required")
     item_id = args[0]
     db.execute("DELETE FROM character_inventory WHERE id = ?", (item_id,))
     db.commit()
-    print(f"ITEM_REMOVED: {item_id}")
+    return f"ITEM_REMOVED: {item_id}"
 
 
 def cmd_set_ability(db, args):
     if not args:
-        error("character_id required")
+        raise LoreKitError("character_id required")
     char_id = args[0]
     rest = args[1:]
     name = desc = category = ""
@@ -318,28 +321,28 @@ def cmd_set_ability(db, args):
         elif rest[i] == "--uses":
             uses = rest[i + 1]; i += 2
         else:
-            error(f"Unknown option: {rest[i]}")
+            raise LoreKitError(f"Unknown option: {rest[i]}")
     if not name or not desc or not category:
-        error("--name, --desc, and --category are required")
+        raise LoreKitError("--name, --desc, and --category are required")
     cur = db.execute(
         "INSERT INTO character_abilities (character_id, name, description, category, uses) "
         "VALUES (?, ?, ?, ?, ?)",
         (char_id, name, desc, category, uses),
     )
     db.commit()
-    print(f"ABILITY_ADDED: {cur.lastrowid}")
+    return f"ABILITY_ADDED: {cur.lastrowid}"
 
 
 def cmd_get_abilities(db, args):
     if not args:
-        error("character_id required")
+        raise LoreKitError("character_id required")
     char_id = args[0]
     cur = db.execute(
         "SELECT id, name, category, uses, description FROM character_abilities "
         "WHERE character_id = ? ORDER BY category, name",
         (char_id,),
     )
-    print_table(cur)
+    return format_table(cur)
 
 
 if __name__ == "__main__":

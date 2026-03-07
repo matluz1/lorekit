@@ -5,7 +5,7 @@ import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _db import require_db, print_table, error
+from _db import require_db, format_table, error, LoreKitError
 
 
 def usage():
@@ -42,8 +42,8 @@ def main():
 
     fn = actions.get(action)
     if fn is None:
-        error(f"Unknown action: {action}")
-    fn(db, args)
+        raise LoreKitError(f"Unknown action: {action}")
+    print(fn(db, args))
 
 
 def cmd_create(db, args):
@@ -57,20 +57,20 @@ def cmd_create(db, args):
         elif args[i] == "--system":
             system = args[i + 1]; i += 2
         else:
-            error(f"Unknown option: {args[i]}")
+            raise LoreKitError(f"Unknown option: {args[i]}")
     if not name or not setting or not system:
-        error("--name, --setting, and --system are required")
+        raise LoreKitError("--name, --setting, and --system are required")
     cur = db.execute(
         "INSERT INTO sessions (name, setting, system_type) VALUES (?, ?, ?)",
         (name, setting, system),
     )
     db.commit()
-    print(f"SESSION_CREATED: {cur.lastrowid}")
+    return f"SESSION_CREATED: {cur.lastrowid}"
 
 
 def cmd_view(db, args):
     if not args:
-        error("session_id required")
+        raise LoreKitError("session_id required")
     session_id = args[0]
     row = db.execute(
         "SELECT id, name, setting, system_type, status, created_at, updated_at "
@@ -78,14 +78,17 @@ def cmd_view(db, args):
         (session_id,),
     ).fetchone()
     if row is None:
-        error(f"Session {session_id} not found")
-    print(f"ID: {row[0]}")
-    print(f"NAME: {row[1]}")
-    print(f"SETTING: {row[2]}")
-    print(f"SYSTEM: {row[3]}")
-    print(f"STATUS: {row[4]}")
-    print(f"CREATED: {row[5]}")
-    print(f"UPDATED: {row[6]}")
+        raise LoreKitError(f"Session {session_id} not found")
+    lines = [
+        f"ID: {row[0]}",
+        f"NAME: {row[1]}",
+        f"SETTING: {row[2]}",
+        f"SYSTEM: {row[3]}",
+        f"STATUS: {row[4]}",
+        f"CREATED: {row[5]}",
+        f"UPDATED: {row[6]}",
+    ]
+    return "\n".join(lines)
 
 
 def cmd_list(db, args):
@@ -95,7 +98,7 @@ def cmd_list(db, args):
         if args[i] == "--status":
             status = args[i + 1]; i += 2
         else:
-            error(f"Unknown option: {args[i]}")
+            raise LoreKitError(f"Unknown option: {args[i]}")
     if status:
         cur = db.execute(
             "SELECT id, name, setting, system_type, status, created_at "
@@ -107,12 +110,12 @@ def cmd_list(db, args):
             "SELECT id, name, setting, system_type, status, created_at "
             "FROM sessions ORDER BY id"
         )
-    print_table(cur)
+    return format_table(cur)
 
 
 def cmd_update(db, args):
     if not args:
-        error("session_id required")
+        raise LoreKitError("session_id required")
     session_id = args[0]
     rest = args[1:]
     status = ""
@@ -121,20 +124,20 @@ def cmd_update(db, args):
         if rest[i] == "--status":
             status = rest[i + 1]; i += 2
         else:
-            error(f"Unknown option: {rest[i]}")
+            raise LoreKitError(f"Unknown option: {rest[i]}")
     if not status:
-        error("--status is required")
+        raise LoreKitError("--status is required")
     db.execute(
         "UPDATE sessions SET status = ?, updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now') WHERE id = ?",
         (status, session_id),
     )
     db.commit()
-    print(f"SESSION_UPDATED: {session_id}")
+    return f"SESSION_UPDATED: {session_id}"
 
 
 def cmd_meta_set(db, args):
     if not args:
-        error("session_id required")
+        raise LoreKitError("session_id required")
     session_id = args[0]
     rest = args[1:]
     key = value = ""
@@ -145,21 +148,21 @@ def cmd_meta_set(db, args):
         elif rest[i] == "--value":
             value = rest[i + 1]; i += 2
         else:
-            error(f"Unknown option: {rest[i]}")
+            raise LoreKitError(f"Unknown option: {rest[i]}")
     if not key or not value:
-        error("--key and --value are required")
+        raise LoreKitError("--key and --value are required")
     db.execute(
         "INSERT INTO session_meta (session_id, key, value) VALUES (?, ?, ?) "
         "ON CONFLICT(session_id, key) DO UPDATE SET value = excluded.value",
         (session_id, key, value),
     )
     db.commit()
-    print(f"META_SET: {key}")
+    return f"META_SET: {key}"
 
 
 def cmd_meta_get(db, args):
     if not args:
-        error("session_id required")
+        raise LoreKitError("session_id required")
     session_id = args[0]
     rest = args[1:]
     key = ""
@@ -168,20 +171,20 @@ def cmd_meta_get(db, args):
         if rest[i] == "--key":
             key = rest[i + 1]; i += 2
         else:
-            error(f"Unknown option: {rest[i]}")
+            raise LoreKitError(f"Unknown option: {rest[i]}")
     if key:
         row = db.execute(
             "SELECT value FROM session_meta WHERE session_id = ? AND key = ?",
             (session_id, key),
         ).fetchone()
         value = row[0] if row else ""
-        print(f"{key}: {value}")
+        return f"{key}: {value}"
     else:
         cur = db.execute(
             "SELECT key, value FROM session_meta WHERE session_id = ? ORDER BY key",
             (session_id,),
         )
-        print_table(cur)
+        return format_table(cur)
 
 
 if __name__ == "__main__":

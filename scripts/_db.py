@@ -122,6 +122,11 @@ DROP_COLUMN_MIGRATIONS = [
 ]
 
 
+class LoreKitError(Exception):
+    """Raised when a command encounters an expected error condition."""
+    pass
+
+
 def resolve_db_path():
     """Resolve the database path from environment variables."""
     script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -139,10 +144,10 @@ def get_db(db_path=None):
 
 
 def require_db():
-    """Return a connection to the database, or exit if it doesn't exist."""
+    """Return a connection to the database, or raise if it doesn't exist."""
     db_path, _ = resolve_db_path()
     if not os.path.isfile(db_path):
-        error("Database not found. Run init_db.py first.")
+        raise LoreKitError("Database not found. Run init_db.py first.")
     return get_db(db_path)
 
 
@@ -169,15 +174,15 @@ def init_schema(db_path=None):
     return db_path
 
 
-def print_table(cursor):
-    """Print query results in sqlite3 -header -column format."""
+def format_table(cursor):
+    """Format query results as a table string (sqlite3 -header -column style)."""
     description = cursor.description
     if description is None:
-        return
+        return ""
     rows = cursor.fetchall()
     headers = [d[0] for d in description]
     if not rows and not headers:
-        return
+        return ""
     # Convert all values to strings
     str_rows = []
     for row in rows:
@@ -190,18 +195,23 @@ def print_table(cursor):
     # Ensure minimum width of 1
     widths = [max(w, 1) for w in widths]
     sep = "  "
+    lines = []
     # Header line
-    header_line = sep.join(h.ljust(w) for h, w in zip(headers, widths))
-    print(header_line)
+    lines.append(sep.join(h.ljust(w) for h, w in zip(headers, widths)))
     # Separator line (dashes)
-    dash_line = sep.join("-" * w for w in widths)
-    print(dash_line)
+    lines.append(sep.join("-" * w for w in widths))
     # Data rows
     for row in str_rows:
-        print(sep.join(val.ljust(w) for val, w in zip(row, widths)))
+        lines.append(sep.join(val.ljust(w) for val, w in zip(row, widths)))
+    return "\n".join(lines)
+
+
+# Legacy aliases for CLI usage
+def print_table(cursor):
+    """Print query results in sqlite3 -header -column format."""
+    print(format_table(cursor))
 
 
 def error(msg):
-    """Print an error message to stderr and exit with code 1."""
-    print(f"ERROR: {msg}", file=sys.stderr)
-    sys.exit(1)
+    """Raise a LoreKitError. Legacy alias — prefer raising LoreKitError directly."""
+    raise LoreKitError(msg)
