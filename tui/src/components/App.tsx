@@ -13,6 +13,13 @@ export interface ToolCallEntry {
   error?: boolean;
 }
 
+/** An NPC tool call detected during the current GM turn. */
+export interface NpcToolCallEntry {
+  npcName: string;
+  toolName: string;
+  ts: number;
+}
+
 interface AppProps {
   provider: Provider;
   providerOpts: ProviderOptions;
@@ -68,6 +75,7 @@ export function App({
 
   // ── Tool call tracking ────────────────────────────────
   const [toolCalls, setToolCalls] = useState<ToolCallEntry[]>([]);
+  const [npcToolCalls, setNpcToolCalls] = useState<NpcToolCallEntry[]>([]);
 
   // Sidebar data — re-read from DB each time refreshTick changes.
   // If no session was provided, auto-detect after the GM creates one.
@@ -142,6 +150,7 @@ export function App({
       setIsStreaming(true);
       setStreamingText("");
       setToolCalls([]);
+      setNpcToolCalls([]);
 
       let fullText = "";
 
@@ -171,6 +180,20 @@ export function App({
               };
               return updated;
             });
+          } else if (chunk.type === "npc_tool_use") {
+            // content is "NpcName:tool1,tool2"
+            const [npcName, toolsCsv] = chunk.content.split(":");
+            if (npcName && toolsCsv) {
+              const tools = toolsCsv.split(",");
+              setNpcToolCalls((prev) => [
+                ...prev,
+                ...tools.map((t) => ({
+                  npcName,
+                  toolName: t,
+                  ts: Date.now(),
+                })),
+              ]);
+            }
           } else if (chunk.type === "error") {
             setMessages((prev) => [
               ...prev,
@@ -238,6 +261,7 @@ export function App({
               data={sidebarData}
               height={contentHeight}
               toolCalls={toolCalls}
+              npcToolCalls={npcToolCalls}
               isStreaming={isStreaming}
             />
           </Box>

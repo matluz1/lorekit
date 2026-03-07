@@ -770,26 +770,13 @@ def npc_interact(session_id: int, npc_id: int, message: str) -> str:
             stderr = proc.stderr.strip()
             return f"ERROR: NPC process failed: {stderr or 'unknown error'}"
 
-        # DEBUG: dump raw output to inspect JSON shape
-        with open(os.path.join(project_root, "data", "npc_raw_output.json"), "w") as f:
-            f.write(proc.stdout)
-
         response_text, tool_names = _parse_npc_stream(proc.stdout)
 
-        # Log NPC tool calls to DB
+        result = response_text.strip() or f"{npc_name} says nothing."
         if tool_names:
-            db = require_db()
-            try:
-                for tool in tool_names:
-                    db.execute(
-                        "INSERT INTO npc_tool_log (session_id, npc_id, tool_name) VALUES (?, ?, ?)",
-                        (session_id, npc_id, tool),
-                    )
-                db.commit()
-            finally:
-                db.close()
-
-        return response_text.strip() or f"{npc_name} says nothing."
+            marker = f"[NPC_TOOLS:{npc_name}:{','.join(tool_names)}]"
+            result = f"{marker}\n{result}"
+        return result
     except subprocess.TimeoutExpired:
         return f"ERROR: NPC response timed out"
     except FileNotFoundError:

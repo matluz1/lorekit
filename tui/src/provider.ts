@@ -3,7 +3,7 @@
  */
 
 export interface StreamChunk {
-  type: "text" | "tool_use" | "tool_result" | "error" | "system";
+  type: "text" | "tool_use" | "tool_result" | "npc_tool_use" | "error" | "system";
   content: string;
 }
 

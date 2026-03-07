@@ -58,12 +58,24 @@ function parseChunk(line: string): StreamChunk | null {
   if (Array.isArray(content)) {
     for (const block of content) {
       if (block.type === "tool_result") {
-        const text = typeof block.content === "string"
+        let text = typeof block.content === "string"
           ? block.content
-          : JSON.stringify(block.content);
+          : Array.isArray(block.content)
+            ? block.content.map((c: any) => c.text ?? "").join("")
+            : JSON.stringify(block.content);
+        // Unwrap MCP JSON envelope: {"result": "..."}
+        try {
+          const parsed = JSON.parse(text);
+          if (typeof parsed.result === "string") text = parsed.result;
+        } catch {}
         // Surface errors — either explicit is_error or content starting with ERROR:
         if (block.is_error || text.startsWith("ERROR:")) {
           return { type: "tool_result", content: text };
+        }
+        // Detect NPC tool usage markers from npc_interact results
+        const npcMatch = text.match(/^\[NPC_TOOLS:([^:]+):([^\]]+)\]/);
+        if (npcMatch) {
+          return { type: "npc_tool_use", content: `${npcMatch[1]}:${npcMatch[2]}` };
         }
       }
     }

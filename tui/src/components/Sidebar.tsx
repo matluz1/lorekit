@@ -2,12 +2,13 @@ import React from "react";
 import { Box, Text } from "ink";
 import Spinner from "ink-spinner";
 import type { SidebarData } from "../db.js";
-import type { ToolCallEntry } from "./App.js";
+import type { ToolCallEntry, NpcToolCallEntry } from "./App.js";
 
 interface SidebarProps {
   data: SidebarData | null;
   height: number;
   toolCalls: ToolCallEntry[];
+  npcToolCalls: NpcToolCallEntry[];
   isStreaming: boolean;
 }
 
@@ -16,7 +17,7 @@ function shortToolName(name: string): string {
   return name.replace(/^mcp__lorekit__/, "");
 }
 
-export function Sidebar({ data, height, toolCalls, isStreaming }: SidebarProps) {
+export function Sidebar({ data, height, toolCalls, npcToolCalls, isStreaming }: SidebarProps) {
   if (!data) {
     return (
       <Box
@@ -33,16 +34,18 @@ export function Sidebar({ data, height, toolCalls, isStreaming }: SidebarProps) 
     );
   }
 
-  // Divide height: PC compact ~4, tool activity ~30%, region ~20%, timeline rest
+  // Divide height: PC ~4, GM tools ~20%, NPC tools ~15%, region ~15%, timeline rest
   const pcH = 4;
-  const toolH = Math.max(4, Math.floor(height * 0.3));
-  const regionH = Math.max(3, Math.floor(height * 0.2));
-  const timelineH = Math.max(3, height - pcH - toolH - regionH);
+  const toolH = Math.max(4, Math.floor(height * 0.2));
+  const npcH = Math.max(3, Math.floor(height * 0.15));
+  const regionH = Math.max(3, Math.floor(height * 0.15));
+  const timelineH = Math.max(3, height - pcH - toolH - npcH - regionH);
 
   return (
     <Box flexDirection="column" height={height} overflow="hidden">
       <CompactPC data={data} height={pcH} />
       <ToolActivity toolCalls={toolCalls} isStreaming={isStreaming} height={toolH} />
+      <NPCToolsPanel npcToolCalls={npcToolCalls} height={npcH} />
       <RegionPanel data={data} height={regionH} />
       <TimelinePanel data={data} height={timelineH} />
     </Box>
@@ -123,14 +126,12 @@ function ToolActivity({
       ) : (
         visible.map((tc, i) => {
           const name = shortToolName(tc.name);
-          const isNpcInteract = name === "npc_interact";
           const isLast = i === visible.length - 1 && isStreaming;
           const isFailed = tc.error === true;
           return (
             <Box key={`${tc.ts}-${i}`}>
               <Text
-                color={isFailed ? "red" : isNpcInteract ? "red" : "cyan"}
-                bold={isNpcInteract}
+                color={isFailed ? "red" : "cyan"}
               >
                 {isFailed ? (
                   <Text color="red">x </Text>
@@ -141,6 +142,53 @@ function ToolActivity({
                 )}
                 {name}
                 {isFailed && <Text color="red" dimColor> FAILED</Text>}
+              </Text>
+            </Box>
+          );
+        })
+      )}
+    </Box>
+  );
+}
+
+// ── NPC Tools Panel ───────────────────────────────────
+
+function NPCToolsPanel({
+  npcToolCalls,
+  height,
+}: {
+  npcToolCalls: NpcToolCallEntry[];
+  height: number;
+}) {
+  const maxEntries = Math.max(1, height - 3);
+  const visible = npcToolCalls.slice(-maxEntries);
+
+  return (
+    <Box
+      flexDirection="column"
+      borderStyle="single"
+      borderColor="red"
+      paddingX={1}
+      height={height}
+      overflow="hidden"
+    >
+      <Text color="red" bold>
+        NPC Tools
+      </Text>
+      {visible.length === 0 ? (
+        <Text dimColor italic>
+          No NPC interactions
+        </Text>
+      ) : (
+        visible.map((entry, i) => {
+          const name = shortToolName(entry.toolName);
+          return (
+            <Box key={`${entry.ts}-${i}`}>
+              <Text color="redBright">
+                <Text color="green">+ </Text>
+                <Text bold>{entry.npcName}</Text>
+                <Text dimColor>{" → "}</Text>
+                {name}
               </Text>
             </Box>
           );
