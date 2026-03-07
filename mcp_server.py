@@ -514,6 +514,425 @@ def export_clean() -> str:
 
 
 # ---------------------------------------------------------------------------
+# Aggregate wrapper tools
+# ---------------------------------------------------------------------------
+
+
+@mcp.tool()
+def turn_save(
+    session_id: int,
+    narration: str = "",
+    summary: str = "",
+    player_choice: str = "",
+) -> str:
+    """Save a game turn: narration + player choice + last_gm_message in one call.
+
+    At least one of narration or player_choice is required.
+    If narration is provided, it is saved to the timeline and last_gm_message is updated.
+    If player_choice is provided, it is saved to the timeline.
+    Always include a summary when providing narration (used for semantic search).
+    """
+    if not narration and not player_choice:
+        return "ERROR: Provide at least one of narration or player_choice"
+
+    from _db import require_db, LoreKitError
+    from timeline import cmd_add
+    from session import cmd_meta_set
+
+    db = require_db()
+    try:
+        results = []
+
+        if narration:
+            args = [str(session_id), "--type", "narration", "--content", narration]
+            if summary:
+                args += ["--summary", summary]
+            r = cmd_add(db, args)
+            results.append(r)
+
+            # Update last_gm_message
+            r = cmd_meta_set(db, [str(session_id), "--key", "last_gm_message", "--value", narration])
+            results.append(r)
+
+        if player_choice:
+            r = cmd_add(db, [str(session_id), "--type", "player_choice", "--content", player_choice])
+            results.append(r)
+
+        return "\n".join(results)
+    except LoreKitError as e:
+        return f"ERROR: {e}"
+    finally:
+        db.close()
+
+
+@mcp.tool()
+def character_build(
+    session: int,
+    name: str,
+    level: int,
+    type: str = "pc",
+    region: int = 0,
+    attrs: str = "[]",
+    items: str = "[]",
+    abilities: str = "[]",
+) -> str:
+    """Create a full character in one call: identity + attributes + items + abilities.
+
+    attrs: JSON array of {"category":"stat","key":"str","value":"16"} objects.
+    items: JSON array of {"name":"Sword","desc":"...","qty":1,"equipped":1} objects.
+    abilities: JSON array of {"name":"Flame Burst","desc":"...","category":"spell","uses":"1/day"} objects.
+    """
+    import json as _json
+
+    from _db import require_db, LoreKitError
+    from character import cmd_create, cmd_set_attr, cmd_set_item, cmd_set_ability
+
+    try:
+        attrs_list = _json.loads(attrs)
+        items_list = _json.loads(items)
+        abilities_list = _json.loads(abilities)
+    except _json.JSONDecodeError as e:
+        return f"ERROR: Invalid JSON: {e}"
+
+    db = require_db()
+    try:
+        # Create character
+        create_args = ["--session", str(session), "--name", name, "--level", str(level), "--type", type]
+        if region:
+            create_args += ["--region", str(region)]
+        r = cmd_create(db, create_args)
+        char_id = int(r.split(": ")[1])
+
+        # Set attributes
+        attr_count = 0
+        for a in attrs_list:
+            cmd_set_attr(db, [str(char_id), "--category", a["category"], "--key", a["key"], "--value", str(a["value"])])
+            attr_count += 1
+
+        # Set items
+        item_count = 0
+        for it in items_list:
+            args = [str(char_id), "--name", it["name"]]
+            if it.get("desc"):
+                args += ["--desc", it["desc"]]
+            if it.get("qty") and it["qty"] != 1:
+                args += ["--qty", str(it["qty"])]
+            if it.get("equipped"):
+                args += ["--equipped", str(it["equipped"])]
+            cmd_set_item(db, args)
+            item_count += 1
+
+        # Set abilities
+        ability_count = 0
+        for ab in abilities_list:
+            args = [str(char_id), "--name", ab["name"], "--desc", ab["desc"], "--category", ab["category"]]
+            if ab.get("uses"):
+                args += ["--uses", ab["uses"]]
+            cmd_set_ability(db, args)
+            ability_count += 1
+
+        return f"CHARACTER_BUILT: {char_id} (attrs={attr_count}, items={item_count}, abilities={ability_count})"
+    except LoreKitError as e:
+        return f"ERROR: {e}"
+    finally:
+        db.close()
+
+
+@mcp.tool()
+def session_setup(
+    name: str,
+    setting: str,
+    system: str,
+    meta: str = "{}",
+    story_size: str = "",
+    story_premise: str = "",
+    acts: str = "[]",
+    regions: str = "[]",
+) -> str:
+    """Set up an entire session in one call: session + metadata + story + acts + regions.
+
+    meta: JSON object of key-value pairs, e.g. {"language":"English","house_rules":"..."}.
+    acts: JSON array of {"title":"...","desc":"...","goal":"...","event":"..."} objects.
+    regions: JSON array of {"name":"...","desc":"...","children":[{"name":"...","desc":"..."}]} objects.
+    The first act is automatically set to "active".
+    """
+    import json as _json
+
+    from _db import require_db, LoreKitError
+    from session import cmd_create as sess_create, cmd_meta_set
+    from story import cmd_set as story_set_fn, cmd_add_act, cmd_update_act
+    from region import cmd_create as region_create_fn
+
+    try:
+        meta_dict = _json.loads(meta)
+        acts_list = _json.loads(acts)
+        regions_list = _json.loads(regions)
+    except _json.JSONDecodeError as e:
+        return f"ERROR: Invalid JSON: {e}"
+
+    db = require_db()
+    try:
+        # Create session
+        r = sess_create(db, ["--name", name, "--setting", setting, "--system", system])
+        sid = int(r.split(": ")[1])
+        parts = [r]
+
+        # Set metadata
+        meta_count = 0
+        for k, v in meta_dict.items():
+            cmd_meta_set(db, [str(sid), "--key", k, "--value", str(v)])
+            meta_count += 1
+        if meta_count:
+            parts.append(f"META_SET: {meta_count} keys")
+
+        # Create story
+        if story_size and story_premise:
+            r = story_set_fn(db, [str(sid), "--size", story_size, "--premise", story_premise])
+            parts.append(r)
+
+        # Create acts
+        first_act_id = None
+        act_count = 0
+        for act in acts_list:
+            args = [str(sid), "--title", act["title"]]
+            if act.get("desc"):
+                args += ["--desc", act["desc"]]
+            if act.get("goal"):
+                args += ["--goal", act["goal"]]
+            if act.get("event"):
+                args += ["--event", act["event"]]
+            r = cmd_add_act(db, args)
+            if first_act_id is None:
+                first_act_id = int(r.split(": ")[1])
+            act_count += 1
+
+        if first_act_id is not None:
+            cmd_update_act(db, [str(first_act_id), "--status", "active"])
+            parts.append(f"ACTS_ADDED: {act_count} (first act set to active)")
+
+        # Create regions (with children)
+        region_count = 0
+
+        def _create_regions(region_list, parent_id=None):
+            nonlocal region_count
+            for reg in region_list:
+                args = [str(sid), "--name", reg["name"]]
+                if reg.get("desc"):
+                    args += ["--desc", reg["desc"]]
+                if parent_id:
+                    args += ["--parent", str(parent_id)]
+                r = region_create_fn(db, args)
+                rid = int(r.split(": ")[1])
+                region_count += 1
+                if reg.get("children"):
+                    _create_regions(reg["children"], parent_id=rid)
+
+        _create_regions(regions_list)
+        if region_count:
+            parts.append(f"REGIONS_CREATED: {region_count}")
+
+        return "\n".join(parts)
+    except LoreKitError as e:
+        return f"ERROR: {e}"
+    finally:
+        db.close()
+
+
+@mcp.tool()
+def session_resume(session_id: int) -> str:
+    """Assemble full context for resuming a session in one call.
+
+    Returns: session details, last_gm_message, active story act, all PCs with
+    full sheets, all regions, last 20 timeline entries, and last 5 journal notes.
+    """
+    import sqlite3
+
+    from _db import require_db, LoreKitError, format_table
+    from session import cmd_view as sess_view, cmd_meta_get
+    from story import cmd_view as story_view_fn
+    from character import cmd_view as char_view, cmd_list as char_list
+    from region import cmd_list as region_list_fn
+    from timeline import cmd_list as timeline_list_fn
+    from journal import cmd_list as journal_list_fn
+
+    db = require_db()
+    try:
+        parts = []
+
+        # Session details
+        parts.append("=== SESSION ===")
+        parts.append(sess_view(db, [str(session_id)]))
+
+        # All metadata
+        parts.append("\n=== METADATA ===")
+        parts.append(cmd_meta_get(db, [str(session_id)]))
+
+        # Story + acts
+        parts.append("\n=== STORY ===")
+        try:
+            parts.append(story_view_fn(db, [str(session_id)]))
+
+            # Show active act details
+            db.row_factory = sqlite3.Row
+            active_act = db.execute(
+                "SELECT id, act_order, title, description, goal, event "
+                "FROM story_acts WHERE session_id = ? AND status = 'active' LIMIT 1",
+                (session_id,),
+            ).fetchone()
+            db.row_factory = None
+            if active_act:
+                parts.append(f"\nACTIVE ACT: #{active_act['act_order']} — {active_act['title']}")
+                if active_act["description"]:
+                    parts.append(f"DESCRIPTION: {active_act['description']}")
+                if active_act["goal"]:
+                    parts.append(f"GOAL: {active_act['goal']}")
+                if active_act["event"]:
+                    parts.append(f"EVENT: {active_act['event']}")
+        except LoreKitError:
+            parts.append("(no story set)")
+
+        # All PCs with full sheets
+        parts.append("\n=== PLAYER CHARACTERS ===")
+        db.row_factory = sqlite3.Row
+        pcs = db.execute(
+            "SELECT id FROM characters WHERE session_id = ? AND type = 'pc' ORDER BY id",
+            (session_id,),
+        ).fetchall()
+        db.row_factory = None
+        if pcs:
+            for pc in pcs:
+                parts.append(char_view(db, [str(pc["id"])]))
+                parts.append("")
+        else:
+            parts.append("(no PCs)")
+
+        # Regions
+        parts.append("=== REGIONS ===")
+        parts.append(region_list_fn(db, [str(session_id)]))
+
+        # Last 20 timeline entries
+        parts.append("\n=== RECENT TIMELINE (last 20) ===")
+        parts.append(timeline_list_fn(db, [str(session_id), "--last", "20"]))
+
+        # Last 5 journal notes
+        parts.append("\n=== RECENT JOURNAL (last 5) ===")
+        parts.append(journal_list_fn(db, [str(session_id), "--last", "5"]))
+
+        return "\n".join(parts)
+    except LoreKitError as e:
+        return f"ERROR: {e}"
+    finally:
+        db.close()
+
+
+@mcp.tool()
+def character_sheet_update(
+    character_id: int,
+    level: int = 0,
+    status: str = "",
+    region: int = 0,
+    attrs: str = "[]",
+    items: str = "[]",
+    abilities: str = "[]",
+    remove_items: str = "[]",
+) -> str:
+    """Batch update a character: level/status/region + attributes + items + abilities + remove items.
+
+    attrs: JSON array of {"category":"stat","key":"hp","value":"25"} objects.
+    items: JSON array of {"name":"Potion","desc":"...","qty":2,"equipped":0} objects.
+    abilities: JSON array of {"name":"Shield","desc":"...","category":"spell","uses":"1/day"} objects.
+    remove_items: JSON array of item names (strings) or item IDs (integers).
+    """
+    import json as _json
+
+    from _db import require_db, LoreKitError
+    from character import cmd_update, cmd_set_attr, cmd_set_item, cmd_set_ability, cmd_remove_item
+
+    try:
+        attrs_list = _json.loads(attrs)
+        items_list = _json.loads(items)
+        abilities_list = _json.loads(abilities)
+        remove_list = _json.loads(remove_items)
+    except _json.JSONDecodeError as e:
+        return f"ERROR: Invalid JSON: {e}"
+
+    db = require_db()
+    try:
+        results = []
+
+        # Update core fields
+        update_args = [str(character_id)]
+        if level:
+            update_args += ["--level", str(level)]
+        if status:
+            update_args += ["--status", status]
+        if region:
+            update_args += ["--region", str(region)]
+        if len(update_args) > 1:
+            r = cmd_update(db, update_args)
+            results.append(r)
+
+        # Set attributes
+        attr_count = 0
+        for a in attrs_list:
+            cmd_set_attr(db, [str(character_id), "--category", a["category"], "--key", a["key"], "--value", str(a["value"])])
+            attr_count += 1
+        if attr_count:
+            results.append(f"ATTRS_SET: {attr_count}")
+
+        # Remove items (by name or ID)
+        remove_count = 0
+        for item_ref in remove_list:
+            if isinstance(item_ref, int):
+                cmd_remove_item(db, [str(item_ref)])
+                remove_count += 1
+            elif isinstance(item_ref, str):
+                row = db.execute(
+                    "SELECT id FROM character_inventory WHERE character_id = ? AND name = ?",
+                    (character_id, item_ref),
+                ).fetchone()
+                if row:
+                    cmd_remove_item(db, [str(row[0])])
+                    remove_count += 1
+        if remove_count:
+            results.append(f"ITEMS_REMOVED: {remove_count}")
+
+        # Set items
+        item_count = 0
+        for it in items_list:
+            args = [str(character_id), "--name", it["name"]]
+            if it.get("desc"):
+                args += ["--desc", it["desc"]]
+            if it.get("qty") and it["qty"] != 1:
+                args += ["--qty", str(it["qty"])]
+            if it.get("equipped"):
+                args += ["--equipped", str(it["equipped"])]
+            cmd_set_item(db, args)
+            item_count += 1
+        if item_count:
+            results.append(f"ITEMS_SET: {item_count}")
+
+        # Set abilities
+        ability_count = 0
+        for ab in abilities_list:
+            args = [str(character_id), "--name", ab["name"], "--desc", ab["desc"], "--category", ab["category"]]
+            if ab.get("uses"):
+                args += ["--uses", ab["uses"]]
+            cmd_set_ability(db, args)
+            ability_count += 1
+        if ability_count:
+            results.append(f"ABILITIES_SET: {ability_count}")
+
+        if not results:
+            return "NO_CHANGES: no fields provided"
+        return "\n".join(results)
+    except LoreKitError as e:
+        return f"ERROR: {e}"
+    finally:
+        db.close()
+
+
+# ---------------------------------------------------------------------------
 # npc_interact
 # ---------------------------------------------------------------------------
 

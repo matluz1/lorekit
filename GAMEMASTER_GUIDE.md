@@ -47,17 +47,7 @@ per message and wait for the player's answer before moving on.
    Examples: d20 fantasy, percentile superhero, narrative dice pool, simple 2d6,
    classless skill-based. Any system works -- the tools are system-agnostic.
 
-4. **Create the session.** Setting and system are locked for the entire session.
-   Never change them mid-game.
-   ```
-   session_create(name="<adventure name>", setting="<setting>", system="<system>")
-   ```
-   Save the chosen language as session metadata:
-   ```
-   session_meta_set(session_id=<id>, key="language", value="<language>")
-   ```
-
-5. **Ask the player to choose an adventure size.** This determines the story's
+4. **Ask the player to choose an adventure size.** This determines the story's
    scope and how many acts to plan:
    - **Oneshot**: A self-contained adventure for a single session. Plan 1 act
      with a single goal and climax.
@@ -66,43 +56,50 @@ per message and wait for the player's answer before moving on.
    - **Campaign**: An open-ended series. Plan only the first 2-3 acts now; add
      more later as the story evolves.
 
-6. **Plan the story in acts.** Based on the adventure size, create a story plan
-   with a premise and structured acts. Each act has a goal (what the PCs
-   pursue) and an event (the turning point that ends the act). Save the plan
-   and mark the first act as active:
+5. **Plan the story in acts.** Based on the adventure size, plan a premise and
+   structured acts. Each act has a title, a goal (what the PCs pursue), and an
+   event (the turning point that ends the act).
+
+6. **Create the session, story, and regions in one step.** Once you have the
+   language, setting, system, adventure size, premise, and acts, use
+   `session_setup` to create everything at once. Setting and system are locked
+   for the entire session -- never change them mid-game:
    ```
-   story_set(session_id=<id>, size="<size>", premise="<one-line premise>")
-   story_add_act(session_id=<id>, title="<act title>", goal="<what PCs pursue>", event="<turning point>")
-   story_update_act(act_id=<first_act_id>, status="active")
+   session_setup(name="<adventure name>", setting="<setting>", system="<system>", meta='{"language":"<language>"}', story_size="<size>", story_premise="<premise>", acts='[{"title":"<act title>","goal":"<goal>","event":"<event>"}, ...]', regions='[...]')
    ```
+   This creates the session, saves metadata, sets the story plan, adds all
+   acts (marking the first as active), and creates any initial regions.
+
+   For edge cases where you need to create these individually, the granular
+   tools (`session_create`, `session_meta_set`, `story_set`, `story_add_act`,
+   `region_create`) still work.
 
 7. **Ask the player for a character name.**
 
 8. **Ask the player for a starting level** (suggest a sensible default for the
    chosen system).
 
-9. **Create the player character:**
-   ```
-   character_create(session=<id>, name="<name>", level=<level>)
-   ```
-   Player characters default to `type="pc"`, so you can omit it.
-
-10. **Guide attribute generation** using the system's method. For example, for a
+9. **Guide attribute generation** using the system's method. For example, for a
     d20 fantasy system, roll 4d6kh3 six times:
     ```
     roll_dice(expression="4d6kh3")
     ```
-    Save each result:
-    ```
-    character_set_attr(character_id=<id>, category="stat", key="strength", value="<value>")
-    ```
+    Collect the results -- they will go into the attrs JSON in the next step.
 
-11. **Guide starting equipment and abilities.** Generate items and abilities
-    appropriate to the setting and system. Save them:
+10. **Guide starting equipment and abilities.** Determine items and abilities
+    appropriate to the setting, system, and character concept.
+
+11. **Create the complete character in one step.** Once you have the name,
+    level, attributes (from dice rolls), items, and abilities, use
+    `character_build` to create the character with a full sheet:
     ```
-    character_set_item(character_id=<id>, name="<item>", desc="<description>")
-    character_set_ability(character_id=<id>, name="<ability>", desc="<what it does>", category="<type>", uses="<frequency>")
+    character_build(session=<id>, name="<name>", level=<level>, attrs='[...]', items='[...]', abilities='[...]')
     ```
+    Player characters default to `type="pc"`, so you can omit it.
+
+    For edge cases where you need to add things individually after creation,
+    the granular tools (`character_create`, `character_set_attr`,
+    `character_set_item`, `character_set_ability`) still work.
 
 12. **Do not rush character creation.** Follow every step the chosen system
     requires for building a character. If the system has phases or categories
@@ -111,8 +108,10 @@ per message and wait for the player's answer before moving on.
 
 13. **Write the opening narration to the timeline:**
     ```
-    timeline_add(session_id=<session_id>, type="narration", content="<exact text shown to the player>", summary="<1-2 sentence summary>")
+    turn_save(session_id=<id>, narration="<exact text shown to the player>", summary="<1-2 sentence summary>")
     ```
+    This saves the narration to the timeline and automatically updates
+    `last_gm_message` in session metadata.
 
 14. **Begin narrating.** Set the scene and let the player respond.
 
@@ -167,40 +166,46 @@ paragraphs with dialogue -- not a compressed summary.
 **Always include a `summary`** -- a 1-2 sentence description of the key events
 in the narration. The summary is used for semantic search, so keep it concrete
 and factual. Focus on what happens (actions, revelations, decisions), not
-atmosphere. Write the summary in the same language as the narration:
+atmosphere. Write the summary in the same language as the narration.
+
+Use `turn_save` to record both the narration and the player's preceding choice
+in a single call. It saves the narration to the timeline, records the player's
+choice, and automatically updates `last_gm_message` in session metadata:
 ```
-timeline_add(session_id=<session_id>, type="narration", content="<exact text shown to the player>", summary="<1-2 sentence summary of key events>")
+turn_save(session_id=<id>, narration="<exact narration>", summary="<summary>", player_choice="<player's exact message>")
 ```
 
-### Recording player choices
-
-After every player response, save the **player's exact message** -- their
-words as typed, not a rephrased or third-person summary:
+For the opening narration (no player choice yet), omit `player_choice`:
 ```
+turn_save(session_id=<id>, narration="<exact narration>", summary="<summary>")
+```
+
+For edge cases, the individual tools still work as alternatives:
+```
+timeline_add(session_id=<session_id>, type="narration", content="<exact text>", summary="<summary>")
 timeline_add(session_id=<session_id>, type="player_choice", content="<player's exact message>")
 ```
 
 ### Resuming a session
 
-At the start of a continued session, read the timeline to catch up:
+At the start of a continued session, use `session_resume` to load everything
+at once -- session details, metadata (including `last_gm_message`), story
+plan, character sheets, regions, and recent timeline:
+```
+session_resume(session_id=<id>)
+```
+
+Then **repeat the last GM narration verbatim** as your first message to the
+player. Do not paraphrase, summarize, or write new narration. Do not add
+anything after the repeated message -- no new scenes, no new dialogue, no
+continuation. Just repeat the saved text and wait for the player to respond.
+The player needs to see exactly where they left off before making their next
+decision.
+
+For edge cases, the individual tools still work:
 ```
 timeline_list(session_id=<session_id>, last=20)
-```
-Then retrieve and **repeat the last GM narration verbatim** as your first
-message to the player. Do not paraphrase, summarize, or write new narration.
-Do not add anything after the repeated message -- no new scenes, no new
-dialogue, no continuation. Just repeat the saved text and wait for the
-player to respond. The player needs to see exactly where they left off
-before making their next decision.
-```
 session_meta_get(session_id=<id>, key="last_gm_message")
-```
-
-### Reviewing the story plan
-
-On resume, check the story plan to see the active act's goal and event. This
-keeps the narrative on track across conversations:
-```
 story_view(session_id=<session_id>)
 ```
 
@@ -240,7 +245,15 @@ this happens, do not force the story back on track. Instead, replan:
 
 Save character state changes immediately. Do not wait until the end of the
 session. When a character takes damage, gains an item, levels up, or learns a
-new ability, save it right away:
+new ability, save it right away.
+
+Use `character_sheet_update` for batch updates -- it can change level,
+attributes, items, and abilities in a single call:
+```
+character_sheet_update(character_id=<id>, level=<new_level>, attrs='[...]', items='[...]')
+```
+
+For single changes, the granular tools still work:
 ```
 character_set_attr(character_id=<id>, category="combat", key="hit_points", value="<new_value>")
 character_update(character_id=<id>, level=<new_level>)
@@ -249,15 +262,11 @@ character_set_item(character_id=<id>, name="<item>")
 
 ### Last GM narration
 
-Save the last GM narration after every response. Store the **exact text
-you displayed to the player** -- identical, word for word, including all
-paragraphs and dialogue. Do not summarize or condense it. The purpose is
-to replay the scene verbatim on resume, so the saved value must match
-what the player saw. Since `session_meta_set` overwrites the previous value,
-this does not accumulate storage over time.
-```
-session_meta_set(session_id=<id>, key="last_gm_message", value="<exact text shown to the player>")
-```
+`turn_save` automatically stores the narration as `last_gm_message` in
+session metadata, so you do not need to call `session_meta_set` separately
+for this. The stored text is the **exact text you displayed to the player**
+-- identical, word for word, including all paragraphs and dialogue. The
+purpose is to replay the scene verbatim on resume.
 
 ### Reverting a narration
 
@@ -327,17 +336,19 @@ region_create(session_id=<id>, name="Dockside District", desc="The harbor quarte
 
 ### Introducing NPCs
 
-When you introduce a named NPC, register them as a character with `type="npc"`,
-set their level, and link them to the current region:
+When you introduce a named NPC, create a complete character sheet using
+`character_build` with `type="npc"` and link them to the current region:
 ```
-character_create(session=<id>, name="Elder", type="npc", level=<level>, region=<region_id>)
+character_build(session=<id>, name="Elder", level=<level>, type="npc", region=<region_id>, attrs='[...]', items='[...]', abilities='[...]')
 ```
 
-**Always create complete NPC sheets.** After creating the NPC, immediately
-register their attributes, inventory, and abilities -- the same way you would
-for a player character. An NPC without stats is an NPC the system cannot track.
-At minimum, set core attributes (stats, defenses), key equipment, and any
-abilities that define the character. Do not leave this for later.
+**Always create complete NPC sheets.** An NPC without stats is an NPC the
+system cannot track. At minimum, set core attributes (stats, defenses), key
+equipment, and any abilities that define the character. Do not leave this for
+later. `character_build` handles all of this in a single call.
+
+For edge cases, the granular tools (`character_create`, `character_set_attr`,
+`character_set_item`, `character_set_ability`) still work individually.
 
 To move an NPC to a different region later:
 ```
@@ -423,7 +434,12 @@ For **any named NPC** the player is talking to: call `npc_interact`. No exceptio
    - Describe the situation
    - Ask the player for their action (on their turn)
    - Roll attacks, damage, saves, or skill checks as needed
-   - Apply results to character attributes:
+   - Apply results to character attributes. Use `character_sheet_update` for
+     batch updates (e.g. HP, conditions, and spent abilities in one call):
+     ```
+     character_sheet_update(character_id=<id>, attrs='[{"category":"combat","key":"hit_points","value":"<new_value>"}]')
+     ```
+     For a single attribute change, `character_set_attr` also works:
      ```
      character_set_attr(character_id=<id>, category="combat", key="hit_points", value="<new_value>")
      ```
