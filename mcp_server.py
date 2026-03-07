@@ -13,7 +13,8 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "scr
 
 from mcp.server.fastmcp import FastMCP
 
-mcp = FastMCP("lorekit")
+NPC_MCP_PORT = 3847
+mcp = FastMCP("lorekit", host="127.0.0.1", port=NPC_MCP_PORT)
 
 
 # ---------------------------------------------------------------------------
@@ -750,6 +751,17 @@ def _parse_npc_stream(stdout: str, npc_name: str = "NPC") -> tuple[str, list[str
     return "".join(text_parts), tool_names
 
 
+def _is_npc_http_server_running() -> bool:
+    """Check if the shared MCP HTTP server is listening."""
+    import socket
+
+    try:
+        with socket.create_connection(("127.0.0.1", NPC_MCP_PORT), timeout=0.3):
+            return True
+    except (ConnectionRefusedError, OSError):
+        return False
+
+
 @mcp.tool()
 def npc_interact(session_id: int, npc_id: int, message: str) -> str:
     """Make an NPC speak in character. Spawns an ephemeral AI process for the NPC.
@@ -772,7 +784,12 @@ def npc_interact(session_id: int, npc_id: int, message: str) -> str:
         db.close()
 
     project_root = os.path.dirname(os.path.abspath(__file__))
-    mcp_config = os.path.join(project_root, ".mcp.json")
+
+    # Use shared HTTP server if running, otherwise fall back to stdio
+    if _is_npc_http_server_running():
+        mcp_config = os.path.join(project_root, ".npc_mcp.json")
+    else:
+        mcp_config = os.path.join(project_root, ".mcp.json")
 
     cmd = [
         "claude",
@@ -782,6 +799,7 @@ def npc_interact(session_id: int, npc_id: int, message: str) -> str:
         "--no-session-persistence",
         "--permission-mode", "bypassPermissions",
         "--tools", "",
+        "--disable-slash-commands",
         "--mcp-config", mcp_config,
         "--strict-mcp-config",
         "--allowed-tools", *_NPC_ALLOWED_TOOLS,
@@ -828,4 +846,10 @@ if __name__ == "__main__":
     from _vectordb import _get_model
 
     _get_model()
-    mcp.run()
+
+    if "--http" in sys.argv:
+        # HTTP transport for NPC subprocess connections (shared server)
+        mcp.run(transport="streamable-http")
+    else:
+        # Default: stdio transport for GM's Claude session
+        mcp.run()

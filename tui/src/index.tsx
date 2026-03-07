@@ -2,6 +2,7 @@ import React from "react";
 import { render } from "ink";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { spawn, type ChildProcess } from "node:child_process";
 import { App } from "./components/App.js";
 import { ClaudeProvider } from "./providers/claude.js";
 import { openDb, closeDb, getActiveSessions } from "./db.js";
@@ -39,6 +40,18 @@ openDb(projectRoot);
 const activeSessions = getActiveSessions();
 const lkSessionId = activeSessions.length > 0 ? activeSessions[0]!.id : undefined;
 
+// Start shared MCP HTTP server for NPC subprocess connections
+const mcpHttpServer: ChildProcess = spawn(
+  resolve(projectRoot, ".venv/bin/python"),
+  ["mcp_server.py", "--http"],
+  {
+    cwd: projectRoot,
+    stdio: "ignore",
+    detached: false,
+  }
+);
+mcpHttpServer.unref();
+
 const provider = new ClaudeProvider();
 
 const app = render(
@@ -66,3 +79,8 @@ const app = render(
 
 await app.waitUntilExit();
 closeDb();
+
+// Kill the shared MCP HTTP server
+if (mcpHttpServer.pid) {
+  mcpHttpServer.kill();
+}
