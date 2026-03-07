@@ -688,6 +688,8 @@ def _parse_npc_stream(stdout: str, npc_name: str = "NPC") -> tuple[str, list[str
 
     text_parts: list[str] = []
     tool_names: list[str] = []
+    args_buffer = ""
+    think_buffer = ""
 
     for line in stdout.splitlines():
         line = line.strip()
@@ -706,7 +708,8 @@ def _parse_npc_stream(stdout: str, npc_name: str = "NPC") -> tuple[str, list[str
                     if name:
                         tool_names.append(name)
                         args = block.get("input", {})
-                        _npc_log(f"[TOOL] {name} {json.dumps(args, ensure_ascii=False)}")
+                        _npc_log(f"[TOOL] {name}")
+                        _npc_log(f"[ARGS] {json.dumps(args, ensure_ascii=False)}")
                 elif block.get("type") == "thinking":
                     _npc_log(f"[THINK] {block.get('thinking', '')}")
                 elif block.get("type") == "text":
@@ -722,14 +725,22 @@ def _parse_npc_stream(stdout: str, npc_name: str = "NPC") -> tuple[str, list[str
                 if name:
                     tool_names.append(name)
                     _npc_log(f"[TOOL] {name}")
+                    args_buffer = ""
             elif evt.get("type") == "content_block_delta":
                 delta = evt.get("delta", {})
                 if delta.get("type") == "text_delta":
                     text_parts.append(delta.get("text", ""))
                 elif delta.get("type") == "thinking_delta":
-                    _npc_log(f"[THINK] {delta.get('thinking', '')}")
+                    think_buffer += delta.get("thinking", "")
                 elif delta.get("type") == "input_json_delta":
-                    _npc_log(f"[ARGS] {delta.get('partial_json', '')}")
+                    args_buffer += delta.get("partial_json", "")
+            elif evt.get("type") == "content_block_stop":
+                if think_buffer:
+                    _npc_log(f"[THINK] {think_buffer}")
+                    think_buffer = ""
+                if args_buffer:
+                    _npc_log(f"[ARGS] {args_buffer}")
+                    args_buffer = ""
         elif msg.get("type") == "result":
             # Fallback: grab result text if we missed deltas
             if not text_parts and msg.get("result"):

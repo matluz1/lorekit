@@ -8,6 +8,11 @@ import type {
 } from "../provider.js";
 import { gmLog } from "../logger.js";
 
+/** Buffers for accumulating streaming deltas before logging. */
+let argsBuffer = "";
+let thinkBuffer = "";
+let currentBlockType = "";
+
 /** Log interesting events from a raw JSONL line to gm.log. */
 function logStreamLine(line: string) {
   let msg: any;
@@ -19,17 +24,28 @@ function logStreamLine(line: string) {
 
     if (evt.type === "content_block_start") {
       const block = evt.content_block;
-      if (block?.type === "thinking") {
-        gmLog("THINK", "─── thinking ───");
-      } else if (block?.type === "tool_use") {
-        gmLog("TOOL", `calling ${block.name}`);
+      currentBlockType = block?.type ?? "";
+      if (block?.type === "tool_use") {
+        argsBuffer = "";
+        gmLog("TOOL", block.name ?? "");
+      } else if (block?.type === "thinking") {
+        thinkBuffer = "";
       }
     } else if (evt.type === "content_block_delta") {
       const d = evt.delta;
       if (d?.type === "thinking_delta" && d.thinking) {
-        gmLog("THINK", d.thinking);
+        thinkBuffer += d.thinking;
       } else if (d?.type === "input_json_delta" && d.partial_json) {
-        gmLog("ARGS", d.partial_json);
+        argsBuffer += d.partial_json;
+      }
+    } else if (evt.type === "content_block_stop") {
+      if (thinkBuffer) {
+        gmLog("THINK", thinkBuffer);
+        thinkBuffer = "";
+      }
+      if (argsBuffer) {
+        gmLog("ARGS", argsBuffer);
+        argsBuffer = "";
       }
     }
   } else if (msg.type === "user") {
