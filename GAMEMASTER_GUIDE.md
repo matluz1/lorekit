@@ -318,6 +318,13 @@ When the party enters a new area, create a region for it:
 region_create(session_id=<session_id>, name="Ashar", desc="A shepherds' village in the valley")
 ```
 
+Regions can be nested. Use `parent_id` to build a hierarchy (kingdom → city → district → building):
+```
+region_create(session_id=<id>, name="Dockside District", desc="The harbor quarter", parent_id=<city_region_id>)
+```
+
+`region_view` shows sub-regions and parent, so you can navigate the hierarchy.
+
 ### Introducing NPCs
 
 When you introduce a named NPC, register them as a character with `type="npc"`,

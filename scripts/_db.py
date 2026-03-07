@@ -68,6 +68,7 @@ CREATE TABLE IF NOT EXISTS regions (
     session_id  INTEGER NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
     name        TEXT    NOT NULL,
     description TEXT    NOT NULL DEFAULT '',
+    parent_id   INTEGER REFERENCES regions(id) ON DELETE SET NULL,
     created_at  TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
 );
 
@@ -129,6 +130,7 @@ ADD_COLUMN_MIGRATIONS = [
     ("characters", "type", "ALTER TABLE characters ADD COLUMN type TEXT NOT NULL DEFAULT 'pc'"),
     ("characters", "region_id", "ALTER TABLE characters ADD COLUMN region_id INTEGER REFERENCES regions(id)"),
     ("timeline", "summary", "ALTER TABLE timeline ADD COLUMN summary TEXT NOT NULL DEFAULT ''"),
+    ("regions", "parent_id", "ALTER TABLE regions ADD COLUMN parent_id INTEGER REFERENCES regions(id)"),
 ]
 
 DROP_COLUMN_MIGRATIONS = [
@@ -248,9 +250,10 @@ _CASCADE_MIGRATIONS = {
             session_id  INTEGER NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
             name        TEXT    NOT NULL,
             description TEXT    NOT NULL DEFAULT '',
+            parent_id   INTEGER REFERENCES regions(id) ON DELETE SET NULL,
             created_at  TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
         )""",
-        ["id", "session_id", "name", "description", "created_at"],
+        ["id", "session_id", "name", "description", "parent_id", "created_at"],
     ),
     "journal": (
         """CREATE TABLE journal (

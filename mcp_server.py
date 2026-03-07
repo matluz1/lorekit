@@ -305,13 +305,15 @@ def character_get_abilities(character_id: int) -> str:
 
 
 @mcp.tool()
-def region_create(session_id: int, name: str, desc: str = "") -> str:
-    """Create a region in a session."""
+def region_create(session_id: int, name: str, desc: str = "", parent_id: int = 0) -> str:
+    """Create a region in a session. Set parent_id to nest under another region."""
     from region import cmd_create
 
     args = [str(session_id), "--name", name]
     if desc:
         args += ["--desc", desc]
+    if parent_id:
+        args += ["--parent", str(parent_id)]
     return _run_with_db(cmd_create, args)
 
 
@@ -332,8 +334,8 @@ def region_view(region_id: int) -> str:
 
 
 @mcp.tool()
-def region_update(region_id: int, name: str = "", desc: str = "") -> str:
-    """Update region name and/or description."""
+def region_update(region_id: int, name: str = "", desc: str = "", parent_id: int = 0) -> str:
+    """Update region name, description, and/or parent."""
     from region import cmd_update
 
     args = [str(region_id)]
@@ -341,6 +343,8 @@ def region_update(region_id: int, name: str = "", desc: str = "") -> str:
         args += ["--name", name]
     if desc:
         args += ["--desc", desc]
+    if parent_id:
+        args += ["--parent", str(parent_id)]
     return _run_with_db(cmd_update, args)
 
 

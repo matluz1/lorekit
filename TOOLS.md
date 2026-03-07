@@ -585,6 +585,7 @@ Create a region in a session.
 
 ```
 region_create(session_id=1, name="Ashar", desc="A shepherds' village in the valley")
+region_create(session_id=1, name="Dockside", desc="The harbor quarter", parent_id=1)
 ```
 
 | Parameter | Type | Required | Default | Description |
@@ -592,6 +593,7 @@ region_create(session_id=1, name="Ashar", desc="A shepherds' village in the vall
 | session_id | int | yes | | Session ID |
 | name | str | yes | | Region name |
 | desc | str | no | "" | Description |
+| parent_id | int | no | 0 | Parent region ID (for nesting) |
 
 **Output:**
 ```
@@ -610,11 +612,11 @@ region_list(session_id=1)
 |-----------|------|----------|-------------|
 | session_id | int | yes | Session ID |
 
-**Output:** table with columns `id, name, description, created_at`.
+**Output:** table with columns `id, name, description, parent, created_at`.
 
 ## region_view
 
-Shows region details and all NPCs linked to the region.
+Shows region details, parent region, sub-regions, and all NPCs linked to the region.
 
 ```
 region_view(region_id=1)
@@ -630,7 +632,12 @@ ID: 1
 SESSION: 1
 NAME: Ashar
 DESCRIPTION: A shepherds' village in the valley
+PARENT: Kingdom of Valen (id=3)
 CREATED: 2026-02-21T16:00:00Z
+
+--- SUB-REGIONS ---
+  [4] Market Square
+  [5] Temple District
 
 --- NPCs IN THIS REGION ---
 id  name    level  status
@@ -638,12 +645,15 @@ id  name    level  status
 2   Elder   1      alive
 ```
 
+The PARENT line only appears if the region has a parent. The SUB-REGIONS section only appears if child regions exist.
+
 ## region_update
 
-Update region name and/or description.
+Update region name, description, and/or parent.
 
 ```
 region_update(region_id=1, name="Ashar (ruins)", desc="The village was destroyed")
+region_update(region_id=4, parent_id=1)
 ```
 
 | Parameter | Type | Required | Default | Description |
@@ -651,6 +661,7 @@ region_update(region_id=1, name="Ashar (ruins)", desc="The village was destroyed
 | region_id | int | yes | | Region ID |
 | name | str | no | "" | New name |
 | desc | str | no | "" | New description |
+| parent_id | int | no | 0 | New parent region ID |
 
 **Output:**
 ```

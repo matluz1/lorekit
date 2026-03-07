@@ -102,3 +102,57 @@ def test_update_both_name_and_desc(make_session, make_region):
     result = region_view(region_id=rid)
     assert "NAME: New" in result
     assert "DESCRIPTION: new desc" in result
+
+
+# -- Hierarchy --
+
+
+def test_create_with_parent(make_session, make_region):
+    sid = make_session()
+    parent = make_region(sid, "Kingdom")
+    result = region_create(session_id=sid, name="City", parent_id=parent)
+    assert "REGION_CREATED" in result
+
+
+def test_view_shows_parent(make_session, make_region):
+    sid = make_session()
+    parent = make_region(sid, "Kingdom")
+    child_id = int(region_create(session_id=sid, name="City", parent_id=parent).split(": ")[1])
+    result = region_view(region_id=child_id)
+    assert "PARENT: Kingdom" in result
+
+
+def test_view_shows_sub_regions(make_session, make_region):
+    sid = make_session()
+    parent = make_region(sid, "Kingdom")
+    region_create(session_id=sid, name="City A", parent_id=parent)
+    region_create(session_id=sid, name="City B", parent_id=parent)
+    result = region_view(region_id=parent)
+    assert "SUB-REGIONS" in result
+    assert "City A" in result
+    assert "City B" in result
+
+
+def test_list_shows_parent_column(make_session, make_region):
+    sid = make_session()
+    parent = make_region(sid, "Kingdom")
+    region_create(session_id=sid, name="City", parent_id=parent)
+    result = region_list(session_id=sid)
+    assert "parent" in result
+    assert "Kingdom" in result
+
+
+def test_update_parent(make_session, make_region):
+    sid = make_session()
+    r1 = make_region(sid, "Region A")
+    r2 = make_region(sid, "Region B")
+    region_update(region_id=r2, parent_id=r1)
+    result = region_view(region_id=r2)
+    assert "PARENT: Region A" in result
+
+
+def test_view_no_parent_no_parent_line(make_session, make_region):
+    sid = make_session()
+    rid = make_region(sid, "Standalone")
+    result = region_view(region_id=rid)
+    assert "PARENT" not in result
