@@ -34,15 +34,6 @@ def _run_with_db(fn, args_list):
         db.close()
 
 
-def _run_no_db(fn, args_list):
-    """Call fn(args_list) without a DB connection (for recall.py)."""
-    from _db import LoreKitError
-
-    try:
-        return fn(args_list)
-    except LoreKitError as e:
-        return f"ERROR: {e}"
-
 
 # ---------------------------------------------------------------------------
 # init_db
@@ -486,7 +477,7 @@ def recall_search(session_id: int, query: str, source: str = "", n: int = 0) -> 
         args += ["--source", source]
     if n > 0:
         args += ["--n", str(n)]
-    return _run_no_db(cmd_search, args)
+    return _run_with_db(cmd_search, args)
 
 
 @mcp.tool()
@@ -494,7 +485,7 @@ def recall_reindex(session_id: int) -> str:
     """Rebuild vector collections from SQL data for a session."""
     from recall import cmd_reindex
 
-    return _run_no_db(cmd_reindex, [str(session_id)])
+    return _run_with_db(cmd_reindex, [str(session_id)])
 
 
 # ---------------------------------------------------------------------------

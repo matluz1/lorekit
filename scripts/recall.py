@@ -25,6 +25,8 @@ def main():
     action = argv[0]
     args = argv[1:]
 
+    db = require_db()
+
     actions = {
         "search": cmd_search,
         "reindex": cmd_reindex,
@@ -33,10 +35,10 @@ def main():
     fn = actions.get(action)
     if fn is None:
         raise LoreKitError(f"Unknown action: {action}")
-    print(fn(args))
+    print(fn(db, args))
 
 
-def cmd_search(args):
+def cmd_search(db, args):
     if not args:
         raise LoreKitError("session_id required")
     session_id = args[0]
@@ -63,7 +65,7 @@ def cmd_search(args):
         raise LoreKitError("chromadb is not installed")
 
     collection_name = source if source else None
-    results = hybrid_search(query_text, session_id, collection_name=collection_name, n_results=n_results)
+    results = hybrid_search(query_text, session_id, db, collection_name=collection_name, n_results=n_results)
 
     if not results:
         return "No results found."
@@ -92,7 +94,7 @@ def cmd_search(args):
     return "\n".join(lines)
 
 
-def cmd_reindex(args):
+def cmd_reindex(db, args):
     if not args:
         raise LoreKitError("session_id required")
     session_id = args[0]
@@ -102,7 +104,6 @@ def cmd_reindex(args):
     if not is_available():
         raise LoreKitError("chromadb is not installed")
 
-    db = require_db()
     client = get_chroma_client()
 
     # Delete and recreate collections to ensure clean embeddings

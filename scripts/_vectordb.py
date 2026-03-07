@@ -194,14 +194,11 @@ def search(query, session_id, collection_name=None, n_results=5):
     return results
 
 
-def keyword_search(query, session_id, collection_name=None, n_results=5):
+def keyword_search(query, session_id, db, collection_name=None, n_results=5):
     """Keyword search across timeline and/or journal via SQL LIKE.
 
     Returns a list of dicts with keys: source, id, content, distance, metadata.
     """
-    from _db import require_db
-
-    db = require_db()
     results = []
     tables = []
     if collection_name:
@@ -263,7 +260,7 @@ _DEFAULT_LIMITS = {"timeline": 10, "journal": 5}
 
 
 
-def hybrid_search(query, session_id, collection_name=None, n_results=0):
+def hybrid_search(query, session_id, db, collection_name=None, n_results=0):
     """Hybrid search combining keyword (SQL LIKE) and semantic (ChromaDB) results.
 
     Uses Reciprocal Rank Fusion to merge rankings per collection.
@@ -281,7 +278,7 @@ def hybrid_search(query, session_id, collection_name=None, n_results=0):
     for col_name, limit in limits.items():
         fetch_n = limit * 3
         sem = search(query, session_id, collection_name=col_name, n_results=fetch_n)
-        kw = keyword_search(query, session_id, collection_name=col_name, n_results=fetch_n)
+        kw = keyword_search(query, session_id, db, collection_name=col_name, n_results=fetch_n)
         results.extend(_rrf_merge(sem, kw, limit))
 
     return results
