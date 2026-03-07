@@ -53,6 +53,7 @@ turn_save(session_id=1, narration="<exact text shown to player>", summary="<1-2 
 | narration | str | no | "" | GM narration text (exact text shown to player) |
 | summary | str | no | "" | 1-2 sentence summary for semantic search |
 | player_choice | str | no | "" | Player's exact message |
+| narrative_time | str | no | "" | Override in-game timestamp (ISO 8601). If omitted, uses current narrative clock. |
 
 At least one of narration or player_choice is required.
 
@@ -113,6 +114,7 @@ session_setup(name="The Dark Forest", setting="dark fantasy", system="d20 fantas
 | story_premise | str | no | "" | One-line story premise |
 | acts | str | no | "[]" | JSON array of {title, desc?, goal?, event?} objects |
 | regions | str | no | "[]" | JSON array of {name, desc?, children?} objects (recursive) |
+| narrative_time | str | no | "" | Initial in-game time (ISO 8601, e.g. "1347-03-15T14:00") |
 
 The first act is automatically set to "active".
 
@@ -132,8 +134,8 @@ Replaces: `session_create` + N×`session_meta_set` + `story_set` + N×`story_add
 ### session_resume
 
 Assemble full context for resuming a session in one call. Returns session
-details, metadata, active story act, all PCs with full sheets, all regions,
-last 20 timeline entries, and last 5 journal notes.
+details, narrative time, metadata, active story act, all PCs with full sheets,
+all regions, last 20 timeline entries, and last 5 journal notes.
 
 ```
 session_resume(session_id=1)
@@ -150,6 +152,9 @@ session_resume(session_id=1)
 
 === METADATA ===
 (all key-value pairs)
+
+=== NARRATIVE TIME ===
+CURRENT: 1347-03-15T14:00
 
 === STORY ===
 (premise, acts, active act details)
@@ -207,6 +212,67 @@ Replaces: `character_update` + N×`character_set_attr` + N×`character_set_item`
 Individual operations for fine-grained control. The aggregate tools above
 call these internally. Use these when you need to do something specific
 that the aggregates don't cover.
+
+---
+
+## time_get
+
+Get the current in-game narrative time.
+
+```
+time_get(session_id=1)
+```
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| session_id | int | yes | Session ID |
+
+**Output:**
+```
+NARRATIVE_TIME: 1347-03-15T14:00
+```
+
+If not set: `NARRATIVE_TIME: (not set)`.
+
+## time_set
+
+Set the in-game narrative time to an absolute value.
+
+```
+time_set(session_id=1, datetime="1347-03-15T14:00")
+```
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| session_id | int | yes | Session ID |
+| datetime | str | yes | ISO 8601 datetime (e.g. "1347-03-15T14:00") |
+
+**Output:**
+```
+TIME_SET: 1347-03-15T14:00
+```
+
+## time_advance
+
+Advance the in-game clock by a given amount.
+
+```
+time_advance(session_id=1, amount=3, unit="hours")
+time_advance(session_id=1, amount=7, unit="days")
+```
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| session_id | int | yes | Session ID |
+| amount | int | yes | How much to advance |
+| unit | str | yes | minutes, hours, days, weeks, months, years |
+
+**Output:**
+```
+TIME_ADVANCED: 1347-03-15T14:00 → 1347-03-15T17:00 (+3 hours)
+```
+
+Narrative time must be set first (via `time_set` or `session_setup`).
 
 ---
 
@@ -871,6 +937,7 @@ timeline_add(session_id=1, type="player_choice", content="<what the player chose
 | type | str | yes | | narration or player_choice |
 | content | str | yes | | Entry text |
 | summary | str | no | "" | 1-2 sentence summary for semantic search (narration only) |
+| narrative_time | str | no | "" | Override in-game timestamp. If omitted, uses current narrative clock. |
 
 **Output:**
 ```
@@ -963,11 +1030,12 @@ Add a journal entry. Use for GM notes, not in-game events.
 journal_add(session_id=1, type="note", content="Player prefers non-combat solutions")
 ```
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| session_id | int | yes | Session ID |
-| type | str | yes | event, combat, discovery, npc, decision, note |
-| content | str | yes | Entry text |
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| session_id | int | yes | | Session ID |
+| type | str | yes | | event, combat, discovery, npc, decision, note |
+| content | str | yes | | Entry text |
+| narrative_time | str | no | "" | Override in-game timestamp. If omitted, uses current narrative clock. |
 
 **Output:**
 ```

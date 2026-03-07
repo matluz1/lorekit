@@ -354,13 +354,15 @@ def region_update(region_id: int, name: str = "", desc: str = "", parent_id: int
 
 
 @mcp.tool()
-def timeline_add(session_id: int, type: str, content: str, summary: str = "") -> str:
-    """Add a timeline entry. Type: narration or player_choice."""
+def timeline_add(session_id: int, type: str, content: str, summary: str = "", narrative_time: str = "") -> str:
+    """Add a timeline entry. Type: narration or player_choice. Stamps with current narrative clock unless overridden."""
     from timeline import cmd_add
 
     args = [str(session_id), "--type", type, "--content", content]
     if summary:
         args += ["--summary", summary]
+    if narrative_time:
+        args += ["--time", narrative_time]
     return _run_with_db(cmd_add, args)
 
 
@@ -409,11 +411,14 @@ def timeline_revert(session_id: int) -> str:
 
 
 @mcp.tool()
-def journal_add(session_id: int, type: str, content: str) -> str:
-    """Add a journal entry. Types: event, combat, discovery, npc, decision, note."""
+def journal_add(session_id: int, type: str, content: str, narrative_time: str = "") -> str:
+    """Add a journal entry. Types: event, combat, discovery, npc, decision, note. Stamps with current narrative clock unless overridden."""
     from journal import cmd_add
 
-    return _run_with_db(cmd_add, [str(session_id), "--type", type, "--content", content])
+    args = [str(session_id), "--type", type, "--content", content]
+    if narrative_time:
+        args += ["--time", narrative_time]
+    return _run_with_db(cmd_add, args)
 
 
 @mcp.tool()
@@ -435,6 +440,35 @@ def journal_search(session_id: int, query: str) -> str:
     from journal import cmd_search
 
     return _run_with_db(cmd_search, [str(session_id), "--query", query])
+
+
+# ---------------------------------------------------------------------------
+# time
+# ---------------------------------------------------------------------------
+
+
+@mcp.tool()
+def time_get(session_id: int) -> str:
+    """Get the current in-game narrative time for a session."""
+    from narrative_time import cmd_get
+
+    return _run_with_db(cmd_get, [str(session_id)])
+
+
+@mcp.tool()
+def time_set(session_id: int, datetime: str) -> str:
+    """Set the in-game narrative time (ISO 8601, e.g. '1347-03-15T14:00')."""
+    from narrative_time import cmd_set
+
+    return _run_with_db(cmd_set, [str(session_id), "--datetime", datetime])
+
+
+@mcp.tool()
+def time_advance(session_id: int, amount: int, unit: str) -> str:
+    """Advance the in-game clock. Units: minutes, hours, days, weeks, months, years."""
+    from narrative_time import cmd_advance
+
+    return _run_with_db(cmd_advance, [str(session_id), "--amount", str(amount), "--unit", unit])
 
 
 # ---------------------------------------------------------------------------
@@ -524,6 +558,7 @@ def turn_save(
     narration: str = "",
     summary: str = "",
     player_choice: str = "",
+    narrative_time: str = "",
 ) -> str:
     """Save a game turn: narration + player choice + last_gm_message in one call.
 
@@ -531,6 +566,8 @@ def turn_save(
     If narration is provided, it is saved to the timeline and last_gm_message is updated.
     If player_choice is provided, it is saved to the timeline.
     Always include a summary when providing narration (used for semantic search).
+    narrative_time: optional override for the in-game timestamp on these entries.
+      If omitted, the current narrative clock is used automatically.
     """
     if not narration and not player_choice:
         return "ERROR: Provide at least one of narration or player_choice"
@@ -547,6 +584,8 @@ def turn_save(
             args = [str(session_id), "--type", "narration", "--content", narration]
             if summary:
                 args += ["--summary", summary]
+            if narrative_time:
+                args += ["--time", narrative_time]
             r = cmd_add(db, args)
             results.append(r)
 
@@ -555,7 +594,10 @@ def turn_save(
             results.append(r)
 
         if player_choice:
-            r = cmd_add(db, [str(session_id), "--type", "player_choice", "--content", player_choice])
+            pc_args = [str(session_id), "--type", "player_choice", "--content", player_choice]
+            if narrative_time:
+                pc_args += ["--time", narrative_time]
+            r = cmd_add(db, pc_args)
             results.append(r)
 
         return "\n".join(results)
@@ -648,12 +690,14 @@ def session_setup(
     story_premise: str = "",
     acts: str = "[]",
     regions: str = "[]",
+    narrative_time: str = "",
 ) -> str:
-    """Set up an entire session in one call: session + metadata + story + acts + regions.
+    """Set up an entire session in one call: session + metadata + story + acts + regions + narrative time.
 
     meta: JSON object of key-value pairs, e.g. {"language":"English","house_rules":"..."}.
     acts: JSON array of {"title":"...","desc":"...","goal":"...","event":"..."} objects.
     regions: JSON array of {"name":"...","desc":"...","children":[{"name":"...","desc":"..."}]} objects.
+    narrative_time: initial in-game time as ISO 8601, e.g. "1347-03-15T14:00".
     The first act is automatically set to "active".
     """
     import json as _json
@@ -684,6 +728,11 @@ def session_setup(
             meta_count += 1
         if meta_count:
             parts.append(f"META_SET: {meta_count} keys")
+
+        # Set narrative time
+        if narrative_time:
+            cmd_meta_set(db, [str(sid), "--key", "narrative_time", "--value", narrative_time])
+            parts.append(f"TIME_SET: {narrative_time}")
 
         # Create story
         if story_size and story_premise:
@@ -742,8 +791,9 @@ def session_setup(
 def session_resume(session_id: int) -> str:
     """Assemble full context for resuming a session in one call.
 
-    Returns: session details, last_gm_message, active story act, all PCs with
-    full sheets, all regions, last 20 timeline entries, and last 5 journal notes.
+    Returns: session details, narrative time, last_gm_message, active story act,
+    all PCs with full sheets, all regions, last 20 timeline entries, and last 5
+    journal notes.
     """
     import sqlite3
 
@@ -766,6 +816,15 @@ def session_resume(session_id: int) -> str:
         # All metadata
         parts.append("\n=== METADATA ===")
         parts.append(cmd_meta_get(db, [str(session_id)]))
+
+        # Narrative time
+        nt_row = db.execute(
+            "SELECT value FROM session_meta WHERE session_id = ? AND key = 'narrative_time'",
+            (session_id,),
+        ).fetchone()
+        if nt_row:
+            parts.append(f"\n=== NARRATIVE TIME ===")
+            parts.append(f"CURRENT: {nt_row[0]}")
 
         # Story + acts
         parts.append("\n=== STORY ===")
@@ -951,6 +1010,7 @@ _NPC_ALLOWED_TOOLS = [
     "mcp__lorekit__recall_search",
     "mcp__lorekit__region_view",
     "mcp__lorekit__character_list",
+    "mcp__lorekit__time_get",
 ]
 
 _DEFAULT_NPC_MODEL = "opus"

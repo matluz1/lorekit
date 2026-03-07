@@ -24,6 +24,22 @@ Read the TOTAL line from the output for the result.
 
 ---
 
+## time_get
+
+Get the current in-game narrative time.
+
+```
+time_get(session_id=1)
+```
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| session_id | int | yes | Session ID |
+
+**Output:** `NARRATIVE_TIME: 1347-03-15T14:00`
+
+---
+
 ## character_view
 
 View a full character sheet: identity, attributes, inventory, and abilities.

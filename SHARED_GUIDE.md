@@ -93,6 +93,19 @@ better results and avoids contradicting what already happened.
 
 ---
 
+## Narrative Time
+
+The game has an in-game clock independent of real-world time. Use
+`time_get` to check the current narrative time. Be aware of it when
+describing scenes — if it's night, describe darkness and torchlight; if
+months have passed, reflect the season change.
+
+Do not reference the narrative time in mechanical terms ("it is currently
+1347-03-15T14:00"). Instead, weave it naturally into descriptions ("the
+afternoon sun hangs low").
+
+---
+
 ## Search Before Acting
 
 Before writing a scene or responding to the player, proactively search the

@@ -43,14 +43,27 @@ def main():
     print(fn(db, args))
 
 
+def _resolve_narrative_time(db, session_id, explicit_time):
+    """Return explicit time if given, else current narrative clock, else empty."""
+    if explicit_time:
+        return explicit_time
+    row = db.execute(
+        "SELECT value FROM session_meta WHERE session_id = ? AND key = 'narrative_time'",
+        (session_id,),
+    ).fetchone()
+    return row[0] if row else ""
+
+
 def cmd_add(db, args):
     sid, p = parse_args(args, {
         "--type": ("entry_type", True, ""),
         "--content": ("content", True, ""),
+        "--time": ("narrative_time", False, ""),
     }, positional="session_id")
+    nt = _resolve_narrative_time(db, int(sid), p["narrative_time"])
     cur = db.execute(
-        "INSERT INTO journal (session_id, entry_type, content) VALUES (?, ?, ?)",
-        (sid, p["entry_type"], p["content"]),
+        "INSERT INTO journal (session_id, entry_type, content, narrative_time) VALUES (?, ?, ?, ?)",
+        (sid, p["entry_type"], p["content"], nt),
     )
     db.commit()
     sql_id = cur.lastrowid

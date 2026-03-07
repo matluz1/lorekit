@@ -73,20 +73,22 @@ CREATE TABLE IF NOT EXISTS regions (
 );
 
 CREATE TABLE IF NOT EXISTS journal (
-    id          INTEGER PRIMARY KEY AUTOINCREMENT,
-    session_id  INTEGER NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
-    entry_type  TEXT    NOT NULL,
-    content     TEXT    NOT NULL,
-    created_at  TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id      INTEGER NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+    entry_type      TEXT    NOT NULL,
+    content         TEXT    NOT NULL,
+    narrative_time  TEXT    NOT NULL DEFAULT '',
+    created_at      TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
 );
 
 CREATE TABLE IF NOT EXISTS timeline (
-    id          INTEGER PRIMARY KEY AUTOINCREMENT,
-    session_id  INTEGER NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
-    entry_type  TEXT    NOT NULL,
-    content     TEXT    NOT NULL,
-    summary     TEXT    NOT NULL DEFAULT '',
-    created_at  TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id      INTEGER NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+    entry_type      TEXT    NOT NULL,
+    content         TEXT    NOT NULL,
+    summary         TEXT    NOT NULL DEFAULT '',
+    narrative_time  TEXT    NOT NULL DEFAULT '',
+    created_at      TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
 );
 
 CREATE TABLE IF NOT EXISTS stories (
@@ -131,6 +133,8 @@ ADD_COLUMN_MIGRATIONS = [
     ("characters", "region_id", "ALTER TABLE characters ADD COLUMN region_id INTEGER REFERENCES regions(id)"),
     ("timeline", "summary", "ALTER TABLE timeline ADD COLUMN summary TEXT NOT NULL DEFAULT ''"),
     ("regions", "parent_id", "ALTER TABLE regions ADD COLUMN parent_id INTEGER REFERENCES regions(id)"),
+    ("timeline", "narrative_time", "ALTER TABLE timeline ADD COLUMN narrative_time TEXT NOT NULL DEFAULT ''"),
+    ("journal", "narrative_time", "ALTER TABLE journal ADD COLUMN narrative_time TEXT NOT NULL DEFAULT ''"),
 ]
 
 DROP_COLUMN_MIGRATIONS = [
@@ -257,24 +261,26 @@ _CASCADE_MIGRATIONS = {
     ),
     "journal": (
         """CREATE TABLE journal (
-            id          INTEGER PRIMARY KEY AUTOINCREMENT,
-            session_id  INTEGER NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
-            entry_type  TEXT    NOT NULL,
-            content     TEXT    NOT NULL,
-            created_at  TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            session_id      INTEGER NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+            entry_type      TEXT    NOT NULL,
+            content         TEXT    NOT NULL,
+            narrative_time  TEXT    NOT NULL DEFAULT '',
+            created_at      TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
         )""",
-        ["id", "session_id", "entry_type", "content", "created_at"],
+        ["id", "session_id", "entry_type", "content", "narrative_time", "created_at"],
     ),
     "timeline": (
         """CREATE TABLE timeline (
-            id          INTEGER PRIMARY KEY AUTOINCREMENT,
-            session_id  INTEGER NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
-            entry_type  TEXT    NOT NULL,
-            content     TEXT    NOT NULL,
-            summary     TEXT    NOT NULL DEFAULT '',
-            created_at  TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            session_id      INTEGER NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+            entry_type      TEXT    NOT NULL,
+            content         TEXT    NOT NULL,
+            summary         TEXT    NOT NULL DEFAULT '',
+            narrative_time  TEXT    NOT NULL DEFAULT '',
+            created_at      TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
         )""",
-        ["id", "session_id", "entry_type", "content", "summary", "created_at"],
+        ["id", "session_id", "entry_type", "content", "summary", "narrative_time", "created_at"],
     ),
     "stories": (
         """CREATE TABLE stories (

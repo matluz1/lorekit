@@ -68,11 +68,16 @@ per message and wait for the player's answer before moving on.
    session_setup(name="<adventure name>", setting="<setting>", system="<system>", meta='{"language":"<language>"}', story_size="<size>", story_premise="<premise>", acts='[{"title":"<act title>","goal":"<goal>","event":"<event>"}, ...]', regions='[...]')
    ```
    This creates the session, saves metadata, sets the story plan, adds all
-   acts (marking the first as active), and creates any initial regions.
+   acts (marking the first as active), creates any initial regions, and sets
+   the narrative clock if provided.
+
+   Include `narrative_time` to set the in-game starting time (ISO 8601,
+   e.g. `"1347-03-15T14:00"`). Pick a time that fits the setting and opening
+   scene.
 
    For edge cases where you need to create these individually, the granular
    tools (`session_create`, `session_meta_set`, `story_set`, `story_add_act`,
-   `region_create`) still work.
+   `region_create`, `time_set`) still work.
 
 7. **Ask the player for a character name.**
 
@@ -315,7 +320,53 @@ recall_search(session_id=<session_id>, query="how do A and B get along")
 
 ---
 
-## 5. Regions and NPCs
+## 5. Narrative Time
+
+The narrative clock tracks in-game time, independent of real-world time.
+Timeline and journal entries are automatically stamped with the current
+narrative time when created.
+
+### Setting initial time
+
+Set the starting time during session setup:
+```
+session_setup(..., narrative_time="1347-03-15T14:00")
+```
+
+Or set it later with `time_set`:
+```
+time_set(session_id=<id>, datetime="1347-03-15T14:00")
+```
+
+### Advancing the clock
+
+Advance the clock **before** narrating time passage. This ensures the
+entries created during that narration carry the correct in-game timestamp.
+
+```
+time_advance(session_id=<id>, amount=3, unit="hours")
+```
+
+Valid units: `minutes`, `hours`, `days`, `weeks`, `months`, `years`.
+
+### Checking the current time
+
+```
+time_get(session_id=<id>)
+```
+
+### When to advance
+
+- Before narrating a scene transition ("Three hours later..." → advance 3
+  hours first)
+- Before a rest or travel montage
+- Before a timeskip between sessions
+- Do **not** advance time for every line of dialogue — only when meaningful
+  in-game time passes
+
+---
+
+## 6. Regions and NPCs
 
 Regions and NPCs give the world persistent structure. Use them to keep
 locations and characters consistent across sessions.
@@ -420,7 +471,7 @@ For **any named NPC** the player is talking to: call `npc_interact`. No exceptio
 
 ---
 
-## 6. Combat Flow
+## 7. Combat Flow
 
 1. **Roll initiative** for all participants:
    ```
@@ -454,7 +505,7 @@ For **any named NPC** the player is talking to: call `npc_interact`. No exceptio
 
 ---
 
-## 7. Character Death
+## 8. Character Death
 
 - If a character reaches 0 HP, follow the chosen system's death or knockout
   rules (death saves, instant death, unconsciousness, etc.).
@@ -468,7 +519,7 @@ For **any named NPC** the player is talking to: call `npc_interact`. No exceptio
 
 ---
 
-## 8. Player vs GM Authority
+## 9. Player vs GM Authority
 
 The player and the GM have different domains of authority. Enforcing this
 boundary is critical to a coherent game.
@@ -533,7 +584,7 @@ tone.
 
 ---
 
-## 9. Tone and Narration
+## 10. Tone and Narration
 
 - **Stay in character** as the gamemaster at all times during play.
 - **Describe scenes vividly** -- sights, sounds, smells, atmosphere.
@@ -552,7 +603,7 @@ tone.
 
 ---
 
-## 10. Ending a Session and Exporting the Story
+## 11. Ending a Session and Exporting the Story
 
 When the adventure reaches its conclusion -- the final act is completed, the
 story reaches a natural end, or the player decides to wrap up -- mark the
