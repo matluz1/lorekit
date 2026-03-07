@@ -91,53 +91,42 @@ def cmd_reindex(db, args):
 
     client = get_chroma_client()
 
-    # Delete and recreate collections to ensure clean embeddings
+    # Delete only this session's entries from each collection, then re-add
     for col_name in ("timeline", "journal"):
-        try:
-            client.delete_collection(col_name)
-        except Exception:
-            pass
-        client.get_or_create_collection(col_name)
-
-    # Reindex all sessions (not just the requested one) since we wiped collections
-    all_session_ids = [
-        row[0] for row in db.execute("SELECT id FROM sessions").fetchall()
-    ]
+        col = client.get_or_create_collection(col_name)
+        existing = col.get(where={"session_id": str(sid)})
+        if existing["ids"]:
+            col.delete(ids=existing["ids"])
 
     timeline_count = 0
     skipped_count = 0
     journal_count = 0
 
-    for s in all_session_ids:
-        cur = db.execute(
-            "SELECT id, entry_type, summary, created_at FROM timeline WHERE session_id = ?",
-            (s,),
-        )
-        for row in cur.fetchall():
-            sql_id, entry_type, summary, created_at = row
-            if entry_type != "narration" or not summary:
-                if str(s) == str(sid) and entry_type == "narration" and not summary:
-                    skipped_count += 1
-                continue
-            index_timeline(s, sql_id, entry_type, summary, created_at=created_at)
-            if str(s) == str(sid):
-                timeline_count += 1
+    cur = db.execute(
+        "SELECT id, entry_type, summary, created_at FROM timeline WHERE session_id = ?",
+        (sid,),
+    )
+    for row in cur.fetchall():
+        sql_id, entry_type, summary, created_at = row
+        if entry_type != "narration" or not summary:
+            if entry_type == "narration" and not summary:
+                skipped_count += 1
+            continue
+        index_timeline(sid, sql_id, entry_type, summary, created_at=created_at)
+        timeline_count += 1
 
-        cur = db.execute(
-            "SELECT id, entry_type, content, created_at FROM journal WHERE session_id = ?",
-            (s,),
-        )
-        for row in cur.fetchall():
-            sql_id, entry_type, content, created_at = row
-            index_journal(s, sql_id, entry_type, content, created_at)
-            if str(s) == str(sid):
-                journal_count += 1
+    cur = db.execute(
+        "SELECT id, entry_type, content, created_at FROM journal WHERE session_id = ?",
+        (sid,),
+    )
+    for row in cur.fetchall():
+        sql_id, entry_type, content, created_at = row
+        index_journal(sid, sql_id, entry_type, content, created_at)
+        journal_count += 1
 
     msg = f"REINDEX_COMPLETE: {timeline_count} timeline entries, {journal_count} journal entries"
     if skipped_count:
         msg += f" ({skipped_count} narrations skipped -- no summary)"
-    if len(all_session_ids) > 1:
-        msg += f" (rebuilt all {len(all_session_ids)} sessions)"
     return msg
 
 

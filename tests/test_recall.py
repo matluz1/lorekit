@@ -144,8 +144,8 @@ def test_search_no_duplicates(make_session):
     assert len(lines) == 1
 
 
-def test_reindex_rebuilds_all_sessions(make_session):
-    """Reindexing one session rebuilds vectors for all sessions."""
+def test_reindex_is_session_scoped(make_session):
+    """Reindexing one session only touches that session's vectors."""
     sid1 = make_session()
     sid2 = make_session()
     timeline_add(session_id=sid1, type="narration",
@@ -154,11 +154,17 @@ def test_reindex_rebuilds_all_sessions(make_session):
     timeline_add(session_id=sid2, type="narration",
                  content="Second session event",
                  summary="Second session event")
+    # Index both sessions
+    recall_reindex(session_id=sid1)
+    recall_reindex(session_id=sid2)
+    # Verify both are searchable
+    assert "First session" in recall_search(session_id=sid1, query="first session")
+    assert "Second session" in recall_search(session_id=sid2, query="second session")
+    # Reindex only session 1 — session 2 should remain intact
     result = recall_reindex(session_id=sid1)
     assert "1 timeline entries" in result
-    assert "rebuilt all" in result
-    result2 = recall_search(session_id=sid2, query="second session")
-    assert "Second session" in result2
+    assert "rebuilt all" not in result
+    assert "Second session" in recall_search(session_id=sid2, query="second session")
 
 
 # -- set_summary indexes retroactively --
