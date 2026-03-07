@@ -7,11 +7,11 @@ initialized first with `init_db`.
 
 Errors are returned as text starting with `ERROR:`.
 
-Tools are organized into two tiers:
+Tools are organized into two groups:
 - **Aggregate tools** (recommended) — high-level wrappers that combine common
   multi-step workflows into single calls. Use these by default.
-- **Granular tools** — individual operations for fine-grained control. Use
-  these when you need to do something the aggregates don't cover.
+- **Domain tools** — individual operations organized by domain. Use these when
+  you need to do something the aggregates don't cover.
 
 ---
 
@@ -64,8 +64,6 @@ META_SET: last_gm_message
 TIMELINE_ADDED: 43
 ```
 
-Replaces: `timeline_add` (narration) + `timeline_add` (player_choice) + `session_meta_set` (last_gm_message).
-
 ---
 
 ### character_build
@@ -91,8 +89,6 @@ character_build(session=1, name="Aldric", level=3, type="pc", attrs='[{"category
 ```
 CHARACTER_BUILT: 1 (attrs=6, items=3, abilities=2)
 ```
-
-Replaces: `character_create` + N×`character_set_attr` + N×`character_set_item` + N×`character_set_ability`.
 
 ---
 
@@ -126,8 +122,6 @@ STORY_SET: 1
 ACTS_ADDED: 3 (first act set to active)
 REGIONS_CREATED: 4
 ```
-
-Replaces: `session_create` + N×`session_meta_set` + `story_set` + N×`story_add_act` + `story_update_act` + N×`region_create`.
 
 ---
 
@@ -172,8 +166,6 @@ CURRENT: 1347-03-15T14:00
 (last 5 journal notes)
 ```
 
-Replaces: `session_view` + `session_meta_get` + `story_view` + `character_list` + N×`character_view` + `region_list` + `timeline_list` + `journal_list`.
-
 ---
 
 ### character_sheet_update
@@ -203,17 +195,9 @@ ITEMS_REMOVED: 1
 ITEMS_SET: 1
 ```
 
-Replaces: `character_update` + N×`character_set_attr` + N×`character_set_item` + N×`character_set_ability` + N×`character_remove_item`.
-
 ---
 
-## Granular Tools
-
-Individual operations for fine-grained control. The aggregate tools above
-call these internally. Use these when you need to do something specific
-that the aggregates don't cover.
-
----
+## Narrative Time
 
 ## time_get
 
@@ -275,6 +259,8 @@ TIME_ADVANCED: 1347-03-15T14:00 → 1347-03-15T17:00 (+3 hours)
 Narrative time must be set first (via `time_set` or `session_setup`).
 
 ---
+
+## Dice
 
 ## roll_dice
 
@@ -339,47 +325,7 @@ TOTAL: 15
 
 ---
 
-## session_create
-
-Create a new adventure session.
-
-```
-session_create(name="<name>", setting="<setting>", system="<system>")
-```
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| name | str | yes | Adventure name |
-| setting | str | yes | World setting |
-| system | str | yes | Rule system archetype |
-
-**Output:**
-```
-SESSION_CREATED: 1
-```
-
-## session_view
-
-View session details.
-
-```
-session_view(session_id=1)
-```
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| session_id | int | yes | Session ID |
-
-**Output:**
-```
-ID: 1
-NAME: The Dark Forest
-SETTING: dark fantasy
-SYSTEM: d20 fantasy
-STATUS: active
-CREATED: 2026-02-21T16:00:00Z
-UPDATED: 2026-02-21T16:00:00Z
-```
+## Session
 
 ## session_list
 
@@ -458,6 +404,8 @@ All keys output: table with columns `key, value`.
 
 ---
 
+## Story
+
 ## story_set
 
 Create or overwrite the story plan for a session.
@@ -479,17 +427,20 @@ STORY_SET: 1
 
 ## story_view
 
-Show the story premise and all acts.
+Show the story premise and all acts. Optionally show full details for a
+specific act.
 
 ```
 story_view(session_id=1)
+story_view(session_id=1, act_id=2)
 ```
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| session_id | int | yes | Session ID |
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| session_id | int | yes | | Session ID |
+| act_id | int | no | 0 | Act ID. When given, shows full details for that act instead of the overview. |
 
-**Output:**
+**Output (overview, act_id=0):**
 ```
 ID: 1
 SESSION: 1
@@ -503,6 +454,19 @@ act_order  title          status
 1          The Call        active
 2          The Descent     pending
 3          The Resolution  pending
+```
+
+**Output (single act, act_id=2):**
+```
+ID: 2
+SESSION: 1
+ORDER: 2
+TITLE: The Descent
+DESCRIPTION: Heroes descend into the cursed forest
+GOAL: Find the source of the curse
+EVENT: The guardian awakens
+STATUS: pending
+CREATED: 2026-02-21T16:00:00Z
 ```
 
 ## story_add_act
@@ -524,31 +488,6 @@ story_add_act(session_id=1, title="The Call", desc="Heroes are summoned", goal="
 **Output:**
 ```
 ACT_ADDED: 1
-```
-
-## story_view_act
-
-Show full details for a single act.
-
-```
-story_view_act(act_id=1)
-```
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| act_id | int | yes | Act ID |
-
-**Output:**
-```
-ID: 1
-SESSION: 1
-ORDER: 1
-TITLE: The Call
-DESCRIPTION: Heroes are summoned
-GOAL: Reach the temple
-EVENT: The temple collapses
-STATUS: pending
-CREATED: 2026-02-21T16:00:00Z
 ```
 
 ## story_update_act
@@ -598,27 +537,7 @@ ACT_ADVANCED: completed act 3, no remaining acts
 
 ---
 
-## character_create
-
-Create a character.
-
-```
-character_create(session=1, name="Aldric", level=3)
-character_create(session=1, name="Elder", level=1, type="npc", region=1)
-```
-
-| Parameter | Type | Required | Default | Description |
-|-----------|------|----------|---------|-------------|
-| session | int | yes | | Session ID |
-| name | str | yes | | Character name |
-| level | int | yes | | Character level |
-| type | str | no | "pc" | pc or npc |
-| region | int | no | 0 | Region ID (0 = none) |
-
-**Output:**
-```
-CHARACTER_CREATED: 1
-```
+## Character
 
 ## character_view
 
@@ -677,157 +596,9 @@ character_list(session=1, type="npc", region=1)
 
 **Output:** table with columns `id, name, type, level, status`.
 
-## character_update
-
-Update character fields. Only provided fields are changed.
-
-```
-character_update(character_id=1, name="Ren")
-character_update(character_id=1, level=4)
-character_update(character_id=1, status="dead")
-character_update(character_id=2, region=1)
-```
-
-| Parameter | Type | Required | Default | Description |
-|-----------|------|----------|---------|-------------|
-| character_id | int | yes | | Character ID |
-| name | str | no | "" | New name |
-| level | int | no | 0 | New level |
-| status | str | no | "" | New status |
-| region | int | no | 0 | New region ID |
-
-**Output:**
-```
-CHARACTER_UPDATED: 1
-```
-
-## character_set_attr
-
-Set a character attribute. Overwrites the value if the category+key already
-exists.
-
-```
-character_set_attr(character_id=1, category="stat", key="strength", value="16")
-character_set_attr(character_id=1, category="combat", key="hit_points", value="28")
-```
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| character_id | int | yes | Character ID |
-| category | str | yes | e.g. stat, skill, save, combat, resource |
-| key | str | yes | Attribute name |
-| value | str | yes | Attribute value |
-
-**Output:**
-```
-ATTR_SET: strength = 16
-```
-
-## character_get_attr
-
-Get character attributes. Optionally filter by category.
-
-```
-character_get_attr(character_id=1)
-character_get_attr(character_id=1, category="stat")
-```
-
-| Parameter | Type | Required | Default | Description |
-|-----------|------|----------|---------|-------------|
-| character_id | int | yes | | Character ID |
-| category | str | no | "" | Filter by category |
-
-All attributes output: table with columns `category, key, value`.
-Filtered output: table with columns `key, value`.
-
-## character_set_item
-
-Add an item to a character's inventory.
-
-```
-character_set_item(character_id=1, name="Longsword", desc="A fine steel blade", qty=1, equipped=1)
-```
-
-| Parameter | Type | Required | Default | Description |
-|-----------|------|----------|---------|-------------|
-| character_id | int | yes | | Character ID |
-| name | str | yes | | Item name |
-| desc | str | no | "" | Description |
-| qty | int | no | 1 | Quantity |
-| equipped | int | no | 0 | 1 = equipped, 0 = not |
-
-**Output:**
-```
-ITEM_SET: 1
-```
-
-## character_get_items
-
-List all items in a character's inventory.
-
-```
-character_get_items(character_id=1)
-```
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| character_id | int | yes | Character ID |
-
-**Output:** table with columns `id, name, description, quantity, equipped`.
-
-## character_remove_item
-
-Remove an item from inventory by item ID (from `character_get_items`).
-
-```
-character_remove_item(item_id=1)
-```
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| item_id | int | yes | Item ID |
-
-**Output:**
-```
-ITEM_REMOVED: 1
-```
-
-## character_set_ability
-
-Add an ability to a character.
-
-```
-character_set_ability(character_id=1, name="Flame Burst", desc="3d6 fire damage in a 20ft radius", category="spell", uses="3/day")
-```
-
-| Parameter | Type | Required | Default | Description |
-|-----------|------|----------|---------|-------------|
-| character_id | int | yes | | Character ID |
-| name | str | yes | | Ability name |
-| desc | str | yes | | What it does |
-| category | str | yes | | spell, feat, power, trait |
-| uses | str | no | "at_will" | at_will, 1/rest, 3/day, 1/day |
-
-**Output:**
-```
-ABILITY_SET: 1
-```
-
-## character_get_abilities
-
-List all abilities of a character.
-
-```
-character_get_abilities(character_id=1)
-```
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| character_id | int | yes | Character ID |
-
-**Output:** table with columns `id, name, category, uses, description`.
-
 ---
+
+## Region
 
 ## region_create
 
@@ -920,29 +691,7 @@ REGION_UPDATED: 1
 
 ---
 
-## timeline_add
-
-Add a timeline entry. Records narration and player choices in chronological
-order. Narration entries should include a `summary` for semantic search
-indexing.
-
-```
-timeline_add(session_id=1, type="narration", content="<exact text shown to the player>", summary="<1-2 sentence summary>")
-timeline_add(session_id=1, type="player_choice", content="<what the player chose or said>")
-```
-
-| Parameter | Type | Required | Default | Description |
-|-----------|------|----------|---------|-------------|
-| session_id | int | yes | | Session ID |
-| type | str | yes | | narration or player_choice |
-| content | str | yes | | Entry text |
-| summary | str | no | "" | 1-2 sentence summary for semantic search (narration only) |
-| narrative_time | str | no | "" | Override in-game timestamp. If omitted, uses current narrative clock. |
-
-**Output:**
-```
-TIMELINE_ADDED: 1
-```
+## Timeline
 
 ## timeline_set_summary
 
@@ -1004,23 +753,9 @@ timeline_list(session_id=1, id="10-20")
 **Output:** table with columns `id, entry_type, content, created_at`.
 Ordered oldest first.
 
-## timeline_search
-
-Search timeline content by keyword (case-insensitive).
-
-```
-timeline_search(session_id=1, query="dragon")
-```
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| session_id | int | yes | Session ID |
-| query | str | yes | Search text |
-
-**Output:** table with columns `id, entry_type, content, created_at`.
-Ordered oldest first.
-
 ---
+
+## Journal
 
 ## journal_add
 
@@ -1061,23 +796,9 @@ journal_list(session_id=1, last=5)
 **Output:** table with columns `id, entry_type, content, created_at`.
 Ordered newest first.
 
-## journal_search
-
-Search journal content by keyword (case-insensitive).
-
-```
-journal_search(session_id=1, query="player prefers")
-```
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| session_id | int | yes | Session ID |
-| query | str | yes | Search text |
-
-**Output:** table with columns `id, entry_type, content, created_at`.
-Ordered oldest first.
-
 ---
+
+## NPC
 
 ## npc_interact
 
@@ -1115,16 +836,21 @@ independent — there is no persistent NPC process.
 
 ---
 
+## Recall
+
 ## recall_search
 
-Semantic search across timeline entries and journal notes. Finds relevant
-content by meaning, not just exact keywords.
+Search across timeline entries and journal notes. Supports two modes:
+semantic search (by meaning) and keyword search (case-insensitive text
+matching).
 
 ```
 recall_search(session_id=1, query="the betrayal at the temple")
 recall_search(session_id=1, query="what did the elder say", source="timeline")
 recall_search(session_id=1, query="player preferences", source="journal")
 recall_search(session_id=1, query="dark rituals", n=10)
+recall_search(session_id=1, query="dragon", mode="keyword")
+recall_search(session_id=1, query="dragon", mode="keyword", source="timeline")
 ```
 
 | Parameter | Type | Required | Default | Description |
@@ -1133,10 +859,14 @@ recall_search(session_id=1, query="dark rituals", n=10)
 | query | str | yes | | Search text |
 | source | str | no | "" | timeline, journal, or empty for both |
 | n | int | no | 0 | Override result count. 0 = use built-in limits (timeline: 10, journal: 5) |
+| mode | str | no | "semantic" | `"semantic"` for meaning-based vector search, `"keyword"` for case-insensitive text matching |
 
-**Output:** table with columns `source, id, distance, content`. Lower distance
-means higher relevance. Default limits apply per collection regardless of
-whether `source` is specified or empty.
+**Output (semantic mode):** table with columns `source, id, distance, content`.
+Lower distance means higher relevance. Default limits apply per collection
+regardless of whether `source` is specified or empty.
+
+**Output (keyword mode):** table with columns `source, id, content, created_at`.
+Ordered oldest first.
 
 ## recall_reindex
 
@@ -1157,6 +887,8 @@ REINDEX_COMPLETE: 5 timeline entries, 2 journal entries
 ```
 
 ---
+
+## Export
 
 ## export_dump
 

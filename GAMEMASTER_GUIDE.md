@@ -75,10 +75,6 @@ per message and wait for the player's answer before moving on.
    e.g. `"1347-03-15T14:00"`). Pick a time that fits the setting and opening
    scene.
 
-   For edge cases where you need to create these individually, the granular
-   tools (`session_create`, `session_meta_set`, `story_set`, `story_add_act`,
-   `region_create`, `time_set`) still work.
-
 7. **Ask the player for a character name.**
 
 8. **Ask the player for a starting level** (suggest a sensible default for the
@@ -101,10 +97,6 @@ per message and wait for the player's answer before moving on.
     character_build(session=<id>, name="<name>", level=<level>, attrs='[...]', items='[...]', abilities='[...]')
     ```
     Player characters default to `type="pc"`, so you can omit it.
-
-    For edge cases where you need to add things individually after creation,
-    the granular tools (`character_create`, `character_set_attr`,
-    `character_set_item`, `character_set_ability`) still work.
 
 12. **Do not rush character creation.** Follow every step the chosen system
     requires for building a character. If the system has phases or categories
@@ -185,12 +177,6 @@ For the opening narration (no player choice yet), omit `player_choice`:
 turn_save(session_id=<id>, narration="<exact narration>", summary="<summary>")
 ```
 
-For edge cases, the individual tools still work as alternatives:
-```
-timeline_add(session_id=<session_id>, type="narration", content="<exact text>", summary="<summary>")
-timeline_add(session_id=<session_id>, type="player_choice", content="<player's exact message>")
-```
-
 ### Resuming a session
 
 At the start of a continued session, use `session_resume` to load everything
@@ -206,13 +192,6 @@ anything after the repeated message -- no new scenes, no new dialogue, no
 continuation. Just repeat the saved text and wait for the player to respond.
 The player needs to see exactly where they left off before making their next
 decision.
-
-For edge cases, the individual tools still work:
-```
-timeline_list(session_id=<session_id>, last=20)
-session_meta_get(session_id=<id>, key="last_gm_message")
-story_view(session_id=<session_id>)
-```
 
 ### Advancing acts
 
@@ -256,13 +235,6 @@ Use `character_sheet_update` for batch updates -- it can change level,
 attributes, items, and abilities in a single call:
 ```
 character_sheet_update(character_id=<id>, level=<new_level>, attrs='[...]', items='[...]')
-```
-
-For single changes, the granular tools still work:
-```
-character_set_attr(character_id=<id>, category="combat", key="hit_points", value="<new_value>")
-character_update(character_id=<id>, level=<new_level>)
-character_set_item(character_id=<id>, name="<item>")
 ```
 
 ### Last GM narration
@@ -398,12 +370,9 @@ system cannot track. At minimum, set core attributes (stats, defenses), key
 equipment, and any abilities that define the character. Do not leave this for
 later. `character_build` handles all of this in a single call.
 
-For edge cases, the granular tools (`character_create`, `character_set_attr`,
-`character_set_item`, `character_set_ability`) still work individually.
-
 To move an NPC to a different region later:
 ```
-character_update(character_id=<id>, region=<new_region_id>)
+character_sheet_update(character_id=<id>, region=<new_region_id>)
 ```
 
 ### Tracking character movement
@@ -490,14 +459,10 @@ For **any named NPC** the player is talking to: call `npc_interact`. No exceptio
      ```
      character_sheet_update(character_id=<id>, attrs='[{"category":"combat","key":"hit_points","value":"<new_value>"}]')
      ```
-     For a single attribute change, `character_set_attr` also works:
-     ```
-     character_set_attr(character_id=<id>, category="combat", key="hit_points", value="<new_value>")
-     ```
 
 4. **Log combat narration:**
    ```
-   timeline_add(session_id=<session_id>, type="narration", content="<exact combat narration shown to the player>", summary="<1-2 sentence summary>")
+   turn_save(session_id=<session_id>, narration="<exact combat narration shown to the player>", summary="<1-2 sentence summary>")
    ```
 
 5. **End combat** when all enemies are defeated, the party flees, or a
@@ -511,8 +476,8 @@ For **any named NPC** the player is talking to: call `npc_interact`. No exceptio
   rules (death saves, instant death, unconsciousness, etc.).
 - If the character dies:
   ```
-  character_update(character_id=<id>, status="dead")
-  timeline_add(session_id=<session_id>, type="narration", content="<exact death narration shown to the player>", summary="<1-2 sentence summary>")
+  character_sheet_update(character_id=<id>, status="dead")
+  turn_save(session_id=<session_id>, narration="<exact death narration shown to the player>", summary="<1-2 sentence summary>")
   ```
 - Offer the player a chance to create a new character. Follow the same creation
   flow from section 2 (steps 4-10).

@@ -42,42 +42,26 @@ def test_init_db():
 # ---- session tools ---------------------------------------------------------
 
 
-def test_session_create():
-    from mcp_server import session_create
-
-    result = session_create(name="Test", setting="Fantasy", system="d20")
-    assert "SESSION_CREATED:" in result
-
-
-def test_session_view():
-    from mcp_server import session_create, session_view
-
-    session_create(name="Test", setting="Fantasy", system="d20")
-    result = session_view(session_id=1)
-    assert "NAME: Test" in result
-    assert "SETTING: Fantasy" in result
-
-
 def test_session_list():
-    from mcp_server import session_create, session_list
+    from mcp_server import session_setup, session_list
 
-    session_create(name="Test", setting="Fantasy", system="d20")
+    session_setup(name="Test", setting="Fantasy", system="d20")
     result = session_list()
     assert "Test" in result
 
 
 def test_session_update():
-    from mcp_server import session_create, session_update
+    from mcp_server import session_setup, session_update
 
-    session_create(name="Test", setting="Fantasy", system="d20")
+    session_setup(name="Test", setting="Fantasy", system="d20")
     result = session_update(session_id=1, status="finished")
     assert "SESSION_UPDATED:" in result
 
 
 def test_session_meta():
-    from mcp_server import session_create, session_meta_set, session_meta_get
+    from mcp_server import session_setup, session_meta_set, session_meta_get
 
-    session_create(name="Test", setting="Fantasy", system="d20")
+    session_setup(name="Test", setting="Fantasy", system="d20")
     session_meta_set(session_id=1, key="lang", value="en")
     result = session_meta_get(session_id=1, key="lang")
     assert "lang: en" in result
@@ -87,19 +71,30 @@ def test_session_meta():
 
 
 def test_story_set_and_view():
-    from mcp_server import session_create, story_set, story_view
+    from mcp_server import session_setup, story_set, story_view
 
-    session_create(name="Test", setting="Fantasy", system="d20")
+    session_setup(name="Test", setting="Fantasy", system="d20")
     result = story_set(session_id=1, size="short", premise="A dark forest")
     assert "STORY_SET:" in result
     result = story_view(session_id=1)
     assert "A dark forest" in result
 
 
-def test_story_add_act_and_advance():
-    from mcp_server import session_create, story_set, story_add_act, story_update_act, story_advance
+def test_story_view_act():
+    from mcp_server import session_setup, story_set, story_add_act, story_view
 
-    session_create(name="Test", setting="Fantasy", system="d20")
+    session_setup(name="Test", setting="Fantasy", system="d20")
+    story_set(session_id=1, size="short", premise="Test")
+    story_add_act(session_id=1, title="Act 1", goal="Goal 1", event="Event 1")
+    result = story_view(session_id=1, act_id=1)
+    assert "TITLE: Act 1" in result
+    assert "GOAL: Goal 1" in result
+
+
+def test_story_add_act_and_advance():
+    from mcp_server import session_setup, story_set, story_add_act, story_update_act, story_advance
+
+    session_setup(name="Test", setting="Fantasy", system="d20")
     story_set(session_id=1, size="short", premise="Test")
     story_add_act(session_id=1, title="Act 1", goal="Goal 1", event="Event 1")
     story_add_act(session_id=1, title="Act 2", goal="Goal 2", event="Event 2")
@@ -112,49 +107,23 @@ def test_story_add_act_and_advance():
 # ---- character tools -------------------------------------------------------
 
 
-def test_character_create_and_view():
-    from mcp_server import session_create, character_create, character_view
+def test_character_build_and_view():
+    from mcp_server import session_setup, character_build, character_view
+    import json
 
-    session_create(name="Test", setting="Fantasy", system="d20")
-    result = character_create(session=1, name="Aldric", level=3)
-    assert "CHARACTER_CREATED:" in result
+    session_setup(name="Test", setting="Fantasy", system="d20")
+    result = character_build(
+        session=1, name="Aldric", level=3,
+        attrs=json.dumps([{"category": "stat", "key": "strength", "value": "16"}]),
+        items=json.dumps([{"name": "Sword", "desc": "Sharp"}]),
+        abilities=json.dumps([{"name": "Flame Burst", "desc": "3d6 fire", "category": "spell"}]),
+    )
+    assert "CHARACTER_BUILT:" in result
     result = character_view(character_id=1)
     assert "NAME: Aldric" in result
     assert "LEVEL: 3" in result
-
-
-def test_character_set_attr():
-    from mcp_server import session_create, character_create, character_set_attr, character_get_attr
-
-    session_create(name="Test", setting="Fantasy", system="d20")
-    character_create(session=1, name="Aldric", level=1)
-    character_set_attr(character_id=1, category="stat", key="strength", value="16")
-    result = character_get_attr(character_id=1, category="stat")
     assert "strength" in result
-    assert "16" in result
-
-
-def test_character_item():
-    from mcp_server import session_create, character_create, character_set_item, character_get_items, character_remove_item
-
-    session_create(name="Test", setting="Fantasy", system="d20")
-    character_create(session=1, name="Aldric", level=1)
-    result = character_set_item(character_id=1, name="Sword", desc="Sharp")
-    assert "ITEM_SET:" in result
-    result = character_get_items(character_id=1)
     assert "Sword" in result
-    result = character_remove_item(item_id=1)
-    assert "ITEM_REMOVED:" in result
-
-
-def test_character_ability():
-    from mcp_server import session_create, character_create, character_set_ability, character_get_abilities
-
-    session_create(name="Test", setting="Fantasy", system="d20")
-    character_create(session=1, name="Aldric", level=1)
-    result = character_set_ability(character_id=1, name="Flame Burst", desc="3d6 fire", category="spell")
-    assert "ABILITY_SET:" in result
-    result = character_get_abilities(character_id=1)
     assert "Flame Burst" in result
 
 
@@ -162,9 +131,9 @@ def test_character_ability():
 
 
 def test_region_create_and_view():
-    from mcp_server import session_create, region_create, region_view, region_list
+    from mcp_server import session_setup, region_create, region_view, region_list
 
-    session_create(name="Test", setting="Fantasy", system="d20")
+    session_setup(name="Test", setting="Fantasy", system="d20")
     result = region_create(session_id=1, name="Ashar", desc="A village")
     assert "REGION_CREATED:" in result
     result = region_view(region_id=1)
@@ -176,22 +145,22 @@ def test_region_create_and_view():
 # ---- timeline tools --------------------------------------------------------
 
 
-def test_timeline_add_and_list():
-    from mcp_server import session_create, timeline_add, timeline_list
+def test_turn_save_and_list():
+    from mcp_server import session_setup, turn_save, timeline_list
 
-    session_create(name="Test", setting="Fantasy", system="d20")
-    result = timeline_add(session_id=1, type="narration", content="The forest darkens.")
+    session_setup(name="Test", setting="Fantasy", system="d20")
+    result = turn_save(session_id=1, narration="The forest darkens.", summary="Forest darkens")
     assert "TIMELINE_ADDED:" in result
     result = timeline_list(session_id=1)
     assert "The forest darkens." in result
 
 
-def test_timeline_search():
-    from mcp_server import session_create, timeline_add, timeline_search
+def test_recall_keyword_search():
+    from mcp_server import session_setup, turn_save, recall_search
 
-    session_create(name="Test", setting="Fantasy", system="d20")
-    timeline_add(session_id=1, type="narration", content="A dragon appears in the sky.")
-    result = timeline_search(session_id=1, query="dragon")
+    session_setup(name="Test", setting="Fantasy", system="d20")
+    turn_save(session_id=1, narration="A dragon appears in the sky.", summary="Dragon appears")
+    result = recall_search(session_id=1, query="dragon", mode="keyword", source="timeline")
     assert "dragon" in result
 
 
@@ -199,9 +168,9 @@ def test_timeline_search():
 
 
 def test_journal_add_and_list():
-    from mcp_server import session_create, journal_add, journal_list
+    from mcp_server import session_setup, journal_add, journal_list
 
-    session_create(name="Test", setting="Fantasy", system="d20")
+    session_setup(name="Test", setting="Fantasy", system="d20")
     result = journal_add(session_id=1, type="note", content="Player likes puzzles")
     assert "JOURNAL_ADDED:" in result
     result = journal_list(session_id=1)
@@ -256,20 +225,20 @@ def test_roll_dice_invalid():
 
 
 def test_recall_search():
-    from mcp_server import session_create, timeline_add, recall_search
+    from mcp_server import session_setup, turn_save, recall_search
 
-    session_create(name="Test", setting="Fantasy", system="d20")
-    timeline_add(session_id=1, type="narration", content="The ancient temple crumbles.")
+    session_setup(name="Test", setting="Fantasy", system="d20")
+    turn_save(session_id=1, narration="The ancient temple crumbles.", summary="Temple crumbles")
     result = recall_search(session_id=1, query="temple")
     # May return results or "No results" depending on indexing
     assert isinstance(result, str)
 
 
 def test_recall_reindex():
-    from mcp_server import session_create, timeline_add, recall_reindex
+    from mcp_server import session_setup, turn_save, recall_reindex
 
-    session_create(name="Test", setting="Fantasy", system="d20")
-    timeline_add(session_id=1, type="narration", content="Test entry for reindex.")
+    session_setup(name="Test", setting="Fantasy", system="d20")
+    turn_save(session_id=1, narration="Test entry for reindex.", summary="Test entry")
     result = recall_reindex(session_id=1)
     assert "REINDEX_COMPLETE:" in result
 
@@ -278,9 +247,9 @@ def test_recall_reindex():
 
 
 def test_export_dump_and_clean(tmp_path):
-    from mcp_server import session_create, export_dump, export_clean
+    from mcp_server import session_setup, export_dump, export_clean
 
-    session_create(name="Test", setting="Fantasy", system="d20")
+    session_setup(name="Test", setting="Fantasy", system="d20")
     result = export_dump(session_id=1)
     assert "EXPORTED:" in result
     result = export_clean()
@@ -290,8 +259,8 @@ def test_export_dump_and_clean(tmp_path):
 # ---- error handling --------------------------------------------------------
 
 
-def test_session_view_not_found():
-    from mcp_server import session_view
+def test_session_resume_not_found():
+    from mcp_server import session_resume
 
-    result = session_view(session_id=999)
+    result = session_resume(session_id=999)
     assert "ERROR" in result

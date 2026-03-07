@@ -72,48 +72,6 @@ character_list(session=1, type="npc", region=1)
 
 Returns a table with columns `id, name, type, level, status`.
 
-## character_get_attr
-
-Get character attributes. Optionally filter by category.
-
-```
-character_get_attr(character_id=1)
-character_get_attr(character_id=1, category="stat")
-```
-
-| Parameter | Type | Required | Default | Description |
-|-----------|------|----------|---------|-------------|
-| character_id | int | yes | | Character ID |
-| category | str | no | "" | Filter by category |
-
-## character_get_items
-
-List all items in a character's inventory.
-
-```
-character_get_items(character_id=1)
-```
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| character_id | int | yes | Character ID |
-
-Returns a table with columns `id, name, description, quantity, equipped`.
-
-## character_get_abilities
-
-List all abilities of a character.
-
-```
-character_get_abilities(character_id=1)
-```
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| character_id | int | yes | Character ID |
-
-Returns a table with columns `id, name, category, uses, description`.
-
 ---
 
 ## region_view
@@ -149,19 +107,6 @@ timeline_list(session_id=1, id="10-20")
 
 Returns a table with columns `id, entry_type, content, created_at`.
 
-## timeline_search
-
-Search timeline content by keyword (case-insensitive).
-
-```
-timeline_search(session_id=1, query="dragon")
-```
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| session_id | int | yes | Session ID |
-| query | str | yes | Search text |
-
 ---
 
 ## journal_list
@@ -180,35 +125,27 @@ journal_list(session_id=1, last=5)
 | type | str | no | "" | Filter by entry type |
 | last | int | no | 0 | Limit to last N entries |
 
-## journal_search
-
-Search journal content by keyword (case-insensitive).
-
-```
-journal_search(session_id=1, query="player prefers")
-```
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| session_id | int | yes | Session ID |
-| query | str | yes | Search text |
-
 ---
 
 ## recall_search
 
-Semantic search across timeline and journal. Finds relevant content by
-meaning, not just exact keywords.
+Search across timeline and journal. Supports two modes:
+
+- **semantic** (default) -- finds relevant content by meaning, not just exact keywords.
+- **keyword** -- case-insensitive text matching. Use this when you need an exact term rather than a fuzzy semantic match.
 
 ```
 recall_search(session_id=1, query="the betrayal at the temple")
 recall_search(session_id=1, query="what did the elder say", source="timeline")
+recall_search(session_id=1, query="dragon", mode="keyword", source="timeline")
+recall_search(session_id=1, query="player prefers", mode="keyword", source="journal")
 ```
 
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
 | session_id | int | yes | | Session ID |
 | query | str | yes | | Search text |
+| mode | str | no | "semantic" | "semantic" or "keyword" |
 | source | str | no | "" | timeline, journal, or empty for both |
 | n | int | no | 0 | Override result count (0 = defaults) |
 
@@ -221,4 +158,10 @@ use the `id` from the results to fetch it:
 recall_search(session_id=1, query="dragon attack")
 # sees timeline_42 is relevant
 timeline_list(session_id=1, id="42")
+```
+
+For exact keyword lookups (e.g. searching for a specific name or term), use
+`recall_search` with `mode="keyword"` instead of semantic mode:
+```
+recall_search(session_id=1, query="dragon", mode="keyword", source="timeline")
 ```

@@ -38,9 +38,9 @@ or react, end the narration at that point and wait for the player to respond.
 
 ## Keyword and Semantic Search
 
-Use keyword search on the timeline to recall specific details:
+Use keyword search to recall specific details by exact text match:
 ```
-timeline_search(session_id=<session_id>, query="tavern")
+recall_search(session_id=<session_id>, query="tavern", mode="keyword")
 ```
 
 Use semantic search to find relevant past events by meaning, not just

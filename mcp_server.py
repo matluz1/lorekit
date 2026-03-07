@@ -54,17 +54,15 @@ def init_db() -> str:
 # ---------------------------------------------------------------------------
 
 
-@mcp.tool()
 def session_create(name: str, setting: str, system: str) -> str:
-    """Create a new adventure session."""
+    """Create a new adventure session. (Internal — use session_setup instead.)"""
     from session import cmd_create
 
     return _run_with_db(cmd_create, ["--name", name, "--setting", setting, "--system", system])
 
 
-@mcp.tool()
 def session_view(session_id: int) -> str:
-    """View session details."""
+    """View session details. (Internal — use session_resume or session_list instead.)"""
     from session import cmd_view
 
     return _run_with_db(cmd_view, [str(session_id)])
@@ -122,10 +120,12 @@ def story_set(session_id: int, size: str, premise: str) -> str:
 
 
 @mcp.tool()
-def story_view(session_id: int) -> str:
-    """Show the story premise and all acts for a session."""
+def story_view(session_id: int, act_id: int = 0) -> str:
+    """Show the story premise and all acts. If act_id is given, show full details for that act only."""
+    if act_id:
+        from story import cmd_view_act
+        return _run_with_db(cmd_view_act, [str(act_id)])
     from story import cmd_view
-
     return _run_with_db(cmd_view, [str(session_id)])
 
 
@@ -144,9 +144,8 @@ def story_add_act(session_id: int, title: str, desc: str = "", goal: str = "", e
     return _run_with_db(cmd_add_act, args)
 
 
-@mcp.tool()
 def story_view_act(act_id: int) -> str:
-    """Show full details for a single act."""
+    """Show full details for a single act. (Internal — use story_view with act_id instead.)"""
     from story import cmd_view_act
 
     return _run_with_db(cmd_view_act, [str(act_id)])
@@ -184,7 +183,6 @@ def story_advance(session_id: int) -> str:
 # ---------------------------------------------------------------------------
 
 
-@mcp.tool()
 def character_create(session: int, name: str, level: int, type: str = "pc", region: int = 0) -> str:
     """Create a character. Type: pc or npc. Region is optional (0 = none)."""
     from character import cmd_create
@@ -216,7 +214,6 @@ def character_list(session: int, type: str = "", region: int = 0) -> str:
     return _run_with_db(cmd_list, args)
 
 
-@mcp.tool()
 def character_update(character_id: int, name: str = "", level: int = 0, status: str = "", region: int = 0) -> str:
     """Update character fields. Only provided fields are changed."""
     from character import cmd_update
@@ -233,7 +230,6 @@ def character_update(character_id: int, name: str = "", level: int = 0, status: 
     return _run_with_db(cmd_update, args)
 
 
-@mcp.tool()
 def character_set_attr(character_id: int, category: str, key: str, value: str) -> str:
     """Set a character attribute. Overwrites if category+key exists."""
     from character import cmd_set_attr
@@ -241,7 +237,6 @@ def character_set_attr(character_id: int, category: str, key: str, value: str) -
     return _run_with_db(cmd_set_attr, [str(character_id), "--category", category, "--key", key, "--value", value])
 
 
-@mcp.tool()
 def character_get_attr(character_id: int, category: str = "") -> str:
     """Get character attributes. Optionally filter by category."""
     from character import cmd_get_attr
@@ -252,7 +247,6 @@ def character_get_attr(character_id: int, category: str = "") -> str:
     return _run_with_db(cmd_get_attr, args)
 
 
-@mcp.tool()
 def character_set_item(character_id: int, name: str, desc: str = "", qty: int = 1, equipped: int = 0) -> str:
     """Add an item to a character's inventory."""
     from character import cmd_set_item
@@ -267,7 +261,6 @@ def character_set_item(character_id: int, name: str, desc: str = "", qty: int = 
     return _run_with_db(cmd_set_item, args)
 
 
-@mcp.tool()
 def character_get_items(character_id: int) -> str:
     """List all items in a character's inventory."""
     from character import cmd_get_items
@@ -275,7 +268,6 @@ def character_get_items(character_id: int) -> str:
     return _run_with_db(cmd_get_items, [str(character_id)])
 
 
-@mcp.tool()
 def character_remove_item(item_id: int) -> str:
     """Remove an item from inventory by item ID."""
     from character import cmd_remove_item
@@ -283,7 +275,6 @@ def character_remove_item(item_id: int) -> str:
     return _run_with_db(cmd_remove_item, [str(item_id)])
 
 
-@mcp.tool()
 def character_set_ability(character_id: int, name: str, desc: str, category: str, uses: str = "at_will") -> str:
     """Add an ability to a character."""
     from character import cmd_set_ability
@@ -291,7 +282,6 @@ def character_set_ability(character_id: int, name: str, desc: str, category: str
     return _run_with_db(cmd_set_ability, [str(character_id), "--name", name, "--desc", desc, "--category", category, "--uses", uses])
 
 
-@mcp.tool()
 def character_get_abilities(character_id: int) -> str:
     """List all abilities of a character."""
     from character import cmd_get_abilities
@@ -353,7 +343,6 @@ def region_update(region_id: int, name: str = "", desc: str = "", parent_id: int
 # ---------------------------------------------------------------------------
 
 
-@mcp.tool()
 def timeline_add(session_id: int, type: str, content: str, summary: str = "", narrative_time: str = "") -> str:
     """Add a timeline entry. Type: narration or player_choice. Stamps with current narrative clock unless overridden."""
     from timeline import cmd_add
@@ -381,7 +370,6 @@ def timeline_list(session_id: int, type: str = "", last: int = 0, id: str = "") 
     return _run_with_db(cmd_list, args)
 
 
-@mcp.tool()
 def timeline_search(session_id: int, query: str) -> str:
     """Search timeline content by keyword (case-insensitive)."""
     from timeline import cmd_search
@@ -434,7 +422,6 @@ def journal_list(session_id: int, type: str = "", last: int = 0) -> str:
     return _run_with_db(cmd_list, args)
 
 
-@mcp.tool()
 def journal_search(session_id: int, query: str) -> str:
     """Search journal content by keyword (case-insensitive)."""
     from journal import cmd_search
@@ -506,8 +493,37 @@ def roll_dice(expression: str) -> str:
 
 
 @mcp.tool()
-def recall_search(session_id: int, query: str, source: str = "", n: int = 0) -> str:
-    """Semantic search across timeline and journal. Source: timeline, journal, or empty for both."""
+def recall_search(session_id: int, query: str, source: str = "", n: int = 0, mode: str = "semantic") -> str:
+    """Search timeline and journal by meaning (semantic) or exact keyword match.
+
+    mode: "semantic" (default) finds content by meaning. "keyword" finds exact text matches (case-insensitive).
+    source: "timeline", "journal", or empty for both.
+    n: override result count (0 = defaults). Only applies to semantic mode.
+    """
+    if mode == "keyword":
+        from timeline import cmd_search as tl_search
+        from journal import cmd_search as jn_search
+        from _db import require_db, LoreKitError
+
+        db = require_db()
+        try:
+            parts = []
+            if source in ("", "timeline"):
+                r = tl_search(db, [str(session_id), "--query", query])
+                if source == "":
+                    parts.append("--- TIMELINE ---")
+                parts.append(r)
+            if source in ("", "journal"):
+                r = jn_search(db, [str(session_id), "--query", query])
+                if source == "":
+                    parts.append("\n--- JOURNAL ---")
+                parts.append(r)
+            return "\n".join(parts)
+        except LoreKitError as e:
+            return f"ERROR: {e}"
+        finally:
+            db.close()
+
     from recall import cmd_search
 
     args = [str(session_id), "--query", query]
@@ -999,17 +1015,12 @@ def character_sheet_update(
 # Read-only MCP tools NPCs are allowed to use.
 _NPC_ALLOWED_TOOLS = [
     "mcp__lorekit__character_view",
-    "mcp__lorekit__character_get_attr",
-    "mcp__lorekit__character_get_items",
-    "mcp__lorekit__character_get_abilities",
+    "mcp__lorekit__character_list",
     "mcp__lorekit__roll_dice",
     "mcp__lorekit__timeline_list",
-    "mcp__lorekit__timeline_search",
     "mcp__lorekit__journal_list",
-    "mcp__lorekit__journal_search",
     "mcp__lorekit__recall_search",
     "mcp__lorekit__region_view",
-    "mcp__lorekit__character_list",
     "mcp__lorekit__time_get",
 ]
 
