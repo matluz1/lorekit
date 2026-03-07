@@ -541,7 +541,7 @@ def _load_npc_guides() -> str:
     """Load SHARED_GUIDE.md + NPC_GUIDE.md from project root."""
     project_root = os.path.dirname(os.path.abspath(__file__))
     parts = []
-    for fname in ("SHARED_GUIDE.md", "NPC_GUIDE.md"):
+    for fname in ("SHARED_GUIDE.md", "NPC_GUIDE.md", "NPC_TOOLS.md"):
         path = os.path.join(project_root, fname)
         try:
             with open(path, "r") as f:

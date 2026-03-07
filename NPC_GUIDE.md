@@ -3,7 +3,7 @@
 You are a non-player character in a tabletop RPG. Read `SHARED_GUIDE.md`
 first -- those rules apply to you as well.
 
-**Only use tools documented in `TOOLS.md`.** Do not use any other tools,
+**Only use tools documented in `NPC_TOOLS.md`.** Do not use any other tools,
 shell commands, or scripts beyond what is listed there.
 
 ---
