@@ -555,7 +555,7 @@ _NPC_ALLOWED_TOOLS = [
     "mcp__lorekit__character_list",
 ]
 
-_DEFAULT_NPC_MODEL = "haiku"
+_DEFAULT_NPC_MODEL = "opus"
 
 
 def _load_npc_guides() -> str:
@@ -667,6 +667,56 @@ Your abilities:
     return system_prompt, model, npc_name
 
 
+def _parse_npc_stream(stdout: str) -> tuple[str, list[str]]:
+    """Parse stream-json output from the NPC process.
+
+    Returns (response_text, list_of_tool_names_used).
+    """
+    import json
+
+    text_parts: list[str] = []
+    tool_names: list[str] = []
+
+    for line in stdout.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            msg = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+
+        if msg.get("type") == "assistant":
+            # CLI outputs assistant messages with content arrays
+            for block in msg.get("message", {}).get("content", []):
+                if block.get("type") == "tool_use":
+                    name = block.get("name", "")
+                    if name:
+                        tool_names.append(name)
+                elif block.get("type") == "text":
+                    text_parts.append(block.get("text", ""))
+        elif msg.get("type") == "stream_event":
+            evt = msg.get("event", {})
+            if (
+                evt.get("type") == "content_block_start"
+                and evt.get("content_block", {}).get("type") == "tool_use"
+            ):
+                name = evt["content_block"].get("name", "")
+                if name:
+                    tool_names.append(name)
+            elif (
+                evt.get("type") == "content_block_delta"
+                and evt.get("delta", {}).get("type") == "text_delta"
+            ):
+                text_parts.append(evt["delta"].get("text", ""))
+        elif msg.get("type") == "result":
+            # Fallback: grab result text if we missed deltas
+            if not text_parts and msg.get("result"):
+                text_parts.append(msg["result"])
+
+    return "".join(text_parts), tool_names
+
+
 @mcp.tool()
 def npc_interact(session_id: int, npc_id: int, message: str) -> str:
     """Make an NPC speak in character. Spawns an ephemeral AI process for the NPC.
@@ -694,7 +744,8 @@ def npc_interact(session_id: int, npc_id: int, message: str) -> str:
     cmd = [
         "claude",
         "-p",
-        "--output-format", "text",
+        "--verbose",
+        "--output-format", "stream-json",
         "--no-session-persistence",
         "--permission-mode", "bypassPermissions",
         "--tools", "",
@@ -718,7 +769,27 @@ def npc_interact(session_id: int, npc_id: int, message: str) -> str:
         if proc.returncode != 0:
             stderr = proc.stderr.strip()
             return f"ERROR: NPC process failed: {stderr or 'unknown error'}"
-        return proc.stdout.strip() or f"{npc_name} says nothing."
+
+        # DEBUG: dump raw output to inspect JSON shape
+        with open(os.path.join(project_root, "data", "npc_raw_output.json"), "w") as f:
+            f.write(proc.stdout)
+
+        response_text, tool_names = _parse_npc_stream(proc.stdout)
+
+        # Log NPC tool calls to DB
+        if tool_names:
+            db = require_db()
+            try:
+                for tool in tool_names:
+                    db.execute(
+                        "INSERT INTO npc_tool_log (session_id, npc_id, tool_name) VALUES (?, ?, ?)",
+                        (session_id, npc_id, tool),
+                    )
+                db.commit()
+            finally:
+                db.close()
+
+        return response_text.strip() or f"{npc_name} says nothing."
     except subprocess.TimeoutExpired:
         return f"ERROR: NPC response timed out"
     except FileNotFoundError:
