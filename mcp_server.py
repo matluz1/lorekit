@@ -667,12 +667,24 @@ Your abilities:
     return system_prompt, model, npc_name
 
 
-def _parse_npc_stream(stdout: str) -> tuple[str, list[str]]:
+def _npc_log(msg: str):
+    """Append a line to data/npc.log."""
+    from datetime import datetime
+    project_root = os.path.dirname(os.path.abspath(__file__))
+    log_path = os.path.join(project_root, "data", "npc.log")
+    ts = datetime.now().strftime("%H:%M:%S.%f")[:12]
+    with open(log_path, "a") as f:
+        f.write(f"{ts} {msg}\n")
+
+
+def _parse_npc_stream(stdout: str, npc_name: str = "NPC") -> tuple[str, list[str]]:
     """Parse stream-json output from the NPC process.
 
     Returns (response_text, list_of_tool_names_used).
     """
     import json
+
+    _npc_log(f"[START] ─── {npc_name} ───")
 
     text_parts: list[str] = []
     tool_names: list[str] = []
@@ -693,8 +705,13 @@ def _parse_npc_stream(stdout: str) -> tuple[str, list[str]]:
                     name = block.get("name", "")
                     if name:
                         tool_names.append(name)
+                        args = block.get("input", {})
+                        _npc_log(f"[TOOL] {name} {json.dumps(args, ensure_ascii=False)}")
+                elif block.get("type") == "thinking":
+                    _npc_log(f"[THINK] {block.get('thinking', '')}")
                 elif block.get("type") == "text":
                     text_parts.append(block.get("text", ""))
+                    _npc_log(f"[TEXT] {block.get('text', '')}")
         elif msg.get("type") == "stream_event":
             evt = msg.get("event", {})
             if (
@@ -704,16 +721,21 @@ def _parse_npc_stream(stdout: str) -> tuple[str, list[str]]:
                 name = evt["content_block"].get("name", "")
                 if name:
                     tool_names.append(name)
-            elif (
-                evt.get("type") == "content_block_delta"
-                and evt.get("delta", {}).get("type") == "text_delta"
-            ):
-                text_parts.append(evt["delta"].get("text", ""))
+                    _npc_log(f"[TOOL] {name}")
+            elif evt.get("type") == "content_block_delta":
+                delta = evt.get("delta", {})
+                if delta.get("type") == "text_delta":
+                    text_parts.append(delta.get("text", ""))
+                elif delta.get("type") == "thinking_delta":
+                    _npc_log(f"[THINK] {delta.get('thinking', '')}")
+                elif delta.get("type") == "input_json_delta":
+                    _npc_log(f"[ARGS] {delta.get('partial_json', '')}")
         elif msg.get("type") == "result":
             # Fallback: grab result text if we missed deltas
             if not text_parts and msg.get("result"):
                 text_parts.append(msg["result"])
 
+    _npc_log(f"[END] ─── {npc_name} ───")
     return "".join(text_parts), tool_names
 
 
@@ -756,6 +778,7 @@ def npc_interact(session_id: int, npc_id: int, message: str) -> str:
         "--system-prompt", system_prompt,
     ]
     cmd.append(message)
+    _npc_log(f"[USER] → {npc_name}: {message[:500]}")
 
     try:
         proc = subprocess.run(
@@ -770,7 +793,7 @@ def npc_interact(session_id: int, npc_id: int, message: str) -> str:
             stderr = proc.stderr.strip()
             return f"ERROR: NPC process failed: {stderr or 'unknown error'}"
 
-        response_text, tool_names = _parse_npc_stream(proc.stdout)
+        response_text, tool_names = _parse_npc_stream(proc.stdout, npc_name)
 
         result = response_text.strip() or f"{npc_name} says nothing."
         if tool_names:

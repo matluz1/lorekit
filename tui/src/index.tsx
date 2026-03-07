@@ -5,6 +5,7 @@ import { resolve } from "node:path";
 import { App } from "./components/App.js";
 import { ClaudeProvider } from "./providers/claude.js";
 import { openDb, closeDb, getActiveSessions } from "./db.js";
+import { initLogger, clearLog } from "./logger.js";
 
 // Resolve paths relative to project root (one level up from tui/)
 const projectRoot = resolve(import.meta.dirname, "../..");
@@ -27,6 +28,11 @@ if (!model) {
   console.error("Usage: npx tsx src/index.tsx <model> [claude-session-id]");
   process.exit(1);
 }
+
+// Initialize logger and clear previous logs
+initLogger(projectRoot);
+clearLog("gm.log");
+clearLog("npc.log");
 
 // Open read-only DB for sidebar, auto-detect active LoreKit session
 openDb(projectRoot);

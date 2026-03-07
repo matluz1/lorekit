@@ -1,4 +1,5 @@
 data/*.db
+data/*.log
 data/chroma/
 __pycache__/
 .venv/

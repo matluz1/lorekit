@@ -6,6 +6,55 @@ import type {
   AgentProcess,
   StreamChunk,
 } from "../provider.js";
+import { gmLog } from "../logger.js";
+
+/** Log interesting events from a raw JSONL line to gm.log. */
+function logStreamLine(line: string) {
+  let msg: any;
+  try { msg = JSON.parse(line); } catch { return; }
+
+  if (msg.type === "stream_event") {
+    const evt = msg.event;
+    if (!evt) return;
+
+    if (evt.type === "content_block_start") {
+      const block = evt.content_block;
+      if (block?.type === "thinking") {
+        gmLog("THINK", "─── thinking ───");
+      } else if (block?.type === "tool_use") {
+        gmLog("TOOL", `calling ${block.name}`);
+      }
+    } else if (evt.type === "content_block_delta") {
+      const d = evt.delta;
+      if (d?.type === "thinking_delta" && d.thinking) {
+        gmLog("THINK", d.thinking);
+      } else if (d?.type === "input_json_delta" && d.partial_json) {
+        gmLog("ARGS", d.partial_json);
+      }
+    }
+  } else if (msg.type === "user") {
+    // User message sent to the model (tool results or player input)
+    const content = msg.message?.content;
+    if (typeof content === "string") {
+      gmLog("USER", content);
+    } else if (Array.isArray(content)) {
+      for (const block of content) {
+        if (block.type === "tool_result") {
+          let text = typeof block.content === "string"
+            ? block.content
+            : Array.isArray(block.content)
+              ? block.content.map((c: any) => c.text ?? "").join("")
+              : JSON.stringify(block.content);
+          try {
+            const parsed = JSON.parse(text);
+            if (typeof parsed.result === "string") text = parsed.result;
+          } catch {}
+          gmLog("RESULT", text.slice(0, 500));
+        }
+      }
+    }
+  }
+}
 
 /**
  * Parse a single JSONL line from Claude's stream-json output into a StreamChunk.
@@ -240,11 +289,13 @@ class PersistentProcess implements AgentProcess {
       message: { role: "user", content: message },
     });
     this.proc.stdin!.write(userMsg + "\n");
+    gmLog("USER", message);
 
     // Read lines until we get a "result" message (end of turn)
     while (true) {
       const line = await this.nextLine();
       if (line === null) break;
+      logStreamLine(line);
 
       const chunk = parseChunk(line);
       if (chunk) {
