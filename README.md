@@ -41,5 +41,4 @@ needed.
 | `mcp_server.py` | MCP server -- primary interface to all game tools |
 | `.mcp.json` | MCP server configuration |
 | `scripts/` | Game engine (session, character, dice, journal, etc.) |
-| `data/game.db` | SQLite database (created by `init_db`) |
-| `data/chroma/` | ChromaDB vector store for semantic search |
+| `data/game.db` | SQLite database with embedded vectors (created by `init_db`) |

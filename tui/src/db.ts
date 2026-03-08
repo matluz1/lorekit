@@ -3,12 +3,19 @@
  * All writes go through the LLM provider → MCP → mcp_server.py.
  */
 import Database from "better-sqlite3";
-import { resolve } from "node:path";
+import { resolve, dirname } from "node:path";
+import { mkdirSync, existsSync } from "node:fs";
+import { execFileSync } from "node:child_process";
 
 let db: Database.Database | null = null;
 
 export function openDb(projectRoot: string) {
   const dbPath = resolve(projectRoot, "data", "game.db");
+  if (!existsSync(dbPath)) {
+    mkdirSync(dirname(dbPath), { recursive: true });
+    const python = resolve(projectRoot, ".venv/bin/python");
+    execFileSync(python, ["scripts/init_db.py"], { cwd: projectRoot });
+  }
   db = new Database(dbPath, { readonly: true });
 }
 

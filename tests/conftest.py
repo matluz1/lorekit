@@ -25,7 +25,6 @@ def _isolate_db(tmp_path, monkeypatch):
     db = str(tmp_path / "game.db")
     monkeypatch.setenv("LOREKIT_DB_DIR", str(tmp_path))
     monkeypatch.setenv("LOREKIT_DB", db)
-    monkeypatch.setenv("LOREKIT_CHROMA_DIR", str(tmp_path / "chroma"))
     from _db import init_schema
 
     init_schema(db)

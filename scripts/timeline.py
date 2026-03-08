@@ -67,7 +67,7 @@ def add(db, session_id: int, entry_type: str, content: str, summary: str = "", n
     if entry_type == "narration" and summary:
         try:
             from _vectordb import index_timeline
-            index_timeline(session_id, sql_id, entry_type, summary)
+            index_timeline(db, session_id, sql_id, entry_type, summary)
         except Exception:
             pass
     return f"TIMELINE_ADDED: {sql_id}"
@@ -99,7 +99,7 @@ def set_summary(db, timeline_id: int, summary: str) -> str:
     if entry_type == "narration":
         try:
             from _vectordb import index_timeline
-            index_timeline(session_id, timeline_id, entry_type, summary)
+            index_timeline(db, session_id, timeline_id, entry_type, summary)
         except Exception:
             pass
     return f"SUMMARY_SET: {timeline_id}"
@@ -156,11 +156,11 @@ def revert(db, session_id: int) -> str:
         )
     db.commit()
 
-    # Best-effort ChromaDB cleanup for deleted narrations with summaries
+    # Best-effort vector cleanup for deleted narrations with summaries
     if narration_ids_with_summary:
         try:
             from _vectordb import delete_timeline
-            delete_timeline(narration_ids_with_summary)
+            delete_timeline(db, narration_ids_with_summary)
         except Exception:
             pass
 

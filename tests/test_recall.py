@@ -2,7 +2,7 @@
 
 import pytest
 
-chromadb = pytest.importorskip("chromadb")
+pytest.importorskip("sqlite_vec")
 
 from mcp_server import (  # noqa: E402
     journal_add,

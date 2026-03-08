@@ -19,14 +19,16 @@ def test_creates_all_tables():
         row[0]
         for row in conn.execute(
             "SELECT name FROM sqlite_master WHERE type='table' "
-            "AND name NOT LIKE 'sqlite_%' ORDER BY name"
+            "AND name NOT LIKE 'sqlite_%' "
+            "AND name NOT LIKE 'vec_embeddings_%' "  # sqlite-vec shadow tables
+            "ORDER BY name"
         ).fetchall()
     ]
     conn.close()
     expected = [
         "character_abilities", "character_attributes", "character_inventory",
-        "characters", "journal", "regions", "session_meta", "sessions",
-        "stories", "story_acts", "timeline",
+        "characters", "embeddings", "journal", "regions", "session_meta",
+        "sessions", "stories", "story_acts", "timeline", "vec_embeddings",
     ]
     assert sorted(tables) == expected
 

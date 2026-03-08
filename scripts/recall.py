@@ -43,7 +43,7 @@ def search(db, session_id: int, query_text: str, source: str = "", n_results: in
     from _vectordb import is_available, hybrid_search
 
     if not is_available():
-        raise LoreKitError("chromadb is not installed")
+        raise LoreKitError("sqlite-vec is not installed")
 
     collection_name = source if source else None
     results = hybrid_search(query_text, session_id, db, collection_name=collection_name, n_results=n_results)
@@ -85,19 +85,30 @@ def cmd_search(db, args):
 
 
 def reindex(db, session_id: int) -> str:
-    from _vectordb import is_available, get_chroma_client, index_journal, index_timeline
+    from _vectordb import is_available, index_journal, index_timeline
 
     if not is_available():
-        raise LoreKitError("chromadb is not installed")
+        raise LoreKitError("sqlite-vec is not installed")
 
-    client = get_chroma_client()
-
-    # Delete only this session's entries from each collection, then re-add
-    for col_name in ("timeline", "journal"):
-        col = client.get_or_create_collection(col_name)
-        existing = col.get(where={"session_id": str(session_id)})
-        if existing["ids"]:
-            col.delete(ids=existing["ids"])
+    # Delete existing embeddings for this session
+    emb_ids = [
+        row[0]
+        for row in db.execute(
+            "SELECT id FROM embeddings WHERE session_id = ?", (session_id,)
+        ).fetchall()
+    ]
+    if emb_ids:
+        placeholders = ",".join("?" * len(emb_ids))
+        try:
+            db.execute(
+                f"DELETE FROM vec_embeddings WHERE rowid IN ({placeholders})", emb_ids
+            )
+        except Exception:
+            pass
+        db.execute(
+            f"DELETE FROM embeddings WHERE id IN ({placeholders})", emb_ids
+        )
+        db.commit()
 
     timeline_count = 0
     skipped_count = 0
@@ -113,7 +124,7 @@ def reindex(db, session_id: int) -> str:
             if entry_type == "narration" and not summary:
                 skipped_count += 1
             continue
-        index_timeline(session_id, sql_id, entry_type, summary, created_at=created_at)
+        index_timeline(db, session_id, sql_id, entry_type, summary, created_at=created_at)
         timeline_count += 1
 
     cur = db.execute(
@@ -122,7 +133,7 @@ def reindex(db, session_id: int) -> str:
     )
     for row in cur.fetchall():
         sql_id, entry_type, content, created_at = row
-        index_journal(session_id, sql_id, entry_type, content, created_at)
+        index_journal(db, session_id, sql_id, entry_type, content, created_at)
         journal_count += 1
 
     msg = f"REINDEX_COMPLETE: {timeline_count} timeline entries, {journal_count} journal entries"

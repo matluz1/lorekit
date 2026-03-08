@@ -1,7 +1,12 @@
-"""Vector database utilities for LoreKit semantic search."""
+"""Vector database utilities for LoreKit semantic search.
+
+Uses sqlite-vec for vector storage inside the same SQLite database as
+structured data.  The sentence-transformers embedding model is optional;
+if unavailable, indexing is silently skipped.
+"""
 
 import io
-import os
+import struct
 import sys
 
 _model = None
@@ -44,153 +49,130 @@ def _embed_query(text):
     return model.encode(f"query: {text}", normalize_embeddings=True).tolist()
 
 
+def _serialize(vec):
+    """Serialize a float list to bytes for sqlite-vec."""
+    return struct.pack(f"{len(vec)}f", *vec)
+
 
 def is_available():
-    """Return True if chromadb is importable."""
+    """Return True if sqlite_vec is importable."""
     try:
-        import chromadb  # noqa: F401
-
+        import sqlite_vec  # noqa: F401
         return True
     except ImportError:
         return False
 
 
-def resolve_chroma_path():
-    """Resolve the ChromaDB storage path (next to game.db)."""
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    db_dir = os.environ.get("LOREKIT_DB_DIR", os.path.join(script_dir, "..", "data"))
-    return os.environ.get("LOREKIT_CHROMA_DIR", os.path.join(db_dir, "chroma"))
+def _has_vec_table(db):
+    """Check whether the vec_embeddings virtual table exists."""
+    row = db.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='vec_embeddings'"
+    ).fetchone()
+    return row is not None
 
 
-def get_chroma_client():
-    """Return a persistent ChromaDB client."""
-    import chromadb
-
-    path = resolve_chroma_path()
-    os.makedirs(path, exist_ok=True)
-    return chromadb.PersistentClient(path=path)
-
-
-def index_journal(session_id, sql_id, entry_type, content, created_at=None):
-    """Upsert a journal entry into the journal collection."""
-    client = get_chroma_client()
-    collection = client.get_or_create_collection("journal")
-    metadata = {
-        "session_id": str(session_id),
-        "entry_type": entry_type,
-        "sql_id": int(sql_id),
-    }
-    if created_at:
-        metadata["created_at"] = created_at
+def _upsert_embedding(db, source, source_id, session_id, content, created_at=None):
+    """Insert or update an embedding row and its vec0 entry."""
     embeddings = _embed_passages([content])
-    kwargs = {
-        "ids": [f"journal_{sql_id}"],
-        "documents": [content],
-        "metadatas": [metadata],
-    }
-    if embeddings is not None:
-        kwargs["embeddings"] = embeddings
-    collection.upsert(**kwargs)
+
+    # Upsert metadata row
+    db.execute(
+        "INSERT INTO embeddings (source, source_id, session_id, content, created_at) "
+        "VALUES (?, ?, ?, ?, ?) "
+        "ON CONFLICT(source, source_id) DO UPDATE SET content = excluded.content",
+        (source, source_id, session_id, content, created_at or ""),
+    )
+
+    row = db.execute(
+        "SELECT id FROM embeddings WHERE source = ? AND source_id = ?",
+        (source, source_id),
+    ).fetchone()
+    emb_id = row[0]
+
+    # Update vec0 entry if we have embeddings and the virtual table exists
+    if embeddings is not None and _has_vec_table(db):
+        blob = _serialize(embeddings[0])
+        db.execute("DELETE FROM vec_embeddings WHERE rowid = ?", (emb_id,))
+        db.execute(
+            "INSERT INTO vec_embeddings (rowid, embedding) VALUES (?, ?)",
+            (emb_id, blob),
+        )
+
+    db.commit()
 
 
-def index_timeline(session_id, sql_id, entry_type, summary, created_at=None):
-    """Upsert a timeline entry into the timeline collection.
-
-    Indexes the summary text as a single vector per entry.
-    """
-    client = get_chroma_client()
-    collection = client.get_or_create_collection("timeline")
-
-    doc_id = f"timeline_{sql_id}"
-    metadata = {
-        "session_id": str(session_id),
-        "entry_type": entry_type,
-        "sql_id": int(sql_id),
-    }
-    if created_at:
-        metadata["created_at"] = created_at
-
-    embeddings = _embed_passages([summary])
-    kwargs = {
-        "ids": [doc_id],
-        "documents": [summary],
-        "metadatas": [metadata],
-    }
-    if embeddings is not None:
-        kwargs["embeddings"] = embeddings
-    collection.upsert(**kwargs)
+def index_journal(db, session_id, sql_id, entry_type, content, created_at=None):
+    """Upsert a journal entry into the embeddings table."""
+    _upsert_embedding(db, "journal", sql_id, session_id, content, created_at)
 
 
-def delete_timeline(sql_ids):
-    """Delete timeline entries from the ChromaDB timeline collection by SQL IDs."""
+def index_timeline(db, session_id, sql_id, entry_type, summary, created_at=None):
+    """Upsert a timeline entry into the embeddings table (indexes the summary)."""
+    _upsert_embedding(db, "timeline", sql_id, session_id, summary, created_at)
+
+
+def delete_timeline(db, sql_ids):
+    """Delete timeline entries from the embeddings and vec0 tables."""
     if not sql_ids:
         return
-    try:
-        client = get_chroma_client()
-        collection = client.get_collection("timeline")
-    except Exception:
-        return
-    doc_ids = [f"timeline_{sid}" for sid in sql_ids]
-    collection.delete(ids=doc_ids)
+    for sql_id in sql_ids:
+        row = db.execute(
+            "SELECT id FROM embeddings WHERE source = 'timeline' AND source_id = ?",
+            (sql_id,),
+        ).fetchone()
+        if row:
+            emb_id = row[0]
+            if _has_vec_table(db):
+                db.execute("DELETE FROM vec_embeddings WHERE rowid = ?", (emb_id,))
+            db.execute("DELETE FROM embeddings WHERE id = ?", (emb_id,))
+    db.commit()
 
 
-def search(query, session_id, collection_name=None, n_results=5):
-    """Semantic search across timeline and/or journal.
+def search(query, session_id, db, collection_name=None, n_results=5):
+    """Semantic search across timeline and/or journal via sqlite-vec.
 
     Returns a list of dicts with keys: source, id, content, distance, metadata.
     """
-    client = get_chroma_client()
-    results = []
-    collections = []
-    if collection_name:
-        collections.append(collection_name)
-    else:
-        collections = ["timeline", "journal"]
-
     query_embedding = _embed_query(query)
+    if query_embedding is None or not _has_vec_table(db):
+        return []
 
-    for name in collections:
-        try:
-            col = client.get_collection(name)
-        except Exception:
-            continue
-        if col.count() == 0:
-            continue
-        actual_n = min(n_results, col.count())
-        # For timeline, only search narration entries semantically.
-        # Short player_choice texts get artificially high similarity and
-        # dominate over longer, more relevant narrations. Player choices
-        # are covered by keyword_search in hybrid mode.
-        if name == "timeline":
-            where = {"$and": [
-                {"session_id": str(session_id)},
-                {"entry_type": "narration"},
-            ]}
-        else:
-            where = {"session_id": str(session_id)}
-        if query_embedding is not None:
-            res = col.query(
-                query_embeddings=[query_embedding],
-                n_results=actual_n,
-                where=where,
-            )
-        else:
-            res = col.query(
-                query_texts=[query],
-                n_results=actual_n,
-                where=where,
-            )
-        if res["ids"] and res["ids"][0]:
-            for i, doc_id in enumerate(res["ids"][0]):
-                results.append({
-                    "source": name,
-                    "id": doc_id,
-                    "content": res["documents"][0][i],
-                    "distance": res["distances"][0][i],
-                    "metadata": res["metadatas"][0][i],
-                })
+    blob = _serialize(query_embedding)
+    sources = [collection_name] if collection_name else ["timeline", "journal"]
 
-    results.sort(key=lambda r: r["distance"])
+    # Over-fetch to account for session/source filtering
+    fetch_k = n_results * 10
+
+    rows = db.execute(
+        """
+        SELECT e.source, e.source_id, e.content, e.session_id, v.distance
+        FROM (
+            SELECT rowid, distance
+            FROM vec_embeddings
+            WHERE embedding MATCH ? AND k = ?
+        ) v
+        JOIN embeddings e ON e.id = v.rowid
+        WHERE e.session_id = ?
+          AND e.source IN ({})
+        """.format(",".join("?" * len(sources))),
+        (blob, fetch_k, session_id, *sources),
+    ).fetchall()
+
+    results = []
+    for source, source_id, content, sid, distance in rows:
+        if len(results) >= n_results:
+            break
+        results.append({
+            "source": source,
+            "id": f"{source}_{source_id}",
+            "content": content,
+            "distance": distance,
+            "metadata": {
+                "session_id": str(sid),
+                "sql_id": source_id,
+            },
+        })
+
     return results
 
 
@@ -259,9 +241,8 @@ def _rrf_merge(semantic_results, kw_results, n_results):
 _DEFAULT_LIMITS = {"timeline": 10, "journal": 5}
 
 
-
 def hybrid_search(query, session_id, db, collection_name=None, n_results=0):
-    """Hybrid search combining keyword (SQL LIKE) and semantic (ChromaDB) results.
+    """Hybrid search combining keyword (SQL LIKE) and semantic (sqlite-vec) results.
 
     Uses Reciprocal Rank Fusion to merge rankings per collection.
     Each collection has a default result limit (timeline: 10, journal: 5).
@@ -277,7 +258,7 @@ def hybrid_search(query, session_id, db, collection_name=None, n_results=0):
     results = []
     for col_name, limit in limits.items():
         fetch_n = limit * 3
-        sem = search(query, session_id, collection_name=col_name, n_results=fetch_n)
+        sem = search(query, session_id, db, collection_name=col_name, n_results=fetch_n)
         kw = keyword_search(query, session_id, db, collection_name=col_name, n_results=fetch_n)
         results.extend(_rrf_merge(sem, kw, limit))
 

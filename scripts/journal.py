@@ -64,7 +64,7 @@ def add(db, session_id: int, entry_type: str, content: str, narrative_time: str 
     sql_id = cur.lastrowid
     try:
         from _vectordb import index_journal
-        index_journal(session_id, sql_id, entry_type, content)
+        index_journal(db, session_id, sql_id, entry_type, content)
     except Exception:
         pass
     return f"JOURNAL_ADDED: {sql_id}"

@@ -715,7 +715,7 @@ SUMMARY_SET: 42
 ## timeline_revert
 
 Revert the last narration and all timeline entries after it. Removes the
-entries from SQLite and ChromaDB, and restores `last_gm_message` to the
+entries from SQLite and the vector index, and restores `last_gm_message` to the
 previous narration (or clears it if none remain).
 
 ```

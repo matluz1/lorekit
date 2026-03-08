@@ -113,6 +113,17 @@ CREATE TABLE IF NOT EXISTS story_acts (
     UNIQUE(session_id, act_order)
 );
 
+CREATE TABLE IF NOT EXISTS embeddings (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    source      TEXT    NOT NULL,
+    source_id   INTEGER NOT NULL,
+    session_id  INTEGER NOT NULL,
+    npc_id      INTEGER,
+    content     TEXT    NOT NULL,
+    created_at  TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+    UNIQUE(source, source_id)
+);
+
 """
 
 INDEXES_SQL = """\
@@ -125,6 +136,7 @@ CREATE INDEX IF NOT EXISTS idx_char_abilities ON character_abilities(character_i
 CREATE INDEX IF NOT EXISTS idx_session_meta ON session_meta(session_id);
 CREATE INDEX IF NOT EXISTS idx_story_acts_session ON story_acts(session_id, act_order);
 CREATE INDEX IF NOT EXISTS idx_regions_session ON regions(session_id);
+CREATE INDEX IF NOT EXISTS idx_embeddings_session ON embeddings(session_id, source);
 """
 
 # Migrations: add or drop columns on older databases
@@ -162,6 +174,13 @@ def get_db(db_path=None):
     conn = sqlite3.connect(db_path)
     conn.execute("PRAGMA journal_mode = WAL")
     conn.execute("PRAGMA foreign_keys = ON")
+    try:
+        import sqlite_vec
+        conn.enable_load_extension(True)
+        sqlite_vec.load(conn)
+        conn.enable_load_extension(False)
+    except ImportError:
+        pass
     return conn
 
 
@@ -337,6 +356,13 @@ def init_schema(db_path=None):
     conn = get_db(db_path)
     conn.executescript(SCHEMA_SQL)
     conn.executescript(INDEXES_SQL)
+    # Create vec0 virtual table if sqlite-vec is loaded
+    try:
+        conn.execute(
+            "CREATE VIRTUAL TABLE IF NOT EXISTS vec_embeddings USING vec0(embedding float[384])"
+        )
+    except Exception:
+        pass
     # Run column migrations
     for table, column, sql in ADD_COLUMN_MIGRATIONS:
         cols = [row[1] for row in conn.execute(f"PRAGMA table_info({table})").fetchall()]
