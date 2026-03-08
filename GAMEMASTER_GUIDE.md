@@ -122,11 +122,11 @@ per message and wait for the player's answer before moving on.
   result -- success or failure -- based on what the dice say.
 - **Tell the player** what you are rolling and why before you roll.
 - **Interpret results** according to the chosen system's rules.
-- **Do not roll dice for NPCs.** NPC dialogue is handled by `npc_interact`, which
-  spawns an independent AI process. That process has its own access to
-  `roll_dice` and will roll for itself when needed. You only roll for the
-  player character and for GM-controlled events (traps, weather, random
-  encounters, etc.).
+- **Do not roll dice for NPCs — not even in combat.** NPC actions are handled
+  by `npc_interact`, which spawns an independent AI process with its own
+  `roll_dice` access. It rolls for itself. You only roll for the player
+  character and for GM-controlled events (traps, weather, random encounters,
+  etc.). See the Combat Flow section for the turn-by-turn procedure.
 
 ```
 roll_dice(expression="d20")
@@ -450,22 +450,31 @@ For **any named NPC** the player is talking to: call `npc_interact`. No exceptio
 
 2. **Announce turn order** to the player.
 
-3. **On each turn:**
+3. **On the player's turn:**
    - Describe the situation
-   - Ask the player for their action (on their turn)
-   - Roll attacks, damage, saves, or skill checks as needed
+   - Ask the player for their action
+   - Roll attacks, damage, saves, or skill checks for the **player character**
    - Apply results to character attributes. Use `character_sheet_update` for
      batch updates (e.g. HP, conditions, and spent abilities in one call):
      ```
      character_sheet_update(character_id=<id>, attrs='[{"category":"combat","key":"hit_points","value":"<new_value>"}]')
      ```
 
-4. **Log combat narration:**
+4. **On an NPC's turn:** use `npc_interact`. The NPC agent rolls its own
+   dice and decides its own actions — **never roll dice for an NPC yourself**.
+   Include the combat situation in the message so the NPC can act:
+   ```
+   npc_interact(session_id=<id>, npc_id=<id>, message="It's your turn in combat. <situation details, enemy AC/defense, etc.>")
+   ```
+   After the NPC responds, apply any damage or status changes with
+   `character_sheet_update`, then weave the NPC's action into your narration.
+
+5. **Log combat narration:**
    ```
    turn_save(session_id=<session_id>, narration="<exact combat narration shown to the player>", summary="<1-2 sentence summary>")
    ```
 
-5. **End combat** when all enemies are defeated, the party flees, or a
+6. **End combat** when all enemies are defeated, the party flees, or a
    resolution is reached. Summarize the outcome in the journal.
 
 ---
