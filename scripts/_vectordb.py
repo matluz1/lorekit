@@ -111,14 +111,14 @@ def index_timeline(db, session_id, sql_id, entry_type, summary, created_at=None)
     _upsert_embedding(db, "timeline", sql_id, session_id, summary, created_at)
 
 
-def delete_timeline(db, sql_ids):
-    """Delete timeline entries from the embeddings and vec0 tables."""
+def delete_embeddings(db, source, sql_ids):
+    """Delete embeddings for the given source and source_ids."""
     if not sql_ids:
         return
     for sql_id in sql_ids:
         row = db.execute(
-            "SELECT id FROM embeddings WHERE source = 'timeline' AND source_id = ?",
-            (sql_id,),
+            "SELECT id FROM embeddings WHERE source = ? AND source_id = ?",
+            (source, sql_id),
         ).fetchone()
         if row:
             emb_id = row[0]
@@ -126,6 +126,11 @@ def delete_timeline(db, sql_ids):
                 db.execute("DELETE FROM vec_embeddings WHERE rowid = ?", (emb_id,))
             db.execute("DELETE FROM embeddings WHERE id = ?", (emb_id,))
     db.commit()
+
+
+def delete_timeline(db, sql_ids):
+    """Delete timeline embeddings. Thin wrapper around delete_embeddings."""
+    delete_embeddings(db, "timeline", sql_ids)
 
 
 def search(query, session_id, db, collection_name=None, n_results=5):

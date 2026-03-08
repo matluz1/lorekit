@@ -245,15 +245,17 @@ for this. The stored text is the **exact text you displayed to the player**
 -- identical, word for word, including all paragraphs and dialogue. The
 purpose is to replay the scene verbatim on resume.
 
-### Reverting a narration
+### Reverting a turn
 
-If the last narration doesn't fit (wrong NPC behavior, tone issues, etc.),
-revert it before writing a replacement:
+If the last turn doesn't fit (wrong NPC behavior, tone issues, dice rolled
+incorrectly, etc.), revert it:
 ```
-timeline_revert(session_id=<id>)
+turn_revert(session_id=<id>)
 ```
-This removes the last narration and any player choices after it, cleans up
-the vector index, and restores `last_gm_message` to the previous narration.
+This restores **all** game state to the previous checkpoint — undoing timeline
+entries, journal entries, character sheet changes, story progression, and
+metadata changes made since the last `turn_save`. Each `turn_save` creates a
+checkpoint automatically.
 
 ### Session metadata
 

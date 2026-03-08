@@ -124,6 +124,15 @@ CREATE TABLE IF NOT EXISTS embeddings (
     UNIQUE(source, source_id)
 );
 
+CREATE TABLE IF NOT EXISTS checkpoints (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id      INTEGER NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+    timeline_max_id INTEGER NOT NULL DEFAULT 0,
+    journal_max_id  INTEGER NOT NULL DEFAULT 0,
+    snapshot        TEXT    NOT NULL,
+    created_at      TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
+);
+
 """
 
 INDEXES_SQL = """\
@@ -137,6 +146,7 @@ CREATE INDEX IF NOT EXISTS idx_session_meta ON session_meta(session_id);
 CREATE INDEX IF NOT EXISTS idx_story_acts_session ON story_acts(session_id, act_order);
 CREATE INDEX IF NOT EXISTS idx_regions_session ON regions(session_id);
 CREATE INDEX IF NOT EXISTS idx_embeddings_session ON embeddings(session_id, source);
+CREATE INDEX IF NOT EXISTS idx_checkpoints_session ON checkpoints(session_id);
 """
 
 # Migrations: add or drop columns on older databases

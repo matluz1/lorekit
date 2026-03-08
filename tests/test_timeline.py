@@ -12,9 +12,10 @@ from mcp_server import (  # noqa: E402
     session_meta_get,
     timeline_add,
     timeline_list,
-    timeline_revert,
     timeline_search,
     timeline_set_summary,
+    turn_revert,
+    turn_save,
 )
 
 
@@ -175,32 +176,27 @@ def test_add_invalid_type_fails(make_session):
     assert "ERROR" in result
 
 
-# -- Revert --
+# -- Revert (via turn_revert) --
 
 
-def test_revert_removes_last_narration(make_session):
+def test_revert_removes_last_turn(make_session):
     sid = make_session()
-    timeline_add(session_id=sid, type="narration", content="First narration.")
-    timeline_add(session_id=sid, type="narration", content="Second narration.")
-    result = timeline_revert(session_id=sid)
-    assert "TIMELINE_REVERTED" in result
-    assert "1 narration" in result
+    turn_save(session_id=sid, narration="First narration.", summary="First")
+    turn_save(session_id=sid, narration="Second narration.", summary="Second")
+    result = turn_revert(session_id=sid)
+    assert "TURN_REVERTED" in result
     listing = timeline_list(session_id=sid)
     assert "First narration." in listing
     assert "Second narration." not in listing
 
 
-def test_revert_removes_narration_and_trailing_player_choices(make_session):
+def test_revert_removes_narration_and_player_choice(make_session):
     sid = make_session()
-    timeline_add(session_id=sid, type="narration", content="Scene one.")
-    timeline_add(session_id=sid, type="narration", content="Scene two.")
-    timeline_add(session_id=sid, type="player_choice", content="I run away.")
-    timeline_add(session_id=sid, type="player_choice", content="I hide.")
-    result = timeline_revert(session_id=sid)
-    assert "TIMELINE_REVERTED" in result
-    assert "3 entries removed" in result
-    assert "1 narration" in result
-    assert "2 player_choice" in result
+    turn_save(session_id=sid, narration="Scene one.", summary="Scene one")
+    turn_save(session_id=sid, narration="Scene two.", summary="Scene two",
+              player_choice="I run away.")
+    result = turn_revert(session_id=sid)
+    assert "TURN_REVERTED" in result
     listing = timeline_list(session_id=sid)
     assert "Scene one." in listing
     assert "Scene two." not in listing
@@ -209,50 +205,38 @@ def test_revert_removes_narration_and_trailing_player_choices(make_session):
 
 def test_revert_restores_last_gm_message(make_session):
     sid = make_session()
-    timeline_add(session_id=sid, type="narration", content="First narration.")
-    session_meta_set(session_id=sid, key="last_gm_message", value="First narration.")
-    timeline_add(session_id=sid, type="narration", content="Second narration.")
-    session_meta_set(session_id=sid, key="last_gm_message", value="Second narration.")
-    timeline_revert(session_id=sid)
+    turn_save(session_id=sid, narration="First narration.", summary="First")
+    turn_save(session_id=sid, narration="Second narration.", summary="Second")
+    turn_revert(session_id=sid)
     meta = session_meta_get(session_id=sid, key="last_gm_message")
     assert "First narration." in meta
 
 
-def test_revert_clears_last_gm_message_when_no_narrations_remain(make_session):
+def test_revert_no_checkpoints_returns_error(make_session):
     sid = make_session()
-    timeline_add(session_id=sid, type="narration", content="Only narration.")
-    session_meta_set(session_id=sid, key="last_gm_message", value="Only narration.")
-    timeline_revert(session_id=sid)
-    meta = session_meta_get(session_id=sid, key="last_gm_message")
-    # session_meta_get prints "key: value" — after delete the value should be empty
-    assert "Only narration." not in meta
-
-
-def test_revert_no_narrations_returns_error(make_session):
-    sid = make_session()
-    result = timeline_revert(session_id=sid)
+    result = turn_revert(session_id=sid)
     assert "ERROR" in result
 
 
-def test_revert_no_narrations_with_only_player_choices(make_session):
+def test_revert_single_turn_returns_error_after_first_revert(make_session):
+    """After reverting the only turn, a second revert should fail."""
     sid = make_session()
-    timeline_add(session_id=sid, type="player_choice", content="I look around.")
-    result = timeline_revert(session_id=sid)
+    turn_save(session_id=sid, narration="Only turn.", summary="Only turn")
+    turn_revert(session_id=sid)
+    result = turn_revert(session_id=sid)
     assert "ERROR" in result
 
 
 def test_revert_cleans_vector_index(make_session):
     sid = make_session()
-    timeline_add(
-        session_id=sid, type="narration",
-        content="The ancient temple crumbles.",
-        summary="The temple crumbles to ruins.",
-    )
+    turn_save(session_id=sid,
+              narration="The ancient temple crumbles.",
+              summary="The temple crumbles to ruins.")
     # Verify it's indexed
     result = recall_search(session_id=sid, query="temple crumbles", source="timeline")
     assert "temple" in result.lower()
     # Revert it
-    timeline_revert(session_id=sid)
+    turn_revert(session_id=sid)
     # Verify it's gone from vector index
     result = recall_search(session_id=sid, query="temple crumbles", source="timeline")
     assert "No results found" in result

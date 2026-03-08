@@ -712,14 +712,16 @@ timeline_set_summary(timeline_id=42, summary="<1-2 sentence summary>")
 SUMMARY_SET: 42
 ```
 
-## timeline_revert
+## turn_revert
 
-Revert the last narration and all timeline entries after it. Removes the
-entries from SQLite and the vector index, and restores `last_gm_message` to the
-previous narration (or clears it if none remain).
+Revert the last saved turn. Restores **all** game state — characters, items,
+attributes, abilities, story acts, regions, session metadata — and removes
+timeline/journal entries created since the previous checkpoint. Each
+`turn_save` creates a checkpoint; `turn_revert` pops the latest one and
+restores the previous.
 
 ```
-timeline_revert(session_id=1)
+turn_revert(session_id=1)
 ```
 
 | Parameter | Type | Required | Description |
@@ -728,7 +730,7 @@ timeline_revert(session_id=1)
 
 **Output:**
 ```
-TIMELINE_REVERTED: 3 entries removed (1 narration, 2 player_choice)
+TURN_REVERTED: restored to checkpoint #3 (2 timeline, 1 journal entries removed)
 ```
 
 ## timeline_list

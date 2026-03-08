@@ -312,11 +312,13 @@ def timeline_set_summary(timeline_id: int, summary: str) -> str:
 
 
 @mcp.tool()
-def timeline_revert(session_id: int) -> str:
-    """Revert the last narration and all entries after it. Cleans up the vector index and restores last_gm_message."""
-    from timeline import revert
+def turn_revert(session_id: int) -> str:
+    """Revert the last saved turn. Restores all game state (characters, items,
+    attributes, story, regions, metadata) and removes timeline/journal entries
+    created since the previous checkpoint."""
+    from checkpoint import revert_to_previous
 
-    return _run_with_db(revert, session_id)
+    return _run_with_db(revert_to_previous, session_id)
 
 
 # ---------------------------------------------------------------------------
@@ -504,9 +506,18 @@ def turn_save(
     from _db import require_db, LoreKitError
     from timeline import add as tl_add
     from session import meta_set
+    from checkpoint import create_checkpoint
 
     db = require_db()
     try:
+        # On first turn, create checkpoint #0 (pre-game state) so we can revert it
+        has_cp = db.execute(
+            "SELECT 1 FROM checkpoints WHERE session_id = ? LIMIT 1",
+            (session_id,),
+        ).fetchone()
+        if not has_cp:
+            create_checkpoint(db, session_id)
+
         results = []
 
         if narration:
@@ -518,6 +529,9 @@ def turn_save(
         if player_choice:
             r = tl_add(db, session_id, "player_choice", player_choice, narrative_time=narrative_time)
             results.append(r)
+
+        # Checkpoint after writing (the "approved" state after this turn)
+        create_checkpoint(db, session_id)
 
         return "\n".join(results)
     except LoreKitError as e:

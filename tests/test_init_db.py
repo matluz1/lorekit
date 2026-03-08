@@ -27,8 +27,9 @@ def test_creates_all_tables():
     conn.close()
     expected = [
         "character_abilities", "character_attributes", "character_inventory",
-        "characters", "embeddings", "journal", "regions", "session_meta",
-        "sessions", "stories", "story_acts", "timeline", "vec_embeddings",
+        "characters", "checkpoints", "embeddings", "journal", "regions",
+        "session_meta", "sessions", "stories", "story_acts", "timeline",
+        "vec_embeddings",
     ]
     assert sorted(tables) == expected
 
