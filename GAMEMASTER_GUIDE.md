@@ -464,12 +464,24 @@ For **any named NPC** the player is talking to: call `npc_interact`. No exceptio
 
 4. **On an NPC's turn:** use `npc_interact`. The NPC agent rolls its own
    dice and decides its own actions — **never roll dice for an NPC yourself**.
-   Include the combat situation in the message so the NPC can act:
+   Describe the combat situation **narratively only**. The message must
+   contain **zero numbers about the opponent** — no Defense, no HP, no AC,
+   no damage taken. The NPC does not have access to anyone's character
+   sheet but their own. Describe what the NPC can **see and feel**:
+   - "the opponent looks fresh and unharmed" (not "105/105 PV")
+   - "staggering, barely standing" (not "4/105 PV")
+   - "your attacks keep bouncing off the armor" (not "Defense 25")
    ```
-   npc_interact(session_id=<id>, npc_id=<id>, message="It's your turn in combat. <situation details, enemy AC/defense, etc.>")
+   npc_interact(session_id=<id>, npc_id=<id>, message="It's your turn in combat. <what you see, how the opponent looks, what just happened — no numbers about the opponent>")
    ```
-   After the NPC responds, apply any damage or status changes with
-   `character_sheet_update`, then weave the NPC's action into your narration.
+   Do not include the NPC's own stats or attack bonuses in the message —
+   the NPC already has its full character sheet in its system prompt.
+   Sending stats redundantly risks getting them wrong. Just describe
+   the situation and let the NPC use its own sheet.
+   After the NPC responds, **you** interpret the dice results against the
+   target's actual Defense to determine hits and misses. Apply any damage or
+   status changes with `character_sheet_update`, then weave the NPC's action
+   into your narration.
 
 5. **Log combat narration:**
    ```
