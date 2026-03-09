@@ -1156,6 +1156,56 @@ def npc_interact(session_id: int, npc_id: int, message: str) -> str:
 
 
 # ---------------------------------------------------------------------------
+# Rules engine
+# ---------------------------------------------------------------------------
+
+
+@mcp.tool()
+def rules_calc(character_id: int, system_path: str = "") -> str:
+    """Recompute all derived stats for a character using the rules engine.
+
+    Loads the system pack, reads the character's base attributes, resolves
+    the dependency graph, writes derived stats back to the sheet, and
+    returns a summary of what changed.
+
+    If system_path is empty, reads the session's 'rules_system' metadata
+    and looks for the pack under systems/<rules_system>/ in the project root.
+    """
+    import os
+
+    from _db import LoreKitError, require_db
+
+    db = require_db()
+    try:
+        if not system_path:
+            # Look up character's session, then session's rules_system meta
+            row = db.execute(
+                "SELECT session_id FROM characters WHERE id = ?",
+                (character_id,),
+            ).fetchone()
+            if row is None:
+                return f"ERROR: Character {character_id} not found"
+            session_id = row[0]
+            meta_row = db.execute(
+                "SELECT value FROM session_meta WHERE session_id = ? AND key = 'rules_system'",
+                (session_id,),
+            ).fetchone()
+            if meta_row is None:
+                return "ERROR: No rules_system set for this session. Use session_meta_set to configure it."
+            system_name = meta_row[0]
+            project_root = os.path.dirname(os.path.abspath(__file__))
+            system_path = os.path.join(project_root, "systems", system_name)
+
+        from rules_engine import rules_calc as _rules_calc
+
+        return _rules_calc(db, character_id, system_path)
+    except LoreKitError as e:
+        return f"ERROR: {e}"
+    finally:
+        db.close()
+
+
+# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 
