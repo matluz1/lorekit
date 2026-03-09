@@ -1,0 +1,12 @@
+{
+  "meta": {
+    "name": "Warrior",
+    "hit_die": "d10",
+    "bab": "bab_full",
+    "saves": {"fortitude": "fortitude_good"}
+  },
+  "level": {
+    "1": {"features": ["combat_stance"]},
+    "5": {"features": ["extra_attack"]}
+  }
+}

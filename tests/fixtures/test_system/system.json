@@ -1,0 +1,29 @@
+{
+  "meta": {
+    "name": "Test System",
+    "dice": "d20"
+  },
+  "ability_scores": {
+    "list": ["Strength", "Dexterity", "Constitution"],
+    "modifier": "floor((score - 10) / 2)"
+  },
+  "tables": {
+    "bab_full": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+    "bab_half": [0, 1, 1, 2, 2, 3, 3, 4, 4, 5],
+    "fortitude_good": [2, 3, 3, 4, 4, 5, 5, 6, 6, 7],
+    "fortitude_poor": [0, 0, 1, 1, 1, 2, 2, 2, 3, 3]
+  },
+  "iterative_attacks": {
+    "threshold": 6,
+    "penalty": -5
+  },
+  "derived": {
+    "melee_attack": "bab + mod(str) + sum(bonuses.melee_attack)",
+    "ranged_attack": "bab + mod(dex) + sum(bonuses.ranged_attack)",
+    "defense": "10 + mod(dex) + sum(bonuses.defense)",
+    "max_hp": "hit_die_avg * level + mod(con) * level"
+  },
+  "constraints": {
+    "hp_positive": "max_hp > 0"
+  }
+}

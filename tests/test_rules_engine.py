@@ -76,7 +76,7 @@ class TestLoadSystemPack:
         assert pack.feats["power_attack"].combat_option is True
         assert pack.feats["weapon_focus"].param == "weapon_type"
 
-    def test_missing_system_toml(self, tmp_path):
+    def test_missing_system_json(self, tmp_path):
         with pytest.raises(FileNotFoundError):
             load_system_pack(str(tmp_path))
 
@@ -194,9 +194,9 @@ class TestRecalculate:
         assert "defense" not in result.changes
 
     def test_empty_system_pack(self, tmp_path):
-        # Minimal system.toml with no derived stats
-        system_file = tmp_path / "system.toml"
-        system_file.write_text('[meta]\nname = "Empty"\n')
+        # Minimal system.json with no derived stats
+        system_file = tmp_path / "system.json"
+        system_file.write_text('{"meta": {"name": "Empty"}}')
         pack = load_system_pack(str(tmp_path))
         char = self._make_char()
 
@@ -323,8 +323,8 @@ class TestDBIntegration:
         sid = make_session()
         cid = make_character(sid)
 
-        system_file = tmp_path / "system.toml"
-        system_file.write_text('[meta]\nname = "Empty"\n')
+        system_file = tmp_path / "system.json"
+        system_file.write_text('{"meta": {"name": "Empty"}}')
 
         db = require_db()
         try:

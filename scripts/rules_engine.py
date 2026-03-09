@@ -1,22 +1,18 @@
 """Crunch rules engine — loads system packs, resolves dependency graphs,
 computes derived stats, and validates constraints.
 
-A system pack is a directory of TOML files describing a rule system.
+A system pack is a directory of JSON files describing a rule system.
 The engine is generic; rules are pure data.
 """
 
 from __future__ import annotations
 
+import json
 import math
 import os
 from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Any
-
-try:
-    import tomllib
-except ModuleNotFoundError:
-    import tomli as tomllib  # type: ignore[no-redef]
 
 from rules_formulas import (
     FormulaContext,
@@ -108,12 +104,12 @@ class PipelineStage:
 
 
 # ---------------------------------------------------------------------------
-# TOML loader
+# JSON loader
 # ---------------------------------------------------------------------------
 
-def _load_toml(path: str) -> dict:
-    with open(path, "rb") as f:
-        return tomllib.load(f)
+def _load_json(path: str) -> dict:
+    with open(path) as f:
+        return json.load(f)
 
 
 def _gen_short_names(abilities: list[str]) -> tuple[dict[str, str], dict[str, str]]:
@@ -151,12 +147,12 @@ def _gen_short_names(abilities: list[str]) -> tuple[dict[str, str], dict[str, st
 
 
 def load_system_pack(pack_dir: str) -> SystemPack:
-    """Load a system pack from a directory of TOML files."""
-    system_path = os.path.join(pack_dir, "system.toml")
+    """Load a system pack from a directory of JSON files."""
+    system_path = os.path.join(pack_dir, "system.json")
     if not os.path.isfile(system_path):
-        raise FileNotFoundError(f"system.toml not found in {pack_dir}")
+        raise FileNotFoundError(f"system.json not found in {pack_dir}")
 
-    data = _load_toml(system_path)
+    data = _load_json(system_path)
     pack = SystemPack()
 
     # Meta
@@ -201,20 +197,16 @@ def load_system_pack(pack_dir: str) -> SystemPack:
     classes_dir = os.path.join(pack_dir, "classes")
     if os.path.isdir(classes_dir):
         for fname in os.listdir(classes_dir):
-            if fname.endswith(".toml"):
-                cls_data = _load_toml(os.path.join(classes_dir, fname))
-                cls_key = fname[:-5]  # strip .toml
+            if fname.endswith(".json"):
+                cls_data = _load_json(os.path.join(classes_dir, fname))
+                cls_key = fname[:-5]  # strip .json
                 cls = ClassDef()
                 cls_meta = cls_data.get("meta", {})
                 cls.name = cls_meta.get("name", cls_key)
                 cls.hit_die = cls_meta.get("hit_die", "")
                 cls.progressions = dict(cls_meta.get("progressions", {}))
                 cls.saves = dict(cls_meta.get("saves", {}))
-                for level_key, level_data in cls_data.items():
-                    if level_key.startswith("level.") or (level_key.startswith("level") and level_key != "level"):
-                        # Handle both [level.1] (parsed as {"level": {"1": ...}}) and direct
-                        pass
-                # TOML [level.N] is parsed as nested: {"level": {"1": {...}, "2": {...}}}
+                # Levels: {"level": {"1": {...}, "2": {...}}}
                 level_section = cls_data.get("level", {})
                 if isinstance(level_section, dict):
                     for lvl_str, lvl_data in level_section.items():
@@ -230,9 +222,9 @@ def load_system_pack(pack_dir: str) -> SystemPack:
                 pack.classes[cls_key] = cls
 
     # Load feats
-    feats_path = os.path.join(pack_dir, "feats.toml")
+    feats_path = os.path.join(pack_dir, "feats.json")
     if os.path.isfile(feats_path):
-        feats_data = _load_toml(feats_path)
+        feats_data = _load_json(feats_path)
         for feat_key, feat_data in feats_data.items():
             if not isinstance(feat_data, dict):
                 continue
@@ -248,10 +240,10 @@ def load_system_pack(pack_dir: str) -> SystemPack:
             )
             pack.feats[feat_key] = feat
 
-    # Also load advantages.toml (point-buy systems)
-    advantages_path = os.path.join(pack_dir, "advantages.toml")
+    # Also load advantages.json (point-buy systems)
+    advantages_path = os.path.join(pack_dir, "advantages.json")
     if os.path.isfile(advantages_path):
-        adv_data = _load_toml(advantages_path)
+        adv_data = _load_json(advantages_path)
         for adv_key, adv_info in adv_data.items():
             if not isinstance(adv_info, dict):
                 continue
