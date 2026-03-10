@@ -540,6 +540,35 @@ def turn_save(
         db.close()
 
 
+def _try_rules_calc(db, character_id: int, session_id: int) -> str:
+    """Try to auto-run rules_calc if the session has a rules_system configured.
+
+    Returns the rules_calc summary string, or empty string if not applicable.
+    """
+    import os
+
+    meta_row = db.execute(
+        "SELECT value FROM session_meta WHERE session_id = ? AND key = 'rules_system'",
+        (session_id,),
+    ).fetchone()
+    if meta_row is None:
+        return ""
+
+    system_name = meta_row[0]
+    project_root = os.path.dirname(os.path.abspath(__file__))
+    system_path = os.path.join(project_root, "systems", system_name)
+
+    if not os.path.isdir(system_path):
+        return ""
+
+    try:
+        from rules_engine import rules_calc as _rules_calc
+
+        return _rules_calc(db, character_id, system_path)
+    except Exception as e:
+        return f"RULES_CALC_WARNING: {e}"
+
+
 @mcp.tool()
 def character_build(
     session: int,
@@ -589,7 +618,14 @@ def character_build(
             set_ability(db, char_id, ab["name"], ab["desc"], ab["category"], ab.get("uses", "at_will"))
             ability_count += 1
 
-        return f"CHARACTER_BUILT: {char_id} (attrs={attr_count}, items={item_count}, abilities={ability_count})"
+        summary = f"CHARACTER_BUILT: {char_id} (attrs={attr_count}, items={item_count}, abilities={ability_count})"
+
+        # Auto-run rules_calc if session has a rules_system configured
+        rules_summary = _try_rules_calc(db, char_id, session)
+        if rules_summary:
+            summary += "\n" + rules_summary
+
+        return summary
     except LoreKitError as e:
         return f"ERROR: {e}"
     finally:
@@ -851,6 +887,18 @@ def character_sheet_update(
 
         if not results:
             return "NO_CHANGES: no fields provided"
+
+        # Auto-run rules_calc if attributes changed and session has rules_system
+        if attrs_list:
+            row = db.execute(
+                "SELECT session_id FROM characters WHERE id = ?",
+                (character_id,),
+            ).fetchone()
+            if row:
+                rules_summary = _try_rules_calc(db, character_id, row[0])
+                if rules_summary:
+                    results.append(rules_summary)
+
         return "\n".join(results)
     except LoreKitError as e:
         return f"ERROR: {e}"

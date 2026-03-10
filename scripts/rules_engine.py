@@ -44,6 +44,9 @@ class SystemPack:
     # Reverse: {"Strength": "str", ...}
     ability_to_short: dict[str, str] = field(default_factory=dict)
 
+    # Default values for optional variables (armor_bonus, trained_*, etc.)
+    defaults: dict[str, Any] = field(default_factory=dict)
+
     # Derived stat formulas: {"melee_attack": "proficiency + mod(str) + ...", ...}
     derived: dict[str, str] = field(default_factory=dict)
 
@@ -166,6 +169,9 @@ def load_system_pack(pack_dir: str) -> SystemPack:
     pack.ability_mod_formula = abilities.get("modifier", "")
     pack.ability_cost_per_rank = abilities.get("cost_per_rank", 0)
     pack.ability_short_names, pack.ability_to_short = _gen_short_names(pack.ability_list)
+
+    # Defaults for optional variables
+    pack.defaults = dict(data.get("defaults", {}))
 
     # Derived formulas
     pack.derived = dict(data.get("derived", {}))
@@ -404,6 +410,12 @@ def _build_context(pack: SystemPack, char: CharacterData) -> FormulaContext:
 
     # Base values from character
     ctx.values["level"] = char.level
+
+    # Apply system pack defaults for optional variables.
+    # These are declared explicitly in the pack so typos in formulas
+    # still raise errors instead of silently evaluating to 0.
+    for key, val in pack.defaults.items():
+        ctx.values.setdefault(key, val)
 
     # Ability scores: store both short name and as ability score
     ability_cat = None
