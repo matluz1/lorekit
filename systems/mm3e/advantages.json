@@ -1,0 +1,622 @@
+{
+  "_comment": "M&M 3e advantages — from the d20 Hero SRD (OGL)",
+
+  "accurate_attack": {
+    "name": "Accurate Attack",
+    "category": "combat",
+    "ranked": false,
+    "cost": 1,
+    "combat_option": true,
+    "effects": {},
+    "note": "Trade up to -5 effect DC for +5 attack bonus on a single attack"
+  },
+  "all_out_attack": {
+    "name": "All-out Attack",
+    "category": "combat",
+    "ranked": false,
+    "cost": 1,
+    "combat_option": true,
+    "effects": {},
+    "note": "Trade up to -5 active defenses for +5 attack bonus on a single attack"
+  },
+  "chokehold": {
+    "name": "Chokehold",
+    "category": "combat",
+    "ranked": false,
+    "cost": 1,
+    "effects": {},
+    "note": "Suffocate a grabbed opponent"
+  },
+  "close_attack": {
+    "name": "Close Attack",
+    "category": "combat",
+    "ranked": true,
+    "cost": 1,
+    "effects": {"adv_close_attack": 1},
+    "note": "+1 close attack check bonus per rank"
+  },
+  "defensive_attack": {
+    "name": "Defensive Attack",
+    "category": "combat",
+    "ranked": false,
+    "cost": 1,
+    "combat_option": true,
+    "effects": {},
+    "note": "Trade up to -5 attack bonus for +5 active defenses"
+  },
+  "defensive_roll": {
+    "name": "Defensive Roll",
+    "category": "combat",
+    "ranked": true,
+    "cost": 1,
+    "effects": {"adv_defensive_roll": 1},
+    "note": "+1 Toughness per rank (active defense, lost when vulnerable/defenseless)"
+  },
+  "evasion": {
+    "name": "Evasion",
+    "category": "combat",
+    "ranked": true,
+    "max_ranks": 2,
+    "cost": 1,
+    "effects": {"adv_evasion": 1},
+    "note": "Rank 1: +2 Dodge vs area effects. Rank 2: +5 Dodge vs area effects"
+  },
+  "fast_grab": {
+    "name": "Fast Grab",
+    "category": "combat",
+    "ranked": false,
+    "cost": 1,
+    "effects": {},
+    "note": "Free grab check after successful unarmed attack"
+  },
+  "favored_environment": {
+    "name": "Favored Environment",
+    "category": "combat",
+    "ranked": false,
+    "cost": 1,
+    "param": "environment",
+    "effects": {},
+    "note": "+2 circumstance bonus to attack or defense in chosen environment"
+  },
+  "grabbing_finesse": {
+    "name": "Grabbing Finesse",
+    "category": "combat",
+    "ranked": false,
+    "cost": 1,
+    "effects": {},
+    "note": "Use Dexterity for grab attacks; not vulnerable while grabbing"
+  },
+  "improved_aim": {
+    "name": "Improved Aim",
+    "category": "combat",
+    "ranked": false,
+    "cost": 1,
+    "effects": {},
+    "note": "Double normal aim bonuses (+10 close/adjacent, +5 ranged)"
+  },
+  "improved_critical": {
+    "name": "Improved Critical",
+    "category": "combat",
+    "ranked": true,
+    "max_ranks": 4,
+    "cost": 1,
+    "param": "attack",
+    "effects": {"adv_improved_critical": 1},
+    "note": "+1 critical threat range per rank (max 16-20 at rank 4)"
+  },
+  "improved_defense": {
+    "name": "Improved Defense",
+    "category": "combat",
+    "ranked": false,
+    "cost": 1,
+    "effects": {},
+    "note": "+2 circumstance bonus to active defenses when taking defend action"
+  },
+  "improved_disarm": {
+    "name": "Improved Disarm",
+    "category": "combat",
+    "ranked": false,
+    "cost": 1,
+    "effects": {},
+    "note": "No penalty for disarm; opponent cannot disarm you"
+  },
+  "improved_grab": {
+    "name": "Improved Grab",
+    "category": "combat",
+    "ranked": false,
+    "cost": 1,
+    "effects": {},
+    "note": "Grab with one arm; not vulnerable while grabbing"
+  },
+  "improved_hold": {
+    "name": "Improved Hold",
+    "category": "combat",
+    "ranked": false,
+    "cost": 1,
+    "effects": {},
+    "note": "-5 penalty to escape from your holds"
+  },
+  "improved_initiative": {
+    "name": "Improved Initiative",
+    "category": "combat",
+    "ranked": true,
+    "cost": 1,
+    "effects": {"adv_improved_initiative": 1},
+    "note": "+4 initiative per rank"
+  },
+  "improved_smash": {
+    "name": "Improved Smash",
+    "category": "combat",
+    "ranked": false,
+    "cost": 1,
+    "effects": {},
+    "note": "No penalty for smash action"
+  },
+  "improved_trip": {
+    "name": "Improved Trip",
+    "category": "combat",
+    "ranked": false,
+    "cost": 1,
+    "effects": {},
+    "note": "No trip penalty; opponent cannot trip you; you choose defending skill"
+  },
+  "improvised_weapon": {
+    "name": "Improvised Weapon",
+    "category": "combat",
+    "ranked": true,
+    "cost": 1,
+    "effects": {},
+    "note": "Use Close Combat skill with improvised weapons; +1 damage per rank"
+  },
+  "move_by_action": {
+    "name": "Move-by Action",
+    "category": "combat",
+    "ranked": false,
+    "cost": 1,
+    "effects": {},
+    "note": "Move before and after standard action within total speed"
+  },
+  "power_attack": {
+    "name": "Power Attack",
+    "category": "combat",
+    "ranked": false,
+    "cost": 1,
+    "combat_option": true,
+    "effects": {},
+    "note": "Trade up to -5 attack bonus for +5 effect bonus on a single attack"
+  },
+  "precise_attack": {
+    "name": "Precise Attack",
+    "category": "combat",
+    "ranked": true,
+    "max_ranks": 4,
+    "cost": 1,
+    "effects": {},
+    "note": "Ignore cover or concealment penalty (close/ranged x cover/concealment)"
+  },
+  "prone_fighting": {
+    "name": "Prone Fighting",
+    "category": "combat",
+    "ranked": false,
+    "cost": 1,
+    "effects": {},
+    "note": "No penalties while prone; adjacent opponents lose circumstance bonus"
+  },
+  "quick_draw": {
+    "name": "Quick Draw",
+    "category": "combat",
+    "ranked": false,
+    "cost": 1,
+    "effects": {},
+    "note": "Draw weapon as free action"
+  },
+  "ranged_attack": {
+    "name": "Ranged Attack",
+    "category": "combat",
+    "ranked": true,
+    "cost": 1,
+    "effects": {"adv_ranged_attack": 1},
+    "note": "+1 ranged attack check bonus per rank"
+  },
+  "redirect": {
+    "name": "Redirect",
+    "category": "combat",
+    "ranked": false,
+    "cost": 1,
+    "effects": {},
+    "note": "Use Deception to redirect a missed attack at a new target"
+  },
+  "set_up": {
+    "name": "Set-up",
+    "category": "combat",
+    "ranked": true,
+    "cost": 1,
+    "effects": {},
+    "note": "Transfer interaction skill benefit to one ally per rank"
+  },
+  "takedown": {
+    "name": "Takedown",
+    "category": "combat",
+    "ranked": true,
+    "max_ranks": 2,
+    "cost": 1,
+    "effects": {},
+    "note": "Free extra attack vs minion when incapacitating one; rank 2: non-adjacent"
+  },
+  "throwing_mastery": {
+    "name": "Throwing Mastery",
+    "category": "combat",
+    "ranked": true,
+    "cost": 1,
+    "effects": {},
+    "note": "+1 thrown weapon damage per rank"
+  },
+  "uncanny_dodge": {
+    "name": "Uncanny Dodge",
+    "category": "combat",
+    "ranked": false,
+    "cost": 1,
+    "effects": {},
+    "note": "Not vulnerable when surprised or caught off-guard"
+  },
+  "weapon_bind": {
+    "name": "Weapon Bind",
+    "category": "combat",
+    "ranked": false,
+    "cost": 1,
+    "effects": {},
+    "note": "Free disarm attempt as reaction when defending vs weapon attack"
+  },
+  "weapon_break": {
+    "name": "Weapon Break",
+    "category": "combat",
+    "ranked": false,
+    "cost": 1,
+    "effects": {},
+    "note": "Free attack vs weapon as reaction when defending"
+  },
+
+  "beginners_luck": {
+    "name": "Beginner's Luck",
+    "category": "fortune",
+    "ranked": false,
+    "cost": 1,
+    "effects": {},
+    "note": "Spend VP: gain 5 effective ranks in a skill you have 4 or fewer ranks in for the scene"
+  },
+  "inspire": {
+    "name": "Inspire",
+    "category": "fortune",
+    "ranked": true,
+    "max_ranks": 5,
+    "cost": 1,
+    "effects": {},
+    "note": "Spend VP: allies gain +1 circumstance bonus per rank (max +5) until next round"
+  },
+  "leadership": {
+    "name": "Leadership",
+    "category": "fortune",
+    "ranked": false,
+    "cost": 1,
+    "effects": {},
+    "note": "Spend VP: remove dazed, fatigued, or stunned from one ally"
+  },
+  "luck": {
+    "name": "Luck",
+    "category": "fortune",
+    "ranked": true,
+    "cost": 1,
+    "effects": {},
+    "note": "Reroll one die per rank per session; rolls of 10 or less become 11+"
+  },
+  "seize_initiative": {
+    "name": "Seize Initiative",
+    "category": "fortune",
+    "ranked": false,
+    "cost": 1,
+    "effects": {},
+    "note": "Spend VP: go first in initiative order at start of combat"
+  },
+  "ultimate_effort": {
+    "name": "Ultimate Effort",
+    "category": "fortune",
+    "ranked": false,
+    "cost": 1,
+    "param": "check_type",
+    "effects": {},
+    "note": "Spend VP: treat specific check result as natural 20"
+  },
+
+  "assessment": {
+    "name": "Assessment",
+    "category": "general",
+    "ranked": false,
+    "cost": 1,
+    "effects": {},
+    "note": "Free action Insight check to learn opponent attack/defense bonuses relative to yours"
+  },
+  "benefit": {
+    "name": "Benefit",
+    "category": "general",
+    "ranked": true,
+    "cost": 1,
+    "param": "benefit_type",
+    "effects": {},
+    "note": "Significant social/legal benefit (Wealth 1-5, Status, Diplomatic Immunity, etc.)"
+  },
+  "diehard": {
+    "name": "Diehard",
+    "category": "general",
+    "ranked": false,
+    "cost": 1,
+    "effects": {},
+    "note": "Automatically stabilize when dying"
+  },
+  "eidetic_memory": {
+    "name": "Eidetic Memory",
+    "category": "general",
+    "ranked": false,
+    "cost": 1,
+    "effects": {},
+    "note": "Perfect recall; +5 to remember things; +5 vs memory alteration"
+  },
+  "equipment": {
+    "name": "Equipment",
+    "category": "general",
+    "ranked": true,
+    "cost": 1,
+    "effects": {"adv_equipment": 1},
+    "note": "5 equipment points per rank for gear, vehicles, headquarters"
+  },
+  "extraordinary_effort": {
+    "name": "Extraordinary Effort",
+    "category": "general",
+    "ranked": false,
+    "cost": 1,
+    "effects": {},
+    "note": "Gain two benefits from extra effort; exhausted instead of fatigued"
+  },
+  "fearless": {
+    "name": "Fearless",
+    "category": "general",
+    "ranked": false,
+    "cost": 1,
+    "effects": {},
+    "note": "Immune to fear effects"
+  },
+  "great_endurance": {
+    "name": "Great Endurance",
+    "category": "general",
+    "ranked": false,
+    "cost": 1,
+    "effects": {},
+    "note": "+5 on fatigue, suffocation, starvation, environmental damage checks"
+  },
+  "instant_up": {
+    "name": "Instant Up",
+    "category": "general",
+    "ranked": false,
+    "cost": 1,
+    "effects": {},
+    "note": "Stand from prone as free action"
+  },
+  "interpose": {
+    "name": "Interpose",
+    "category": "general",
+    "ranked": false,
+    "cost": 1,
+    "effects": {},
+    "note": "Reaction: take an attack meant for an ally within movement range"
+  },
+  "minion": {
+    "name": "Minion",
+    "category": "general",
+    "ranked": true,
+    "cost": 1,
+    "effects": {},
+    "note": "Follower with 15 x rank character points"
+  },
+  "second_chance": {
+    "name": "Second Chance",
+    "category": "general",
+    "ranked": true,
+    "cost": 1,
+    "param": "hazard_type",
+    "effects": {},
+    "note": "Reroll one failed check vs specific hazard (once per hazard type)"
+  },
+  "sidekick": {
+    "name": "Sidekick",
+    "category": "general",
+    "ranked": true,
+    "cost": 1,
+    "effects": {},
+    "note": "Partner NPC with 5 x rank character points"
+  },
+  "teamwork": {
+    "name": "Teamwork",
+    "category": "general",
+    "ranked": false,
+    "cost": 1,
+    "effects": {},
+    "note": "+5 circumstance bonus to team checks, Aid action, and team attacks"
+  },
+  "trance": {
+    "name": "Trance",
+    "category": "general",
+    "ranked": false,
+    "cost": 1,
+    "effects": {},
+    "note": "Deep trance: add Awareness to Stamina for breath-holding; suspend disease/poison"
+  },
+
+  "agile_feint": {
+    "name": "Agile Feint",
+    "category": "skill",
+    "ranked": false,
+    "cost": 1,
+    "effects": {},
+    "note": "Use Acrobatics or movement rank instead of Deception to feint"
+  },
+  "animal_empathy": {
+    "name": "Animal Empathy",
+    "category": "skill",
+    "ranked": false,
+    "cost": 1,
+    "effects": {},
+    "note": "Use interaction skills on animals normally"
+  },
+  "artificer": {
+    "name": "Artificer",
+    "category": "skill",
+    "ranked": false,
+    "cost": 1,
+    "prereqs": {"ranks_expertise": 1},
+    "effects": {},
+    "note": "Use Expertise: Magic to create temporary magical devices"
+  },
+  "attractive": {
+    "name": "Attractive",
+    "category": "skill",
+    "ranked": true,
+    "max_ranks": 2,
+    "cost": 1,
+    "effects": {},
+    "note": "Rank 1: +2 Deception/Persuasion (appearance). Rank 2: +5"
+  },
+  "connected": {
+    "name": "Connected",
+    "category": "skill",
+    "ranked": false,
+    "cost": 1,
+    "effects": {},
+    "note": "Call in favors via Persuasion check (DC 10-25+)"
+  },
+  "contacts": {
+    "name": "Contacts",
+    "category": "skill",
+    "ranked": false,
+    "cost": 1,
+    "effects": {},
+    "note": "Gather information in 1 minute via Investigation check"
+  },
+  "daze": {
+    "name": "Daze",
+    "category": "skill",
+    "ranked": true,
+    "max_ranks": 2,
+    "cost": 1,
+    "param": "skill_type",
+    "effects": {},
+    "note": "Standard action: daze opponent with Deception or Intimidation (choose per rank)"
+  },
+  "fascinate": {
+    "name": "Fascinate",
+    "category": "skill",
+    "ranked": true,
+    "cost": 1,
+    "param": "skill_type",
+    "effects": {},
+    "note": "Use interaction skill to entrance targets; standard action, maintained each round"
+  },
+  "favored_foe": {
+    "name": "Favored Foe",
+    "category": "skill",
+    "ranked": false,
+    "cost": 1,
+    "param": "opponent_type",
+    "effects": {},
+    "note": "+2 circumstance bonus to Deception, Intimidation, Insight, Perception vs chosen type"
+  },
+  "hide_in_plain_sight": {
+    "name": "Hide in Plain Sight",
+    "category": "skill",
+    "ranked": false,
+    "cost": 1,
+    "effects": {},
+    "note": "Hide while observed without diversion; requires cover/concealment"
+  },
+  "improvised_tools": {
+    "name": "Improvised Tools",
+    "category": "skill",
+    "ranked": false,
+    "cost": 1,
+    "effects": {},
+    "note": "Ignore penalty for lacking proper tools"
+  },
+  "inventor": {
+    "name": "Inventor",
+    "category": "skill",
+    "ranked": false,
+    "cost": 1,
+    "prereqs": {"ranks_technology": 1},
+    "effects": {},
+    "note": "Use Technology to create temporary inventions"
+  },
+  "jack_of_all_trades": {
+    "name": "Jack-of-all-trades",
+    "category": "skill",
+    "ranked": false,
+    "cost": 1,
+    "effects": {},
+    "note": "Use any skill untrained, even those normally requiring training"
+  },
+  "languages": {
+    "name": "Languages",
+    "category": "skill",
+    "ranked": true,
+    "cost": 1,
+    "effects": {},
+    "note": "Rank 1: 1 language. Rank 2: 2. Rank 3: 4. Rank 4: 8. Doubles each rank. Rank 7: 64"
+  },
+  "ritualist": {
+    "name": "Ritualist",
+    "category": "skill",
+    "ranked": false,
+    "cost": 1,
+    "prereqs": {"ranks_expertise": 1},
+    "effects": {},
+    "note": "Use Expertise: Magic to create and cast magical rituals"
+  },
+  "skill_mastery": {
+    "name": "Skill Mastery",
+    "category": "skill",
+    "ranked": false,
+    "cost": 1,
+    "param": "skill_type",
+    "effects": {},
+    "note": "Make routine checks with chosen skill even under pressure"
+  },
+  "startle": {
+    "name": "Startle",
+    "category": "skill",
+    "ranked": false,
+    "cost": 1,
+    "effects": {},
+    "note": "Use Intimidation instead of Deception to feint"
+  },
+  "taunt": {
+    "name": "Taunt",
+    "category": "skill",
+    "ranked": false,
+    "cost": 1,
+    "effects": {},
+    "note": "Use Deception instead of Intimidation to demoralize"
+  },
+  "tracking": {
+    "name": "Tracking",
+    "category": "skill",
+    "ranked": false,
+    "cost": 1,
+    "effects": {},
+    "note": "Use Perception to visually follow tracks"
+  },
+  "well_informed": {
+    "name": "Well-informed",
+    "category": "skill",
+    "ranked": false,
+    "cost": 1,
+    "effects": {},
+    "note": "Immediate Investigation or Persuasion check to recall info on first encounter"
+  }
+}

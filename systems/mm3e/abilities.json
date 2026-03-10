@@ -1,0 +1,98 @@
+{
+  "_comment": "M&M 3e abilities — from the d20 Hero SRD (OGL). Cost: 2 character points per ability rank. No modifier conversion; rank IS the modifier.",
+
+  "cost_per_rank": 2,
+  "absent_ability_cost": -10,
+
+  "strength": {
+    "name": "Strength",
+    "abbrev": "str",
+    "cost_per_rank": 2,
+    "defenses": [],
+    "skills": ["athletics"],
+    "special": "Determines close damage (unarmed = Str rank), lifting capacity, and Athletics checks.",
+    "absent": "Cannot exert physical force; no physical form or cannot move."
+  },
+  "stamina": {
+    "name": "Stamina",
+    "abbrev": "sta",
+    "cost_per_rank": 2,
+    "defenses": ["toughness", "fortitude"],
+    "skills": [],
+    "special": "Base Toughness = Stamina rank. Base Fortitude = Stamina rank.",
+    "absent": "No physical body or not a living being. Uses object damage rules. No Fortitude defense. Cannot use extra effort."
+  },
+  "dexterity": {
+    "name": "Dexterity",
+    "abbrev": "dex",
+    "cost_per_rank": 2,
+    "defenses": [],
+    "skills": ["sleight_of_hand", "vehicles", "ranged_combat"],
+    "special": "Base ranged attack bonus = Dexterity rank.",
+    "absent": "Cannot manipulate objects or make ranged attacks."
+  },
+  "agility": {
+    "name": "Agility",
+    "abbrev": "agl",
+    "cost_per_rank": 2,
+    "defenses": ["dodge"],
+    "skills": ["acrobatics", "stealth"],
+    "special": "Base Dodge = Agility rank. Base Initiative = Agility rank. Halved when vulnerable, 0 when defenseless.",
+    "absent": "Cannot move under own power. No Dodge defense."
+  },
+  "fighting": {
+    "name": "Fighting",
+    "abbrev": "fgt",
+    "cost_per_rank": 2,
+    "defenses": ["parry"],
+    "skills": ["close_combat"],
+    "special": "Base close attack bonus = Fighting rank. Base Parry = Fighting rank. Halved when vulnerable, 0 when defenseless.",
+    "absent": "Cannot make close attacks (may still use ranged if has Dexterity)."
+  },
+  "intellect": {
+    "name": "Intellect",
+    "abbrev": "int",
+    "cost_per_rank": 2,
+    "defenses": [],
+    "skills": ["expertise", "investigation", "technology", "treatment"],
+    "special": "Reasoning, learning, and knowledge.",
+    "absent": "Automaton with no free will. Immune to mental effects. No Will defense (via Intellect path)."
+  },
+  "awareness": {
+    "name": "Awareness",
+    "abbrev": "awe",
+    "cost_per_rank": 2,
+    "defenses": ["will"],
+    "skills": ["insight", "perception"],
+    "special": "Base Will = Awareness rank. Intuition and common sense.",
+    "absent": "Completely unaware; also has no Presence. Is an inanimate object."
+  },
+  "presence": {
+    "name": "Presence",
+    "abbrev": "pre",
+    "cost_per_rank": 2,
+    "defenses": [],
+    "skills": ["deception", "intimidation", "persuasion"],
+    "special": "Personality force, leadership, persuasion.",
+    "absent": "Cannot interact. Immune to interaction skills. No Will defense (via Presence path)."
+  },
+
+  "defense_costs": {
+    "_note": "Defense ranks above the base ability rank cost 1 character point per rank.",
+    "dodge": {"base_ability": "agl", "cost_per_additional_rank": 1},
+    "parry": {"base_ability": "fgt", "cost_per_additional_rank": 1},
+    "fortitude": {"base_ability": "sta", "cost_per_additional_rank": 1},
+    "will": {"base_ability": "awe", "cost_per_additional_rank": 1},
+    "toughness": {"base_ability": "sta", "cost_per_additional_rank": "via_powers_or_advantages", "note": "Cannot buy Toughness directly; use Protection effect or Defensive Roll advantage"}
+  },
+
+  "power_level_limits": {
+    "attack_effect": "close_attack + effect_rank <= power_level * 2",
+    "ranged_attack_effect": "ranged_attack + effect_rank <= power_level * 2",
+    "dodge_toughness": "dodge + toughness <= power_level * 2",
+    "parry_toughness": "parry + toughness <= power_level * 2",
+    "fortitude_will": "fortitude + will <= power_level * 2",
+    "skill_modifier": "ability_rank + skill_ranks + advantages <= power_level + 10",
+    "starting_points": "power_level * 15"
+  }
+}

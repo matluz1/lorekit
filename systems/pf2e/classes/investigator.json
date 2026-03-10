@@ -1,0 +1,159 @@
+{
+  "meta": {
+    "name": "Investigator",
+    "hp_per_level": 8,
+    "key_ability": ["int"],
+    "trained_skills": 4,
+    "description": "Keen-minded sleuths who use deductive reasoning and strategic strikes.",
+    "progressions": {
+      "prof_perception":       "investigator_prof_perception",
+      "prof_fortitude":        "investigator_prof_fortitude",
+      "prof_reflex":           "investigator_prof_reflex",
+      "prof_will":             "investigator_prof_will",
+      "prof_simple_weapons":   "investigator_prof_weapons",
+      "prof_unarmed":          "investigator_prof_weapons",
+      "prof_unarmored":        "investigator_prof_defense",
+      "prof_light_armor":      "investigator_prof_defense",
+      "prof_spell_attack":     "investigator_prof_spell",
+      "prof_spell_dc":         "investigator_prof_spell",
+      "prof_class_dc":         "investigator_prof_class_dc"
+    }
+  },
+
+  "tables": {
+    "investigator_prof_perception":  [4, 4, 4, 4, 4, 4, 6, 6, 6, 6, 6, 6, 8, 8, 8, 8, 8, 8, 8, 8],
+    "investigator_prof_fortitude":   [2, 2, 2, 2, 2, 2, 2, 2, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4],
+    "investigator_prof_reflex":      [4, 4, 4, 4, 4, 4, 4, 4, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6],
+    "investigator_prof_will":        [4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6],
+    "investigator_prof_weapons":     [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4],
+    "investigator_prof_defense":     [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 4, 4, 4, 4, 4, 4, 4, 4],
+    "investigator_prof_spell":       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    "investigator_prof_class_dc":    [2, 2, 2, 2, 2, 2, 2, 2, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4]
+  },
+
+  "level": {
+    "1": {
+      "features": ["devise_a_stratagem", "strategic_strike", "on_the_case"],
+      "choices": [
+        {"type": "methodology", "label": "Methodology"}
+      ]
+    },
+    "2": {
+      "choices": [
+        {"type": "feat", "filter": "category == 'investigator'", "label": "Investigator feat"},
+        {"type": "feat", "filter": "category == 'skill'", "label": "Skill feat"}
+      ]
+    },
+    "3": {
+      "features": ["keen_recollection"],
+      "choices": [
+        {"type": "feat", "filter": "category == 'general'", "label": "General feat"}
+      ]
+    },
+    "4": {
+      "choices": [
+        {"type": "feat", "filter": "category == 'investigator'", "label": "Investigator feat"},
+        {"type": "feat", "filter": "category == 'skill'", "label": "Skill feat"}
+      ]
+    },
+    "5": {
+      "features": ["skillful_lessons"],
+      "choices": [
+        {"type": "ability_boost", "count": 4, "label": "Ability boosts"}
+      ]
+    },
+    "6": {
+      "choices": [
+        {"type": "feat", "filter": "category == 'investigator'", "label": "Investigator feat"},
+        {"type": "feat", "filter": "category == 'skill'", "label": "Skill feat"}
+      ]
+    },
+    "7": {
+      "features": ["vigilant_senses", "weapon_specialization"],
+      "choices": [
+        {"type": "feat", "filter": "category == 'general'", "label": "General feat"}
+      ]
+    },
+    "8": {
+      "choices": [
+        {"type": "feat", "filter": "category == 'investigator'", "label": "Investigator feat"},
+        {"type": "feat", "filter": "category == 'skill'", "label": "Skill feat"}
+      ]
+    },
+    "9": {
+      "features": ["great_fortitude", "investigator_expertise"],
+      "choices": [
+        {"type": "feat", "filter": "category == 'ancestry'", "label": "Ancestry feat"}
+      ]
+    },
+    "10": {
+      "choices": [
+        {"type": "feat", "filter": "category == 'investigator'", "label": "Investigator feat"},
+        {"type": "feat", "filter": "category == 'skill'", "label": "Skill feat"},
+        {"type": "ability_boost", "count": 4, "label": "Ability boosts"}
+      ]
+    },
+    "11": {
+      "features": ["resolve", "skillful_lessons_2"],
+      "choices": [
+        {"type": "feat", "filter": "category == 'general'", "label": "General feat"}
+      ]
+    },
+    "12": {
+      "choices": [
+        {"type": "feat", "filter": "category == 'investigator'", "label": "Investigator feat"},
+        {"type": "feat", "filter": "category == 'skill'", "label": "Skill feat"}
+      ]
+    },
+    "13": {
+      "features": ["incredible_senses", "light_armor_expertise"],
+      "choices": [
+        {"type": "feat", "filter": "category == 'ancestry'", "label": "Ancestry feat"}
+      ]
+    },
+    "14": {
+      "choices": [
+        {"type": "feat", "filter": "category == 'investigator'", "label": "Investigator feat"},
+        {"type": "feat", "filter": "category == 'skill'", "label": "Skill feat"}
+      ]
+    },
+    "15": {
+      "features": ["greater_weapon_specialization"],
+      "choices": [
+        {"type": "feat", "filter": "category == 'general'", "label": "General feat"},
+        {"type": "ability_boost", "count": 4, "label": "Ability boosts"}
+      ]
+    },
+    "16": {
+      "choices": [
+        {"type": "feat", "filter": "category == 'investigator'", "label": "Investigator feat"},
+        {"type": "feat", "filter": "category == 'skill'", "label": "Skill feat"}
+      ]
+    },
+    "17": {
+      "features": ["greater_resolve"],
+      "choices": [
+        {"type": "feat", "filter": "category == 'ancestry'", "label": "Ancestry feat"}
+      ]
+    },
+    "18": {
+      "choices": [
+        {"type": "feat", "filter": "category == 'investigator'", "label": "Investigator feat"},
+        {"type": "feat", "filter": "category == 'skill'", "label": "Skill feat"}
+      ]
+    },
+    "19": {
+      "features": ["master_detective"],
+      "choices": [
+        {"type": "feat", "filter": "category == 'general'", "label": "General feat"}
+      ]
+    },
+    "20": {
+      "choices": [
+        {"type": "feat", "filter": "category == 'investigator'", "label": "Investigator feat"},
+        {"type": "feat", "filter": "category == 'skill'", "label": "Skill feat"},
+        {"type": "ability_boost", "count": 4, "label": "Ability boosts"}
+      ]
+    }
+  }
+}

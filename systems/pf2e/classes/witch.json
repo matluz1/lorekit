@@ -1,0 +1,161 @@
+{
+  "meta": {
+    "name": "Witch",
+    "hp_per_level": 6,
+    "key_ability": ["int"],
+    "trained_skills": 3,
+    "description": "Spellcasters who draw their magic from a mysterious patron, using their familiar as a conduit to channel hexes and powerful spells.",
+    "progressions": {
+      "prof_perception":       "witch_prof_perception",
+      "prof_fortitude":        "witch_prof_fortitude",
+      "prof_reflex":           "witch_prof_reflex",
+      "prof_will":             "witch_prof_will",
+      "prof_simple_weapons":   "witch_prof_weapons",
+      "prof_unarmed":          "witch_prof_weapons",
+      "prof_unarmored":        "witch_prof_defense",
+      "prof_spell_attack":     "witch_prof_spell",
+      "prof_spell_dc":         "witch_prof_spell",
+      "prof_class_dc":         "witch_prof_class_dc"
+    }
+  },
+
+  "tables": {
+    "witch_prof_perception":  [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2],
+    "witch_prof_fortitude":   [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 4, 4, 4, 4],
+    "witch_prof_reflex":      [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 4, 4, 4, 4],
+    "witch_prof_will":        [4, 4, 4, 4, 4, 4, 4, 4, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6],
+    "witch_prof_weapons":     [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4],
+    "witch_prof_defense":     [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 4, 4, 4, 4, 4, 4, 4, 4],
+    "witch_prof_spell":       [2, 2, 2, 2, 2, 2, 4, 4, 4, 4, 4, 4, 4, 4, 6, 6, 6, 6, 8, 8],
+    "witch_prof_class_dc":    [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2]
+  },
+
+  "level": {
+    "1": {
+      "features": ["patron", "familiar", "witch_spellcasting", "hexes"],
+      "choices": [
+        {"type": "class_option", "filter": "category == 'patron'", "label": "Patron"},
+        {"type": "feat", "filter": "category == 'witch'", "label": "Witch feat"}
+      ]
+    },
+    "2": {
+      "choices": [
+        {"type": "feat", "filter": "category == 'witch'", "label": "Witch feat"},
+        {"type": "feat", "filter": "category == 'skill'", "label": "Skill feat"}
+      ]
+    },
+    "3": {
+      "choices": [
+        {"type": "feat", "filter": "category == 'general'", "label": "General feat"},
+        {"type": "skill_increase", "label": "Skill increase"}
+      ]
+    },
+    "4": {
+      "choices": [
+        {"type": "feat", "filter": "category == 'witch'", "label": "Witch feat"},
+        {"type": "feat", "filter": "category == 'skill'", "label": "Skill feat"}
+      ]
+    },
+    "5": {
+      "choices": [
+        {"type": "feat", "filter": "category == 'ancestry'", "label": "Ancestry feat"},
+        {"type": "ability_boost", "count": 4, "label": "Ability boosts"}
+      ]
+    },
+    "6": {
+      "choices": [
+        {"type": "feat", "filter": "category == 'witch'", "label": "Witch feat"},
+        {"type": "feat", "filter": "category == 'skill'", "label": "Skill feat"}
+      ]
+    },
+    "7": {
+      "features": ["expert_spellcaster"],
+      "choices": [
+        {"type": "feat", "filter": "category == 'general'", "label": "General feat"},
+        {"type": "skill_increase", "label": "Skill increase"}
+      ]
+    },
+    "8": {
+      "choices": [
+        {"type": "feat", "filter": "category == 'witch'", "label": "Witch feat"},
+        {"type": "feat", "filter": "category == 'skill'", "label": "Skill feat"}
+      ]
+    },
+    "9": {
+      "features": ["resolve"],
+      "choices": [
+        {"type": "feat", "filter": "category == 'ancestry'", "label": "Ancestry feat"}
+      ]
+    },
+    "10": {
+      "choices": [
+        {"type": "feat", "filter": "category == 'witch'", "label": "Witch feat"},
+        {"type": "feat", "filter": "category == 'skill'", "label": "Skill feat"},
+        {"type": "ability_boost", "count": 4, "label": "Ability boosts"}
+      ]
+    },
+    "11": {
+      "features": ["witch_weapon_expertise"],
+      "choices": [
+        {"type": "feat", "filter": "category == 'general'", "label": "General feat"},
+        {"type": "skill_increase", "label": "Skill increase"}
+      ]
+    },
+    "12": {
+      "choices": [
+        {"type": "feat", "filter": "category == 'witch'", "label": "Witch feat"},
+        {"type": "feat", "filter": "category == 'skill'", "label": "Skill feat"}
+      ]
+    },
+    "13": {
+      "features": ["defensive_robes"],
+      "choices": [
+        {"type": "feat", "filter": "category == 'ancestry'", "label": "Ancestry feat"}
+      ]
+    },
+    "14": {
+      "choices": [
+        {"type": "feat", "filter": "category == 'witch'", "label": "Witch feat"},
+        {"type": "feat", "filter": "category == 'skill'", "label": "Skill feat"}
+      ]
+    },
+    "15": {
+      "features": ["master_spellcaster"],
+      "choices": [
+        {"type": "feat", "filter": "category == 'general'", "label": "General feat"},
+        {"type": "ability_boost", "count": 4, "label": "Ability boosts"}
+      ]
+    },
+    "16": {
+      "choices": [
+        {"type": "feat", "filter": "category == 'witch'", "label": "Witch feat"},
+        {"type": "feat", "filter": "category == 'skill'", "label": "Skill feat"}
+      ]
+    },
+    "17": {
+      "choices": [
+        {"type": "feat", "filter": "category == 'ancestry'", "label": "Ancestry feat"}
+      ]
+    },
+    "18": {
+      "choices": [
+        {"type": "feat", "filter": "category == 'witch'", "label": "Witch feat"},
+        {"type": "feat", "filter": "category == 'skill'", "label": "Skill feat"}
+      ]
+    },
+    "19": {
+      "features": ["legendary_spellcaster", "patron_gift"],
+      "choices": [
+        {"type": "feat", "filter": "category == 'general'", "label": "General feat"},
+        {"type": "skill_increase", "label": "Skill increase"}
+      ]
+    },
+    "20": {
+      "choices": [
+        {"type": "feat", "filter": "category == 'witch'", "label": "Witch feat"},
+        {"type": "feat", "filter": "category == 'skill'", "label": "Skill feat"},
+        {"type": "ability_boost", "count": 4, "label": "Ability boosts"}
+      ]
+    }
+  }
+}

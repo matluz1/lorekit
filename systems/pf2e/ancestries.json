@@ -1,0 +1,305 @@
+{
+  "human": {
+    "name": "Human",
+    "hp": 8,
+    "size": "Medium",
+    "speed": 25,
+    "ability_boosts": ["free", "free"],
+    "languages": ["Common"],
+    "traits": ["Human", "Humanoid"]
+  },
+  "elf": {
+    "name": "Elf",
+    "hp": 6,
+    "size": "Medium",
+    "speed": 30,
+    "ability_boosts": ["dex", "int", "free"],
+    "ability_flaw": "con",
+    "languages": ["Common", "Elven"],
+    "traits": ["Elf", "Humanoid"],
+    "features": ["low_light_vision"]
+  },
+  "dwarf": {
+    "name": "Dwarf",
+    "hp": 10,
+    "size": "Medium",
+    "speed": 20,
+    "ability_boosts": ["con", "wis", "free"],
+    "ability_flaw": "cha",
+    "languages": ["Common", "Dwarven"],
+    "traits": ["Dwarf", "Humanoid"],
+    "features": ["darkvision"]
+  },
+  "halfling": {
+    "name": "Halfling",
+    "hp": 6,
+    "size": "Small",
+    "speed": 25,
+    "ability_boosts": ["dex", "wis", "free"],
+    "ability_flaw": "str",
+    "languages": ["Common", "Halfling"],
+    "traits": ["Halfling", "Humanoid"],
+    "features": ["keen_eyes"]
+  },
+  "gnome": {
+    "name": "Gnome",
+    "hp": 8,
+    "size": "Small",
+    "speed": 25,
+    "ability_boosts": ["con", "cha", "free"],
+    "ability_flaw": "str",
+    "languages": ["Common", "Gnomish", "Fey"],
+    "traits": ["Gnome", "Humanoid"],
+    "features": ["low_light_vision"]
+  },
+  "goblin": {
+    "name": "Goblin",
+    "hp": 6,
+    "size": "Small",
+    "speed": 25,
+    "ability_boosts": ["dex", "cha", "free"],
+    "ability_flaw": "wis",
+    "languages": ["Common", "Goblin"],
+    "traits": ["Goblin", "Humanoid"],
+    "features": ["darkvision"]
+  },
+  "orc": {
+    "name": "Orc",
+    "hp": 10,
+    "size": "Medium",
+    "speed": 25,
+    "ability_boosts": ["str", "free"],
+    "languages": ["Common", "Orcish"],
+    "traits": ["Orc", "Humanoid"],
+    "features": ["darkvision"]
+  },
+  "leshy": {
+    "name": "Leshy",
+    "hp": 8,
+    "size": "Small",
+    "speed": 25,
+    "ability_boosts": ["con", "wis", "free"],
+    "ability_flaw": "int",
+    "languages": ["Common", "Fey"],
+    "traits": ["Leshy", "Plant", "Humanoid"],
+    "features": ["low_light_vision", "plant_nourishment"]
+  },
+  "catfolk": {
+    "name": "Catfolk",
+    "hp": 8,
+    "size": "Medium",
+    "speed": 25,
+    "ability_boosts": ["dex", "cha", "free"],
+    "ability_flaw": "wis",
+    "languages": ["Common", "Amurrun"],
+    "traits": ["Catfolk", "Humanoid"],
+    "features": ["low_light_vision", "land_on_your_feet"]
+  },
+  "kobold": {
+    "name": "Kobold",
+    "hp": 6,
+    "size": "Small",
+    "speed": 25,
+    "ability_boosts": ["dex", "cha", "free"],
+    "ability_flaw": "con",
+    "languages": ["Common", "Draconic"],
+    "traits": ["Kobold", "Humanoid"],
+    "features": ["darkvision", "draconic_exemplar"]
+  },
+  "tengu": {
+    "name": "Tengu",
+    "hp": 6,
+    "size": "Medium",
+    "speed": 25,
+    "ability_boosts": ["dex", "free"],
+    "languages": ["Common", "Tengu"],
+    "traits": ["Tengu", "Humanoid"],
+    "features": ["low_light_vision", "sharp_beak"]
+  },
+  "android": {
+    "name": "Android",
+    "hp": 8,
+    "size": "Medium",
+    "speed": 25,
+    "ability_boosts": ["dex", "int", "free"],
+    "ability_flaw": "cha",
+    "languages": ["Common", "Androffan"],
+    "traits": ["Android", "Humanoid"],
+    "features": ["low_light_vision", "emotionally_unaware", "constructed"]
+  },
+  "fetchling": {
+    "name": "Fetchling",
+    "hp": 8,
+    "size": "Medium",
+    "speed": 25,
+    "ability_boosts": ["dex", "free"],
+    "languages": ["Common", "Shadowtongue"],
+    "traits": ["Fetchling", "Humanoid"],
+    "features": ["darkvision"]
+  },
+  "fleshwarp": {
+    "name": "Fleshwarp",
+    "hp": 10,
+    "size": "Medium",
+    "speed": 25,
+    "ability_boosts": ["con", "free"],
+    "languages": ["Common"],
+    "traits": ["Fleshwarp", "Humanoid"],
+    "features": ["low_light_vision"]
+  },
+  "kitsune": {
+    "name": "Kitsune",
+    "hp": 8,
+    "size": "Medium",
+    "speed": 25,
+    "ability_boosts": ["cha", "free"],
+    "languages": ["Common", "Kitsune"],
+    "traits": ["Kitsune", "Humanoid"],
+    "features": ["low_light_vision", "change_shape"]
+  },
+  "sprite": {
+    "name": "Sprite",
+    "hp": 6,
+    "size": "Tiny",
+    "speed": 20,
+    "ability_boosts": ["dex", "int", "free"],
+    "ability_flaw": "str",
+    "languages": ["Common", "Fey"],
+    "traits": ["Sprite", "Fey"],
+    "features": ["low_light_vision", "magical_strikes"]
+  },
+  "strix": {
+    "name": "Strix",
+    "hp": 8,
+    "size": "Medium",
+    "speed": 25,
+    "ability_boosts": ["dex", "free"],
+    "languages": ["Common", "Strix"],
+    "traits": ["Strix", "Humanoid"],
+    "features": ["low_light_vision", "wings"]
+  },
+  "automaton": {
+    "name": "Automaton",
+    "hp": 8,
+    "size": "Medium",
+    "speed": 25,
+    "ability_boosts": ["str", "free"],
+    "languages": ["Common", "Utopian"],
+    "traits": ["Automaton", "Construct"],
+    "features": ["low_light_vision", "automaton_core", "constructed"]
+  },
+  "ghoran": {
+    "name": "Ghoran",
+    "hp": 8,
+    "size": "Medium",
+    "speed": 25,
+    "ability_boosts": ["con", "free"],
+    "languages": ["Common", "Fey"],
+    "traits": ["Ghoran", "Plant", "Humanoid"],
+    "features": ["low_light_vision", "photosynthesis"]
+  },
+  "grippli": {
+    "name": "Grippli",
+    "hp": 6,
+    "size": "Small",
+    "speed": 25,
+    "ability_boosts": ["dex", "wis", "free"],
+    "ability_flaw": "str",
+    "languages": ["Common", "Grippli"],
+    "traits": ["Grippli", "Humanoid"],
+    "features": ["low_light_vision"]
+  },
+  "shisk": {
+    "name": "Shisk",
+    "hp": 8,
+    "size": "Medium",
+    "speed": 25,
+    "ability_boosts": ["int", "free"],
+    "languages": ["Common", "Shisk"],
+    "traits": ["Shisk", "Humanoid"],
+    "features": ["darkvision", "lore_keeper"]
+  },
+  "conrasu": {
+    "name": "Conrasu",
+    "hp": 10,
+    "size": "Medium",
+    "speed": 25,
+    "ability_boosts": ["con", "wis", "free"],
+    "ability_flaw": "cha",
+    "languages": ["Common", "Rasu"],
+    "traits": ["Conrasu", "Aeon", "Plant"],
+    "features": ["low_light_vision", "sunlight_healing"]
+  },
+  "anadi": {
+    "name": "Anadi",
+    "hp": 8,
+    "size": "Medium",
+    "speed": 25,
+    "ability_boosts": ["dex", "wis", "free"],
+    "ability_flaw": "con",
+    "languages": ["Common", "Anadi"],
+    "traits": ["Anadi", "Humanoid"],
+    "features": ["fangs", "change_shape"]
+  },
+  "goloma": {
+    "name": "Goloma",
+    "hp": 8,
+    "size": "Medium",
+    "speed": 30,
+    "ability_boosts": ["wis", "free"],
+    "languages": ["Common", "Goloma"],
+    "traits": ["Goloma", "Humanoid"],
+    "features": ["darkvision", "eyes_in_back"]
+  },
+  "kashrishi": {
+    "name": "Kashrishi",
+    "hp": 8,
+    "size": "Small",
+    "speed": 25,
+    "ability_boosts": ["cha", "free"],
+    "languages": ["Common", "Kashrishi"],
+    "traits": ["Kashrishi", "Humanoid"],
+    "features": ["empathic_sense"]
+  },
+  "nagaji": {
+    "name": "Nagaji",
+    "hp": 10,
+    "size": "Medium",
+    "speed": 25,
+    "ability_boosts": ["str", "free"],
+    "languages": ["Common", "Nagaji"],
+    "traits": ["Nagaji", "Humanoid"],
+    "features": ["low_light_vision", "fangs"]
+  },
+  "vanara": {
+    "name": "Vanara",
+    "hp": 6,
+    "size": "Medium",
+    "speed": 25,
+    "ability_boosts": ["dex", "free"],
+    "languages": ["Common", "Vanara"],
+    "traits": ["Vanara", "Humanoid"],
+    "features": ["low_light_vision", "prehensile_tail"]
+  },
+  "vishkanya": {
+    "name": "Vishkanya",
+    "hp": 8,
+    "size": "Medium",
+    "speed": 25,
+    "ability_boosts": ["dex", "free"],
+    "languages": ["Common", "Vishkanya"],
+    "traits": ["Vishkanya", "Humanoid"],
+    "features": ["low_light_vision", "innate_venom"]
+  },
+  "poppet": {
+    "name": "Poppet",
+    "hp": 6,
+    "size": "Small",
+    "speed": 25,
+    "ability_boosts": ["con", "cha", "free"],
+    "ability_flaw": "dex",
+    "languages": ["Common"],
+    "traits": ["Poppet", "Construct", "Humanoid"],
+    "features": ["darkvision", "constructed", "flammable"]
+  }
+}

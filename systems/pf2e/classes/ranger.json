@@ -1,0 +1,164 @@
+{
+  "meta": {
+    "name": "Ranger",
+    "hp_per_level": 10,
+    "key_ability": ["str", "dex"],
+    "trained_skills": 4,
+    "description": "Cunning trackers and hunters who use their knowledge of the natural world and martial prowess to protect the wilds and stalk their prey.",
+    "progressions": {
+      "prof_perception":       "ranger_prof_perception",
+      "prof_fortitude":        "ranger_prof_fortitude",
+      "prof_reflex":           "ranger_prof_reflex",
+      "prof_will":             "ranger_prof_will",
+      "prof_simple_weapons":   "ranger_prof_weapons",
+      "prof_martial_weapons":  "ranger_prof_weapons",
+      "prof_unarmed":          "ranger_prof_weapons",
+      "prof_unarmored":        "ranger_prof_armor",
+      "prof_light_armor":      "ranger_prof_armor",
+      "prof_medium_armor":     "ranger_prof_armor",
+      "prof_class_dc":         "ranger_prof_class_dc"
+    }
+  },
+
+  "tables": {
+    "ranger_prof_perception":  [4, 4, 4, 4, 4, 4, 6, 6, 6, 6, 6, 6, 6, 6, 8, 8, 8, 8, 8, 8],
+    "ranger_prof_fortitude":   [4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6],
+    "ranger_prof_reflex":      [4, 4, 4, 4, 4, 4, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6],
+    "ranger_prof_will":        [2, 2, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 6, 6, 6, 6],
+    "ranger_prof_weapons":     [2, 2, 2, 2, 4, 4, 4, 4, 4, 4, 4, 4, 6, 6, 6, 6, 6, 6, 6, 6],
+    "ranger_prof_armor":       [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 4, 4, 4, 4, 4, 4, 6, 6, 6, 6],
+    "ranger_prof_class_dc":    [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 4, 4, 4, 4, 4, 4, 4, 4, 6, 6]
+  },
+
+  "level": {
+    "1": {
+      "features": ["hunt_prey"],
+      "choices": [
+        {"type": "feat", "filter": "category == 'ranger'", "label": "Ranger feat"},
+        {"type": "class_option", "filter": "category == 'hunters_edge'", "label": "Hunter's edge"}
+      ]
+    },
+    "2": {
+      "choices": [
+        {"type": "feat", "filter": "category == 'ranger'", "label": "Ranger feat"},
+        {"type": "feat", "filter": "category == 'skill'", "label": "Skill feat"}
+      ]
+    },
+    "3": {
+      "features": ["iron_will"],
+      "choices": [
+        {"type": "feat", "filter": "category == 'general'", "label": "General feat"},
+        {"type": "skill_increase", "label": "Skill increase"}
+      ]
+    },
+    "4": {
+      "choices": [
+        {"type": "feat", "filter": "category == 'ranger'", "label": "Ranger feat"},
+        {"type": "feat", "filter": "category == 'skill'", "label": "Skill feat"}
+      ]
+    },
+    "5": {
+      "features": ["ranger_weapon_expertise", "trackless_step"],
+      "choices": [
+        {"type": "feat", "filter": "category == 'ancestry'", "label": "Ancestry feat"},
+        {"type": "ability_boost", "count": 4, "label": "Ability boosts"}
+      ]
+    },
+    "6": {
+      "choices": [
+        {"type": "feat", "filter": "category == 'ranger'", "label": "Ranger feat"},
+        {"type": "feat", "filter": "category == 'skill'", "label": "Skill feat"}
+      ]
+    },
+    "7": {
+      "features": ["evasion", "vigilant_senses", "weapon_specialization"],
+      "choices": [
+        {"type": "feat", "filter": "category == 'general'", "label": "General feat"},
+        {"type": "skill_increase", "label": "Skill increase"}
+      ]
+    },
+    "8": {
+      "choices": [
+        {"type": "feat", "filter": "category == 'ranger'", "label": "Ranger feat"},
+        {"type": "feat", "filter": "category == 'skill'", "label": "Skill feat"}
+      ]
+    },
+    "9": {
+      "features": ["ranger_expertise", "nature_sense"],
+      "choices": [
+        {"type": "feat", "filter": "category == 'ancestry'", "label": "Ancestry feat"}
+      ]
+    },
+    "10": {
+      "choices": [
+        {"type": "feat", "filter": "category == 'ranger'", "label": "Ranger feat"},
+        {"type": "feat", "filter": "category == 'skill'", "label": "Skill feat"},
+        {"type": "ability_boost", "count": 4, "label": "Ability boosts"}
+      ]
+    },
+    "11": {
+      "features": ["juggernaut", "medium_armor_expertise"],
+      "choices": [
+        {"type": "feat", "filter": "category == 'general'", "label": "General feat"},
+        {"type": "skill_increase", "label": "Skill increase"}
+      ]
+    },
+    "12": {
+      "choices": [
+        {"type": "feat", "filter": "category == 'ranger'", "label": "Ranger feat"},
+        {"type": "feat", "filter": "category == 'skill'", "label": "Skill feat"}
+      ]
+    },
+    "13": {
+      "features": ["weapon_mastery"],
+      "choices": [
+        {"type": "feat", "filter": "category == 'ancestry'", "label": "Ancestry feat"}
+      ]
+    },
+    "14": {
+      "choices": [
+        {"type": "feat", "filter": "category == 'ranger'", "label": "Ranger feat"},
+        {"type": "feat", "filter": "category == 'skill'", "label": "Skill feat"}
+      ]
+    },
+    "15": {
+      "features": ["greater_weapon_specialization", "improved_evasion"],
+      "choices": [
+        {"type": "feat", "filter": "category == 'general'", "label": "General feat"},
+        {"type": "ability_boost", "count": 4, "label": "Ability boosts"}
+      ]
+    },
+    "16": {
+      "choices": [
+        {"type": "feat", "filter": "category == 'ranger'", "label": "Ranger feat"},
+        {"type": "feat", "filter": "category == 'skill'", "label": "Skill feat"}
+      ]
+    },
+    "17": {
+      "features": ["masterful_companion", "armor_mastery"],
+      "choices": [
+        {"type": "feat", "filter": "category == 'ancestry'", "label": "Ancestry feat"}
+      ]
+    },
+    "18": {
+      "choices": [
+        {"type": "feat", "filter": "category == 'ranger'", "label": "Ranger feat"},
+        {"type": "feat", "filter": "category == 'skill'", "label": "Skill feat"}
+      ]
+    },
+    "19": {
+      "features": ["swift_prey", "second_skin"],
+      "choices": [
+        {"type": "feat", "filter": "category == 'general'", "label": "General feat"},
+        {"type": "skill_increase", "label": "Skill increase"}
+      ]
+    },
+    "20": {
+      "choices": [
+        {"type": "feat", "filter": "category == 'ranger'", "label": "Ranger feat"},
+        {"type": "feat", "filter": "category == 'skill'", "label": "Skill feat"},
+        {"type": "ability_boost", "count": 4, "label": "Ability boosts"}
+      ]
+    }
+  }
+}

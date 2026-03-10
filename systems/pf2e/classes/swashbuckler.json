@@ -1,0 +1,161 @@
+{
+  "meta": {
+    "name": "Swashbuckler",
+    "hp_per_level": 10,
+    "key_ability": ["dex"],
+    "trained_skills": 4,
+    "description": "Daring combatants who use wit, charm, and acrobatic flair in battle.",
+    "progressions": {
+      "prof_perception":      "swashbuckler_prof_perception",
+      "prof_fortitude":       "swashbuckler_prof_fortitude",
+      "prof_reflex":          "swashbuckler_prof_reflex",
+      "prof_will":            "swashbuckler_prof_will",
+      "prof_simple_weapons":  "swashbuckler_prof_weapons",
+      "prof_martial_weapons": "swashbuckler_prof_weapons",
+      "prof_unarmed":         "swashbuckler_prof_weapons",
+      "prof_unarmored":       "swashbuckler_prof_defense",
+      "prof_light_armor":     "swashbuckler_prof_defense",
+      "prof_spell_attack":    "swashbuckler_prof_spell",
+      "prof_spell_dc":        "swashbuckler_prof_spell",
+      "prof_class_dc":        "swashbuckler_prof_class_dc"
+    }
+  },
+
+  "tables": {
+    "swashbuckler_prof_perception": [4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6],
+    "swashbuckler_prof_fortitude":  [2, 2, 4, 4, 4, 4, 4, 4, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6],
+    "swashbuckler_prof_reflex":     [4, 4, 4, 4, 4, 4, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6],
+    "swashbuckler_prof_will":       [2, 2, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4],
+    "swashbuckler_prof_weapons":    [2, 2, 2, 2, 4, 4, 4, 4, 4, 4, 4, 4, 6, 6, 6, 6, 6, 6, 6, 6],
+    "swashbuckler_prof_defense":    [2, 2, 2, 2, 2, 2, 2, 2, 4, 4, 4, 4, 4, 4, 6, 6, 6, 6, 6, 6],
+    "swashbuckler_prof_spell":      [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    "swashbuckler_prof_class_dc":   [2, 2, 2, 2, 2, 2, 2, 2, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4]
+  },
+
+  "level": {
+    "1": {
+      "features": ["confident_finisher", "panache", "precise_strike"],
+      "choices": [
+        {"type": "style", "label": "Swashbuckler style"},
+        {"type": "feat", "filter": "category == 'swashbuckler'", "label": "Swashbuckler feat"}
+      ]
+    },
+    "2": {
+      "choices": [
+        {"type": "feat", "filter": "category == 'swashbuckler'", "label": "Swashbuckler feat"},
+        {"type": "feat", "filter": "category == 'skill'", "label": "Skill feat"}
+      ]
+    },
+    "3": {
+      "features": ["stylish_tricks", "vivacious_speed"],
+      "choices": [
+        {"type": "feat", "filter": "category == 'general'", "label": "General feat"}
+      ]
+    },
+    "4": {
+      "choices": [
+        {"type": "feat", "filter": "category == 'swashbuckler'", "label": "Swashbuckler feat"},
+        {"type": "feat", "filter": "category == 'skill'", "label": "Skill feat"}
+      ]
+    },
+    "5": {
+      "features": ["weapon_expertise"],
+      "choices": [
+        {"type": "ability_boost", "count": 4, "label": "Ability boosts"}
+      ]
+    },
+    "6": {
+      "choices": [
+        {"type": "feat", "filter": "category == 'swashbuckler'", "label": "Swashbuckler feat"},
+        {"type": "feat", "filter": "category == 'skill'", "label": "Skill feat"}
+      ]
+    },
+    "7": {
+      "features": ["evasion", "weapon_specialization"],
+      "choices": [
+        {"type": "feat", "filter": "category == 'general'", "label": "General feat"}
+      ]
+    },
+    "8": {
+      "choices": [
+        {"type": "feat", "filter": "category == 'swashbuckler'", "label": "Swashbuckler feat"},
+        {"type": "feat", "filter": "category == 'skill'", "label": "Skill feat"}
+      ]
+    },
+    "9": {
+      "features": ["exemplary_finisher", "swashbuckler_expertise"],
+      "choices": [
+        {"type": "feat", "filter": "category == 'ancestry'", "label": "Ancestry feat"}
+      ]
+    },
+    "10": {
+      "choices": [
+        {"type": "feat", "filter": "category == 'swashbuckler'", "label": "Swashbuckler feat"},
+        {"type": "feat", "filter": "category == 'skill'", "label": "Skill feat"},
+        {"type": "ability_boost", "count": 4, "label": "Ability boosts"}
+      ]
+    },
+    "11": {
+      "features": ["continuous_flair"],
+      "choices": [
+        {"type": "feat", "filter": "category == 'general'", "label": "General feat"}
+      ]
+    },
+    "12": {
+      "choices": [
+        {"type": "feat", "filter": "category == 'swashbuckler'", "label": "Swashbuckler feat"},
+        {"type": "feat", "filter": "category == 'skill'", "label": "Skill feat"}
+      ]
+    },
+    "13": {
+      "features": ["weapon_mastery", "light_armor_mastery"],
+      "choices": [
+        {"type": "feat", "filter": "category == 'ancestry'", "label": "Ancestry feat"}
+      ]
+    },
+    "14": {
+      "choices": [
+        {"type": "feat", "filter": "category == 'swashbuckler'", "label": "Swashbuckler feat"},
+        {"type": "feat", "filter": "category == 'skill'", "label": "Skill feat"}
+      ]
+    },
+    "15": {
+      "features": ["greater_weapon_specialization", "keen_flair"],
+      "choices": [
+        {"type": "feat", "filter": "category == 'general'", "label": "General feat"},
+        {"type": "ability_boost", "count": 4, "label": "Ability boosts"}
+      ]
+    },
+    "16": {
+      "choices": [
+        {"type": "feat", "filter": "category == 'swashbuckler'", "label": "Swashbuckler feat"},
+        {"type": "feat", "filter": "category == 'skill'", "label": "Skill feat"}
+      ]
+    },
+    "17": {
+      "features": ["resolve"],
+      "choices": [
+        {"type": "feat", "filter": "category == 'ancestry'", "label": "Ancestry feat"}
+      ]
+    },
+    "18": {
+      "choices": [
+        {"type": "feat", "filter": "category == 'swashbuckler'", "label": "Swashbuckler feat"},
+        {"type": "feat", "filter": "category == 'skill'", "label": "Skill feat"}
+      ]
+    },
+    "19": {
+      "features": ["eternal_confidence"],
+      "choices": [
+        {"type": "feat", "filter": "category == 'general'", "label": "General feat"}
+      ]
+    },
+    "20": {
+      "choices": [
+        {"type": "feat", "filter": "category == 'swashbuckler'", "label": "Swashbuckler feat"},
+        {"type": "feat", "filter": "category == 'skill'", "label": "Skill feat"},
+        {"type": "ability_boost", "count": 4, "label": "Ability boosts"}
+      ]
+    }
+  }
+}

@@ -1,0 +1,161 @@
+{
+  "meta": {
+    "name": "Druid",
+    "hp_per_level": 8,
+    "key_ability": ["wis"],
+    "trained_skills": 2,
+    "description": "Devotees of nature who draw upon the power of the natural world, channeling primal magic to protect the wilds and their allies.",
+    "progressions": {
+      "prof_perception":       "druid_prof_perception",
+      "prof_fortitude":        "druid_prof_fortitude",
+      "prof_reflex":           "druid_prof_reflex",
+      "prof_will":             "druid_prof_will",
+      "prof_simple_weapons":   "druid_prof_weapons",
+      "prof_unarmed":          "druid_prof_weapons",
+      "prof_unarmored":        "druid_prof_armor",
+      "prof_light_armor":      "druid_prof_armor",
+      "prof_medium_armor":     "druid_prof_armor",
+      "prof_spell_attack":     "druid_prof_spell",
+      "prof_spell_dc":         "druid_prof_spell",
+      "prof_class_dc":         "druid_prof_class_dc"
+    }
+  },
+
+  "tables": {
+    "druid_prof_perception":  [2, 2, 2, 2, 2, 2, 2, 2, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4],
+    "druid_prof_fortitude":   [2, 2, 2, 2, 2, 2, 2, 2, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4],
+    "druid_prof_reflex":      [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2],
+    "druid_prof_will":        [4, 4, 4, 4, 4, 4, 4, 4, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6],
+    "druid_prof_weapons":     [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4],
+    "druid_prof_armor":       [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 4, 4, 4, 4, 4, 4, 6, 6],
+    "druid_prof_spell":       [2, 2, 2, 2, 2, 2, 4, 4, 4, 4, 4, 4, 4, 4, 6, 6, 6, 6, 8, 8],
+    "druid_prof_class_dc":    [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2]
+  },
+
+  "level": {
+    "1": {
+      "features": ["primal_spellcasting", "druidic_language", "wild_empathy", "anathema"],
+      "choices": [
+        {"type": "feat", "filter": "category == 'druid'", "label": "Druid feat"},
+        {"type": "druidic_order", "label": "Druidic order"}
+      ]
+    },
+    "2": {
+      "choices": [
+        {"type": "feat", "filter": "category == 'druid'", "label": "Druid feat"},
+        {"type": "feat", "filter": "category == 'skill'", "label": "Skill feat"}
+      ]
+    },
+    "3": {
+      "features": ["alertness"],
+      "choices": [
+        {"type": "feat", "filter": "category == 'general'", "label": "General feat"}
+      ]
+    },
+    "4": {
+      "choices": [
+        {"type": "feat", "filter": "category == 'druid'", "label": "Druid feat"},
+        {"type": "feat", "filter": "category == 'skill'", "label": "Skill feat"}
+      ]
+    },
+    "5": {
+      "choices": [
+        {"type": "ability_boost", "count": 4, "label": "Ability boosts"},
+        {"type": "feat", "filter": "category == 'ancestry'", "label": "Ancestry feat"}
+      ]
+    },
+    "6": {
+      "choices": [
+        {"type": "feat", "filter": "category == 'druid'", "label": "Druid feat"},
+        {"type": "feat", "filter": "category == 'skill'", "label": "Skill feat"}
+      ]
+    },
+    "7": {
+      "features": ["expert_spellcaster"],
+      "choices": [
+        {"type": "feat", "filter": "category == 'general'", "label": "General feat"}
+      ]
+    },
+    "8": {
+      "choices": [
+        {"type": "feat", "filter": "category == 'druid'", "label": "Druid feat"},
+        {"type": "feat", "filter": "category == 'skill'", "label": "Skill feat"}
+      ]
+    },
+    "9": {
+      "features": ["great_fortitude", "resolve"],
+      "choices": [
+        {"type": "feat", "filter": "category == 'ancestry'", "label": "Ancestry feat"}
+      ]
+    },
+    "10": {
+      "choices": [
+        {"type": "feat", "filter": "category == 'druid'", "label": "Druid feat"},
+        {"type": "feat", "filter": "category == 'skill'", "label": "Skill feat"},
+        {"type": "ability_boost", "count": 4, "label": "Ability boosts"}
+      ]
+    },
+    "11": {
+      "features": ["druid_weapon_expertise"],
+      "choices": [
+        {"type": "feat", "filter": "category == 'general'", "label": "General feat"}
+      ]
+    },
+    "12": {
+      "choices": [
+        {"type": "feat", "filter": "category == 'druid'", "label": "Druid feat"},
+        {"type": "feat", "filter": "category == 'skill'", "label": "Skill feat"}
+      ]
+    },
+    "13": {
+      "features": ["medium_armor_expertise", "weapon_specialization"],
+      "choices": [
+        {"type": "feat", "filter": "category == 'ancestry'", "label": "Ancestry feat"}
+      ]
+    },
+    "14": {
+      "choices": [
+        {"type": "feat", "filter": "category == 'druid'", "label": "Druid feat"},
+        {"type": "feat", "filter": "category == 'skill'", "label": "Skill feat"}
+      ]
+    },
+    "15": {
+      "features": ["master_spellcaster"],
+      "choices": [
+        {"type": "feat", "filter": "category == 'general'", "label": "General feat"},
+        {"type": "ability_boost", "count": 4, "label": "Ability boosts"}
+      ]
+    },
+    "16": {
+      "choices": [
+        {"type": "feat", "filter": "category == 'druid'", "label": "Druid feat"},
+        {"type": "feat", "filter": "category == 'skill'", "label": "Skill feat"}
+      ]
+    },
+    "17": {
+      "features": ["greater_resolve"],
+      "choices": [
+        {"type": "feat", "filter": "category == 'ancestry'", "label": "Ancestry feat"}
+      ]
+    },
+    "18": {
+      "choices": [
+        {"type": "feat", "filter": "category == 'druid'", "label": "Druid feat"},
+        {"type": "feat", "filter": "category == 'skill'", "label": "Skill feat"}
+      ]
+    },
+    "19": {
+      "features": ["legendary_spellcaster"],
+      "choices": [
+        {"type": "feat", "filter": "category == 'general'", "label": "General feat"}
+      ]
+    },
+    "20": {
+      "choices": [
+        {"type": "feat", "filter": "category == 'druid'", "label": "Druid feat"},
+        {"type": "feat", "filter": "category == 'skill'", "label": "Skill feat"},
+        {"type": "ability_boost", "count": 4, "label": "Ability boosts"}
+      ]
+    }
+  }
+}

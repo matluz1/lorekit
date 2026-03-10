@@ -5,8 +5,8 @@ builds a flat variable context from character attributes, evaluates
 formulas in dependency order, and validates constraints.
 
 The engine knows nothing about RPG concepts (classes, feats, abilities,
-proficiencies). All domain knowledge lives in the system pack JSON and
-the build engine.
+proficiencies). All domain knowledge lives in the system pack JSON
+data files.
 """
 
 from __future__ import annotations

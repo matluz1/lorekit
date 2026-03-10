@@ -29,52 +29,26 @@ class TestLoadSystemPack:
         assert pack.name == "Test System"
         assert pack.dice == "d20"
 
-    def test_loads_abilities(self):
+    def test_loads_defaults(self):
         pack = load_system_pack(TEST_SYSTEM)
-        assert pack.ability_list == ["Strength", "Dexterity", "Constitution"]
-        assert pack.ability_mod_formula == "floor((score - 10) / 2)"
-
-    def test_short_names(self):
-        pack = load_system_pack(TEST_SYSTEM)
-        assert pack.ability_short_names["str"] == "Strength"
-        assert pack.ability_short_names["dex"] == "Dexterity"
-        assert pack.ability_short_names["con"] == "Constitution"
+        assert pack.defaults["bonus_melee_attack"] == 0
+        assert pack.defaults["str"] == 10
 
     def test_loads_tables(self):
         pack = load_system_pack(TEST_SYSTEM)
-        assert "bab_full" in pack.tables
-        assert pack.tables["bab_full"][0] == 1
-        assert pack.tables["bab_full"][9] == 10
+        assert "base_attack_full" in pack.tables
+        assert pack.tables["base_attack_full"][0] == 1
+        assert pack.tables["base_attack_full"][9] == 10
 
     def test_loads_derived(self):
         pack = load_system_pack(TEST_SYSTEM)
         assert "melee_attack" in pack.derived
         assert "defense" in pack.derived
+        assert "str_mod" in pack.derived
 
     def test_loads_constraints(self):
         pack = load_system_pack(TEST_SYSTEM)
         assert "hp_positive" in pack.constraints
-
-    def test_loads_iterative(self):
-        pack = load_system_pack(TEST_SYSTEM)
-        assert pack.iterative_threshold == 6
-        assert pack.iterative_penalty == -5
-
-    def test_loads_classes(self):
-        pack = load_system_pack(TEST_SYSTEM)
-        assert "warrior" in pack.classes
-        cls = pack.classes["warrior"]
-        assert cls.name == "Warrior"
-        assert cls.hit_die == "d10"
-        assert cls.bab == "bab_full"
-        assert 1 in cls.levels
-        assert "combat_stance" in cls.levels[1].features
-
-    def test_loads_feats(self):
-        pack = load_system_pack(TEST_SYSTEM)
-        assert "power_attack" in pack.feats
-        assert pack.feats["power_attack"].combat_option is True
-        assert pack.feats["weapon_focus"].param == "weapon_type"
 
     def test_missing_system_json(self, tmp_path):
         with pytest.raises(FileNotFoundError):
@@ -93,7 +67,7 @@ class TestRecalculate:
             name="Test Hero",
             level=5,
             attributes={
-                "ability": {"str": "18", "dex": "14", "con": "12"},
+                "stat": {"str": "18", "dex": "14", "con": "12"},
             },
         )
         for k, v in overrides.items():
@@ -103,67 +77,37 @@ class TestRecalculate:
     def test_basic_derived(self):
         pack = load_system_pack(TEST_SYSTEM)
         char = self._make_char()
-        # No class set, so bab won't be resolved from class tables.
-        # Set bab manually via attributes.
-        char.attributes["combat"] = {"bab": "5"}
-        char.attributes["hit"] = {"hit_die_avg": "6"}
+        char.attributes["combat"] = {"base_attack": "5", "hit_die_avg": "6"}
 
         result = recalculate(pack, char)
-        # melee_attack = bab(5) + mod(str)(4) + sum(bonuses.melee_attack)(0) = 9
+        # str_mod = floor((18 - 10) / 2) = 4
+        assert result.derived["str_mod"] == 4
+        # melee_attack = base_attack(5) + str_mod(4) + bonus_melee_attack(0) = 9
         assert result.derived["melee_attack"] == 9
-        # ranged_attack = bab(5) + mod(dex)(2) + 0 = 7
+        # dex_mod = floor((14 - 10) / 2) = 2
+        # ranged_attack = 5 + 2 + 0 = 7
         assert result.derived["ranged_attack"] == 7
-        # defense = 10 + mod(dex)(2) + 0 = 12
+        # defense = 10 + dex_mod(2) + 0 = 12
         assert result.derived["defense"] == 12
+        # con_mod = floor((12 - 10) / 2) = 1
         # max_hp = 6 * 5 + 1 * 5 = 35
         assert result.derived["max_hp"] == 35
 
-    def test_class_integration(self):
+    def test_bonus_variables(self):
+        """Bonus variables (pre-aggregated by build engine) affect derived stats."""
         pack = load_system_pack(TEST_SYSTEM)
         char = self._make_char()
-        char.attributes["info"] = {"class": "warrior"}
+        char.attributes["combat"] = {"base_attack": "5", "hit_die_avg": "6"}
+        char.attributes["build"] = {"bonus_melee_attack": "1"}
 
         result = recalculate(pack, char)
-        # Warrior level 5: bab_full[4] = 5
-        # melee = 5 + mod(str=18)(4) + 0 = 9
-        assert result.derived["melee_attack"] == 9
-        # hit_die_avg for d10 = ceil(10/2)+1 = 6
-        # max_hp = 6*5 + mod(con=12)(1)*5 = 30+5 = 35
-        assert result.derived["max_hp"] == 35
-
-    def test_feat_bonuses(self):
-        pack = load_system_pack(TEST_SYSTEM)
-        char = self._make_char()
-        char.attributes["combat"] = {"bab": "5"}
-        char.attributes["hit"] = {"hit_die_avg": "6"}
-        # Add Weapon Focus (always-on, non-combat_option)
-        char.abilities = [
-            {"name": "Weapon Focus", "description": "Swords", "category": "combat", "uses": "at_will"},
-        ]
-
-        result = recalculate(pack, char)
-        # melee = 5 + 4 + 1 (weapon focus) = 10
+        # melee = 5 + 4 + 1 = 10
         assert result.derived["melee_attack"] == 10
-
-    def test_combat_option_not_always_on(self):
-        pack = load_system_pack(TEST_SYSTEM)
-        char = self._make_char()
-        char.attributes["combat"] = {"bab": "5"}
-        char.attributes["hit"] = {"hit_die_avg": "6"}
-        # Power Attack is a combat_option — its effects should NOT be in always-on bonuses
-        char.abilities = [
-            {"name": "Power Attack", "description": "", "category": "combat", "uses": "at_will"},
-        ]
-
-        result = recalculate(pack, char)
-        # melee = 5 + 4 + 0 (power attack not applied) = 9
-        assert result.derived["melee_attack"] == 9
 
     def test_constraint_passes(self):
         pack = load_system_pack(TEST_SYSTEM)
         char = self._make_char()
-        char.attributes["combat"] = {"bab": "5"}
-        char.attributes["hit"] = {"hit_die_avg": "6"}
+        char.attributes["combat"] = {"base_attack": "5", "hit_die_avg": "6"}
 
         result = recalculate(pack, char)
         assert result.violations == []
@@ -171,8 +115,7 @@ class TestRecalculate:
     def test_changes_tracked(self):
         pack = load_system_pack(TEST_SYSTEM)
         char = self._make_char()
-        char.attributes["combat"] = {"bab": "5"}
-        char.attributes["hit"] = {"hit_die_avg": "6"}
+        char.attributes["combat"] = {"base_attack": "5", "hit_die_avg": "6"}
 
         result = recalculate(pack, char)
         # All stats are new (no previous derived values)
@@ -182,8 +125,7 @@ class TestRecalculate:
     def test_changes_diff(self):
         pack = load_system_pack(TEST_SYSTEM)
         char = self._make_char()
-        char.attributes["combat"] = {"bab": "5"}
-        char.attributes["hit"] = {"hit_die_avg": "6"}
+        char.attributes["combat"] = {"base_attack": "5", "hit_die_avg": "6"}
         # Pretend old derived values exist
         char.attributes["derived"] = {"melee_attack": "8", "defense": "12"}
 
@@ -192,6 +134,27 @@ class TestRecalculate:
         assert result.changes["melee_attack"] == ("8", 9)
         # defense stayed at 12 — should NOT be in changes
         assert "defense" not in result.changes
+
+    def test_defaults_applied(self):
+        """Defaults from system pack are used for missing variables."""
+        pack = load_system_pack(TEST_SYSTEM)
+        char = self._make_char()
+        char.attributes["combat"] = {"base_attack": "5", "hit_die_avg": "6"}
+
+        result = recalculate(pack, char)
+        # bonus_melee_attack defaults to 0 from system pack
+        assert result.derived["melee_attack"] == 9  # 5 + 4 + 0
+
+    def test_character_attrs_override_defaults(self):
+        """Character attributes take precedence over system pack defaults."""
+        pack = load_system_pack(TEST_SYSTEM)
+        char = self._make_char()
+        char.attributes["combat"] = {"base_attack": "5", "hit_die_avg": "6"}
+        # Override the default for bonus_melee_attack
+        char.attributes["build"] = {"bonus_melee_attack": "3"}
+
+        result = recalculate(pack, char)
+        assert result.derived["melee_attack"] == 12  # 5 + 4 + 3
 
     def test_empty_system_pack(self, tmp_path):
         # Minimal system.json with no derived stats
@@ -270,16 +233,16 @@ class TestDBIntegration:
 
         db = require_db()
         try:
-            set_attr(db, cid, "ability", "str", "18")
-            set_attr(db, cid, "ability", "dex", "14")
-            set_attr(db, cid, "ability", "con", "12")
+            set_attr(db, cid, "stat", "str", "18")
+            set_attr(db, cid, "stat", "dex", "14")
+            set_attr(db, cid, "stat", "con", "12")
             set_attr(db, cid, "info", "class", "warrior")
             set_ability(db, cid, "Weapon Focus", "Swords", "combat")
 
             char = load_character_data(db, cid)
             assert char.name == "Durão"
             assert char.level == 5
-            assert char.attributes["ability"]["str"] == "18"
+            assert char.attributes["stat"]["str"] == "18"
             assert char.attributes["info"]["class"] == "warrior"
             assert len(char.abilities) == 1
             assert char.abilities[0]["name"] == "Weapon Focus"
@@ -288,18 +251,20 @@ class TestDBIntegration:
 
     def test_rules_calc_full(self, make_session, make_character):
         from _db import require_db
-        from character import set_attr, set_ability
+        from character import set_attr
 
         sid = make_session()
         cid = make_character(sid, name="Durão", level=5)
 
         db = require_db()
         try:
-            set_attr(db, cid, "ability", "str", "18")
-            set_attr(db, cid, "ability", "dex", "14")
-            set_attr(db, cid, "ability", "con", "12")
-            set_attr(db, cid, "info", "class", "warrior")
-            set_ability(db, cid, "Weapon Focus", "Swords", "combat")
+            set_attr(db, cid, "stat", "str", "18")
+            set_attr(db, cid, "stat", "dex", "14")
+            set_attr(db, cid, "stat", "con", "12")
+            set_attr(db, cid, "combat", "base_attack", "5")
+            set_attr(db, cid, "combat", "hit_die_avg", "6")
+            # Pre-aggregated bonus from build engine (e.g. Weapon Focus)
+            set_attr(db, cid, "build", "bonus_melee_attack", "1")
 
             output = rules_calc(db, cid, TEST_SYSTEM)
             assert "RULES_CALC: Durão" in output
@@ -312,7 +277,7 @@ class TestDBIntegration:
                 (cid,),
             ).fetchall()
             derived = dict(rows)
-            assert derived["melee_attack"] == "10"  # 5 + 4 + 1 (weapon focus)
+            assert derived["melee_attack"] == "10"  # 5 + 4 + 1
             assert derived["defense"] == "12"        # 10 + 2
         finally:
             db.close()
@@ -330,5 +295,128 @@ class TestDBIntegration:
         try:
             output = rules_calc(db, cid, str(tmp_path))
             assert "no derived stats" in output
+        finally:
+            db.close()
+
+    def test_build_engine_wired_pf2e(self, make_session, make_character):
+        """Build engine runs automatically and feeds into derived formulas."""
+        from _db import require_db
+        from character import set_attr, set_ability
+
+        pf2e = os.path.join(os.path.dirname(__file__), "..", "systems", "pf2e")
+        sid = make_session()
+        cid = make_character(sid, name="Valeros", level=1)
+
+        db = require_db()
+        try:
+            set_attr(db, cid, "stat", "str", "18")
+            set_attr(db, cid, "stat", "dex", "14")
+            set_attr(db, cid, "stat", "con", "14")
+            set_attr(db, cid, "stat", "wis", "10")
+            set_attr(db, cid, "info", "ancestry", "human")
+            set_attr(db, cid, "info", "class", "fighter")
+            set_ability(db, cid, "Toughness", "", "general")
+
+            output = rules_calc(db, cid, pf2e)
+
+            # Build engine should have written these attributes
+            build_rows = db.execute(
+                "SELECT key, value FROM character_attributes "
+                "WHERE character_id = ? AND category = 'build' ORDER BY key",
+                (cid,),
+            ).fetchall()
+            build = dict(build_rows)
+
+            # Ancestry writes
+            assert build["ancestry_hp"] == "8"
+            assert build["speed_base"] == "25"
+            # Class writes
+            assert build["hp_per_level"] == "10"
+            # Feat effects
+            assert build["bonus_hp"] == "1"
+            # Progressions (fighter level 1)
+            assert build["prof_perception"] == "4"  # expert
+            assert build["prof_fortitude"] == "4"    # expert
+
+            # Derived formulas should use build attributes
+            derived_rows = db.execute(
+                "SELECT key, value FROM character_attributes "
+                "WHERE character_id = ? AND category = 'derived' ORDER BY key",
+                (cid,),
+            ).fetchall()
+            derived = dict(derived_rows)
+
+            # max_hp = ancestry_hp + (hp_per_level + con_mod) * level + bonus_hp
+            # = 8 + (10 + 2) * 1 + 1 = 21
+            assert derived["max_hp"] == "21"
+            assert derived["str_mod"] == "4"
+        finally:
+            db.close()
+
+    def test_build_engine_wired_mm3e(self, make_session, make_character):
+        """Build engine runs for M&M3e: budget, abilities, powers."""
+        from _db import require_db
+        from character import set_attr, set_ability
+
+        mm3e = os.path.join(os.path.dirname(__file__), "..", "systems", "mm3e")
+        sid = make_session()
+        cid = make_character(sid, name="Paragon", level=1)
+
+        db = require_db()
+        try:
+            set_attr(db, cid, "stat", "str", "6")
+            set_attr(db, cid, "stat", "sta", "6")
+            set_attr(db, cid, "stat", "fgt", "6")
+            set_attr(db, cid, "stat", "agl", "2")
+            set_attr(db, cid, "stat", "dex", "0")
+            set_attr(db, cid, "stat", "int", "0")
+            set_attr(db, cid, "stat", "awe", "2")
+            set_attr(db, cid, "stat", "pre", "2")
+            set_attr(db, cid, "stat", "power_level", "10")
+            set_attr(db, cid, "stat", "ranks_dodge", "4")
+            set_attr(db, cid, "stat", "ranks_fortitude", "4")
+            set_attr(db, cid, "stat", "ranks_will", "4")
+            set_ability(db, cid, "Close Attack", "", "advantage")
+            # Protection power with feeds
+            power_json = json.dumps({
+                "effect": "protection",
+                "ranks": 6,
+                "feeds": {"effect_protection": 6},
+            })
+            set_ability(db, cid, "Tough Skin", power_json, "power")
+
+            output = rules_calc(db, cid, mm3e)
+
+            build_rows = db.execute(
+                "SELECT key, value FROM character_attributes "
+                "WHERE character_id = ? AND category = 'build' ORDER BY key",
+                (cid,),
+            ).fetchall()
+            build = dict(build_rows)
+
+            # Budget
+            assert build["budget_total"] == "150"
+            # Advantage effect
+            assert build["adv_close_attack"] == "1"
+            # Power feed
+            assert build["effect_protection"] == "6"
+            # Cost tracking
+            assert "cost_ability" in build
+            assert "cost_powers" in build
+
+            # Derived formulas should use build attributes
+            derived_rows = db.execute(
+                "SELECT key, value FROM character_attributes "
+                "WHERE character_id = ? AND category = 'derived' ORDER BY key",
+                (cid,),
+            ).fetchall()
+            derived = dict(derived_rows)
+
+            # toughness = effective_sta + ranks_toughness + bonus_toughness + effect_protection + adv_defensive_roll
+            # = 6 + 0 + 0 + 6 + 0 = 12
+            assert derived["toughness"] == "12"
+            # close_attack = effective_fgt + adv_close_attack + bonus_close_attack
+            # = 6 + 1 + 0 = 7
+            assert derived["close_attack"] == "7"
         finally:
             db.close()

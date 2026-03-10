@@ -1,0 +1,160 @@
+{
+  "meta": {
+    "name": "Barbarian",
+    "hp_per_level": 12,
+    "key_ability": ["str"],
+    "trained_skills": 3,
+    "description": "Fierce warriors who channel their fury into devastating attacks.",
+    "progressions": {
+      "prof_perception":       "barbarian_prof_perception",
+      "prof_fortitude":        "barbarian_prof_fortitude",
+      "prof_reflex":           "barbarian_prof_reflex",
+      "prof_will":             "barbarian_prof_will",
+      "prof_simple_weapons":   "barbarian_prof_weapons",
+      "prof_martial_weapons":  "barbarian_prof_weapons",
+      "prof_unarmed":          "barbarian_prof_weapons",
+      "prof_unarmored":        "barbarian_prof_defense",
+      "prof_light_armor":      "barbarian_prof_defense",
+      "prof_medium_armor":     "barbarian_prof_defense",
+      "prof_spell_attack":     "barbarian_prof_spell",
+      "prof_spell_dc":         "barbarian_prof_spell",
+      "prof_class_dc":         "barbarian_prof_class_dc"
+    }
+  },
+
+  "tables": {
+    "barbarian_prof_perception":  [4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4],
+    "barbarian_prof_fortitude":   [4, 4, 4, 4, 4, 4, 4, 4, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6],
+    "barbarian_prof_reflex":      [2, 2, 2, 2, 2, 2, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4],
+    "barbarian_prof_will":        [4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4],
+    "barbarian_prof_weapons":     [2, 2, 2, 2, 4, 4, 4, 4, 4, 4, 4, 4, 6, 6, 6, 6, 6, 6, 6, 6],
+    "barbarian_prof_defense":     [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 4, 4, 4, 4, 4, 4, 6, 6, 6, 6],
+    "barbarian_prof_spell":       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    "barbarian_prof_class_dc":    [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4]
+  },
+
+  "level": {
+    "1": {
+      "features": ["rage"],
+      "choices": [
+        {"type": "instinct", "label": "Instinct"}
+      ]
+    },
+    "2": {
+      "choices": [
+        {"type": "feat", "filter": "category == 'barbarian'", "label": "Barbarian feat"},
+        {"type": "feat", "filter": "category == 'skill'", "label": "Skill feat"}
+      ]
+    },
+    "3": {
+      "features": ["deny_advantage"],
+      "choices": [
+        {"type": "feat", "filter": "category == 'general'", "label": "General feat"}
+      ]
+    },
+    "4": {
+      "choices": [
+        {"type": "feat", "filter": "category == 'barbarian'", "label": "Barbarian feat"},
+        {"type": "feat", "filter": "category == 'skill'", "label": "Skill feat"}
+      ]
+    },
+    "5": {
+      "choices": [
+        {"type": "ability_boost", "count": 4, "label": "Ability boosts"}
+      ]
+    },
+    "6": {
+      "choices": [
+        {"type": "feat", "filter": "category == 'barbarian'", "label": "Barbarian feat"},
+        {"type": "feat", "filter": "category == 'skill'", "label": "Skill feat"}
+      ]
+    },
+    "7": {
+      "features": ["juggernaut", "weapon_specialization"],
+      "choices": [
+        {"type": "feat", "filter": "category == 'general'", "label": "General feat"}
+      ]
+    },
+    "8": {
+      "choices": [
+        {"type": "feat", "filter": "category == 'barbarian'", "label": "Barbarian feat"},
+        {"type": "feat", "filter": "category == 'skill'", "label": "Skill feat"}
+      ]
+    },
+    "9": {
+      "features": ["brutal_bully", "lightning_reflexes"],
+      "choices": [
+        {"type": "feat", "filter": "category == 'ancestry'", "label": "Ancestry feat"}
+      ]
+    },
+    "10": {
+      "choices": [
+        {"type": "feat", "filter": "category == 'barbarian'", "label": "Barbarian feat"},
+        {"type": "feat", "filter": "category == 'skill'", "label": "Skill feat"},
+        {"type": "ability_boost", "count": 4, "label": "Ability boosts"}
+      ]
+    },
+    "11": {
+      "features": ["mighty_rage"],
+      "choices": [
+        {"type": "feat", "filter": "category == 'general'", "label": "General feat"}
+      ]
+    },
+    "12": {
+      "choices": [
+        {"type": "feat", "filter": "category == 'barbarian'", "label": "Barbarian feat"},
+        {"type": "feat", "filter": "category == 'skill'", "label": "Skill feat"}
+      ]
+    },
+    "13": {
+      "features": ["weapon_fury", "greater_juggernaut"],
+      "choices": [
+        {"type": "feat", "filter": "category == 'ancestry'", "label": "Ancestry feat"}
+      ]
+    },
+    "14": {
+      "choices": [
+        {"type": "feat", "filter": "category == 'barbarian'", "label": "Barbarian feat"},
+        {"type": "feat", "filter": "category == 'skill'", "label": "Skill feat"}
+      ]
+    },
+    "15": {
+      "features": ["greater_weapon_specialization", "indomitable_will"],
+      "choices": [
+        {"type": "feat", "filter": "category == 'general'", "label": "General feat"},
+        {"type": "ability_boost", "count": 4, "label": "Ability boosts"}
+      ]
+    },
+    "16": {
+      "choices": [
+        {"type": "feat", "filter": "category == 'barbarian'", "label": "Barbarian feat"},
+        {"type": "feat", "filter": "category == 'skill'", "label": "Skill feat"}
+      ]
+    },
+    "17": {
+      "features": ["heightened_senses"],
+      "choices": [
+        {"type": "feat", "filter": "category == 'ancestry'", "label": "Ancestry feat"}
+      ]
+    },
+    "18": {
+      "choices": [
+        {"type": "feat", "filter": "category == 'barbarian'", "label": "Barbarian feat"},
+        {"type": "feat", "filter": "category == 'skill'", "label": "Skill feat"}
+      ]
+    },
+    "19": {
+      "features": ["conqueror", "devastator"],
+      "choices": [
+        {"type": "feat", "filter": "category == 'general'", "label": "General feat"}
+      ]
+    },
+    "20": {
+      "choices": [
+        {"type": "feat", "filter": "category == 'barbarian'", "label": "Barbarian feat"},
+        {"type": "feat", "filter": "category == 'skill'", "label": "Skill feat"},
+        {"type": "ability_boost", "count": 4, "label": "Ability boosts"}
+      ]
+    }
+  }
+}

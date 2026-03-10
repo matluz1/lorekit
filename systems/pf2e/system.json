@@ -1,0 +1,141 @@
+{
+  "meta": {
+    "name": "Pathfinder 2e (Remaster)",
+    "dice": "d20"
+  },
+
+  "proficiency_ranks": {
+    "untrained": 0,
+    "trained": 2,
+    "expert": 4,
+    "master": 6,
+    "legendary": 8
+  },
+
+  "defaults": {
+    "str": 10, "dex": 10, "con": 10, "int": 10, "wis": 10, "cha": 10,
+    "ancestry_hp": 0,
+    "hp_per_level": 0,
+    "key_ability_mod": 0,
+    "item_bonus_ac": 0,
+    "armor_dex_cap": 99,
+    "shield_bonus": 0,
+    "speed_base": 25,
+    "prof_perception": 0,
+    "prof_fortitude": 0,
+    "prof_reflex": 0,
+    "prof_will": 0,
+    "prof_class_dc": 0,
+    "prof_simple_weapons": 0,
+    "prof_martial_weapons": 0,
+    "prof_advanced_weapons": 0,
+    "prof_unarmed": 0,
+    "prof_unarmored": 0,
+    "prof_light_armor": 0,
+    "prof_medium_armor": 0,
+    "prof_heavy_armor": 0,
+    "prof_spell_attack": 0,
+    "prof_spell_dc": 0,
+    "prof_acrobatics": 0,
+    "prof_arcana": 0,
+    "prof_athletics": 0,
+    "prof_crafting": 0,
+    "prof_deception": 0,
+    "prof_diplomacy": 0,
+    "prof_intimidation": 0,
+    "prof_medicine": 0,
+    "prof_nature": 0,
+    "prof_occultism": 0,
+    "prof_performance": 0,
+    "prof_religion": 0,
+    "prof_society": 0,
+    "prof_stealth": 0,
+    "prof_survival": 0,
+    "prof_thievery": 0,
+    "bonus_ac": 0,
+    "bonus_hp": 0,
+    "bonus_perception": 0,
+    "bonus_fortitude": 0,
+    "bonus_reflex": 0,
+    "bonus_will": 0,
+    "bonus_speed": 0,
+    "bonus_spell_attack": 0,
+    "bonus_spell_dc": 0,
+    "bonus_acrobatics": 0,
+    "bonus_arcana": 0,
+    "bonus_athletics": 0,
+    "bonus_crafting": 0,
+    "bonus_deception": 0,
+    "bonus_diplomacy": 0,
+    "bonus_intimidation": 0,
+    "bonus_medicine": 0,
+    "bonus_nature": 0,
+    "bonus_occultism": 0,
+    "bonus_performance": 0,
+    "bonus_religion": 0,
+    "bonus_society": 0,
+    "bonus_stealth": 0,
+    "bonus_survival": 0,
+    "bonus_thievery": 0
+  },
+
+  "derived": {
+    "str_mod": "floor((str - 10) / 2)",
+    "dex_mod": "floor((dex - 10) / 2)",
+    "con_mod": "floor((con - 10) / 2)",
+    "int_mod": "floor((int - 10) / 2)",
+    "wis_mod": "floor((wis - 10) / 2)",
+    "cha_mod": "floor((cha - 10) / 2)",
+
+    "armor_class": "10 + min(dex_mod, armor_dex_cap) + if(prof_unarmored > 0, prof_unarmored + level, 0) + item_bonus_ac + shield_bonus + bonus_ac",
+    "max_hp": "ancestry_hp + (hp_per_level + con_mod) * level + bonus_hp",
+    "perception": "wis_mod + if(prof_perception > 0, prof_perception + level, 0) + bonus_perception",
+    "fortitude": "con_mod + if(prof_fortitude > 0, prof_fortitude + level, 0) + bonus_fortitude",
+    "reflex": "dex_mod + if(prof_reflex > 0, prof_reflex + level, 0) + bonus_reflex",
+    "will": "wis_mod + if(prof_will > 0, prof_will + level, 0) + bonus_will",
+    "class_dc": "10 + key_ability_mod + if(prof_class_dc > 0, prof_class_dc + level, 0)",
+    "spell_attack": "key_ability_mod + if(prof_spell_attack > 0, prof_spell_attack + level, 0) + bonus_spell_attack",
+    "spell_dc": "10 + key_ability_mod + if(prof_spell_dc > 0, prof_spell_dc + level, 0) + bonus_spell_dc",
+    "speed": "speed_base + bonus_speed",
+
+    "skill_acrobatics": "dex_mod + if(prof_acrobatics > 0, prof_acrobatics + level, 0) + bonus_acrobatics",
+    "skill_arcana": "int_mod + if(prof_arcana > 0, prof_arcana + level, 0) + bonus_arcana",
+    "skill_athletics": "str_mod + if(prof_athletics > 0, prof_athletics + level, 0) + bonus_athletics",
+    "skill_crafting": "int_mod + if(prof_crafting > 0, prof_crafting + level, 0) + bonus_crafting",
+    "skill_deception": "cha_mod + if(prof_deception > 0, prof_deception + level, 0) + bonus_deception",
+    "skill_diplomacy": "cha_mod + if(prof_diplomacy > 0, prof_diplomacy + level, 0) + bonus_diplomacy",
+    "skill_intimidation": "cha_mod + if(prof_intimidation > 0, prof_intimidation + level, 0) + bonus_intimidation",
+    "skill_medicine": "wis_mod + if(prof_medicine > 0, prof_medicine + level, 0) + bonus_medicine",
+    "skill_nature": "wis_mod + if(prof_nature > 0, prof_nature + level, 0) + bonus_nature",
+    "skill_occultism": "int_mod + if(prof_occultism > 0, prof_occultism + level, 0) + bonus_occultism",
+    "skill_performance": "cha_mod + if(prof_performance > 0, prof_performance + level, 0) + bonus_performance",
+    "skill_religion": "wis_mod + if(prof_religion > 0, prof_religion + level, 0) + bonus_religion",
+    "skill_society": "int_mod + if(prof_society > 0, prof_society + level, 0) + bonus_society",
+    "skill_stealth": "dex_mod + if(prof_stealth > 0, prof_stealth + level, 0) + bonus_stealth",
+    "skill_survival": "wis_mod + if(prof_survival > 0, prof_survival + level, 0) + bonus_survival",
+    "skill_thievery": "dex_mod + if(prof_thievery > 0, prof_thievery + level, 0) + bonus_thievery"
+  },
+
+  "constraints": {
+    "hp_positive": "max_hp > 0"
+  },
+
+  "build": {
+    "ancestry": {
+      "source": "ancestries.json",
+      "select": "single",
+      "writes": {"ancestry_hp": "hp", "speed_base": "speed"}
+    },
+    "class": {
+      "source": "classes/{class}.json",
+      "select": "single",
+      "writes": {"hp_per_level": "meta.hp_per_level"},
+      "progressions": "meta.progressions"
+    },
+    "feat": {
+      "source": "feats.json",
+      "select": "multiple",
+      "effects": true
+    }
+  }
+}

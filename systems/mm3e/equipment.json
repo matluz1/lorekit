@@ -1,0 +1,876 @@
+{
+  "melee_weapons": {
+    "brass_knuckles": {
+      "name": "Brass Knuckles",
+      "cost_ep": 1,
+      "effect": "Damage",
+      "ranks": 1,
+      "damage_type": "bludgeoning",
+      "critical": 20,
+      "strength_based": true
+    },
+    "club": {
+      "name": "Club",
+      "cost_ep": 2,
+      "effect": "Damage",
+      "ranks": 2,
+      "damage_type": "bludgeoning",
+      "critical": 20,
+      "strength_based": true
+    },
+    "knife": {
+      "name": "Knife",
+      "cost_ep": 2,
+      "effect": "Damage",
+      "ranks": 1,
+      "damage_type": "piercing",
+      "critical": 19,
+      "strength_based": true
+    },
+    "pepper_spray": {
+      "name": "Pepper Spray",
+      "cost_ep": 2,
+      "effect": "Dazzle",
+      "ranks": 4,
+      "range": "close",
+      "sense": "visual",
+      "critical": 20
+    },
+    "stun_gun": {
+      "name": "Stun Gun",
+      "cost_ep": 5,
+      "effect": "Affliction",
+      "ranks": 5,
+      "range": "close",
+      "damage_type": "electrical",
+      "critical": 20,
+      "conditions": ["dazed", "stunned", "incapacitated"],
+      "resistance": "Fortitude"
+    },
+    "battleaxe": {
+      "name": "Battleaxe",
+      "cost_ep": 3,
+      "effect": "Damage",
+      "ranks": 3,
+      "damage_type": "slashing",
+      "critical": 20,
+      "strength_based": true
+    },
+    "sword": {
+      "name": "Sword",
+      "cost_ep": 4,
+      "effect": "Damage",
+      "ranks": 3,
+      "damage_type": "slashing",
+      "critical": 19,
+      "strength_based": true
+    },
+    "spear": {
+      "name": "Spear",
+      "cost_ep": 4,
+      "effect": "Damage",
+      "ranks": 3,
+      "damage_type": "piercing",
+      "critical": 19,
+      "strength_based": true,
+      "notes": "Can be thrown (Ranged)"
+    },
+    "warhammer": {
+      "name": "Warhammer",
+      "cost_ep": 3,
+      "effect": "Damage",
+      "ranks": 3,
+      "damage_type": "bludgeoning",
+      "critical": 20,
+      "strength_based": true
+    },
+    "chain": {
+      "name": "Chain",
+      "cost_ep": 6,
+      "effect": "Damage",
+      "ranks": 2,
+      "damage_type": "bludgeoning",
+      "critical": 20,
+      "strength_based": true,
+      "extras": ["Improved Grab", "Improved Trip", "Reach 2"]
+    },
+    "chainsaw": {
+      "name": "Chainsaw",
+      "cost_ep": 6,
+      "effect": "Damage",
+      "ranks": 6,
+      "damage_type": "slashing",
+      "critical": 20
+    },
+    "nunchaku": {
+      "name": "Nunchaku",
+      "cost_ep": 3,
+      "effect": "Damage",
+      "ranks": 2,
+      "damage_type": "bludgeoning",
+      "critical": 19,
+      "strength_based": true
+    },
+    "whip": {
+      "name": "Whip",
+      "cost_ep": 5,
+      "effect": "Damage",
+      "ranks": 0,
+      "critical": 20,
+      "strength_based": true,
+      "extras": ["Improved Grab", "Improved Trip", "Reach 3"]
+    }
+  },
+
+  "ranged_weapons": {
+    "holdout_pistol": {
+      "name": "Holdout Pistol",
+      "cost_ep": 4,
+      "effect": "Damage",
+      "ranks": 2,
+      "range": "ranged",
+      "damage_type": "ballistic",
+      "critical": 20
+    },
+    "light_pistol": {
+      "name": "Light Pistol",
+      "cost_ep": 6,
+      "effect": "Damage",
+      "ranks": 3,
+      "range": "ranged",
+      "damage_type": "ballistic",
+      "critical": 20
+    },
+    "heavy_pistol": {
+      "name": "Heavy Pistol",
+      "cost_ep": 8,
+      "effect": "Damage",
+      "ranks": 4,
+      "range": "ranged",
+      "damage_type": "ballistic",
+      "critical": 20
+    },
+    "machine_pistol": {
+      "name": "Machine Pistol",
+      "cost_ep": 9,
+      "effect": "Damage",
+      "ranks": 3,
+      "range": "ranged",
+      "damage_type": "ballistic",
+      "critical": 20,
+      "extras": ["Multiattack"]
+    },
+    "submachine_gun": {
+      "name": "Submachine Gun",
+      "cost_ep": 12,
+      "effect": "Damage",
+      "ranks": 4,
+      "range": "ranged",
+      "damage_type": "ballistic",
+      "critical": 20,
+      "extras": ["Multiattack"]
+    },
+    "shotgun": {
+      "name": "Shotgun",
+      "cost_ep": 10,
+      "effect": "Damage",
+      "ranks": 5,
+      "range": "ranged",
+      "damage_type": "ballistic",
+      "critical": 20,
+      "notes": "Limited range"
+    },
+    "assault_rifle": {
+      "name": "Assault Rifle",
+      "cost_ep": 15,
+      "effect": "Damage",
+      "ranks": 5,
+      "range": "ranged",
+      "damage_type": "ballistic",
+      "critical": 20,
+      "extras": ["Multiattack"]
+    },
+    "sniper_rifle": {
+      "name": "Sniper Rifle",
+      "cost_ep": 11,
+      "effect": "Damage",
+      "ranks": 5,
+      "range": "ranged",
+      "damage_type": "ballistic",
+      "critical": 19
+    },
+    "bow": {
+      "name": "Bow",
+      "cost_ep": 6,
+      "effect": "Damage",
+      "ranks": 3,
+      "range": "ranged",
+      "damage_type": "piercing",
+      "critical": 20
+    },
+    "crossbow": {
+      "name": "Crossbow",
+      "cost_ep": 7,
+      "effect": "Damage",
+      "ranks": 3,
+      "range": "ranged",
+      "damage_type": "piercing",
+      "critical": 19
+    },
+    "blaster_pistol": {
+      "name": "Blaster Pistol",
+      "cost_ep": 10,
+      "effect": "Damage",
+      "ranks": 5,
+      "range": "ranged",
+      "damage_type": "energy",
+      "critical": 20
+    },
+    "blaster_rifle": {
+      "name": "Blaster Rifle",
+      "cost_ep": 16,
+      "effect": "Damage",
+      "ranks": 8,
+      "range": "ranged",
+      "damage_type": "energy",
+      "critical": 20
+    },
+    "taser": {
+      "name": "Taser",
+      "cost_ep": 10,
+      "effect": "Affliction",
+      "ranks": 5,
+      "range": "ranged",
+      "damage_type": "electrical",
+      "critical": 20,
+      "conditions": ["dazed", "stunned", "incapacitated"],
+      "resistance": "Fortitude"
+    },
+    "flamethrower": {
+      "name": "Flamethrower",
+      "cost_ep": 13,
+      "effect": "Damage",
+      "ranks": 6,
+      "range": "close",
+      "damage_type": "fire",
+      "extras": ["Cone Area", "Line Area"]
+    },
+    "grenade_launcher": {
+      "name": "Grenade Launcher",
+      "cost_ep": 15,
+      "effect": "Damage",
+      "ranks": 5,
+      "range": "ranged",
+      "damage_type": "explosive",
+      "extras": ["Burst Area"]
+    },
+    "rocket_launcher": {
+      "name": "Rocket Launcher",
+      "cost_ep": 27,
+      "effect": "Damage",
+      "ranks": 10,
+      "range": "ranged",
+      "damage_type": "explosive",
+      "critical": 20,
+      "extras": ["Burst Area 7"]
+    },
+    "bolos": {
+      "name": "Bolos",
+      "cost_ep": 6,
+      "effect": "Affliction",
+      "ranks": 3,
+      "range": "ranged",
+      "critical": 20,
+      "conditions": ["hindered", "immobile"],
+      "resistance": "Dodge",
+      "notes": "Snare"
+    },
+    "boomerang": {
+      "name": "Boomerang",
+      "cost_ep": 2,
+      "effect": "Damage",
+      "ranks": 1,
+      "range": "ranged",
+      "critical": 20
+    },
+    "javelin": {
+      "name": "Javelin",
+      "cost_ep": 4,
+      "effect": "Damage",
+      "ranks": 2,
+      "range": "ranged",
+      "damage_type": "piercing",
+      "critical": 20
+    },
+    "shuriken": {
+      "name": "Shuriken",
+      "cost_ep": 3,
+      "effect": "Damage",
+      "ranks": 1,
+      "range": "ranged",
+      "critical": 20,
+      "extras": ["Multiattack"]
+    }
+  },
+
+  "grenades_explosives": {
+    "fragmentation_grenade": {
+      "name": "Fragmentation Grenade",
+      "cost_ep": 15,
+      "effect": "Damage",
+      "ranks": 5,
+      "range": "ranged",
+      "damage_type": "piercing",
+      "extras": ["Burst Area"]
+    },
+    "smoke_grenade": {
+      "name": "Smoke Grenade",
+      "cost_ep": 12,
+      "effect": "Concealment",
+      "ranks": 4,
+      "range": "ranged",
+      "sense": "visual",
+      "extras": ["Cloud Area"]
+    },
+    "flash_bang_grenade": {
+      "name": "Flash-bang Grenade",
+      "cost_ep": 16,
+      "effect": "Dazzle",
+      "ranks": 4,
+      "range": "ranged",
+      "sense": "visual+auditory",
+      "extras": ["Burst Area"]
+    },
+    "sleep_gas_grenade": {
+      "name": "Sleep Gas Grenade",
+      "cost_ep": 12,
+      "effect": "Affliction",
+      "ranks": 4,
+      "range": "ranged",
+      "extras": ["Cloud Area"],
+      "conditions": ["fatigued", "exhausted", "asleep"],
+      "resistance": "Fortitude"
+    },
+    "tear_gas_grenade": {
+      "name": "Tear Gas Grenade",
+      "cost_ep": 16,
+      "effect": "Affliction",
+      "ranks": 4,
+      "range": "ranged",
+      "extras": ["Cloud Area"],
+      "conditions": ["dazed+impaired", "stunned+disabled", "incapacitated"],
+      "resistance": "Fortitude"
+    },
+    "dynamite": {
+      "name": "Dynamite",
+      "cost_ep": 15,
+      "effect": "Damage",
+      "ranks": 5,
+      "range": "ranged",
+      "damage_type": "explosive",
+      "extras": ["Burst Area"]
+    },
+    "plastic_explosive": {
+      "name": "Plastic Explosive",
+      "cost_ep": 30,
+      "effect": "Damage",
+      "ranks": 10,
+      "range": "ranged",
+      "damage_type": "explosive",
+      "extras": ["Burst Area"]
+    }
+  },
+
+  "armor": {
+    "leather": {
+      "name": "Leather Armor",
+      "cost_ep": 1,
+      "effect": "Protection",
+      "toughness": 1
+    },
+    "studded_leather": {
+      "name": "Studded Leather",
+      "cost_ep": 2,
+      "effect": "Protection",
+      "toughness": 2
+    },
+    "chain_mail": {
+      "name": "Chain-mail Armor",
+      "cost_ep": 3,
+      "effect": "Protection",
+      "toughness": 3
+    },
+    "scale_mail": {
+      "name": "Scale Mail",
+      "cost_ep": 3,
+      "effect": "Protection",
+      "toughness": 3
+    },
+    "plate_mail": {
+      "name": "Plate-mail Armor",
+      "cost_ep": 5,
+      "effect": "Protection",
+      "toughness": 5
+    },
+    "full_plate": {
+      "name": "Full-plate Armor",
+      "cost_ep": 6,
+      "effect": "Protection",
+      "toughness": 6
+    },
+    "undercover_vest": {
+      "name": "Undercover Vest",
+      "cost_ep": 2,
+      "effect": "Protection",
+      "toughness": 2,
+      "extras": ["Subtle"],
+      "flaws": ["Limited: Ballistic"]
+    },
+    "bulletproof_vest": {
+      "name": "Bulletproof Vest",
+      "cost_ep": 2,
+      "effect": "Protection",
+      "toughness": 4,
+      "flaws": ["Limited: Ballistic"]
+    },
+    "bulletproof_vest_plates": {
+      "name": "Bulletproof Vest with Plates",
+      "cost_ep": 4,
+      "effect": "Protection",
+      "toughness": 4
+    },
+    "riot_armor": {
+      "name": "Riot Armor",
+      "cost_ep": 6,
+      "effect": "Protection",
+      "toughness": 6
+    }
+  },
+
+  "shields": {
+    "small_shield": {
+      "name": "Small Shield",
+      "cost_ep": 2,
+      "dodge_bonus": 1,
+      "parry_bonus": 1
+    },
+    "medium_shield": {
+      "name": "Medium Shield",
+      "cost_ep": 4,
+      "dodge_bonus": 2,
+      "parry_bonus": 2
+    },
+    "large_shield": {
+      "name": "Large Shield",
+      "cost_ep": 6,
+      "dodge_bonus": 3,
+      "parry_bonus": 3
+    },
+    "tower_shield": {
+      "name": "Tower Shield",
+      "cost_ep": 9,
+      "dodge_bonus": 5,
+      "parry_bonus": 5,
+      "notes": "-1 speed"
+    }
+  },
+
+  "general_gear": {
+    "camera": {
+      "name": "Camera",
+      "cost_ep": 1
+    },
+    "cell_phone": {
+      "name": "Cell Phone",
+      "cost_ep": 1
+    },
+    "comm_link": {
+      "name": "Comm-link",
+      "cost_ep": 1
+    },
+    "computer": {
+      "name": "Computer",
+      "cost_ep": 1
+    },
+    "handcuffs": {
+      "name": "Handcuffs",
+      "cost_ep": 1
+    },
+    "lock_release_gun": {
+      "name": "Lock Release Gun",
+      "cost_ep": 1
+    },
+    "binoculars": {
+      "name": "Binoculars",
+      "cost_ep": 1
+    },
+    "night_vision_goggles": {
+      "name": "Night Vision Goggles",
+      "cost_ep": 1
+    },
+    "mini_tracer": {
+      "name": "Mini-Tracer",
+      "cost_ep": 1
+    },
+    "parabolic_microphone": {
+      "name": "Parabolic Microphone",
+      "cost_ep": 1
+    },
+    "camo_clothing": {
+      "name": "Camo Clothing",
+      "cost_ep": 1
+    },
+    "flash_goggles": {
+      "name": "Flash Goggles",
+      "cost_ep": 1,
+      "notes": "+5 vs. visual attacks"
+    },
+    "flashlight": {
+      "name": "Flashlight",
+      "cost_ep": 1
+    },
+    "fire_extinguisher": {
+      "name": "Fire Extinguisher",
+      "cost_ep": 1
+    },
+    "gas_mask": {
+      "name": "Gas Mask",
+      "cost_ep": 1,
+      "effect": "Immunity",
+      "ranks": 1,
+      "notes": "Eye/throat irritants"
+    },
+    "gps": {
+      "name": "GPS",
+      "cost_ep": 1
+    },
+    "multi_tool": {
+      "name": "Multi-tool",
+      "cost_ep": 1
+    },
+    "rebreather": {
+      "name": "Rebreather",
+      "cost_ep": 1,
+      "effect": "Immunity",
+      "ranks": 2,
+      "notes": "Suffocation, 20 rounds"
+    },
+    "scuba_gear": {
+      "name": "SCUBA Gear",
+      "cost_ep": 2,
+      "effect": "Immunity",
+      "ranks": 2,
+      "notes": "Suffocation (underwater)"
+    },
+    "utility_belt": {
+      "name": "Utility Belt",
+      "cost_ep": 25,
+      "notes": "Container with multiple items as Alternate Effects"
+    }
+  },
+
+  "vehicles_land": {
+    "motorcycle": {
+      "name": "Motorcycle",
+      "cost_ep": 10,
+      "size": "Medium",
+      "str": 1,
+      "speed": 6,
+      "defense": 10,
+      "toughness": 8
+    },
+    "car": {
+      "name": "Car",
+      "cost_ep": 10,
+      "size": "Large",
+      "str": 5,
+      "speed": 5,
+      "defense": 8,
+      "toughness": 8
+    },
+    "police_cruiser": {
+      "name": "Police Cruiser",
+      "cost_ep": 11,
+      "size": "Large",
+      "str": 6,
+      "speed": 6,
+      "defense": 8,
+      "toughness": 9
+    },
+    "limousine": {
+      "name": "Limousine",
+      "cost_ep": 6,
+      "size": "Huge",
+      "str": 8,
+      "speed": 5,
+      "defense": 6,
+      "toughness": 9
+    },
+    "truck": {
+      "name": "Truck",
+      "cost_ep": 7,
+      "size": "Huge",
+      "str": 9,
+      "speed": 5,
+      "defense": 6,
+      "toughness": 9
+    },
+    "armored_car": {
+      "name": "Armored Car",
+      "cost_ep": 8,
+      "size": "Huge",
+      "str": 8,
+      "speed": 5,
+      "defense": 6,
+      "toughness": 12
+    },
+    "tank": {
+      "name": "Tank",
+      "cost_ep": 65,
+      "size": "Huge",
+      "str": 10,
+      "speed": 4,
+      "defense": 6,
+      "toughness": 12,
+      "notes": "Typically includes weapons"
+    },
+    "apc": {
+      "name": "APC",
+      "cost_ep": 35,
+      "size": "Huge",
+      "str": 12,
+      "speed": 4,
+      "defense": 6,
+      "toughness": 12
+    },
+    "bus": {
+      "name": "Bus",
+      "cost_ep": 8,
+      "size": "Gargantuan",
+      "str": 12,
+      "speed": 5,
+      "defense": 4,
+      "toughness": 11
+    },
+    "semi": {
+      "name": "Semi",
+      "cost_ep": 9,
+      "size": "Gargantuan",
+      "str": 13,
+      "speed": 5,
+      "defense": 4,
+      "toughness": 11
+    },
+    "train_engine": {
+      "name": "Train Engine",
+      "cost_ep": 10,
+      "size": "Huge",
+      "str": 10,
+      "speed": 5,
+      "defense": 6,
+      "toughness": 10
+    }
+  },
+
+  "vehicles_water": {
+    "jet_ski": {
+      "name": "Jet-Ski",
+      "cost_ep": 8,
+      "size": "Medium",
+      "str": 1,
+      "speed": 5,
+      "defense": 10,
+      "toughness": 7
+    },
+    "speedboat": {
+      "name": "Speedboat",
+      "cost_ep": 8,
+      "size": "Large",
+      "str": 6,
+      "speed": 6,
+      "defense": 8,
+      "toughness": 7
+    },
+    "yacht": {
+      "name": "Yacht",
+      "cost_ep": 9,
+      "size": "Huge",
+      "str": 10,
+      "speed": 5,
+      "defense": 6,
+      "toughness": 9
+    },
+    "cutter": {
+      "name": "Cutter",
+      "cost_ep": 27,
+      "size": "Gargantuan",
+      "str": 13,
+      "speed": 5,
+      "defense": 4,
+      "toughness": 12
+    },
+    "destroyer": {
+      "name": "Destroyer",
+      "cost_ep": 38,
+      "size": "Colossal",
+      "str": 16,
+      "speed": 5,
+      "defense": 2,
+      "toughness": 14
+    },
+    "cruise_ship": {
+      "name": "Cruise Ship",
+      "cost_ep": 10,
+      "size": "Awesome",
+      "str": 20,
+      "speed": 5,
+      "defense": 0,
+      "toughness": 15
+    },
+    "battleship": {
+      "name": "Battleship",
+      "cost_ep": 46,
+      "size": "Awesome",
+      "str": 20,
+      "speed": 5,
+      "defense": 0,
+      "toughness": 16
+    },
+    "submarine": {
+      "name": "Submarine",
+      "cost_ep": 30,
+      "size": "Colossal",
+      "str": 16,
+      "speed": 5,
+      "defense": 2,
+      "toughness": 13
+    }
+  },
+
+  "vehicles_air": {
+    "helicopter": {
+      "name": "Helicopter",
+      "cost_ep": 16,
+      "size": "Huge",
+      "str": 8,
+      "speed": 7,
+      "defense": 6,
+      "toughness": 9
+    },
+    "military_copter": {
+      "name": "Military Copter",
+      "cost_ep": 45,
+      "size": "Huge",
+      "str": 8,
+      "speed": 8,
+      "defense": 6,
+      "toughness": 11
+    },
+    "private_jet": {
+      "name": "Private Jet",
+      "cost_ep": 19,
+      "size": "Gargantuan",
+      "str": 12,
+      "speed": 8,
+      "defense": 4,
+      "toughness": 11
+    },
+    "jumbo_jet": {
+      "name": "Jumbo Jet",
+      "cost_ep": 18,
+      "size": "Colossal",
+      "str": 16,
+      "speed": 7,
+      "defense": 2,
+      "toughness": 13
+    },
+    "fighter_jet": {
+      "name": "Fighter Jet",
+      "cost_ep": 66,
+      "size": "Huge",
+      "str": 10,
+      "speed": 12,
+      "defense": 6,
+      "toughness": 10
+    },
+    "bomber": {
+      "name": "Bomber",
+      "cost_ep": 59,
+      "size": "Colossal",
+      "str": 13,
+      "speed": 9,
+      "defense": 2,
+      "toughness": 13
+    }
+  },
+
+  "vehicles_space": {
+    "space_shuttle": {
+      "name": "Space Shuttle",
+      "cost_ep": 28,
+      "size": "Colossal",
+      "str": 16,
+      "speed": 12,
+      "defense": 2,
+      "toughness": 13
+    },
+    "space_fighter": {
+      "name": "Space Fighter",
+      "cost_ep": 56,
+      "size": "Huge",
+      "str": 10,
+      "speed": 14,
+      "defense": 6,
+      "toughness": 11
+    },
+    "space_cruiser": {
+      "name": "Space Cruiser",
+      "cost_ep": 79,
+      "size": "Colossal",
+      "str": 18,
+      "speed": 14,
+      "defense": 2,
+      "toughness": 15
+    },
+    "space_battleship": {
+      "name": "Space Battleship",
+      "cost_ep": 93,
+      "size": "Awesome",
+      "str": 22,
+      "speed": 16,
+      "defense": 0,
+      "toughness": 18
+    }
+  },
+
+  "vehicles_exotic": {
+    "dimension_hopper": {
+      "name": "Dimension Hopper",
+      "cost_ep": 8,
+      "size": "Huge",
+      "str": 8,
+      "defense": 6,
+      "toughness": 9,
+      "notes": "Movement (Dimensional Travel)"
+    },
+    "mole_machine": {
+      "name": "Mole Machine",
+      "cost_ep": 10,
+      "size": "Huge",
+      "str": 11,
+      "speed": 4,
+      "defense": 6,
+      "toughness": 12,
+      "notes": "Burrowing"
+    },
+    "time_machine": {
+      "name": "Time Machine",
+      "cost_ep": 8,
+      "size": "Huge",
+      "str": 8,
+      "defense": 6,
+      "toughness": 9,
+      "notes": "Movement (Time Travel)"
+    }
+  }
+}

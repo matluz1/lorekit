@@ -1,0 +1,104 @@
+{
+  "meta": {
+    "name": "Rogue",
+    "hp_per_level": 8,
+    "key_ability": ["dex"],
+    "trained_skills": 7,
+    "description": "Cunning combatants who strike from the shadows with precision and guile.",
+    "progressions": {
+      "prof_perception":       "rogue_prof_perception",
+      "prof_fortitude":        "rogue_prof_fortitude",
+      "prof_reflex":           "rogue_prof_reflex",
+      "prof_will":             "rogue_prof_will",
+      "prof_simple_weapons":   "rogue_prof_weapons",
+      "prof_unarmed":          "rogue_prof_weapons",
+      "prof_unarmored":        "rogue_prof_defense",
+      "prof_light_armor":      "rogue_prof_defense",
+      "prof_class_dc":         "rogue_prof_class_dc",
+      "prof_spell_attack":     "rogue_prof_spell",
+      "prof_spell_dc":         "rogue_prof_spell"
+    }
+  },
+
+  "tables": {
+    "rogue_prof_perception": [4, 4, 4, 4, 4, 4, 6, 6, 6, 6, 6, 6, 6, 6, 8, 8, 8, 8, 8, 8],
+    "rogue_prof_fortitude":  [2, 2, 2, 2, 2, 2, 2, 2, 4, 4, 4, 4, 4, 4, 4, 4, 6, 6, 6, 6],
+    "rogue_prof_reflex":     [4, 4, 4, 4, 4, 4, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6],
+    "rogue_prof_will":       [4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 6, 6, 6, 6, 6, 6, 6, 6],
+    "rogue_prof_weapons":    [2, 2, 2, 2, 4, 4, 4, 4, 4, 4, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6],
+    "rogue_prof_defense":    [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 4, 4, 4, 4, 4, 4, 6, 6],
+    "rogue_prof_class_dc":   [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 4, 4, 4, 4, 4, 4, 4, 4, 6, 6],
+    "rogue_prof_spell":      [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+  },
+
+  "level": {
+    "1": {
+      "features": ["sneak_attack", "surprise_attack"],
+      "choices": [
+        {"type": "racket", "label": "Rogue's racket"},
+        {"type": "feat", "filter": "category == 'rogue'", "label": "Rogue feat"}
+      ]
+    },
+    "2": {
+      "choices": [
+        {"type": "feat", "filter": "category == 'rogue'", "label": "Rogue feat"},
+        {"type": "feat", "filter": "category == 'skill'", "label": "Skill feat"}
+      ]
+    },
+    "3": {
+      "features": ["deny_advantage"],
+      "choices": [
+        {"type": "feat", "filter": "category == 'general'", "label": "General feat"},
+        {"type": "skill_increase", "label": "Skill increase"}
+      ]
+    },
+    "5": {
+      "features": ["weapon_tricks"],
+      "choices": [
+        {"type": "ability_boost", "count": 4, "label": "Ability boosts"}
+      ]
+    },
+    "7": {
+      "features": ["evasion", "vigilant_senses", "weapon_specialization"],
+      "choices": [
+        {"type": "feat", "filter": "category == 'general'", "label": "General feat"}
+      ]
+    },
+    "9": {
+      "features": ["debilitating_strike", "great_fortitude"],
+      "choices": [
+        {"type": "feat", "filter": "category == 'ancestry'", "label": "Ancestry feat"}
+      ]
+    },
+    "11": {
+      "features": ["rogue_expertise"],
+      "choices": [
+        {"type": "feat", "filter": "category == 'general'", "label": "General feat"}
+      ]
+    },
+    "13": {
+      "features": ["improved_evasion", "light_armor_expertise"],
+      "choices": [
+        {"type": "feat", "filter": "category == 'ancestry'", "label": "Ancestry feat"}
+      ]
+    },
+    "15": {
+      "features": ["greater_weapon_specialization"],
+      "choices": [
+        {"type": "ability_boost", "count": 4, "label": "Ability boosts"}
+      ]
+    },
+    "17": {
+      "features": ["slippery_mind"],
+      "choices": [
+        {"type": "feat", "filter": "category == 'ancestry'", "label": "Ancestry feat"}
+      ]
+    },
+    "19": {
+      "features": ["master_strike", "light_armor_mastery"],
+      "choices": [
+        {"type": "feat", "filter": "category == 'general'", "label": "General feat"}
+      ]
+    }
+  }
+}

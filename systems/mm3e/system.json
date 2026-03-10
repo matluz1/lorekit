@@ -1,0 +1,223 @@
+{
+  "meta": {
+    "name": "Mutants & Masterminds 3e",
+    "dice": "d20"
+  },
+
+  "defaults": {
+    "str": 0, "sta": 0, "dex": 0, "agl": 0,
+    "fgt": 0, "int": 0, "awe": 0, "pre": 0,
+
+    "power_level": 10,
+
+    "ranks_close_attack": 0,
+    "ranks_ranged_attack": 0,
+    "ranks_close_combat": 0,
+    "ranks_ranged_combat": 0,
+
+    "ranks_dodge": 0,
+    "ranks_parry": 0,
+    "ranks_fortitude": 0,
+    "ranks_will": 0,
+    "ranks_toughness": 0,
+
+    "bonus_dodge": 0,
+    "bonus_parry": 0,
+    "bonus_fortitude": 0,
+    "bonus_will": 0,
+    "bonus_toughness": 0,
+
+    "bonus_close_attack": 0,
+    "bonus_ranged_attack": 0,
+    "bonus_close_damage": 0,
+    "bonus_ranged_damage": 0,
+
+    "bonus_initiative": 0,
+
+    "ranks_acrobatics": 0,
+    "ranks_athletics": 0,
+    "ranks_deception": 0,
+    "ranks_expertise": 0,
+    "ranks_insight": 0,
+    "ranks_intimidation": 0,
+    "ranks_investigation": 0,
+    "ranks_perception": 0,
+    "ranks_persuasion": 0,
+    "ranks_sleight_of_hand": 0,
+    "ranks_stealth": 0,
+    "ranks_technology": 0,
+    "ranks_treatment": 0,
+    "ranks_vehicles": 0,
+
+    "bonus_acrobatics": 0,
+    "bonus_athletics": 0,
+    "bonus_deception": 0,
+    "bonus_expertise": 0,
+    "bonus_insight": 0,
+    "bonus_intimidation": 0,
+    "bonus_investigation": 0,
+    "bonus_perception": 0,
+    "bonus_persuasion": 0,
+    "bonus_sleight_of_hand": 0,
+    "bonus_stealth": 0,
+    "bonus_technology": 0,
+    "bonus_treatment": 0,
+    "bonus_vehicles": 0,
+
+    "adv_close_attack": 0,
+    "adv_ranged_attack": 0,
+    "adv_defensive_roll": 0,
+    "adv_improved_initiative": 0,
+    "adv_evasion": 0,
+    "adv_improved_critical": 0,
+    "adv_equipment": 0,
+
+    "effect_protection": 0,
+    "effect_enhanced_dodge": 0,
+    "effect_enhanced_parry": 0,
+    "effect_enhanced_fortitude": 0,
+    "effect_enhanced_will": 0,
+    "effect_enhanced_str": 0,
+    "effect_enhanced_sta": 0,
+    "effect_enhanced_dex": 0,
+    "effect_enhanced_agl": 0,
+    "effect_enhanced_fgt": 0,
+    "effect_enhanced_int": 0,
+    "effect_enhanced_awe": 0,
+    "effect_enhanced_pre": 0,
+
+    "damage_penalty": 0
+  },
+
+  "derived": {
+    "effective_str": "str + effect_enhanced_str",
+    "effective_sta": "sta + effect_enhanced_sta",
+    "effective_dex": "dex + effect_enhanced_dex",
+    "effective_agl": "agl + effect_enhanced_agl",
+    "effective_fgt": "fgt + effect_enhanced_fgt",
+    "effective_int": "int + effect_enhanced_int",
+    "effective_awe": "awe + effect_enhanced_awe",
+    "effective_pre": "pre + effect_enhanced_pre",
+
+    "dodge": "effective_agl + ranks_dodge + bonus_dodge + effect_enhanced_dodge",
+    "parry": "effective_fgt + ranks_parry + bonus_parry + effect_enhanced_parry",
+    "fortitude": "effective_sta + ranks_fortitude + bonus_fortitude + effect_enhanced_fortitude",
+    "will": "effective_awe + ranks_will + bonus_will + effect_enhanced_will",
+    "toughness": "effective_sta + ranks_toughness + bonus_toughness + effect_protection + adv_defensive_roll",
+
+    "initiative": "effective_agl + adv_improved_initiative * 4 + bonus_initiative",
+
+    "close_attack": "effective_fgt + adv_close_attack + bonus_close_attack",
+    "ranged_attack": "effective_dex + adv_ranged_attack + bonus_ranged_attack",
+
+    "unarmed_damage": "effective_str + bonus_close_damage",
+
+    "skill_acrobatics": "effective_agl + ranks_acrobatics + bonus_acrobatics",
+    "skill_athletics": "effective_str + ranks_athletics + bonus_athletics",
+    "skill_deception": "effective_pre + ranks_deception + bonus_deception",
+    "skill_expertise": "effective_int + ranks_expertise + bonus_expertise",
+    "skill_insight": "effective_awe + ranks_insight + bonus_insight",
+    "skill_intimidation": "effective_pre + ranks_intimidation + bonus_intimidation",
+    "skill_investigation": "effective_int + ranks_investigation + bonus_investigation",
+    "skill_perception": "effective_awe + ranks_perception + bonus_perception",
+    "skill_persuasion": "effective_pre + ranks_persuasion + bonus_persuasion",
+    "skill_sleight_of_hand": "effective_dex + ranks_sleight_of_hand + bonus_sleight_of_hand",
+    "skill_stealth": "effective_agl + ranks_stealth + bonus_stealth",
+    "skill_technology": "effective_int + ranks_technology + bonus_technology",
+    "skill_treatment": "effective_int + ranks_treatment + bonus_treatment",
+    "skill_vehicles": "effective_dex + ranks_vehicles + bonus_vehicles",
+
+    "equipment_points": "adv_equipment * 5",
+
+    "damage_resistance": "toughness + damage_penalty",
+
+    "pl_attack_dodge": "close_attack + dodge",
+    "pl_attack_parry": "close_attack + parry",
+    "pl_ranged_dodge": "ranged_attack + dodge",
+    "pl_dodge_toughness": "dodge + toughness",
+    "pl_parry_toughness": "parry + toughness",
+    "pl_fortitude_will": "fortitude + will",
+    "pl_limit": "power_level * 2",
+    "skill_cap": "power_level + 10"
+  },
+
+  "constraints": {
+    "pl_dodge_toughness": "pl_dodge_toughness <= pl_limit",
+    "pl_parry_toughness": "pl_parry_toughness <= pl_limit",
+    "pl_fortitude_will": "pl_fortitude_will <= pl_limit",
+    "skill_acrobatics_cap": "skill_acrobatics <= skill_cap",
+    "skill_athletics_cap": "skill_athletics <= skill_cap",
+    "skill_deception_cap": "skill_deception <= skill_cap",
+    "skill_expertise_cap": "skill_expertise <= skill_cap",
+    "skill_insight_cap": "skill_insight <= skill_cap",
+    "skill_intimidation_cap": "skill_intimidation <= skill_cap",
+    "skill_investigation_cap": "skill_investigation <= skill_cap",
+    "skill_perception_cap": "skill_perception <= skill_cap",
+    "skill_persuasion_cap": "skill_persuasion <= skill_cap",
+    "skill_sleight_of_hand_cap": "skill_sleight_of_hand <= skill_cap",
+    "skill_stealth_cap": "skill_stealth <= skill_cap",
+    "skill_technology_cap": "skill_technology <= skill_cap",
+    "skill_treatment_cap": "skill_treatment <= skill_cap",
+    "skill_vehicles_cap": "skill_vehicles <= skill_cap"
+  },
+
+  "scales": {
+    "duration": ["instant", "concentration", "sustained", "continuous", "permanent"],
+    "range": ["personal", "close", "ranged", "perception"],
+    "action": ["standard", "move", "free", "reaction", "none"]
+  },
+
+  "pipeline": [
+    {"stage": "per_rank", "formula": "if(base_cost_per_rank + sum_extras + sum_flaws >= 1, (base_cost_per_rank + sum_extras + sum_flaws) * ranks, max(1, per(ranks, max(1, 2 - (base_cost_per_rank + sum_extras + sum_flaws)))))"},
+    {"stage": "flat", "formula": "max(1, prev + sum_flat)"},
+    {"stage": "removable", "formula": "if(removable > 0, max(1, prev - per(prev, 5) * removable), prev)"}
+  ],
+
+  "build": {
+    "budget": {
+      "total": "power_level * 15"
+    },
+    "ability": {
+      "keys": ["str", "sta", "dex", "agl", "fgt", "int", "awe", "pre"],
+      "cost_per_rank": 2
+    },
+    "defense": {
+      "keys": ["ranks_dodge", "ranks_parry", "ranks_fortitude", "ranks_will"],
+      "cost_per_rank": 1
+    },
+    "skill": {
+      "keys": [
+        "ranks_acrobatics", "ranks_athletics", "ranks_deception",
+        "ranks_expertise", "ranks_insight", "ranks_intimidation",
+        "ranks_investigation", "ranks_perception", "ranks_persuasion",
+        "ranks_sleight_of_hand", "ranks_stealth", "ranks_technology",
+        "ranks_treatment", "ranks_vehicles"
+      ],
+      "cost_per_rank": 0.5,
+      "round": "ceil"
+    },
+    "advantage": {
+      "source": "advantages.json",
+      "select": "multiple",
+      "cost_per_rank": 1,
+      "effects": true
+    },
+    "power": {
+      "effect_source": "effects.json",
+      "modifier_source": "modifiers.json",
+      "ability_category": "power",
+      "pipeline": true,
+      "feeds": true
+    },
+    "array": {
+      "alternate_cost": 1,
+      "dynamic_cost": 2
+    },
+    "sub_budget": {
+      "equipment": {
+        "source_attribute": "adv_equipment",
+        "points_per_rank": 5
+      }
+    }
+  }
+}

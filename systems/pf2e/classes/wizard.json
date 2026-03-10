@@ -1,0 +1,100 @@
+{
+  "meta": {
+    "name": "Wizard",
+    "hp_per_level": 6,
+    "key_ability": ["int"],
+    "trained_skills": 2,
+    "description": "Scholarly spellcasters who command arcane magic through intensive study and practice.",
+    "progressions": {
+      "prof_perception":       "wizard_prof_perception",
+      "prof_fortitude":        "wizard_prof_fortitude",
+      "prof_reflex":           "wizard_prof_reflex",
+      "prof_will":             "wizard_prof_will",
+      "prof_simple_weapons":   "wizard_prof_weapons",
+      "prof_unarmed":          "wizard_prof_weapons",
+      "prof_unarmored":        "wizard_prof_defense",
+      "prof_class_dc":         "wizard_prof_class_dc",
+      "prof_spell_attack":     "wizard_prof_spell",
+      "prof_spell_dc":         "wizard_prof_spell"
+    }
+  },
+
+  "tables": {
+    "wizard_prof_perception": [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2],
+    "wizard_prof_fortitude":  [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 4, 4, 4, 4],
+    "wizard_prof_reflex":     [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 4, 4, 4, 4],
+    "wizard_prof_will":       [4, 4, 4, 4, 4, 4, 4, 4, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6],
+    "wizard_prof_weapons":    [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4],
+    "wizard_prof_defense":    [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 4, 4, 4, 4, 4, 4, 4, 4],
+    "wizard_prof_class_dc":   [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2],
+    "wizard_prof_spell":      [2, 2, 2, 2, 2, 2, 4, 4, 4, 4, 4, 4, 4, 4, 6, 6, 6, 6, 8, 8]
+  },
+
+  "level": {
+    "1": {
+      "features": ["arcane_spellcasting", "arcane_school", "arcane_bond"],
+      "choices": [
+        {"type": "school", "label": "Arcane school"}
+      ]
+    },
+    "2": {
+      "choices": [
+        {"type": "feat", "filter": "category == 'wizard'", "label": "Wizard feat"},
+        {"type": "feat", "filter": "category == 'skill'", "label": "Skill feat"}
+      ]
+    },
+    "3": {
+      "choices": [
+        {"type": "feat", "filter": "category == 'general'", "label": "General feat"},
+        {"type": "skill_increase", "label": "Skill increase"}
+      ]
+    },
+    "5": {
+      "choices": [
+        {"type": "ability_boost", "count": 4, "label": "Ability boosts"}
+      ]
+    },
+    "7": {
+      "features": ["expert_spellcaster"],
+      "choices": [
+        {"type": "feat", "filter": "category == 'general'", "label": "General feat"}
+      ]
+    },
+    "9": {
+      "features": ["resolve"],
+      "choices": [
+        {"type": "feat", "filter": "category == 'ancestry'", "label": "Ancestry feat"}
+      ]
+    },
+    "11": {
+      "features": ["wizard_weapon_expertise"],
+      "choices": [
+        {"type": "feat", "filter": "category == 'general'", "label": "General feat"}
+      ]
+    },
+    "13": {
+      "features": ["defensive_robes"],
+      "choices": [
+        {"type": "feat", "filter": "category == 'ancestry'", "label": "Ancestry feat"}
+      ]
+    },
+    "15": {
+      "features": ["master_spellcaster"],
+      "choices": [
+        {"type": "ability_boost", "count": 4, "label": "Ability boosts"}
+      ]
+    },
+    "17": {
+      "features": ["resolve_greater"],
+      "choices": [
+        {"type": "feat", "filter": "category == 'ancestry'", "label": "Ancestry feat"}
+      ]
+    },
+    "19": {
+      "features": ["legendary_spellcaster", "archwizards_might"],
+      "choices": [
+        {"type": "feat", "filter": "category == 'general'", "label": "General feat"}
+      ]
+    }
+  }
+}

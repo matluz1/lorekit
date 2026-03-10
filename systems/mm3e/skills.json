@@ -1,0 +1,108 @@
+{
+  "_comment": "M&M 3e skills — from the d20 Hero SRD (OGL). Cost: 1 character point per 2 skill ranks.",
+
+  "cost_per_2_ranks": 1,
+  "skill_cap_formula": "power_level + 10",
+
+  "acrobatics": {
+    "name": "Acrobatics",
+    "ability": "agl",
+    "trained_only": true,
+    "has_subtypes": false
+  },
+  "athletics": {
+    "name": "Athletics",
+    "ability": "str",
+    "trained_only": false,
+    "has_subtypes": false
+  },
+  "close_combat": {
+    "name": "Close Combat",
+    "ability": "fgt",
+    "trained_only": false,
+    "has_subtypes": true,
+    "subtype_note": "Specific weapon, power, or unarmed. Each subtype is a separate skill.",
+    "grants_attack_bonus": true
+  },
+  "deception": {
+    "name": "Deception",
+    "ability": "pre",
+    "trained_only": false,
+    "has_subtypes": false
+  },
+  "expertise": {
+    "name": "Expertise",
+    "ability": "int",
+    "trained_only": "partial",
+    "has_subtypes": true,
+    "subtype_note": "Specific field or profession. Each specialty is separate. Some areas usable untrained."
+  },
+  "insight": {
+    "name": "Insight",
+    "ability": "awe",
+    "trained_only": false,
+    "has_subtypes": false
+  },
+  "intimidation": {
+    "name": "Intimidation",
+    "ability": "pre",
+    "trained_only": false,
+    "has_subtypes": false
+  },
+  "investigation": {
+    "name": "Investigation",
+    "ability": "int",
+    "trained_only": true,
+    "has_subtypes": false
+  },
+  "perception": {
+    "name": "Perception",
+    "ability": "awe",
+    "trained_only": false,
+    "has_subtypes": false
+  },
+  "persuasion": {
+    "name": "Persuasion",
+    "ability": "pre",
+    "trained_only": false,
+    "has_subtypes": false
+  },
+  "ranged_combat": {
+    "name": "Ranged Combat",
+    "ability": "dex",
+    "trained_only": false,
+    "has_subtypes": true,
+    "subtype_note": "Specific weapon or power type. Each subtype is a separate skill.",
+    "grants_attack_bonus": true
+  },
+  "sleight_of_hand": {
+    "name": "Sleight of Hand",
+    "ability": "dex",
+    "trained_only": false,
+    "has_subtypes": false
+  },
+  "stealth": {
+    "name": "Stealth",
+    "ability": "agl",
+    "trained_only": false,
+    "has_subtypes": false
+  },
+  "technology": {
+    "name": "Technology",
+    "ability": "int",
+    "trained_only": true,
+    "has_subtypes": false
+  },
+  "treatment": {
+    "name": "Treatment",
+    "ability": "int",
+    "trained_only": true,
+    "has_subtypes": false
+  },
+  "vehicles": {
+    "name": "Vehicles",
+    "ability": "dex",
+    "trained_only": false,
+    "has_subtypes": false
+  }
+}

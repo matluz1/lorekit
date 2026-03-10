@@ -1,0 +1,2643 @@
+{
+  "_comment": "PF2e feats — general, skill, and class feats from the ORC-licensed SRD",
+  "toughness": {
+    "name": "Toughness",
+    "category": "general",
+    "effects": {
+      "bonus_hp": 1
+    },
+    "note": "Gain HP equal to your level (modeled as +1 per level via bonuses.hp scaling)"
+  },
+  "fleet": {
+    "name": "Fleet",
+    "category": "general",
+    "effects": {
+      "bonus_speed": 5
+    }
+  },
+  "incredible_initiative": {
+    "name": "Incredible Initiative",
+    "category": "general",
+    "effects": {
+      "bonus_initiative": 2
+    }
+  },
+  "shield_block": {
+    "name": "Shield Block",
+    "category": "general",
+    "combat_option": true,
+    "effects": {},
+    "note": "Reaction: reduce damage by shield hardness, shield takes remaining damage"
+  },
+  "armor_proficiency": {
+    "name": "Armor Proficiency",
+    "category": "general",
+    "note": "Gain trained proficiency in one armor category"
+  },
+  "weapon_proficiency": {
+    "name": "Weapon Proficiency",
+    "category": "general",
+    "note": "Gain trained proficiency in one weapon group"
+  },
+  "canny_acumen_fortitude": {
+    "name": "Canny Acumen (Fortitude)",
+    "category": "general",
+    "prereqs": {
+      "level": 17
+    },
+    "effects": {},
+    "note": "Increase proficiency in Fortitude to expert (or master at 17+)"
+  },
+  "diehard": {
+    "name": "Diehard",
+    "category": "general",
+    "note": "You die at dying 5 instead of dying 4"
+  },
+  "fast_recovery": {
+    "name": "Fast Recovery",
+    "category": "general",
+    "prereqs": {
+      "con": 14
+    },
+    "note": "Regain double HP from rest; +4 to recover from diseases and poisons"
+  },
+  "assurance": {
+    "name": "Assurance",
+    "category": "skill",
+    "param": "skill",
+    "note": "Forgo rolling and use 10 + proficiency for a specific skill"
+  },
+  "battle_medicine": {
+    "name": "Battle Medicine",
+    "category": "skill",
+    "prereqs": {
+      "prof_medicine": 2
+    },
+    "note": "Attempt a Medicine check to heal in combat (1 action)"
+  },
+  "intimidating_glare": {
+    "name": "Intimidating Glare",
+    "category": "skill",
+    "prereqs": {
+      "prof_intimidation": 2
+    },
+    "note": "Demoralize without language penalty"
+  },
+  "steady_balance": {
+    "name": "Steady Balance",
+    "category": "skill",
+    "prereqs": {
+      "prof_acrobatics": 2
+    },
+    "note": "Treat success as critical success on Balance checks"
+  },
+  "titan_wrestler": {
+    "name": "Titan Wrestler",
+    "category": "skill",
+    "prereqs": {
+      "prof_athletics": 2
+    },
+    "note": "Grapple creatures up to two sizes larger"
+  },
+  "cat_fall": {
+    "name": "Cat Fall",
+    "category": "skill",
+    "prereqs": {
+      "prof_acrobatics": 2
+    },
+    "note": "Treat falls as 10 feet shorter"
+  },
+  "quick_identification": {
+    "name": "Quick Identification",
+    "category": "skill",
+    "prereqs": {
+      "prof_arcana": 2
+    },
+    "note": "Identify Magic as a 1-action activity"
+  },
+  "power_attack": {
+    "name": "Power Attack",
+    "category": "fighter",
+    "prereqs": {
+      "class": "fighter",
+      "level": 1
+    },
+    "combat_option": true,
+    "effects": {},
+    "note": "2 actions: Strike at full bonus with extra weapon damage dice"
+  },
+  "sudden_charge": {
+    "name": "Sudden Charge",
+    "category": "fighter",
+    "prereqs": {
+      "class": "fighter",
+      "level": 1
+    },
+    "combat_option": true,
+    "effects": {},
+    "note": "2 actions: Stride twice then Strike"
+  },
+  "intimidating_strike": {
+    "name": "Intimidating Strike",
+    "category": "fighter",
+    "prereqs": {
+      "class": "fighter",
+      "level": 2
+    },
+    "combat_option": true,
+    "effects": {},
+    "note": "2 actions: Strike that frightens on hit"
+  },
+  "knockdown": {
+    "name": "Knockdown",
+    "category": "fighter",
+    "prereqs": {
+      "class": "fighter",
+      "level": 4,
+      "prof_athletics": 2
+    },
+    "combat_option": true,
+    "effects": {},
+    "note": "2 actions: Strike then free Trip on hit"
+  },
+  "swipe": {
+    "name": "Swipe",
+    "category": "fighter",
+    "prereqs": {
+      "class": "fighter",
+      "level": 4
+    },
+    "combat_option": true,
+    "effects": {},
+    "note": "2 actions: Strike two adjacent foes with one attack roll"
+  },
+  "nimble_dodge": {
+    "name": "Nimble Dodge",
+    "category": "rogue",
+    "prereqs": {
+      "class": "rogue",
+      "level": 1
+    },
+    "combat_option": true,
+    "effects": {},
+    "note": "Reaction: +2 AC against one attack"
+  },
+  "twin_feint": {
+    "name": "Twin Feint",
+    "category": "rogue",
+    "prereqs": {
+      "class": "rogue",
+      "level": 1
+    },
+    "combat_option": true,
+    "effects": {},
+    "note": "2 actions: Strike with two weapons, second is flat-footed"
+  },
+  "gang_up": {
+    "name": "Gang Up",
+    "category": "rogue",
+    "prereqs": {
+      "class": "rogue",
+      "level": 6
+    },
+    "note": "Enemies are flat-footed to you if within reach of you and an ally"
+  },
+  "reach_spell": {
+    "name": "Reach Spell",
+    "category": "wizard",
+    "prereqs": {
+      "class": "wizard",
+      "level": 1
+    },
+    "note": "1 additional action: increase spell range by 30 feet"
+  },
+  "counterspell": {
+    "name": "Counterspell",
+    "category": "wizard",
+    "prereqs": {
+      "class": "wizard",
+      "level": 1
+    },
+    "note": "Reaction: counter an enemy spell using the same spell"
+  },
+  "healing_hands": {
+    "name": "Healing Hands",
+    "category": "cleric",
+    "prereqs": {
+      "class": "cleric",
+      "level": 1
+    },
+    "note": "Heal spells use d10s instead of d8s"
+  },
+  "harming_hands": {
+    "name": "Harming Hands",
+    "category": "cleric",
+    "prereqs": {
+      "class": "cleric",
+      "level": 1
+    },
+    "note": "Harm spells use d10s instead of d8s"
+  },
+  "communal_healing": {
+    "name": "Communal Healing",
+    "category": "cleric",
+    "prereqs": {
+      "class": "cleric",
+      "level": 2
+    },
+    "note": "When you heal a target, you regain HP equal to spell rank"
+  },
+  "adopted_ancestry": {
+    "name": "Adopted Ancestry",
+    "category": "general",
+    "note": "Choose an ancestry other than your own. You can select ancestry feats from that ancestry."
+  },
+  "ancestral_paragon": {
+    "name": "Ancestral Paragon",
+    "category": "general",
+    "prereqs": {
+      "level": 3
+    },
+    "note": "Gain a 1st-level ancestry feat."
+  },
+  "breath_control": {
+    "name": "Breath Control",
+    "category": "general",
+    "note": "Hold breath 25× as long. +1 circumstance to saves vs inhaled threats."
+  },
+  "feather_step": {
+    "name": "Feather Step",
+    "category": "general",
+    "prereqs": {
+      "dex": 14
+    },
+    "note": "Step into difficult terrain."
+  },
+  "keen_follower": {
+    "name": "Keen Follower",
+    "category": "general",
+    "note": "Follow tracks without a check for common terrain."
+  },
+  "mounted_combat": {
+    "name": "Mounted Combat",
+    "category": "general",
+    "note": "Command your mount with less effort. Mount acts on your turn."
+  },
+  "ride": {
+    "name": "Ride",
+    "category": "general",
+    "note": "Automatically succeed on Command an Animal to make your mount Stride."
+  },
+  "untrained_improvisation": {
+    "name": "Untrained Improvisation",
+    "category": "general",
+    "prereqs": {
+      "level": 3
+    },
+    "note": "Add half your level to untrained skill checks (full level at 7+)."
+  },
+  "expeditious_search": {
+    "name": "Expeditious Search",
+    "category": "general",
+    "prereqs": {
+      "level": 7,
+      "prof_perception": 6
+    },
+    "note": "Search at full speed instead of half speed."
+  },
+  "incredible_investiture": {
+    "name": "Incredible Investiture",
+    "category": "general",
+    "prereqs": {
+      "level": 11,
+      "cha": 16
+    },
+    "note": "Invest up to 12 items instead of 10."
+  },
+  "bon_mot": {
+    "name": "Bon Mot",
+    "category": "skill",
+    "prereqs": {
+      "prof_diplomacy": 2
+    },
+    "note": "1 action: witty quip gives target -2 to Perception and Will saves until they respond."
+  },
+  "charming_liar": {
+    "name": "Charming Liar",
+    "category": "skill",
+    "prereqs": {
+      "prof_deception": 2
+    },
+    "note": "On critical success to Lie, target's attitude improves by one step."
+  },
+  "experienced_professional": {
+    "name": "Experienced Professional",
+    "category": "skill",
+    "prereqs": {
+      "prof_crafting": 2
+    },
+    "note": "Never critically fail to Earn Income, and gain higher earnings on success."
+  },
+  "fascinating_performance": {
+    "name": "Fascinating Performance",
+    "category": "skill",
+    "prereqs": {
+      "prof_performance": 2
+    },
+    "note": "Perform to fascinate observers (Will save vs Performance DC)."
+  },
+  "group_impression": {
+    "name": "Group Impression",
+    "category": "skill",
+    "prereqs": {
+      "prof_diplomacy": 2
+    },
+    "note": "Make an Impression on up to 4 targets at once."
+  },
+  "hefty_hauler": {
+    "name": "Hefty Hauler",
+    "category": "skill",
+    "prereqs": {
+      "prof_athletics": 2
+    },
+    "note": "Increase carrying capacity limits by 2 Bulk."
+  },
+  "hobnobber": {
+    "name": "Hobnobber",
+    "category": "skill",
+    "prereqs": {
+      "prof_diplomacy": 2
+    },
+    "note": "Gather Information in half the normal time. On critical failure, no false info."
+  },
+  "lie_to_me": {
+    "name": "Lie to Me",
+    "category": "skill",
+    "prereqs": {
+      "prof_deception": 2
+    },
+    "note": "Use Deception DC instead of Perception DC to detect lies against you."
+  },
+  "multilingual": {
+    "name": "Multilingual",
+    "category": "skill",
+    "prereqs": {
+      "prof_society": 2
+    },
+    "note": "Learn two new languages."
+  },
+  "natural_medicine": {
+    "name": "Natural Medicine",
+    "category": "skill",
+    "prereqs": {
+      "prof_nature": 2
+    },
+    "note": "Use Nature instead of Medicine for Treat Wounds in wilderness."
+  },
+  "pickpocket": {
+    "name": "Pickpocket",
+    "category": "skill",
+    "prereqs": {
+      "prof_thievery": 2
+    },
+    "note": "Steal or Palm an Object from a creature who is not actively observing you."
+  },
+  "quick_coercion": {
+    "name": "Quick Coercion",
+    "category": "skill",
+    "prereqs": {
+      "prof_intimidation": 2
+    },
+    "note": "Coerce a target in 1 round instead of 1 minute."
+  },
+  "quick_jump": {
+    "name": "Quick Jump",
+    "category": "skill",
+    "prereqs": {
+      "prof_athletics": 2
+    },
+    "note": "High Jump or Long Jump as a single action."
+  },
+  "quick_repair": {
+    "name": "Quick Repair",
+    "category": "skill",
+    "prereqs": {
+      "prof_crafting": 2
+    },
+    "note": "Repair an item in 1 action instead of 10 minutes."
+  },
+  "recognize_spell": {
+    "name": "Recognize Spell",
+    "category": "skill",
+    "prereqs": {
+      "prof_arcana": 2
+    },
+    "note": "Reaction: identify a spell being cast using the appropriate skill."
+  },
+  "specialty_crafting": {
+    "name": "Specialty Crafting",
+    "category": "skill",
+    "prereqs": {
+      "prof_crafting": 2
+    },
+    "note": "+2 circumstance bonus to Craft items in a chosen specialty."
+  },
+  "student_of_the_canon": {
+    "name": "Student of the Canon",
+    "category": "skill",
+    "prereqs": {
+      "prof_religion": 2
+    },
+    "note": "Critical failures on Religion checks to Decipher Writing or Recall Knowledge become failures."
+  },
+  "subtle_theft": {
+    "name": "Subtle Theft",
+    "category": "skill",
+    "prereqs": {
+      "prof_thievery": 2
+    },
+    "note": "When you successfully Steal, observers don't notice unless actively searching."
+  },
+  "survey_wildlife": {
+    "name": "Survey Wildlife",
+    "category": "skill",
+    "prereqs": {
+      "prof_survival": 2
+    },
+    "note": "Spend 10 minutes to learn about creatures in the area via tracks and signs."
+  },
+  "terrain_expertise": {
+    "name": "Terrain Expertise",
+    "category": "skill",
+    "prereqs": {
+      "prof_survival": 2
+    },
+    "note": "+2 circumstance bonus to Survival in a chosen terrain type."
+  },
+  "train_animal": {
+    "name": "Train Animal",
+    "category": "skill",
+    "prereqs": {
+      "prof_nature": 2
+    },
+    "note": "Teach an animal a trick over the course of a week."
+  },
+  "trick_magic_item": {
+    "name": "Trick Magic Item",
+    "category": "skill",
+    "prereqs": {
+      "prof_arcana": 2
+    },
+    "note": "Activate a magic item you normally couldn't by faking the required trait."
+  },
+  "virtuosic_performer": {
+    "name": "Virtuosic Performer",
+    "category": "skill",
+    "prereqs": {
+      "prof_performance": 2
+    },
+    "note": "+1 circumstance bonus to Performance checks (+2 at master)."
+  },
+  "wary_disarmament": {
+    "name": "Wary Disarmament",
+    "category": "skill",
+    "prereqs": {
+      "prof_thievery": 2
+    },
+    "note": "+2 circumstance bonus to AC and saves triggered by traps you're disarming."
+  },
+  "biographical_eye": {
+    "name": "Biographical Eye",
+    "category": "skill",
+    "prereqs": {
+      "prof_society": 4
+    },
+    "note": "On a successful Recall Knowledge about a person, also learn their profession and one personality trait."
+  },
+  "connections": {
+    "name": "Connections",
+    "category": "skill",
+    "prereqs": {
+      "prof_society": 4,
+      "level": 2
+    },
+    "note": "Leverage connections to gain meetings with important figures."
+  },
+  "continual_recovery": {
+    "name": "Continual Recovery",
+    "category": "skill",
+    "prereqs": {
+      "prof_medicine": 4
+    },
+    "note": "Treat Wounds cooldown reduced to 10 minutes instead of 1 hour."
+  },
+  "glad_hand": {
+    "name": "Glad-Hand",
+    "category": "skill",
+    "prereqs": {
+      "prof_diplomacy": 4
+    },
+    "note": "Make an Impression during a round of Gathering Information."
+  },
+  "intimidating_prowess": {
+    "name": "Intimidating Prowess",
+    "category": "skill",
+    "prereqs": {
+      "prof_intimidation": 4,
+      "str": 16
+    },
+    "effects": {
+      "bonus_intimidation": 1
+    },
+    "note": "+1 circumstance bonus to Intimidation (+2 if you're master)."
+  },
+  "legendary_sneak": {
+    "name": "Legendary Sneak",
+    "category": "skill",
+    "prereqs": {
+      "prof_stealth": 8,
+      "level": 15
+    },
+    "note": "Hide and Sneak without cover or concealment."
+  },
+  "quick_disguise": {
+    "name": "Quick Disguise",
+    "category": "skill",
+    "prereqs": {
+      "prof_deception": 4
+    },
+    "note": "Create a disguise in 1 minute instead of 10."
+  },
+  "robust_recovery": {
+    "name": "Robust Recovery",
+    "category": "skill",
+    "prereqs": {
+      "prof_medicine": 4
+    },
+    "note": "On success Treat Disease or Treat Poison, treat as critical success."
+  },
+  "shameless_request": {
+    "name": "Shameless Request",
+    "category": "skill",
+    "prereqs": {
+      "prof_diplomacy": 4
+    },
+    "note": "Reduce penalty for impossible or outrageous Requests."
+  },
+  "swift_sneak": {
+    "name": "Swift Sneak",
+    "category": "skill",
+    "prereqs": {
+      "prof_stealth": 4
+    },
+    "note": "Sneak at full speed."
+  },
+  "terrified_retreat": {
+    "name": "Terrified Retreat",
+    "category": "skill",
+    "prereqs": {
+      "prof_intimidation": 4
+    },
+    "note": "On critical success to Demoralize, target flees for 1 round."
+  },
+  "wall_jump": {
+    "name": "Wall Jump",
+    "category": "skill",
+    "prereqs": {
+      "prof_athletics": 4
+    },
+    "note": "Leap off walls. Requires expert Athletics."
+  },
+  "double_slice": {
+    "name": "Double Slice",
+    "category": "fighter",
+    "prereqs": {
+      "class": "fighter",
+      "level": 1
+    },
+    "combat_option": true,
+    "note": "2 actions: Strike with each weapon, combine MAP. Second Strike doesn't increase MAP."
+  },
+  "exacting_strike": {
+    "name": "Exacting Strike",
+    "category": "fighter",
+    "prereqs": {
+      "class": "fighter",
+      "level": 1
+    },
+    "note": "1 action: Strike that doesn't count toward MAP on miss."
+  },
+  "point_blank_shot": {
+    "name": "Point-Blank Shot",
+    "category": "fighter",
+    "prereqs": {
+      "class": "fighter",
+      "level": 1
+    },
+    "combat_option": true,
+    "note": "Stance: ranged Strikes within first range increment ignore volley penalty and get +2 damage."
+  },
+  "reactive_shield": {
+    "name": "Reactive Shield",
+    "category": "fighter",
+    "prereqs": {
+      "class": "fighter",
+      "level": 1
+    },
+    "combat_option": true,
+    "note": "Reaction: Raise a Shield when attacked."
+  },
+  "snagging_strike": {
+    "name": "Snagging Strike",
+    "category": "fighter",
+    "prereqs": {
+      "class": "fighter",
+      "level": 1
+    },
+    "combat_option": true,
+    "note": "1 action: Strike that makes target off-guard on hit."
+  },
+  "aggressive_block": {
+    "name": "Aggressive Block",
+    "category": "fighter",
+    "prereqs": {
+      "class": "fighter",
+      "level": 2
+    },
+    "combat_option": true,
+    "note": "Use Shield Block to push or make attacker off-guard."
+  },
+  "assisting_shot": {
+    "name": "Assisting Shot",
+    "category": "fighter",
+    "prereqs": {
+      "class": "fighter",
+      "level": 2
+    },
+    "combat_option": true,
+    "note": "1 action: ranged Strike, on hit target is off-guard to next ally attack."
+  },
+  "brutish_shove": {
+    "name": "Brutish Shove",
+    "category": "fighter",
+    "prereqs": {
+      "class": "fighter",
+      "level": 2,
+      "prof_athletics": 2
+    },
+    "combat_option": true,
+    "note": "Strike with two-handed weapon, Shove on hit."
+  },
+  "combat_grab": {
+    "name": "Combat Grab",
+    "category": "fighter",
+    "prereqs": {
+      "class": "fighter",
+      "level": 2
+    },
+    "combat_option": true,
+    "note": "1 action: Strike, on hit you can Grab the target with free hand."
+  },
+  "dueling_parry": {
+    "name": "Dueling Parry",
+    "category": "fighter",
+    "prereqs": {
+      "class": "fighter",
+      "level": 2
+    },
+    "combat_option": true,
+    "note": "+2 AC while wielding one-handed weapon with free hand (1 action)."
+  },
+  "lunge": {
+    "name": "Lunge",
+    "category": "fighter",
+    "prereqs": {
+      "class": "fighter",
+      "level": 4
+    },
+    "combat_option": true,
+    "note": "1 action: Stride reach +5ft for next Strike."
+  },
+  "double_shot": {
+    "name": "Double Shot",
+    "category": "fighter",
+    "prereqs": {
+      "class": "fighter",
+      "level": 6
+    },
+    "combat_option": true,
+    "note": "2 actions: Two ranged Strikes against different targets, each at -2."
+  },
+  "dual_handed_assault": {
+    "name": "Dual-Handed Assault",
+    "category": "fighter",
+    "prereqs": {
+      "class": "fighter",
+      "level": 6
+    },
+    "combat_option": true,
+    "note": "Free action: add two-hand damage die when wielding one-handed weapon in two hands."
+  },
+  "felling_strike": {
+    "name": "Felling Strike",
+    "category": "fighter",
+    "prereqs": {
+      "class": "fighter",
+      "level": 8
+    },
+    "combat_option": true,
+    "note": "2 actions: Strike a flying creature, on hit it falls."
+  },
+  "incredible_aim": {
+    "name": "Incredible Aim",
+    "category": "fighter",
+    "prereqs": {
+      "class": "fighter",
+      "level": 8
+    },
+    "combat_option": true,
+    "note": "2 actions: ignore concealment and cover on next ranged Strike."
+  },
+  "positioning_assault": {
+    "name": "Positioning Assault",
+    "category": "fighter",
+    "prereqs": {
+      "class": "fighter",
+      "level": 8
+    },
+    "combat_option": true,
+    "note": "2 actions: Strike, on hit move target 5ft to a space in your reach."
+  },
+  "shatter_defenses": {
+    "name": "Shatter Defenses",
+    "category": "fighter",
+    "prereqs": {
+      "class": "fighter",
+      "level": 10
+    },
+    "combat_option": true,
+    "note": "On hit vs frightened, target is off-guard until end of your next turn."
+  },
+  "spring_attack": {
+    "name": "Spring Attack",
+    "category": "fighter",
+    "prereqs": {
+      "class": "fighter",
+      "level": 12
+    },
+    "combat_option": true,
+    "note": "Stride, Strike, Stride (total movement ≤ Speed)."
+  },
+  "stance_savant": {
+    "name": "Stance Savant",
+    "category": "fighter",
+    "prereqs": {
+      "class": "fighter",
+      "level": 12
+    },
+    "note": "Free action: enter a stance at beginning of combat."
+  },
+  "desperate_finisher": {
+    "name": "Desperate Finisher",
+    "category": "fighter",
+    "prereqs": {
+      "class": "fighter",
+      "level": 14
+    },
+    "combat_option": true,
+    "note": "Reaction at 0 actions: Press Strike."
+  },
+  "determination": {
+    "name": "Determination",
+    "category": "fighter",
+    "prereqs": {
+      "class": "fighter",
+      "level": 14
+    },
+    "combat_option": true,
+    "note": "1 action: end one nonpermanent spell or condition affecting you."
+  },
+  "two_weapon_flurry": {
+    "name": "Two-Weapon Flurry",
+    "category": "fighter",
+    "prereqs": {
+      "class": "fighter",
+      "level": 14
+    },
+    "combat_option": true,
+    "note": "2 actions: Strike once with each weapon (each applies own MAP)."
+  },
+  "whirlwind_strike": {
+    "name": "Whirlwind Strike",
+    "category": "fighter",
+    "prereqs": {
+      "class": "fighter",
+      "level": 14
+    },
+    "combat_option": true,
+    "note": "3 actions: Strike every creature within reach."
+  },
+  "guiding_finish": {
+    "name": "Guiding Finish",
+    "category": "fighter",
+    "prereqs": {
+      "class": "fighter",
+      "level": 16
+    },
+    "combat_option": true,
+    "note": "Strike, on hit move target 10ft within reach."
+  },
+  "improved_knockdown": {
+    "name": "Improved Knockdown",
+    "category": "fighter",
+    "prereqs": {
+      "class": "fighter",
+      "level": 16,
+      "knockdown": true
+    },
+    "combat_option": true,
+    "note": "Knockdown without needing Trip check."
+  },
+  "savage_critical": {
+    "name": "Savage Critical",
+    "category": "fighter",
+    "prereqs": {
+      "class": "fighter",
+      "level": 18
+    },
+    "note": "Nat 19 on attack is a critical hit."
+  },
+  "boundless_reprisals": {
+    "name": "Boundless Reprisals",
+    "category": "fighter",
+    "prereqs": {
+      "class": "fighter",
+      "level": 20
+    },
+    "note": "Unlimited Attacks of Opportunity per round."
+  },
+  "trap_finder": {
+    "name": "Trap Finder",
+    "category": "rogue",
+    "prereqs": {
+      "class": "rogue",
+      "level": 1
+    },
+    "effects": {
+      "bonus_perception": 1
+    },
+    "note": "You gain a +1 circumstance bonus to Perception to find traps and to AC/saves vs traps."
+  },
+  "youre_next": {
+    "name": "You're Next",
+    "category": "rogue",
+    "prereqs": {
+      "class": "rogue",
+      "level": 1
+    },
+    "combat_option": true,
+    "note": "Reaction: Demoralize when an adjacent creature is reduced to 0 HP."
+  },
+  "dread_striker": {
+    "name": "Dread Striker",
+    "category": "rogue",
+    "prereqs": {
+      "class": "rogue",
+      "level": 2
+    },
+    "note": "Frightened creatures are off-guard to you."
+  },
+  "mobility": {
+    "name": "Mobility",
+    "category": "rogue",
+    "prereqs": {
+      "class": "rogue",
+      "level": 2
+    },
+    "note": "When Striding half your speed or less, that movement doesn't trigger reactions."
+  },
+  "quick_draw": {
+    "name": "Quick Draw",
+    "category": "rogue",
+    "prereqs": {
+      "class": "rogue",
+      "level": 2
+    },
+    "combat_option": true,
+    "note": "1 action: draw weapon and Strike."
+  },
+  "unbalancing_blow": {
+    "name": "Unbalancing Blow",
+    "category": "rogue",
+    "prereqs": {
+      "class": "rogue",
+      "level": 2
+    },
+    "combat_option": true,
+    "note": "On critical hit, target is off-guard until start of your next turn."
+  },
+  "battle_assessment": {
+    "name": "Battle Assessment",
+    "category": "rogue",
+    "prereqs": {
+      "class": "rogue",
+      "level": 4
+    },
+    "combat_option": true,
+    "note": "1 action: Recall Knowledge with Perception. On success, learn one combat stat."
+  },
+  "deny_support": {
+    "name": "Deny Support",
+    "category": "rogue",
+    "prereqs": {
+      "class": "rogue",
+      "level": 4
+    },
+    "note": "Your target can't flank with allies."
+  },
+  "preparation": {
+    "name": "Preparation",
+    "category": "rogue",
+    "prereqs": {
+      "class": "rogue",
+      "level": 4
+    },
+    "note": "Prepared a readied action before initiative, you gain +2 circumstance bonus."
+  },
+  "sneak_savant": {
+    "name": "Sneak Savant",
+    "category": "rogue",
+    "prereqs": {
+      "class": "rogue",
+      "level": 4
+    },
+    "note": "You can always Hide and Sneak even if observed."
+  },
+  "precise_debilitations": {
+    "name": "Precise Debilitations",
+    "category": "rogue",
+    "prereqs": {
+      "class": "rogue",
+      "level": 10
+    },
+    "note": "Your debilitations deal additional precision damage."
+  },
+  "instant_opening": {
+    "name": "Instant Opening",
+    "category": "rogue",
+    "prereqs": {
+      "class": "rogue",
+      "level": 12
+    },
+    "combat_option": true,
+    "note": "1 action: target is off-guard to next attack."
+  },
+  "spring_from_the_shadows": {
+    "name": "Spring from the Shadows",
+    "category": "rogue",
+    "prereqs": {
+      "class": "rogue",
+      "level": 12
+    },
+    "combat_option": true,
+    "note": "Stride and Strike from Hidden; target is off-guard."
+  },
+  "cognitive_loophole": {
+    "name": "Cognitive Loophole",
+    "category": "rogue",
+    "prereqs": {
+      "class": "rogue",
+      "level": 14
+    },
+    "combat_option": true,
+    "note": "Reaction: retry a failed Will save vs mental effect."
+  },
+  "dispelling_slice": {
+    "name": "Dispelling Slice",
+    "category": "rogue",
+    "prereqs": {
+      "class": "rogue",
+      "level": 14
+    },
+    "combat_option": true,
+    "note": "2 actions: Strike to counteract a spell on the target."
+  },
+  "hidden_paragon": {
+    "name": "Hidden Paragon",
+    "category": "rogue",
+    "prereqs": {
+      "class": "rogue",
+      "level": 18
+    },
+    "note": "When you Hide, you become Undetected instead of Hidden."
+  },
+  "implausible_purchase": {
+    "name": "Implausible Purchase",
+    "category": "rogue",
+    "prereqs": {
+      "class": "rogue",
+      "level": 18
+    },
+    "note": "You can produce any common item as if you had it all along."
+  },
+  "impossible_striker": {
+    "name": "Impossible Striker",
+    "category": "rogue",
+    "prereqs": {
+      "class": "rogue",
+      "level": 20
+    },
+    "combat_option": true,
+    "note": "Strike ignores all cover, concealment, and flat checks to target."
+  },
+  "eschew_materials": {
+    "name": "Eschew Materials",
+    "category": "wizard",
+    "prereqs": {
+      "class": "wizard",
+      "level": 1
+    },
+    "note": "Ignore material components that don't have a cost."
+  },
+  "familiar": {
+    "name": "Familiar",
+    "category": "wizard",
+    "prereqs": {
+      "class": "wizard",
+      "level": 1
+    },
+    "note": "Gain a familiar."
+  },
+  "hand_of_the_apprentice": {
+    "name": "Hand of the Apprentice",
+    "category": "wizard",
+    "prereqs": {
+      "class": "wizard",
+      "level": 1
+    },
+    "combat_option": true,
+    "note": "1 action: ranged Strike using melee weapon with spell attack."
+  },
+  "widen_spell": {
+    "name": "Widen Spell",
+    "category": "wizard",
+    "prereqs": {
+      "class": "wizard",
+      "level": 1
+    },
+    "note": "1 additional action: increase area of burst, cone, or line spells."
+  },
+  "cantrip_expansion": {
+    "name": "Cantrip Expansion",
+    "category": "wizard",
+    "prereqs": {
+      "class": "wizard",
+      "level": 2
+    },
+    "note": "Prepare two additional cantrips."
+  },
+  "conceal_spell": {
+    "name": "Conceal Spell",
+    "category": "wizard",
+    "prereqs": {
+      "class": "wizard",
+      "level": 2
+    },
+    "note": "Hide that you are casting a spell."
+  },
+  "enhanced_familiar": {
+    "name": "Enhanced Familiar",
+    "category": "wizard",
+    "prereqs": {
+      "class": "wizard",
+      "level": 2
+    },
+    "note": "Your familiar gains additional abilities."
+  },
+  "bespell_weapon": {
+    "name": "Bespell Weapon",
+    "category": "wizard",
+    "prereqs": {
+      "class": "wizard",
+      "level": 4
+    },
+    "combat_option": true,
+    "note": "Free action: after casting a spell, add 1d6 damage to next Strike."
+  },
+  "linked_focus": {
+    "name": "Linked Focus",
+    "category": "wizard",
+    "prereqs": {
+      "class": "wizard",
+      "level": 4
+    },
+    "note": "Regain focus point when you spend a focus point on a school spell."
+  },
+  "silent_spell": {
+    "name": "Silent Spell",
+    "category": "wizard",
+    "prereqs": {
+      "class": "wizard",
+      "level": 4
+    },
+    "note": "1 additional action: cast a spell without verbal components."
+  },
+  "spell_penetration": {
+    "name": "Spell Penetration",
+    "category": "wizard",
+    "prereqs": {
+      "class": "wizard",
+      "level": 6
+    },
+    "note": "+1 to spell attack rolls vs targets with spell resistance."
+  },
+  "steady_spellcasting": {
+    "name": "Steady Spellcasting",
+    "category": "wizard",
+    "prereqs": {
+      "class": "wizard",
+      "level": 6
+    },
+    "note": "Flat check DC 15 to avoid losing spell when damaged (instead of losing automatically)."
+  },
+  "bond_conservation": {
+    "name": "Bond Conservation",
+    "category": "wizard",
+    "prereqs": {
+      "class": "wizard",
+      "level": 8
+    },
+    "note": "Use Arcane Bond on a lower-rank spell and prepare a second spell."
+  },
+  "overwhelming_energy": {
+    "name": "Overwhelming Energy",
+    "category": "wizard",
+    "prereqs": {
+      "class": "wizard",
+      "level": 10
+    },
+    "note": "1 additional action: your spell ignores 10 resistance."
+  },
+  "quickened_casting": {
+    "name": "Quickened Casting",
+    "category": "wizard",
+    "prereqs": {
+      "class": "wizard",
+      "level": 10
+    },
+    "note": "Free action: reduce actions to cast a spell by 1 (once per day)."
+  },
+  "scroll_savant": {
+    "name": "Scroll Savant",
+    "category": "wizard",
+    "prereqs": {
+      "class": "wizard",
+      "level": 10
+    },
+    "note": "Craft scrolls during daily preparations."
+  },
+  "superior_bond": {
+    "name": "Superior Bond",
+    "category": "wizard",
+    "prereqs": {
+      "class": "wizard",
+      "level": 12
+    },
+    "note": "Arcane Bond works twice per day."
+  },
+  "clever_counterspell": {
+    "name": "Clever Counterspell",
+    "category": "wizard",
+    "prereqs": {
+      "class": "wizard",
+      "level": 14
+    },
+    "note": "Counterspell using a different spell of the same school."
+  },
+  "metamagic_channel": {
+    "name": "Metamagic Channel",
+    "category": "wizard",
+    "prereqs": {
+      "class": "wizard",
+      "level": 16
+    },
+    "note": "Apply metamagic to channeled spells."
+  },
+  "spell_combination": {
+    "name": "Spell Combination",
+    "category": "wizard",
+    "prereqs": {
+      "class": "wizard",
+      "level": 20
+    },
+    "note": "Combine two spells into one casting."
+  },
+  "deadly_simplicity": {
+    "name": "Deadly Simplicity",
+    "category": "cleric",
+    "prereqs": {
+      "class": "cleric",
+      "level": 1
+    },
+    "note": "Add extra damage die to favored weapon."
+  },
+  "domain_initiate": {
+    "name": "Domain Initiate",
+    "category": "cleric",
+    "prereqs": {
+      "class": "cleric",
+      "level": 1
+    },
+    "note": "Gain a focus spell from your deity's domain."
+  },
+  "holy_castigation": {
+    "name": "Holy Castigation",
+    "category": "cleric",
+    "prereqs": {
+      "class": "cleric",
+      "level": 1
+    },
+    "note": "Heal spell damages undead and fiends."
+  },
+  "turn_undead": {
+    "name": "Turn Undead",
+    "category": "cleric",
+    "prereqs": {
+      "class": "cleric",
+      "level": 1
+    },
+    "note": "Heal spell that damages undead that critically fails also flees."
+  },
+  "versatile_font": {
+    "name": "Versatile Font",
+    "category": "cleric",
+    "prereqs": {
+      "class": "cleric",
+      "level": 1
+    },
+    "note": "Prepare both heal and harm spells in your font slots."
+  },
+  "emblazon_armament": {
+    "name": "Emblazon Armament",
+    "category": "cleric",
+    "prereqs": {
+      "class": "cleric",
+      "level": 2
+    },
+    "note": "Inscribe a religious symbol on weapon or shield for +1 to hit or hardness."
+  },
+  "channel_smite": {
+    "name": "Channel Smite",
+    "category": "cleric",
+    "prereqs": {
+      "class": "cleric",
+      "level": 4
+    },
+    "combat_option": true,
+    "note": "2 actions: Cast harm/heal on a Strike."
+  },
+  "directed_channel": {
+    "name": "Directed Channel",
+    "category": "cleric",
+    "prereqs": {
+      "class": "cleric",
+      "level": 4
+    },
+    "note": "3-action heal/harm targets only enemies or only allies."
+  },
+  "raise_symbol": {
+    "name": "Raise Symbol",
+    "category": "cleric",
+    "prereqs": {
+      "class": "cleric",
+      "level": 4
+    },
+    "combat_option": true,
+    "note": "1 action: raise holy symbol as shield (+2 AC)."
+  },
+  "castigating_weapon": {
+    "name": "Castigating Weapon",
+    "category": "cleric",
+    "prereqs": {
+      "class": "cleric",
+      "level": 6
+    },
+    "combat_option": true,
+    "note": "After heal harms undead, next Strike vs that undead gets bonus good damage."
+  },
+  "command_undead": {
+    "name": "Command Undead",
+    "category": "cleric",
+    "prereqs": {
+      "class": "cleric",
+      "level": 6
+    },
+    "note": "Use divine font to control undead."
+  },
+  "heroic_recovery": {
+    "name": "Heroic Recovery",
+    "category": "cleric",
+    "prereqs": {
+      "class": "cleric",
+      "level": 6
+    },
+    "note": "Restore an ally's ability to fight by removing frightened/sickened."
+  },
+  "advanced_domain": {
+    "name": "Advanced Domain",
+    "category": "cleric",
+    "prereqs": {
+      "class": "cleric",
+      "level": 8
+    },
+    "note": "Gain an advanced domain spell."
+  },
+  "align_armament": {
+    "name": "Align Armament",
+    "category": "cleric",
+    "prereqs": {
+      "class": "cleric",
+      "level": 8
+    },
+    "note": "Grant weapon alignment damage."
+  },
+  "deitys_protection": {
+    "name": "Deity's Protection",
+    "category": "cleric",
+    "prereqs": {
+      "class": "cleric",
+      "level": 10
+    },
+    "note": "Gain resistance to damage aligned against your deity."
+  },
+  "replenishment_of_war": {
+    "name": "Replenishment of War",
+    "category": "cleric",
+    "prereqs": {
+      "class": "cleric",
+      "level": 12
+    },
+    "note": "Heal yourself when you critically hit with favored weapon."
+  },
+  "defensive_recovery": {
+    "name": "Defensive Recovery",
+    "category": "cleric",
+    "prereqs": {
+      "class": "cleric",
+      "level": 14
+    },
+    "note": "Casting heal also gives target +2 AC for 1 round."
+  },
+  "fast_channel": {
+    "name": "Fast Channel",
+    "category": "cleric",
+    "prereqs": {
+      "class": "cleric",
+      "level": 16
+    },
+    "note": "Cast heal or harm with fewer actions."
+  },
+  "shared_replenishment": {
+    "name": "Shared Replenishment",
+    "category": "cleric",
+    "prereqs": {
+      "class": "cleric",
+      "level": 18
+    },
+    "note": "Communal Healing gives extra HP to all targets."
+  },
+  "miraculous_spell": {
+    "name": "Miraculous Spell",
+    "category": "cleric",
+    "prereqs": {
+      "class": "cleric",
+      "level": 18
+    },
+    "note": "Regain a spell slot of 6th rank or lower."
+  },
+  "avatars_audience": {
+    "name": "Avatar's Audience",
+    "category": "cleric",
+    "prereqs": {
+      "class": "cleric",
+      "level": 20
+    },
+    "note": "Cast Avatar once per day."
+  },
+  "lingering_composition": {
+    "name": "Lingering Composition",
+    "category": "bard",
+    "prereqs": {
+      "class": "bard",
+      "level": 1
+    },
+    "note": "Increase duration of composition cantrips by 1 round."
+  },
+  "inspire_defense": {
+    "name": "Inspire Defense",
+    "category": "bard",
+    "prereqs": {
+      "class": "bard",
+      "level": 4
+    },
+    "combat_option": true,
+    "note": "Composition cantrip: allies gain +1 status bonus to AC."
+  },
+  "dirge_of_doom": {
+    "name": "Dirge of Doom",
+    "category": "bard",
+    "prereqs": {
+      "class": "bard",
+      "level": 6
+    },
+    "combat_option": true,
+    "note": "Composition cantrip: enemies in 30ft emanation are frightened 1."
+  },
+  "harmonize": {
+    "name": "Harmonize",
+    "category": "bard",
+    "prereqs": {
+      "class": "bard",
+      "level": 8
+    },
+    "note": "Sustain two composition spells simultaneously."
+  },
+  "soothing_ballad": {
+    "name": "Soothing Ballad",
+    "category": "bard",
+    "prereqs": {
+      "class": "bard",
+      "level": 14
+    },
+    "combat_option": true,
+    "note": "Composition: heal allies in 30ft for 7d8 HP."
+  },
+  "animal_companion": {
+    "name": "Animal Companion",
+    "category": "druid",
+    "prereqs": {
+      "class": "druid",
+      "level": 1
+    },
+    "note": "Gain an animal companion."
+  },
+  "wild_shape": {
+    "name": "Wild Shape",
+    "category": "druid",
+    "prereqs": {
+      "class": "druid",
+      "level": 1
+    },
+    "combat_option": true,
+    "note": "Cast wild shape focus spell to transform into an animal."
+  },
+  "form_control": {
+    "name": "Form Control",
+    "category": "druid",
+    "prereqs": {
+      "class": "druid",
+      "level": 4
+    },
+    "note": "Extend wild shape duration; retain more of your abilities in animal form."
+  },
+  "poison_resistance": {
+    "name": "Poison Resistance",
+    "category": "druid",
+    "prereqs": {
+      "class": "druid",
+      "level": 6
+    },
+    "effects": {
+      "bonus_fortitude_vs_poison": 2
+    },
+    "note": "+2 to saves vs poison; +4 at master Nature."
+  },
+  "storm_born": {
+    "name": "Storm Born",
+    "category": "druid",
+    "prereqs": {
+      "class": "druid",
+      "level": 8
+    },
+    "combat_option": true,
+    "note": "Immune to penalties from wind and precipitation. Add lightning to Storm Order spells."
+  },
+  "primal_focus": {
+    "name": "Primal Focus",
+    "category": "druid",
+    "prereqs": {
+      "class": "druid",
+      "level": 12
+    },
+    "note": "Regain a focus point when you spend a focus point on a druid order spell."
+  },
+  "animal_companion_ranger": {
+    "name": "Animal Companion",
+    "category": "ranger",
+    "prereqs": {
+      "class": "ranger",
+      "level": 1
+    },
+    "note": "Gain an animal companion."
+  },
+  "hunted_shot": {
+    "name": "Hunted Shot",
+    "category": "ranger",
+    "prereqs": {
+      "class": "ranger",
+      "level": 1
+    },
+    "combat_option": true,
+    "note": "1 action: two ranged Strikes against hunted prey, each at -2."
+  },
+  "twin_takedown": {
+    "name": "Twin Takedown",
+    "category": "ranger",
+    "prereqs": {
+      "class": "ranger",
+      "level": 1
+    },
+    "combat_option": true,
+    "note": "1 action: two melee Strikes against hunted prey with different weapons."
+  },
+  "quick_draw_ranger": {
+    "name": "Quick Draw",
+    "category": "ranger",
+    "prereqs": {
+      "class": "ranger",
+      "level": 2
+    },
+    "combat_option": true,
+    "note": "1 action: draw weapon and Strike."
+  },
+  "companion_share": {
+    "name": "Companion's Cry",
+    "category": "ranger",
+    "prereqs": {
+      "class": "ranger",
+      "level": 4
+    },
+    "note": "Share your Hunt Prey bonus with your animal companion."
+  },
+  "skirmish_strike": {
+    "name": "Skirmish Strike",
+    "category": "ranger",
+    "prereqs": {
+      "class": "ranger",
+      "level": 8
+    },
+    "combat_option": true,
+    "note": "1 action: Step then Strike, or Strike then Step."
+  },
+  "warden_step": {
+    "name": "Warden's Step",
+    "category": "ranger",
+    "prereqs": {
+      "class": "ranger",
+      "level": 10
+    },
+    "note": "Ignore difficult terrain from natural environments."
+  },
+  "impossible_flurry": {
+    "name": "Impossible Flurry",
+    "category": "ranger",
+    "prereqs": {
+      "class": "ranger",
+      "level": 18
+    },
+    "combat_option": true,
+    "note": "3 actions: Strike three times at full MAP progression."
+  },
+  "cackle": {
+    "name": "Cackle",
+    "category": "witch",
+    "prereqs": {
+      "class": "witch",
+      "level": 1
+    },
+    "combat_option": true,
+    "note": "Free action: sustain a hex spell without using an action."
+  },
+  "familiar_form": {
+    "name": "Familiar's Form",
+    "category": "witch",
+    "prereqs": {
+      "class": "witch",
+      "level": 1
+    },
+    "note": "Your familiar can take an additional form."
+  },
+  "lesson_of_dreams": {
+    "name": "Lesson of Dreams",
+    "category": "witch",
+    "prereqs": {
+      "class": "witch",
+      "level": 2
+    },
+    "note": "Gain a new hex cantrip and familiar ability."
+  },
+  "rites_of_convocation": {
+    "name": "Rites of Convocation",
+    "category": "witch",
+    "prereqs": {
+      "class": "witch",
+      "level": 4
+    },
+    "note": "Summon a patron-themed creature as a ritual."
+  },
+  "eldritch_nails": {
+    "name": "Eldritch Nails",
+    "category": "witch",
+    "prereqs": {
+      "class": "witch",
+      "level": 6
+    },
+    "combat_option": true,
+    "note": "1 action: unarmed Strike deals spell damage type."
+  },
+  "living_hair": {
+    "name": "Living Hair",
+    "category": "witch",
+    "prereqs": {
+      "class": "witch",
+      "level": 8
+    },
+    "combat_option": true,
+    "note": "Your hair becomes a reach weapon (1d6 damage)."
+  },
+  "acute_vision": {
+    "name": "Acute Vision",
+    "category": "barbarian",
+    "prereqs": {
+      "class": "barbarian",
+      "level": 1
+    },
+    "note": "Gain darkvision while raging."
+  },
+  "raging_intimidation": {
+    "name": "Raging Intimidation",
+    "category": "barbarian",
+    "prereqs": {
+      "class": "barbarian",
+      "level": 1
+    },
+    "note": "Use Demoralize while raging. +2 to Intimidation while raging."
+  },
+  "sudden_charge_barbarian": {
+    "name": "Sudden Charge",
+    "category": "barbarian",
+    "prereqs": {
+      "class": "barbarian",
+      "level": 1
+    },
+    "combat_option": true,
+    "note": "2 actions: Stride twice then Strike."
+  },
+  "swipe_barbarian": {
+    "name": "Swipe",
+    "category": "barbarian",
+    "prereqs": {
+      "class": "barbarian",
+      "level": 4
+    },
+    "combat_option": true,
+    "note": "2 actions: Strike two adjacent foes with one attack roll."
+  },
+  "come_and_get_me": {
+    "name": "Come and Get Me",
+    "category": "barbarian",
+    "prereqs": {
+      "class": "barbarian",
+      "level": 10
+    },
+    "combat_option": true,
+    "note": "Stance: enemies provoke reactions from you, but you take -2 AC."
+  },
+  "dragon_transformation": {
+    "name": "Dragon Transformation",
+    "category": "barbarian",
+    "prereqs": {
+      "class": "barbarian",
+      "level": 12
+    },
+    "combat_option": true,
+    "note": "Transform into a dragon while raging (dragon instinct)."
+  },
+  "brutal_critical": {
+    "name": "Brutal Critical",
+    "category": "barbarian",
+    "prereqs": {
+      "class": "barbarian",
+      "level": 16
+    },
+    "note": "On critical hit, add one extra weapon die."
+  },
+  "quaking_stomp": {
+    "name": "Quaking Stomp",
+    "category": "barbarian",
+    "prereqs": {
+      "class": "barbarian",
+      "level": 20
+    },
+    "combat_option": true,
+    "note": "1 action: create earthquake in 60ft radius."
+  },
+  "deific_weapon": {
+    "name": "Deific Weapon",
+    "category": "champion",
+    "prereqs": {
+      "class": "champion",
+      "level": 1
+    },
+    "note": "Gain access to your deity's favored weapon at trained proficiency."
+  },
+  "ranged_reprisal": {
+    "name": "Ranged Reprisal",
+    "category": "champion",
+    "prereqs": {
+      "class": "champion",
+      "level": 2
+    },
+    "combat_option": true,
+    "note": "Your champion reaction works against ranged attacks."
+  },
+  "divine_grace": {
+    "name": "Divine Grace",
+    "category": "champion",
+    "prereqs": {
+      "class": "champion",
+      "level": 2
+    },
+    "combat_option": true,
+    "note": "Reaction: +2 circumstance bonus to a saving throw."
+  },
+  "mercy": {
+    "name": "Mercy",
+    "category": "champion",
+    "prereqs": {
+      "class": "champion",
+      "level": 4
+    },
+    "combat_option": true,
+    "note": "Lay on Hands also removes frightened or sickened."
+  },
+  "litany_against_wrath": {
+    "name": "Litany Against Wrath",
+    "category": "champion",
+    "prereqs": {
+      "class": "champion",
+      "level": 6
+    },
+    "combat_option": true,
+    "note": "Focus spell: target enemy can't use reactions and takes penalty."
+  },
+  "aura_of_courage": {
+    "name": "Aura of Courage",
+    "category": "champion",
+    "prereqs": {
+      "class": "champion",
+      "level": 8
+    },
+    "effects": {},
+    "note": "Allies within 15ft reduce frightened by 1 at start of turn."
+  },
+  "shield_paragon": {
+    "name": "Shield Paragon",
+    "category": "champion",
+    "prereqs": {
+      "class": "champion",
+      "level": 18
+    },
+    "note": "Shield never takes damage from Shield Block."
+  },
+  "crane_stance": {
+    "name": "Crane Stance",
+    "category": "monk",
+    "prereqs": {
+      "class": "monk",
+      "level": 1
+    },
+    "combat_option": true,
+    "note": "Stance: -1d (1d6 B) but +1 AC."
+  },
+  "dragon_stance": {
+    "name": "Dragon Stance",
+    "category": "monk",
+    "prereqs": {
+      "class": "monk",
+      "level": 1
+    },
+    "combat_option": true,
+    "note": "Stance: 1d10 damage, ignore first square of difficult terrain on Stride."
+  },
+  "ki_rush": {
+    "name": "Ki Rush",
+    "category": "monk",
+    "prereqs": {
+      "class": "monk",
+      "level": 1
+    },
+    "combat_option": true,
+    "note": "Focus spell: Stride at double speed."
+  },
+  "ki_strike": {
+    "name": "Ki Strike",
+    "category": "monk",
+    "prereqs": {
+      "class": "monk",
+      "level": 1
+    },
+    "combat_option": true,
+    "note": "Focus spell: unarmed Strike gains +1 status bonus to damage."
+  },
+  "stunning_fist": {
+    "name": "Stunning Fist",
+    "category": "monk",
+    "prereqs": {
+      "class": "monk",
+      "level": 2
+    },
+    "combat_option": true,
+    "note": "On Flurry of Blows critical hit, target is stunned 1."
+  },
+  "deflect_arrow": {
+    "name": "Deflect Arrow",
+    "category": "monk",
+    "prereqs": {
+      "class": "monk",
+      "level": 4
+    },
+    "combat_option": true,
+    "note": "Reaction: gain +4 AC vs a ranged attack."
+  },
+  "wholeness_of_body": {
+    "name": "Wholeness of Body",
+    "category": "monk",
+    "prereqs": {
+      "class": "monk",
+      "level": 4
+    },
+    "combat_option": true,
+    "note": "Focus spell: heal yourself 2d8 HP."
+  },
+  "wall_run": {
+    "name": "Wall Run",
+    "category": "monk",
+    "prereqs": {
+      "class": "monk",
+      "level": 8
+    },
+    "combat_option": true,
+    "note": "1 action: Stride along vertical surfaces."
+  },
+  "quivering_palm": {
+    "name": "Quivering Palm",
+    "category": "monk",
+    "prereqs": {
+      "class": "monk",
+      "level": 16
+    },
+    "combat_option": true,
+    "note": "Focus spell: delayed lethal strike (Fort save or die)."
+  },
+  "dangerous_sorcery": {
+    "name": "Dangerous Sorcery",
+    "category": "sorcerer",
+    "prereqs": {
+      "class": "sorcerer",
+      "level": 1
+    },
+    "note": "Spells that deal damage add your Charisma modifier to damage."
+  },
+  "reach_spell_sorcerer": {
+    "name": "Reach Spell",
+    "category": "sorcerer",
+    "prereqs": {
+      "class": "sorcerer",
+      "level": 1
+    },
+    "note": "1 additional action: increase spell range by 30 feet."
+  },
+  "arcane_evolution": {
+    "name": "Arcane Evolution",
+    "category": "sorcerer",
+    "prereqs": {
+      "class": "sorcerer",
+      "level": 4
+    },
+    "note": "Add a non-signature spell to your repertoire each day."
+  },
+  "crossblooded_evolution": {
+    "name": "Crossblooded Evolution",
+    "category": "sorcerer",
+    "prereqs": {
+      "class": "sorcerer",
+      "level": 8
+    },
+    "note": "Gain a spell from a different bloodline tradition."
+  },
+  "bloodline_focus": {
+    "name": "Bloodline Focus",
+    "category": "sorcerer",
+    "prereqs": {
+      "class": "sorcerer",
+      "level": 12
+    },
+    "note": "Regain focus point when you cast a bloodline spell."
+  },
+  "greater_mental_evolution": {
+    "name": "Greater Mental Evolution",
+    "category": "sorcerer",
+    "prereqs": {
+      "class": "sorcerer",
+      "level": 14
+    },
+    "note": "Gain a 6th-rank spell slot from any tradition."
+  },
+  "finishing_precision": {
+    "name": "Finishing Precision",
+    "category": "swashbuckler",
+    "prereqs": {
+      "class": "swashbuckler",
+      "level": 1
+    },
+    "combat_option": true,
+    "note": "Confident Finisher adds extra precision damage."
+  },
+  "nimble_dodge_swashbuckler": {
+    "name": "Nimble Dodge",
+    "category": "swashbuckler",
+    "prereqs": {
+      "class": "swashbuckler",
+      "level": 1
+    },
+    "combat_option": true,
+    "note": "Reaction: +2 AC against one attack."
+  },
+  "goading_feint": {
+    "name": "Goading Feint",
+    "category": "swashbuckler",
+    "prereqs": {
+      "class": "swashbuckler",
+      "level": 1
+    },
+    "combat_option": true,
+    "note": "Feint that also gives you panache on success."
+  },
+  "charmed_life": {
+    "name": "Charmed Life",
+    "category": "swashbuckler",
+    "prereqs": {
+      "class": "swashbuckler",
+      "level": 2
+    },
+    "combat_option": true,
+    "note": "Reaction: +2 circumstance bonus to a saving throw. Costs panache."
+  },
+  "attack_of_opportunity_swashbuckler": {
+    "name": "Attack of Opportunity",
+    "category": "swashbuckler",
+    "prereqs": {
+      "class": "swashbuckler",
+      "level": 6
+    },
+    "combat_option": true,
+    "note": "Reaction: Strike when enemy in reach uses manipulate/move/ranged attack."
+  },
+  "derring_do": {
+    "name": "Derring-Do",
+    "category": "swashbuckler",
+    "prereqs": {
+      "class": "swashbuckler",
+      "level": 8
+    },
+    "note": "Treat failure as success on Acrobatics, Athletics checks while you have panache."
+  },
+  "perfect_finisher": {
+    "name": "Perfect Finisher",
+    "category": "swashbuckler",
+    "prereqs": {
+      "class": "swashbuckler",
+      "level": 20
+    },
+    "combat_option": true,
+    "note": "Finisher that deals maximum precision damage."
+  },
+  "that_was_me": {
+    "name": "That's Odd...",
+    "category": "investigator",
+    "prereqs": {
+      "class": "investigator",
+      "level": 1
+    },
+    "note": "Identify yourself to suspects for +1 to Gather Information."
+  },
+  "athletic_strategist": {
+    "name": "Athletic Strategist",
+    "category": "investigator",
+    "prereqs": {
+      "class": "investigator",
+      "level": 1
+    },
+    "combat_option": true,
+    "note": "Use Int instead of Str for Athletics checks vs your studied target."
+  },
+  "strategic_assessment": {
+    "name": "Strategic Assessment",
+    "category": "investigator",
+    "prereqs": {
+      "class": "investigator",
+      "level": 2
+    },
+    "combat_option": true,
+    "note": "On Devise a Stratagem, learn one of target's stats."
+  },
+  "predictive_purchase": {
+    "name": "Predictive Purchase",
+    "category": "investigator",
+    "prereqs": {
+      "class": "investigator",
+      "level": 4
+    },
+    "note": "You happened to buy just the right item earlier."
+  },
+  "forensic_acumen": {
+    "name": "Forensic Acumen",
+    "category": "investigator",
+    "prereqs": {
+      "class": "investigator",
+      "level": 4
+    },
+    "note": "Recall Knowledge during investigation with +2 circumstance."
+  },
+  "connect_the_dots": {
+    "name": "Connect the Dots",
+    "category": "investigator",
+    "prereqs": {
+      "class": "investigator",
+      "level": 8
+    },
+    "note": "Link clues together for bonus to further investigation."
+  },
+  "didactic_strike": {
+    "name": "Didactic Strike",
+    "category": "investigator",
+    "prereqs": {
+      "class": "investigator",
+      "level": 10
+    },
+    "combat_option": true,
+    "note": "Strategic Strike also tells allies the info you learned."
+  },
+  "just_one_more_thing": {
+    "name": "Just One More Thing",
+    "category": "investigator",
+    "prereqs": {
+      "class": "investigator",
+      "level": 16
+    },
+    "note": "After Recall Knowledge crit success, ask GM one yes/no question."
+  },
+  "expansive_spellstrike": {
+    "name": "Expansive Spellstrike",
+    "category": "magus",
+    "prereqs": {
+      "class": "magus",
+      "level": 2
+    },
+    "note": "Use non-melee spells with Spellstrike (area and non-attack spells)."
+  },
+  "force_fang": {
+    "name": "Force Fang",
+    "category": "magus",
+    "prereqs": {
+      "class": "magus",
+      "level": 4
+    },
+    "combat_option": true,
+    "note": "Focus spell: force damage Strike that bypasses resistance."
+  },
+  "spell_parry": {
+    "name": "Spell Parry",
+    "category": "magus",
+    "prereqs": {
+      "class": "magus",
+      "level": 4
+    },
+    "combat_option": true,
+    "note": "Reaction: use your weapon to gain +2 to save vs a spell."
+  },
+  "cascade_countermeasure": {
+    "name": "Cascade Countermeasure",
+    "category": "magus",
+    "prereqs": {
+      "class": "magus",
+      "level": 6
+    },
+    "note": "Arcane Cascade grants resistance to the damage type of your last spell."
+  },
+  "knowledge_is_power": {
+    "name": "Knowledge is Power",
+    "category": "magus",
+    "prereqs": {
+      "class": "magus",
+      "level": 8
+    },
+    "note": "On successful Recall Knowledge, gain +1 circumstance to attacks vs target."
+  },
+  "hasted_assault": {
+    "name": "Hasted Assault",
+    "category": "magus",
+    "prereqs": {
+      "class": "magus",
+      "level": 14
+    },
+    "combat_option": true,
+    "note": "Quickened (only for Spellstrike or Arcane Cascade)."
+  },
+  "supreme_spellstrike": {
+    "name": "Supreme Spellstrike",
+    "category": "magus",
+    "prereqs": {
+      "class": "magus",
+      "level": 20
+    },
+    "combat_option": true,
+    "note": "Spellstrike that casts two spells simultaneously."
+  },
+  "reach_spell_oracle": {
+    "name": "Reach Spell",
+    "category": "oracle",
+    "prereqs": {
+      "class": "oracle",
+      "level": 1
+    },
+    "note": "1 additional action: increase spell range by 30 feet."
+  },
+  "domain_acumen": {
+    "name": "Domain Acumen",
+    "category": "oracle",
+    "prereqs": {
+      "class": "oracle",
+      "level": 1
+    },
+    "note": "Gain a domain spell related to your mystery."
+  },
+  "vision_of_weakness": {
+    "name": "Vision of Weakness",
+    "category": "oracle",
+    "prereqs": {
+      "class": "oracle",
+      "level": 2
+    },
+    "combat_option": true,
+    "note": "Focus spell: reveal a target's lowest save."
+  },
+  "advanced_revelation": {
+    "name": "Advanced Revelation",
+    "category": "oracle",
+    "prereqs": {
+      "class": "oracle",
+      "level": 6
+    },
+    "note": "Gain a more powerful revelation spell from your mystery."
+  },
+  "mysterious_repertoire": {
+    "name": "Mysterious Repertoire",
+    "category": "oracle",
+    "prereqs": {
+      "class": "oracle",
+      "level": 8
+    },
+    "note": "Add a spell from outside your tradition to your repertoire."
+  },
+  "blaze_of_revelation": {
+    "name": "Blaze of Revelation",
+    "category": "oracle",
+    "prereqs": {
+      "class": "oracle",
+      "level": 16
+    },
+    "combat_option": true,
+    "note": "Push your curse to maximum for one devastating spell."
+  },
+  "oracular_providence": {
+    "name": "Oracular Providence",
+    "category": "oracle",
+    "prereqs": {
+      "class": "oracle",
+      "level": 18
+    },
+    "note": "Reduce your curse by 1 step at the start of each day."
+  },
+  "natural_ambition": {
+    "name": "Natural Ambition",
+    "category": "ancestry",
+    "prereqs": {
+      "ancestry": "human",
+      "level": 1
+    },
+    "effects": {},
+    "note": "Gain a 1st-level class feat."
+  },
+  "natural_skill": {
+    "name": "Natural Skill",
+    "category": "ancestry",
+    "prereqs": {
+      "ancestry": "human",
+      "level": 1
+    },
+    "effects": {},
+    "note": "Gain trained proficiency in two additional skills."
+  },
+  "cooperative_nature": {
+    "name": "Cooperative Nature",
+    "category": "ancestry",
+    "prereqs": {
+      "ancestry": "human",
+      "level": 1
+    },
+    "effects": {
+      "bonus_aid": 2
+    },
+    "note": "+2 circumstance bonus to Aid checks."
+  },
+  "clever_improviser": {
+    "name": "Clever Improviser",
+    "category": "ancestry",
+    "prereqs": {
+      "ancestry": "human",
+      "level": 5
+    },
+    "effects": {},
+    "note": "Gain Untrained Improvisation; if you already have it, add full level."
+  },
+  "multitalented": {
+    "name": "Multitalented",
+    "category": "ancestry",
+    "prereqs": {
+      "ancestry": "human",
+      "level": 9
+    },
+    "effects": {},
+    "note": "Gain a multiclass dedication feat."
+  },
+  "heroic_presence": {
+    "name": "Heroic Presence",
+    "category": "ancestry",
+    "prereqs": {
+      "ancestry": "human",
+      "level": 13
+    },
+    "effects": {},
+    "note": "Once per day, use a hero point to give an ally a hero point."
+  },
+  "elven_lore": {
+    "name": "Elven Lore",
+    "category": "ancestry",
+    "prereqs": {
+      "ancestry": "elf",
+      "level": 1
+    },
+    "effects": {},
+    "note": "Gain trained in Arcana and Nature."
+  },
+  "nimble_elf": {
+    "name": "Nimble Elf",
+    "category": "ancestry",
+    "prereqs": {
+      "ancestry": "elf",
+      "level": 1
+    },
+    "effects": {
+      "bonus_speed": 5
+    },
+    "note": "Your Speed increases by 5 feet."
+  },
+  "elven_weapon_familiarity": {
+    "name": "Elven Weapon Familiarity",
+    "category": "ancestry",
+    "prereqs": {
+      "ancestry": "elf",
+      "level": 1
+    },
+    "effects": {},
+    "note": "Gain access to elf weapons and treat them as one category simpler."
+  },
+  "ageless_patience": {
+    "name": "Ageless Patience",
+    "category": "ancestry",
+    "prereqs": {
+      "ancestry": "elf",
+      "level": 5
+    },
+    "effects": {},
+    "note": "When you use an exploration activity, gain +2 circumstance bonus."
+  },
+  "expert_longevity": {
+    "name": "Expert Longevity",
+    "category": "ancestry",
+    "prereqs": {
+      "ancestry": "elf",
+      "level": 9
+    },
+    "effects": {},
+    "note": "Change a skill increase each day during daily prep."
+  },
+  "universal_longevity": {
+    "name": "Universal Longevity",
+    "category": "ancestry",
+    "prereqs": {
+      "ancestry": "elf",
+      "level": 13
+    },
+    "effects": {},
+    "note": "Change skill proficiencies daily and gain temporary skill feats."
+  },
+  "dwarven_lore": {
+    "name": "Dwarven Lore",
+    "category": "ancestry",
+    "prereqs": {
+      "ancestry": "dwarf",
+      "level": 1
+    },
+    "effects": {},
+    "note": "Gain trained in Crafting and Religion."
+  },
+  "rock_runner": {
+    "name": "Rock Runner",
+    "category": "ancestry",
+    "prereqs": {
+      "ancestry": "dwarf",
+      "level": 1
+    },
+    "effects": {},
+    "note": "Ignore difficult terrain from stone and rubble."
+  },
+  "dwarven_weapon_familiarity": {
+    "name": "Dwarven Weapon Familiarity",
+    "category": "ancestry",
+    "prereqs": {
+      "ancestry": "dwarf",
+      "level": 1
+    },
+    "effects": {},
+    "note": "Gain access to dwarf weapons and treat them as one category simpler."
+  },
+  "unburdened_iron": {
+    "name": "Unburdened Iron",
+    "category": "ancestry",
+    "prereqs": {
+      "ancestry": "dwarf",
+      "level": 1
+    },
+    "effects": {
+      "bonus_speed": 5
+    },
+    "note": "Reduce armor speed penalty by 5ft. +5 Speed if no penalty."
+  },
+  "mountain_strategy": {
+    "name": "Mountain Strategy",
+    "category": "ancestry",
+    "prereqs": {
+      "ancestry": "dwarf",
+      "level": 5
+    },
+    "effects": {},
+    "note": "Gain +2 to Reflex saves and AC vs Shove and Trip."
+  },
+  "stonecunning": {
+    "name": "Stonecunning",
+    "category": "ancestry",
+    "prereqs": {
+      "ancestry": "dwarf",
+      "level": 1
+    },
+    "effects": {},
+    "note": "Gain +2 to Perception to notice unusual stonework."
+  },
+  "stonewalker": {
+    "name": "Stonewalker",
+    "category": "ancestry",
+    "prereqs": {
+      "ancestry": "dwarf",
+      "level": 9
+    },
+    "effects": {},
+    "note": "Move through stone difficult terrain at full speed."
+  },
+  "dwarven_fortitude": {
+    "name": "Dwarven Fortitude",
+    "category": "ancestry",
+    "prereqs": {
+      "ancestry": "dwarf",
+      "level": 13
+    },
+    "effects": {
+      "bonus_fortitude": 1
+    },
+    "note": "+1 to Fortitude saves. Succeed on Fort saves vs death effects on a natural 1."
+  },
+  "halfling_lore": {
+    "name": "Halfling Lore",
+    "category": "ancestry",
+    "prereqs": {
+      "ancestry": "halfling",
+      "level": 1
+    },
+    "effects": {},
+    "note": "Gain trained in Acrobatics and Stealth."
+  },
+  "sure_feet": {
+    "name": "Sure Feet",
+    "category": "ancestry",
+    "prereqs": {
+      "ancestry": "halfling",
+      "level": 1
+    },
+    "effects": {},
+    "note": "Success on Acrobatics to Balance is treated as critical success."
+  },
+  "halfling_luck": {
+    "name": "Halfling Luck",
+    "category": "ancestry",
+    "prereqs": {
+      "ancestry": "halfling",
+      "level": 1
+    },
+    "effects": {},
+    "note": "Once per day, reroll a failed skill check or saving throw."
+  },
+  "distracting_shadows": {
+    "name": "Distracting Shadows",
+    "category": "ancestry",
+    "prereqs": {
+      "ancestry": "halfling",
+      "level": 5
+    },
+    "effects": {},
+    "note": "Use larger creatures as cover for Stealth."
+  },
+  "guiding_luck": {
+    "name": "Guiding Luck",
+    "category": "ancestry",
+    "prereqs": {
+      "ancestry": "halfling",
+      "level": 9
+    },
+    "effects": {},
+    "note": "Halfling Luck can be used on attack rolls, or give reroll to ally."
+  },
+  "ceaseless_shadows": {
+    "name": "Ceaseless Shadows",
+    "category": "ancestry",
+    "prereqs": {
+      "ancestry": "halfling",
+      "level": 13
+    },
+    "effects": {},
+    "note": "Sneak at full speed in natural environments."
+  },
+  "gnome_obsession": {
+    "name": "Gnome Obsession",
+    "category": "ancestry",
+    "prereqs": {
+      "ancestry": "gnome",
+      "level": 1
+    },
+    "effects": {},
+    "note": "Gain trained in a Lore skill and upgrade it one step."
+  },
+  "animal_accomplice": {
+    "name": "Animal Accomplice",
+    "category": "ancestry",
+    "prereqs": {
+      "ancestry": "gnome",
+      "level": 1
+    },
+    "effects": {},
+    "note": "Gain a familiar."
+  },
+  "fey_fellowship": {
+    "name": "Fey Fellowship",
+    "category": "ancestry",
+    "prereqs": {
+      "ancestry": "gnome",
+      "level": 1
+    },
+    "effects": {},
+    "note": "+2 circumstance to Perception and saves vs fey."
+  },
+  "first_world_magic": {
+    "name": "First World Magic",
+    "category": "ancestry",
+    "prereqs": {
+      "ancestry": "gnome",
+      "level": 1
+    },
+    "effects": {},
+    "note": "Gain a primal cantrip."
+  },
+  "vivacious_conduit": {
+    "name": "Vivacious Conduit",
+    "category": "ancestry",
+    "prereqs": {
+      "ancestry": "gnome",
+      "level": 5
+    },
+    "effects": {},
+    "note": "Gain fast healing 1 when you take damage from a fey."
+  },
+  "energized_font": {
+    "name": "Energized Font",
+    "category": "ancestry",
+    "prereqs": {
+      "ancestry": "gnome",
+      "level": 9
+    },
+    "effects": {},
+    "note": "Regain a focus point when you use a gnome ancestry ability."
+  },
+  "instinctive_obfuscation": {
+    "name": "Instinctive Obfuscation",
+    "category": "ancestry",
+    "prereqs": {
+      "ancestry": "gnome",
+      "level": 13
+    },
+    "effects": {},
+    "note": "Once per day, when targeted by divination, automatically get a critical success on save."
+  },
+  "burn_it": {
+    "name": "Burn It!",
+    "category": "ancestry",
+    "prereqs": {
+      "ancestry": "goblin",
+      "level": 1
+    },
+    "effects": {},
+    "note": "Fire damage you deal ignores 1 resistance; +1 to fire damage with persistent fire."
+  },
+  "goblin_scuttle": {
+    "name": "Goblin Scuttle",
+    "category": "ancestry",
+    "prereqs": {
+      "ancestry": "goblin",
+      "level": 1
+    },
+    "effects": {},
+    "note": "Reaction: Step when an ally moves adjacent to you."
+  },
+  "rough_rider": {
+    "name": "Rough Rider",
+    "category": "ancestry",
+    "prereqs": {
+      "ancestry": "goblin",
+      "level": 1
+    },
+    "effects": {},
+    "note": "Gain trained in Nature for Command an Animal with goblin dogs and wolves."
+  },
+  "very_sneaky": {
+    "name": "Very Sneaky",
+    "category": "ancestry",
+    "prereqs": {
+      "ancestry": "goblin",
+      "level": 1
+    },
+    "effects": {
+      "bonus_stealth": 1
+    },
+    "note": "+1 to Stealth. You can Sneak between cover."
+  },
+  "goblin_weapon_frenzy": {
+    "name": "Goblin Weapon Frenzy",
+    "category": "ancestry",
+    "prereqs": {
+      "ancestry": "goblin",
+      "level": 5
+    },
+    "effects": {},
+    "note": "Critical specialization with goblin weapons."
+  },
+  "cave_climber": {
+    "name": "Cave Climber",
+    "category": "ancestry",
+    "prereqs": {
+      "ancestry": "goblin",
+      "level": 9
+    },
+    "effects": {},
+    "note": "Gain a climb Speed of 20 feet."
+  },
+  "very_very_sneaky": {
+    "name": "Very, Very Sneaky",
+    "category": "ancestry",
+    "prereqs": {
+      "ancestry": "goblin",
+      "level": 13
+    },
+    "effects": {},
+    "note": "When you Sneak, you can Hide at end of Stride."
+  }
+}

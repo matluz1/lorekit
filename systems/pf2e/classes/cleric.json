@@ -1,0 +1,99 @@
+{
+  "meta": {
+    "name": "Cleric",
+    "hp_per_level": 8,
+    "key_ability": ["wis"],
+    "trained_skills": 2,
+    "description": "Devout followers of a deity who channel divine power to heal allies and smite foes.",
+    "progressions": {
+      "prof_perception":       "cleric_prof_perception",
+      "prof_fortitude":        "cleric_prof_fortitude",
+      "prof_reflex":           "cleric_prof_reflex",
+      "prof_will":             "cleric_prof_will",
+      "prof_simple_weapons":   "cleric_prof_weapons",
+      "prof_unarmed":          "cleric_prof_weapons",
+      "prof_unarmored":        "cleric_prof_defense",
+      "prof_class_dc":         "cleric_prof_class_dc",
+      "prof_spell_attack":     "cleric_prof_spell",
+      "prof_spell_dc":         "cleric_prof_spell"
+    }
+  },
+
+  "tables": {
+    "cleric_prof_perception": [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 4, 4, 4, 4],
+    "cleric_prof_fortitude":  [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 4, 4, 4, 4, 4, 4, 4, 4],
+    "cleric_prof_reflex":     [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2],
+    "cleric_prof_will":       [4, 4, 4, 4, 4, 4, 4, 4, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6],
+    "cleric_prof_weapons":    [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2],
+    "cleric_prof_defense":    [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4],
+    "cleric_prof_class_dc":   [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2],
+    "cleric_prof_spell":      [2, 2, 2, 2, 2, 2, 4, 4, 4, 4, 4, 4, 4, 4, 6, 6, 6, 6, 8, 8]
+  },
+
+  "level": {
+    "1": {
+      "features": ["divine_spellcasting", "divine_font", "doctrine"],
+      "choices": [
+        {"type": "doctrine", "label": "Doctrine (Cloistered Cleric or Warpriest)"}
+      ]
+    },
+    "2": {
+      "choices": [
+        {"type": "feat", "filter": "category == 'cleric'", "label": "Cleric feat"},
+        {"type": "feat", "filter": "category == 'skill'", "label": "Skill feat"}
+      ]
+    },
+    "3": {
+      "choices": [
+        {"type": "feat", "filter": "category == 'general'", "label": "General feat"},
+        {"type": "skill_increase", "label": "Skill increase"}
+      ]
+    },
+    "5": {
+      "choices": [
+        {"type": "ability_boost", "count": 4, "label": "Ability boosts"}
+      ]
+    },
+    "7": {
+      "features": ["expert_spellcaster"],
+      "choices": [
+        {"type": "feat", "filter": "category == 'general'", "label": "General feat"}
+      ]
+    },
+    "9": {
+      "features": ["resolve"],
+      "choices": [
+        {"type": "feat", "filter": "category == 'ancestry'", "label": "Ancestry feat"}
+      ]
+    },
+    "11": {
+      "features": ["divine_defense"],
+      "choices": [
+        {"type": "feat", "filter": "category == 'general'", "label": "General feat"}
+      ]
+    },
+    "13": {
+      "features": ["weapon_specialization"],
+      "choices": [
+        {"type": "feat", "filter": "category == 'ancestry'", "label": "Ancestry feat"}
+      ]
+    },
+    "15": {
+      "features": ["master_spellcaster"],
+      "choices": [
+        {"type": "ability_boost", "count": 4, "label": "Ability boosts"}
+      ]
+    },
+    "17": {
+      "choices": [
+        {"type": "feat", "filter": "category == 'ancestry'", "label": "Ancestry feat"}
+      ]
+    },
+    "19": {
+      "features": ["legendary_spellcaster"],
+      "choices": [
+        {"type": "feat", "filter": "category == 'general'", "label": "General feat"}
+      ]
+    }
+  }
+}
