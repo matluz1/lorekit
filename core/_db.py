@@ -1,4 +1,4 @@
-"""Shared database utilities for LoreKit scripts."""
+"""Shared database utilities for LoreKit core modules."""
 
 import os
 import sqlite3

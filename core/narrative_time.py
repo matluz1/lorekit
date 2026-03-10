@@ -118,7 +118,7 @@ def cmd_advance(db, args):
 def main():
     args = sys.argv[1:]
     if not args:
-        print("Usage: python scripts/time.py <get|set|advance> [args]")
+        print("Usage: python core/time.py <get|set|advance> [args]")
         sys.exit(1)
 
     action = args[0]

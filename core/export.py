@@ -14,7 +14,7 @@ EXPORT_DIR = os.path.join(PROJECT_ROOT, ".export")
 
 
 def usage():
-    print("Usage: python scripts/export.py <action> [args]")
+    print("Usage: python core/export.py <action> [args]")
     print()
     print("Actions:")
     print("  dump <session_id>   export session data to .export/ directory")

@@ -10,7 +10,7 @@ from _args import parse_args
 
 
 def usage():
-    print("Usage: python scripts/timeline.py <action> [args]")
+    print("Usage: python core/timeline.py <action> [args]")
     print()
     print("Actions:")
     print('  add <session_id> --type narration --content "<text>"')

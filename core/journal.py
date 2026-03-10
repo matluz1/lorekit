@@ -10,7 +10,7 @@ from _args import parse_args
 
 
 def usage():
-    print("Usage: python scripts/journal.py <action> [args]")
+    print("Usage: python core/journal.py <action> [args]")
     print()
     print("Actions:")
     print("  add <session_id> --type <type> --content <content>")

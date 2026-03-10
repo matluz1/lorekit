@@ -10,7 +10,7 @@ from _args import parse_args
 
 
 def usage():
-    print("Usage: python scripts/recall.py <action> [args]")
+    print("Usage: python core/recall.py <action> [args]")
     print()
     print("Actions:")
     print('  search <session_id> --query "<text>" [--source timeline|journal] [--n <N>]')

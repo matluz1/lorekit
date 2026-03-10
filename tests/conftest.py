@@ -6,10 +6,10 @@ import sys
 
 import pytest
 
-# Allow imports from project root and scripts/
+# Allow imports from project root and core/
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
-sys.path.insert(0, os.path.join(ROOT, "scripts"))
+sys.path.insert(0, os.path.join(ROOT, "core"))
 
 
 def _extract_id(result):

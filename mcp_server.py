@@ -5,8 +5,8 @@ import os
 import sys
 
 
-# Allow imports from scripts/
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "scripts"))
+# Allow imports from core/
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "core"))
 
 from mcp.server.fastmcp import FastMCP
 

@@ -10,7 +10,7 @@ from _args import parse_args
 
 
 def usage():
-    print("Usage: python scripts/story.py <action> [args]")
+    print("Usage: python core/story.py <action> [args]")
     print()
     print("Actions:")
     print("  set <session_id> --size <size> --premise <text>")
