@@ -2,7 +2,7 @@
   "meta": {
     "name": "Warrior",
     "hit_die": "d10",
-    "bab": "bab_full",
+    "progressions": {"base_attack": "base_attack_full"},
     "saves": {"fortitude": "fortitude_good"}
   },
   "level": {

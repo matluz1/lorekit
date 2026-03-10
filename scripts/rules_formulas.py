@@ -1,8 +1,8 @@
 """Minimal expression evaluator for Crunch rule formulas.
 
 Supports arithmetic, function calls (floor, ceil, max, min, abs, sum, per,
-ratio, mod, table, if), variable lookups (including dotted paths like
-bonuses.melee_attack), and comparison operators.
+ratio, table, if), variable lookups (including dotted paths), and comparison
+operators.
 """
 
 from __future__ import annotations
@@ -27,7 +27,7 @@ class Str:
 
 @dataclass
 class Var:
-    parts: list[str]   # ["bonuses", "melee_attack"] for dotted access
+    parts: list[str]   # ["armor", "bonus"] for dotted access
 
 @dataclass
 class BinOp:
@@ -204,16 +204,11 @@ def extract_deps(node) -> set[str]:
     """Return the set of variable names (top-level) referenced in the AST.
 
     Special handling:
-    - mod(ability): depends on the ability name
     - table(name, idx): only the index expression is a dependency
-    - sum(bonuses.X): treated as external aggregation, not a dep
     """
     if isinstance(node, (Num, Str)):
         return set()
     if isinstance(node, Var):
-        # bonuses.X is an aggregation bucket, not a stat dependency
-        if node.parts[0] == "bonuses":
-            return set()
         return {node.parts[0]}
     if isinstance(node, BinOp):
         return extract_deps(node.left) | extract_deps(node.right)
@@ -222,23 +217,10 @@ def extract_deps(node) -> set[str]:
     if isinstance(node, Compare):
         return extract_deps(node.left) | extract_deps(node.right)
     if isinstance(node, Call):
-        if node.name == "mod":
-            # mod(ability_name) — the ability score is a dep
-            if node.args and isinstance(node.args[0], Var):
-                return {node.args[0].parts[0]}
-            return set()
         if node.name == "table":
             # table(table_name, index) — only index deps
             deps: set[str] = set()
             for arg in node.args[1:]:
-                deps |= extract_deps(arg)
-            return deps
-        if node.name == "sum":
-            # sum(bonuses.X) or sum(bucket_name) — external aggregation, not a dep
-            if node.args and isinstance(node.args[0], Var):
-                return set()
-            deps = set()
-            for arg in node.args:
                 deps |= extract_deps(arg)
             return deps
         # Generic function: all args are deps
@@ -257,10 +239,7 @@ def extract_deps(node) -> set[str]:
 class FormulaContext:
     """Holds all data needed to evaluate formulas."""
     values: dict[str, Any] = field(default_factory=dict)
-    bonuses: dict[str, list[float]] = field(default_factory=dict)
     tables: dict[str, list] = field(default_factory=dict)
-    ability_scores: dict[str, float] = field(default_factory=dict)
-    ability_mod_formula: str = ""  # e.g. "floor((score - 10) / 2)" or "score"
 
 
 # ---------------------------------------------------------------------------
@@ -333,20 +312,8 @@ def _eval_call(node: Call, ctx: FormulaContext) -> Any:
     if name == "min":
         return min(evaluate(a, ctx) for a in args)
 
-    if name == "mod":
-        # mod(ability_short_name) — look up score, apply modifier formula
-        if not args or not isinstance(args[0], Var):
-            raise FormulaError("mod() requires an ability name argument")
-        ability_name = args[0].parts[0]
-        if ability_name not in ctx.ability_scores:
-            raise FormulaError(f"Unknown ability: {ability_name}")
-        score = ctx.ability_scores[ability_name]
-        if not ctx.ability_mod_formula:
-            return score  # no modifier formula = rank IS modifier
-        # Evaluate the modifier formula with 'score' bound
-        mod_ctx = FormulaContext(values={"score": score})
-        mod_ast = parse(ctx.ability_mod_formula)
-        return evaluate(mod_ast, mod_ctx)
+    if name == "sum":
+        return sum(evaluate(a, ctx) for a in args)
 
     if name == "table":
         # table(table_name, index) — look up value by 1-based index
@@ -362,20 +329,6 @@ def _eval_call(node: Call, ctx: FormulaContext) -> Any:
         if index < 1 or index > len(tbl):
             raise FormulaError(f"Table {table_name} index {index} out of range (1..{len(tbl)})")
         return tbl[index - 1]  # 1-based to 0-based
-
-    if name == "sum":
-        # sum(bonuses.stat_name) — aggregate modifier list
-        if args and isinstance(args[0], Var):
-            parts = args[0].parts
-            if parts[0] == "bonuses":
-                bonus_key = ".".join(parts[1:])
-                return sum(ctx.bonuses.get(bonus_key, []))
-            # Also check bonuses dict directly for bare names like sum(extras_per_rank)
-            bare_key = ".".join(parts)
-            if bare_key in ctx.bonuses:
-                return sum(ctx.bonuses[bare_key])
-        # Fallback: evaluate all args and sum
-        return sum(evaluate(a, ctx) for a in args)
 
     if name == "per":
         # per(value, step) — ceiling division

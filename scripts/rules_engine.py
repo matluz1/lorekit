@@ -1,14 +1,17 @@
-"""Crunch rules engine — loads system packs, resolves dependency graphs,
-computes derived stats, and validates constraints.
+"""Crunch rules engine — zero-knowledge formula evaluator.
 
-A system pack is a directory of JSON files describing a rule system.
-The engine is generic; rules are pure data.
+Loads a system pack (defaults, derived formulas, tables, constraints),
+builds a flat variable context from character attributes, evaluates
+formulas in dependency order, and validates constraints.
+
+The engine knows nothing about RPG concepts (classes, feats, abilities,
+proficiencies). All domain knowledge lives in the system pack JSON and
+the build engine.
 """
 
 from __future__ import annotations
 
 import json
-import math
 import os
 from collections import defaultdict
 from dataclasses import dataclass, field
@@ -34,76 +37,17 @@ class SystemPack:
     name: str = ""
     dice: str = ""
 
-    # Abilities
-    ability_list: list[str] = field(default_factory=list)
-    ability_mod_formula: str = ""
-    ability_cost_per_rank: int = 0
-
-    # Short name mapping: {"str": "Strength", "dex": "Dexterity", ...}
-    ability_short_names: dict[str, str] = field(default_factory=dict)
-    # Reverse: {"Strength": "str", ...}
-    ability_to_short: dict[str, str] = field(default_factory=dict)
-
-    # Default values for optional variables (armor_bonus, trained_*, etc.)
+    # Default values for optional variables
     defaults: dict[str, Any] = field(default_factory=dict)
 
-    # Derived stat formulas: {"melee_attack": "proficiency + mod(str) + ...", ...}
+    # Derived stat formulas: {"melee_attack": "str_mod + base_attack + ...", ...}
     derived: dict[str, str] = field(default_factory=dict)
 
-    # Lookup tables: {"proficiency": [2, 2, 2, 2, 3, ...], ...}
+    # Lookup tables: {"base_attack_full": [1, 2, 3, ...], ...}
     tables: dict[str, list] = field(default_factory=dict)
 
     # Constraint expressions: {"name": "expr that should be true", ...}
     constraints: dict[str, str] = field(default_factory=dict)
-
-    # Iterative attack rules (optional)
-    iterative_threshold: int = 0
-    iterative_penalty: int = 0
-
-    # Class definitions: {"fighter": ClassDef, ...}
-    classes: dict[str, ClassDef] = field(default_factory=dict)
-
-    # Feats / advantages: {"power_attack": FeatDef, ...}
-    feats: dict[str, FeatDef] = field(default_factory=dict)
-
-    # Scales: {"duration": ["instant", "concentration", ...], ...}
-    scales: dict[str, list[str]] = field(default_factory=dict)
-
-    # Pipeline stages (optional, for power costing)
-    pipeline: list[PipelineStage] = field(default_factory=list)
-
-
-@dataclass
-class ClassDef:
-    name: str = ""
-    hit_die: str = ""
-    progressions: dict[str, str] = field(default_factory=dict)  # variable -> table key
-    saves: dict[str, str] = field(default_factory=dict)
-    levels: dict[int, LevelEntry] = field(default_factory=dict)
-
-
-@dataclass
-class LevelEntry:
-    features: list[str] = field(default_factory=list)
-    choices: list[dict] = field(default_factory=list)
-
-
-@dataclass
-class FeatDef:
-    name: str = ""
-    category: str = ""
-    prereqs: dict[str, Any] = field(default_factory=dict)
-    combat_option: bool = False
-    ranked: bool = False
-    param: str = ""
-    effects: dict[str, float] = field(default_factory=dict)
-    effects_per_rank: dict[str, float] = field(default_factory=dict)
-
-
-@dataclass
-class PipelineStage:
-    stage: str = ""
-    formula: str = ""
 
 
 # ---------------------------------------------------------------------------
@@ -113,40 +57,6 @@ class PipelineStage:
 def _load_json(path: str) -> dict:
     with open(path) as f:
         return json.load(f)
-
-
-def _gen_short_names(abilities: list[str]) -> tuple[dict[str, str], dict[str, str]]:
-    """Generate short name mappings for ability scores.
-
-    Uses the first 3 lowercase chars of each ability name. If there are
-    collisions, falls back to the full lowercase name.
-    """
-    short_to_full: dict[str, str] = {}
-    full_to_short: dict[str, str] = {}
-
-    for name in abilities:
-        short = name[:3].lower()
-        if short in short_to_full:
-            # Collision — use full lowercase for both
-            prev_full = short_to_full.pop(short)
-            prev_key = prev_full.lower()
-            short_to_full[prev_key] = prev_full
-            full_to_short[prev_full] = prev_key
-            new_key = name.lower()
-            short_to_full[new_key] = name
-            full_to_short[name] = new_key
-        else:
-            short_to_full[short] = name
-            full_to_short[name] = short
-
-    # Also add full lowercase as an alias
-    for name in abilities:
-        lower = name.lower()
-        if lower not in short_to_full:
-            short_to_full[lower] = name
-            full_to_short.setdefault(name, lower)
-
-    return short_to_full, full_to_short
 
 
 def load_system_pack(pack_dir: str) -> SystemPack:
@@ -163,13 +73,6 @@ def load_system_pack(pack_dir: str) -> SystemPack:
     pack.name = meta.get("name", "")
     pack.dice = meta.get("dice", "")
 
-    # Abilities
-    abilities = data.get("ability_scores", {})
-    pack.ability_list = abilities.get("list", [])
-    pack.ability_mod_formula = abilities.get("modifier", "")
-    pack.ability_cost_per_rank = abilities.get("cost_per_rank", 0)
-    pack.ability_short_names, pack.ability_to_short = _gen_short_names(pack.ability_list)
-
     # Defaults for optional variables
     pack.defaults = dict(data.get("defaults", {}))
 
@@ -183,85 +86,6 @@ def load_system_pack(pack_dir: str) -> SystemPack:
 
     # Constraints
     pack.constraints = dict(data.get("constraints", {}))
-
-    # Iterative attacks
-    iterative = data.get("iterative_attacks", {})
-    pack.iterative_threshold = iterative.get("threshold", 0)
-    pack.iterative_penalty = iterative.get("penalty", 0)
-
-    # Scales
-    pack.scales = dict(data.get("scales", {}))
-
-    # Pipeline
-    for stage_data in data.get("pipeline", []):
-        pack.pipeline.append(PipelineStage(
-            stage=stage_data.get("stage", ""),
-            formula=stage_data.get("formula", ""),
-        ))
-
-    # Load classes
-    classes_dir = os.path.join(pack_dir, "classes")
-    if os.path.isdir(classes_dir):
-        for fname in os.listdir(classes_dir):
-            if fname.endswith(".json"):
-                cls_data = _load_json(os.path.join(classes_dir, fname))
-                cls_key = fname[:-5]  # strip .json
-                cls = ClassDef()
-                cls_meta = cls_data.get("meta", {})
-                cls.name = cls_meta.get("name", cls_key)
-                cls.hit_die = cls_meta.get("hit_die", "")
-                cls.progressions = dict(cls_meta.get("progressions", {}))
-                cls.saves = dict(cls_meta.get("saves", {}))
-                # Levels: {"level": {"1": {...}, "2": {...}}}
-                level_section = cls_data.get("level", {})
-                if isinstance(level_section, dict):
-                    for lvl_str, lvl_data in level_section.items():
-                        try:
-                            lvl_num = int(lvl_str)
-                        except ValueError:
-                            continue
-                        entry = LevelEntry(
-                            features=lvl_data.get("features", []),
-                            choices=lvl_data.get("choices", []),
-                        )
-                        cls.levels[lvl_num] = entry
-                pack.classes[cls_key] = cls
-
-    # Load feats
-    feats_path = os.path.join(pack_dir, "feats.json")
-    if os.path.isfile(feats_path):
-        feats_data = _load_json(feats_path)
-        for feat_key, feat_data in feats_data.items():
-            if not isinstance(feat_data, dict):
-                continue
-            feat = FeatDef(
-                name=feat_data.get("name", feat_key),
-                category=feat_data.get("category", ""),
-                prereqs=dict(feat_data.get("prereqs", {})),
-                combat_option=feat_data.get("combat_option", False),
-                ranked=feat_data.get("ranked", False),
-                param=feat_data.get("param", ""),
-                effects=dict(feat_data.get("effects", {})),
-                effects_per_rank=dict(feat_data.get("effects_per_rank", {})),
-            )
-            pack.feats[feat_key] = feat
-
-    # Also load advantages.json (point-buy systems)
-    advantages_path = os.path.join(pack_dir, "advantages.json")
-    if os.path.isfile(advantages_path):
-        adv_data = _load_json(advantages_path)
-        for adv_key, adv_info in adv_data.items():
-            if not isinstance(adv_info, dict):
-                continue
-            feat = FeatDef(
-                name=adv_info.get("name", adv_key),
-                category=adv_info.get("category", ""),
-                prereqs=dict(adv_info.get("prereqs", {})),
-                ranked=adv_info.get("ranked", False),
-                effects=dict(adv_info.get("effects", {})),
-                effects_per_rank=dict(adv_info.get("effects_per_rank", {})),
-            )
-            pack.feats[adv_key] = feat
 
     return pack
 
@@ -283,27 +107,15 @@ def _build_dep_graph(derived: dict[str, str]) -> dict[str, set[str]]:
 
 def _topo_sort(graph: dict[str, set[str]]) -> list[str]:
     """Topological sort via Kahn's algorithm. Raises on cycles."""
-    in_degree: dict[str, int] = {node: 0 for node in graph}
-    for node, deps in graph.items():
-        for dep in deps:
-            if dep in graph:
-                in_degree.setdefault(dep, 0)
-
     # Build reverse adjacency: dep -> set of nodes that depend on it
     reverse: dict[str, set[str]] = defaultdict(set)
     for node, deps in graph.items():
         for dep in deps:
             if dep in graph:
                 reverse[dep].add(node)
-                in_degree[node] = in_degree.get(node, 0)
 
-    # Recount in-degrees properly
-    in_degree = {node: 0 for node in graph}
-    for node, deps in graph.items():
-        for dep in deps:
-            if dep in in_degree:
-                pass  # dep exists in graph
-        in_degree[node] = len(deps & set(graph.keys()))
+    # Count in-degrees
+    in_degree = {node: len(deps & set(graph.keys())) for node, deps in graph.items()}
 
     queue = [node for node, deg in in_degree.items() if deg == 0]
     result = []
@@ -402,116 +214,33 @@ class CalcResult:
     changes: dict[str, tuple[Any, Any]] = field(default_factory=dict)  # stat -> (old, new)
 
 
+def _try_parse_number(val: str) -> int | float | str:
+    """Try to parse a string as a number, return original if not numeric."""
+    try:
+        return float(val) if "." in val else int(val)
+    except ValueError:
+        return val
+
+
 def _build_context(pack: SystemPack, char: CharacterData) -> FormulaContext:
     """Build a FormulaContext from a system pack and character data."""
     ctx = FormulaContext()
-    ctx.ability_mod_formula = pack.ability_mod_formula
     ctx.tables = dict(pack.tables)
 
-    # Base values from character
+    # Base values
     ctx.values["level"] = char.level
 
-    # Apply system pack defaults for optional variables.
-    # These are declared explicitly in the pack so typos in formulas
-    # still raise errors instead of silently evaluating to 0.
+    # Apply system pack defaults
     for key, val in pack.defaults.items():
-        ctx.values.setdefault(key, val)
+        ctx.values[key] = val
 
-    # Ability scores: store both short name and as ability score
-    ability_cat = None
-    for cat in ("ability", "stat", "abilities", "stats"):
-        if cat in char.attributes:
-            ability_cat = cat
-            break
-
-    if ability_cat:
-        for key, val in char.attributes[ability_cat].items():
-            try:
-                num_val = float(val) if "." in val else int(val)
-            except ValueError:
-                continue
-            # Store in values under the key name
-            ctx.values[key] = num_val
-            # Also register as ability score for mod()
-            ctx.ability_scores[key] = num_val
-            # If this key matches a short name, also store under the full name
-            if key in pack.ability_short_names:
-                full = pack.ability_short_names[key]
-                ctx.ability_scores[full] = num_val
-            # If this key is a full ability name, also store under short name
-            if key in pack.ability_to_short:
-                short = pack.ability_to_short[key]
-                ctx.values[short] = num_val
-                ctx.ability_scores[short] = num_val
-
-    # All other attribute categories as values
+    # Load all character attributes as flat variables
     for cat, attrs in char.attributes.items():
-        if cat == ability_cat:
-            continue
         for key, val in attrs.items():
-            try:
-                num_val = float(val) if "." in val else int(val)
-                ctx.values[f"{cat}.{key}"] = num_val
-                ctx.values[key] = num_val
-            except ValueError:
-                ctx.values[f"{cat}.{key}"] = val
-                ctx.values[key] = val
+            parsed = _try_parse_number(val)
+            ctx.values[f"{cat}.{key}"] = parsed
+            ctx.values[key] = parsed
 
-    # Class-derived values (if character has a class)
-    class_name = ctx.values.get("class", "")
-    if isinstance(class_name, str) and class_name:
-        cls_key = class_name.lower().replace(" ", "_")
-        cls = pack.classes.get(cls_key)
-        if cls:
-            # Class progressions (table-backed variables)
-            for var_name, table_key in cls.progressions.items():
-                if table_key in pack.tables:
-                    tbl = pack.tables[table_key]
-                    if char.level <= len(tbl):
-                        ctx.values[var_name] = tbl[char.level - 1]
-
-            # Saves from class progression
-            for save_name, prog_type in cls.saves.items():
-                table_key = f"{save_name}_{prog_type}"
-                if table_key in pack.tables:
-                    save_table = pack.tables[table_key]
-                    if char.level <= len(save_table):
-                        ctx.values[f"{save_name}_base"] = save_table[char.level - 1]
-
-            # Hit die
-            if cls.hit_die:
-                # Extract numeric part: "d10" -> 10
-                die_str = cls.hit_die.lstrip("d")
-                try:
-                    die_val = int(die_str)
-                    ctx.values["hit_die"] = die_val
-                    ctx.values["hit_die_avg"] = math.ceil(die_val / 2) + 1
-                except ValueError:
-                    pass
-
-    # Aggregate bonuses from feats/abilities on the character
-    bonuses: dict[str, list[float]] = defaultdict(list)
-    for ability in char.abilities:
-        ability_key = ability["name"].lower().replace(" ", "_")
-        feat = pack.feats.get(ability_key)
-        if feat:
-            if feat.ranked:
-                # Try to find rank from ability description or a stored attribute
-                rank = 1  # default rank
-                # Check if there's a rank stored as attribute
-                rank_val = char.attributes.get("feat_rank", {}).get(ability_key, "1")
-                try:
-                    rank = int(rank_val)
-                except ValueError:
-                    rank = 1
-                for stat, bonus in feat.effects_per_rank.items():
-                    bonuses[stat].append(bonus * rank)
-            elif not feat.combat_option:
-                # Always-on effects
-                for stat, bonus in feat.effects.items():
-                    bonuses[stat].append(bonus)
-
-    ctx.bonuses = dict(bonuses)
     return ctx
 
 
@@ -600,10 +329,76 @@ def write_derived(db, character_id: int, derived: dict[str, Any]) -> int:
 # Top-level: full recalc from DB
 # ---------------------------------------------------------------------------
 
+def _run_build(db, character_id: int, pack_dir: str,
+               char: CharacterData) -> None:
+    """Run the build engine and write results to the DB.
+
+    Build attributes are written under category='build'. This must
+    run before recalculate() so derived formulas can reference them.
+    """
+    from build_engine import process_build
+
+    build_result = process_build(
+        pack_dir, char.attributes, char.abilities, char.level,
+    )
+
+    if not build_result.attributes and not build_result.costs:
+        return
+
+    # Write build attributes to DB and merge into character data
+    count = 0
+    build_attrs = char.attributes.setdefault("build", {})
+    for key, value in build_result.attributes.items():
+        str_val = str(value)
+        db.execute(
+            "INSERT INTO character_attributes (character_id, category, key, value) "
+            "VALUES (?, 'build', ?, ?) "
+            "ON CONFLICT(character_id, category, key) DO UPDATE SET value = excluded.value",
+            (character_id, key, str_val),
+        )
+        build_attrs[key] = str_val
+        count += 1
+
+    # Write budget tracking as build attributes
+    if build_result.budget_total:
+        for budget_key, budget_val in [
+            ("budget_total", build_result.budget_total),
+            ("budget_spent", build_result.budget_spent),
+        ]:
+            str_val = str(budget_val)
+            db.execute(
+                "INSERT INTO character_attributes (character_id, category, key, value) "
+                "VALUES (?, 'build', ?, ?) "
+                "ON CONFLICT(character_id, category, key) DO UPDATE SET value = excluded.value",
+                (character_id, budget_key, str_val),
+            )
+            build_attrs[budget_key] = str_val
+
+        # Per-category costs
+        for cost_cat, cost_val in build_result.costs.items():
+            cost_key = f"cost_{cost_cat}"
+            str_val = str(cost_val)
+            db.execute(
+                "INSERT INTO character_attributes (character_id, category, key, value) "
+                "VALUES (?, 'build', ?, ?) "
+                "ON CONFLICT(character_id, category, key) DO UPDATE SET value = excluded.value",
+                (character_id, cost_key, str_val),
+            )
+            build_attrs[cost_key] = str_val
+
+    if count:
+        db.commit()
+
+
 def rules_calc(db, character_id: int, pack_dir: str) -> str:
-    """Full recalculation pipeline: load data, compute, write back, return summary."""
+    """Full recalculation pipeline: build → compute → write back → report."""
     pack = load_system_pack(pack_dir)
     char = load_character_data(db, character_id)
+
+    # Run build engine first — writes build attributes to DB and merges
+    # them into char so derived formulas can reference them
+    _run_build(db, character_id, pack_dir, char)
+
     result = recalculate(pack, char)
 
     if not result.derived:
