@@ -2,6 +2,9 @@
 
 import json
 import os
+import secrets
+from unittest.mock import patch
+
 import pytest
 
 from rules_engine import (
@@ -12,6 +15,7 @@ from rules_engine import (
     load_system_pack,
     recalculate,
     rules_calc,
+    rules_check,
     write_derived,
 )
 
@@ -418,5 +422,83 @@ class TestDBIntegration:
             # close_attack = effective_fgt + adv_close_attack + bonus_close_attack
             # = 6 + 1 + 0 = 7
             assert derived["close_attack"] == "7"
+        finally:
+            db.close()
+
+
+# ---------------------------------------------------------------------------
+# rules_check
+# ---------------------------------------------------------------------------
+
+class TestRulesCheck:
+    def test_check_success(self, make_session, make_character):
+        """Roll high enough → SUCCESS."""
+        from _db import require_db
+        from character import set_attr
+
+        sid = make_session()
+        cid = make_character(sid, name="Durão", level=5)
+
+        db = require_db()
+        try:
+            set_attr(db, cid, "stat", "str", "18")
+            set_attr(db, cid, "stat", "dex", "14")
+            set_attr(db, cid, "stat", "con", "12")
+            set_attr(db, cid, "combat", "base_attack", "5")
+            set_attr(db, cid, "combat", "hit_die_avg", "6")
+            rules_calc(db, cid, TEST_SYSTEM)
+        finally:
+            db.close()
+
+        # melee_attack derived = 9, mock d20 roll = 15 → total = 24 vs DC 15 → SUCCESS
+        db = require_db()
+        try:
+            with patch("secrets.randbelow", return_value=14):  # 14+1=15
+                output = rules_check(db, cid, "melee_attack", 15, TEST_SYSTEM)
+            assert "CHECK: Durão — melee_attack" in output
+            assert "d20(15) + 9 = 24 vs DC 15" in output
+            assert "SUCCESS (by 9)" in output
+        finally:
+            db.close()
+
+    def test_check_failure(self, make_session, make_character):
+        """Roll too low → FAILURE."""
+        from _db import require_db
+        from character import set_attr
+
+        sid = make_session()
+        cid = make_character(sid, name="Durão", level=5)
+
+        db = require_db()
+        try:
+            set_attr(db, cid, "stat", "str", "18")
+            set_attr(db, cid, "stat", "dex", "14")
+            set_attr(db, cid, "stat", "con", "12")
+            set_attr(db, cid, "combat", "base_attack", "5")
+            set_attr(db, cid, "combat", "hit_die_avg", "6")
+            rules_calc(db, cid, TEST_SYSTEM)
+        finally:
+            db.close()
+
+        # melee_attack=9, mock d20 roll=2 → total=11 vs DC 20 → FAILURE
+        db = require_db()
+        try:
+            with patch("secrets.randbelow", return_value=1):  # 1+1=2
+                output = rules_check(db, cid, "melee_attack", 20, TEST_SYSTEM)
+            assert "FAILURE (by 9)" in output
+        finally:
+            db.close()
+
+    def test_check_missing_stat(self, make_session, make_character):
+        """Missing derived stat raises error."""
+        from _db import require_db, LoreKitError
+
+        sid = make_session()
+        cid = make_character(sid, name="Durão", level=5)
+
+        db = require_db()
+        try:
+            with pytest.raises(LoreKitError, match="not found in derived"):
+                rules_check(db, cid, "nonexistent_stat", 10, TEST_SYSTEM)
         finally:
             db.close()

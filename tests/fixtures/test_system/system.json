@@ -11,7 +11,11 @@
     "hit_die_avg": 0,
     "bonus_melee_attack": 0,
     "bonus_ranged_attack": 0,
-    "bonus_defense": 0
+    "bonus_defense": 0,
+    "item_bonus_ac": 0,
+    "armor_dex_cap": 99,
+    "shield_bonus": 0,
+    "current_hp": 0
   },
   "tables": {
     "base_attack_full": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
@@ -26,9 +30,53 @@
     "melee_attack": "base_attack + str_mod + bonus_melee_attack",
     "ranged_attack": "base_attack + dex_mod + bonus_ranged_attack",
     "defense": "10 + dex_mod + bonus_defense",
+    "armor_class": "10 + dex_mod + item_bonus_ac + shield_bonus",
     "max_hp": "hit_die_avg * level + con_mod * level"
   },
   "constraints": {
     "hp_positive": "max_hp > 0"
+  },
+  "resolution": {"type": "threshold"},
+  "actions": {
+    "melee_attack": {
+      "attack_stat": "melee_attack",
+      "defense_stat": "armor_class",
+      "on_hit": {
+        "damage_roll": {"dice_attr": "weapon_damage_die", "bonus_stat": "str_mod"},
+        "subtract_from": "current_hp"
+      }
+    }
+  },
+  "build": {
+    "armor": {
+      "source": "equipment.json",
+      "select": "equipped",
+      "catalog_path": "armor",
+      "writes": {
+        "item_bonus_ac": "ac_bonus",
+        "armor_dex_cap": "dex_cap",
+        "armor_check_penalty": "check_penalty",
+        "armor_speed_penalty": "speed_penalty"
+      }
+    },
+    "shield": {
+      "source": "equipment.json",
+      "select": "equipped",
+      "catalog_path": "shields",
+      "writes": {
+        "shield_bonus": "ac_bonus"
+      }
+    },
+    "weapon": {
+      "source": "equipment.json",
+      "select": "equipped",
+      "catalog_path": "weapons",
+      "writes": {
+        "weapon_damage_die": "damage_die",
+        "weapon_damage_type": "damage_type",
+        "weapon_group": "group",
+        "weapon_traits": "traits"
+      }
+    }
   }
 }

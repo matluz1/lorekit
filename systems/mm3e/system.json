@@ -161,6 +161,31 @@
     "skill_vehicles_cap": "skill_vehicles <= skill_cap"
   },
 
+  "resolution": {
+    "type": "degree",
+    "defense_dc_offset": 10,
+    "resistance_stat": "toughness",
+    "dc_base": 15,
+    "on_failure": {
+      "1": {"increment": {"damage_penalty": 1}},
+      "2": {"increment": {"damage_penalty": 1}, "label": "dazed"},
+      "3": {"increment": {"damage_penalty": 1}, "label": "staggered"},
+      "4": {"label": "incapacitated"}
+    }
+  },
+  "actions": {
+    "close_attack": {
+      "attack_stat": "close_attack",
+      "defense_stat": "parry",
+      "damage_rank_stat": "unarmed_damage"
+    },
+    "ranged_attack": {
+      "attack_stat": "ranged_attack",
+      "defense_stat": "dodge",
+      "damage_rank_stat": "unarmed_damage"
+    }
+  },
+
   "scales": {
     "duration": ["instant", "concentration", "sustained", "continuous", "permanent"],
     "range": ["personal", "close", "ranged", "perception"],

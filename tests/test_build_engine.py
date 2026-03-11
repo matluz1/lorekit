@@ -560,3 +560,60 @@ class TestMM3eBudgetTotal:
         # abilities=8 + defenses=5 + skills=2 + advantage=1 + powers=10 = 26
         assert result.budget_total == 150
         assert result.budget_spent == 26
+
+
+# ---------------------------------------------------------------------------
+# Equipment build tests
+# ---------------------------------------------------------------------------
+
+class TestEquipment:
+    """Test the 'equipped' select mode — equipment items to attributes."""
+
+    def test_equipment_armor_writes(self):
+        """Equipped armor writes AC bonus and dex cap."""
+        char_items = [{"name": "Chain mail", "description": "", "quantity": 1}]
+        result = process_build(TEST_SYSTEM, {}, [], level=1, char_items=char_items)
+        assert result.attributes["item_bonus_ac"] == 4
+        assert result.attributes["armor_dex_cap"] == 1
+        assert result.attributes["armor_check_penalty"] == -2
+        assert result.attributes["armor_speed_penalty"] == -5
+
+    def test_equipment_weapon_writes(self):
+        """Equipped weapon writes damage die and type."""
+        char_items = [{"name": "Longsword", "description": "", "quantity": 1}]
+        result = process_build(TEST_SYSTEM, {}, [], level=1, char_items=char_items)
+        assert result.attributes["weapon_damage_die"] == "1d8"
+        assert result.attributes["weapon_damage_type"] == "S"
+        assert result.attributes["weapon_group"] == "Sword"
+        assert result.attributes["weapon_traits"] == ["versatile_P"]
+
+    def test_equipment_shield_writes(self):
+        """Equipped shield writes shield bonus."""
+        char_items = [{"name": "Steel shield", "description": "", "quantity": 1}]
+        result = process_build(TEST_SYSTEM, {}, [], level=1, char_items=char_items)
+        assert result.attributes["shield_bonus"] == 2
+
+    def test_equipment_not_found(self):
+        """Unknown item is silently ignored."""
+        char_items = [{"name": "Vorpal Blade", "description": "", "quantity": 1}]
+        result = process_build(TEST_SYSTEM, {}, [], level=1, char_items=char_items)
+        assert "weapon_damage_die" not in result.attributes
+
+    def test_equipment_no_items(self):
+        """No items → no equipment attributes."""
+        result = process_build(TEST_SYSTEM, {}, [], level=1, char_items=[])
+        assert "item_bonus_ac" not in result.attributes
+
+    def test_equipment_pf2e_armor(self):
+        """PF2e system: chain mail equipped writes correct stats."""
+        char_items = [{"name": "Chain mail", "description": "", "quantity": 1}]
+        result = process_build(PF2E_SYSTEM, {}, [], level=1, char_items=char_items)
+        assert result.attributes["item_bonus_ac"] == 4
+        assert result.attributes["armor_dex_cap"] == 1
+
+    def test_equipment_pf2e_weapon(self):
+        """PF2e system: longsword writes damage stats."""
+        char_items = [{"name": "Longsword", "description": "", "quantity": 1}]
+        result = process_build(PF2E_SYSTEM, {}, [], level=1, char_items=char_items)
+        assert result.attributes["weapon_damage_die"] == "1d8"
+        assert result.attributes["weapon_damage_type"] == "S"

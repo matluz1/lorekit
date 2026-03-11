@@ -49,6 +49,12 @@ class SystemPack:
     # Constraint expressions: {"name": "expr that should be true", ...}
     constraints: dict[str, str] = field(default_factory=dict)
 
+    # Combat resolution config: {"type": "threshold"|"degree", ...}
+    resolution: dict[str, Any] = field(default_factory=dict)
+
+    # Action definitions: {"melee_attack": {"attack_stat": ..., "defense_stat": ..., ...}, ...}
+    actions: dict[str, dict[str, Any]] = field(default_factory=dict)
+
 
 # ---------------------------------------------------------------------------
 # JSON loader
@@ -86,6 +92,10 @@ def load_system_pack(pack_dir: str) -> SystemPack:
 
     # Constraints
     pack.constraints = dict(data.get("constraints", {}))
+
+    # Combat resolution
+    pack.resolution = dict(data.get("resolution", {}))
+    pack.actions = dict(data.get("actions", {}))
 
     return pack
 
@@ -340,6 +350,7 @@ def _run_build(db, character_id: int, pack_dir: str,
 
     build_result = process_build(
         pack_dir, char.attributes, char.abilities, char.level,
+        char_items=char.items,
     )
 
     if not build_result.attributes and not build_result.costs:
@@ -388,6 +399,38 @@ def _run_build(db, character_id: int, pack_dir: str,
 
     if count:
         db.commit()
+
+
+def rules_check(db, character_id: int, check: str, dc: int, pack_dir: str) -> str:
+    """Read a pre-computed derived stat and roll against a DC."""
+    from rolldice import roll_expr
+
+    pack = load_system_pack(pack_dir)
+    char = load_character_data(db, character_id)
+
+    # Read from derived attributes
+    derived = char.attributes.get("derived", {})
+    bonus_str = derived.get(check)
+    if bonus_str is None:
+        from _db import LoreKitError
+        raise LoreKitError(
+            f"Stat '{check}' not found in derived attributes for {char.name}. "
+            f"Run rules_calc first."
+        )
+
+    bonus = int(bonus_str)
+    result = roll_expr(pack.dice)
+    roll = result["total"]
+    total = roll + bonus
+
+    outcome = "SUCCESS" if total >= dc else "FAILURE"
+    margin = abs(total - dc)
+
+    return (
+        f"CHECK: {char.name} — {check}\n"
+        f"ROLL: {pack.dice}({roll}) + {bonus} = {total} vs DC {dc}\n"
+        f"RESULT: {outcome} (by {margin})"
+    )
 
 
 def rules_calc(db, character_id: int, pack_dir: str) -> str:

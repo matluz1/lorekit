@@ -116,6 +116,26 @@
     "skill_thievery": "dex_mod + if(prof_thievery > 0, prof_thievery + level, 0) + bonus_thievery"
   },
 
+  "resolution": {"type": "threshold"},
+  "actions": {
+    "melee_attack": {
+      "attack_stat": "melee_attack",
+      "defense_stat": "armor_class",
+      "on_hit": {
+        "damage_roll": {"dice_attr": "weapon_damage_die", "bonus_stat": "str_mod"},
+        "subtract_from": "current_hp"
+      }
+    },
+    "ranged_attack": {
+      "attack_stat": "ranged_attack",
+      "defense_stat": "armor_class",
+      "on_hit": {
+        "damage_roll": {"dice_attr": "weapon_damage_die", "bonus_stat": "dex_mod"},
+        "subtract_from": "current_hp"
+      }
+    }
+  },
+
   "constraints": {
     "hp_positive": "max_hp > 0"
   },
@@ -136,6 +156,36 @@
       "source": "feats.json",
       "select": "multiple",
       "effects": true
+    },
+    "armor": {
+      "source": "equipment.json",
+      "select": "equipped",
+      "catalog_path": "armor",
+      "writes": {
+        "item_bonus_ac": "ac_bonus",
+        "armor_dex_cap": "dex_cap",
+        "armor_check_penalty": "check_penalty",
+        "armor_speed_penalty": "speed_penalty"
+      }
+    },
+    "shield": {
+      "source": "equipment.json",
+      "select": "equipped",
+      "catalog_path": "shields",
+      "writes": {
+        "shield_bonus": "ac_bonus"
+      }
+    },
+    "weapon": {
+      "source": "equipment.json",
+      "select": "equipped",
+      "catalog_path": "weapons",
+      "writes": {
+        "weapon_damage_die": "damage_die",
+        "weapon_damage_type": "damage_type",
+        "weapon_group": "group",
+        "weapon_traits": "traits"
+      }
     }
   }
 }

@@ -1209,6 +1209,96 @@ def npc_interact(session_id: int, npc_id: int, message: str) -> str:
 
 
 @mcp.tool()
+def rules_check(character_id: int, check: str, dc: int, system_path: str = "") -> str:
+    """Roll a derived stat against a DC. Reads pre-computed values (run rules_calc first).
+
+    Returns the roll result with success/failure and margin.
+
+    If system_path is empty, reads the session's 'rules_system' metadata
+    and looks for the pack under systems/<rules_system>/ in the project root.
+    """
+    import os
+
+    from _db import LoreKitError, require_db
+
+    db = require_db()
+    try:
+        if not system_path:
+            row = db.execute(
+                "SELECT session_id FROM characters WHERE id = ?",
+                (character_id,),
+            ).fetchone()
+            if row is None:
+                return f"ERROR: Character {character_id} not found"
+            session_id = row[0]
+            meta_row = db.execute(
+                "SELECT value FROM session_meta WHERE session_id = ? AND key = 'rules_system'",
+                (session_id,),
+            ).fetchone()
+            if meta_row is None:
+                return "ERROR: No rules_system set for this session. Use session_meta_set to configure it."
+            system_name = meta_row[0]
+            project_root = os.path.dirname(os.path.abspath(__file__))
+            system_path = os.path.join(project_root, "systems", system_name)
+
+        from rules_engine import rules_check as _rules_check
+
+        return _rules_check(db, character_id, check, dc, system_path)
+    except LoreKitError as e:
+        return f"ERROR: {e}"
+    finally:
+        db.close()
+
+
+@mcp.tool()
+def rules_resolve(attacker_id: int, defender_id: int, action: str,
+                  options: str = "{}", system_path: str = "") -> str:
+    """Resolve a combat action between two characters.
+
+    Rolls attack vs defense, then applies damage/effects per the system's
+    resolution rules (threshold for PF2e, degree for M&M3e).
+
+    Both characters must have derived stats computed (run rules_calc first).
+
+    If system_path is empty, reads the session's 'rules_system' metadata
+    and looks for the pack under systems/<rules_system>/ in the project root.
+    """
+    import json
+    import os
+
+    from _db import LoreKitError, require_db
+
+    db = require_db()
+    try:
+        if not system_path:
+            row = db.execute(
+                "SELECT session_id FROM characters WHERE id = ?",
+                (attacker_id,),
+            ).fetchone()
+            if row is None:
+                return f"ERROR: Character {attacker_id} not found"
+            session_id = row[0]
+            meta_row = db.execute(
+                "SELECT value FROM session_meta WHERE session_id = ? AND key = 'rules_system'",
+                (session_id,),
+            ).fetchone()
+            if meta_row is None:
+                return "ERROR: No rules_system set for this session. Use session_meta_set to configure it."
+            system_name = meta_row[0]
+            project_root = os.path.dirname(os.path.abspath(__file__))
+            system_path = os.path.join(project_root, "systems", system_name)
+
+        opts = json.loads(options) if options else {}
+        from combat_engine import resolve_action
+
+        return resolve_action(db, attacker_id, defender_id, action, system_path, opts)
+    except LoreKitError as e:
+        return f"ERROR: {e}"
+    finally:
+        db.close()
+
+
+@mcp.tool()
 def rules_calc(character_id: int, system_path: str = "") -> str:
     """Recompute all derived stats for a character using the rules engine.
 

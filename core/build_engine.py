@@ -95,7 +95,8 @@ def _expand_template(pattern: str, char_attrs: dict[str, dict[str, str]]) -> str
 # ---------------------------------------------------------------------------
 
 def process_build(pack_dir: str, char_attrs: dict[str, dict[str, str]],
-                  char_abilities: list[dict[str, str]], level: int) -> BuildResult:
+                  char_abilities: list[dict[str, str]], level: int,
+                  char_items: list[dict[str, Any]] | None = None) -> BuildResult:
     """Process build rules and return computed attributes."""
     system_path = os.path.join(pack_dir, "system.json")
     if not os.path.isfile(system_path):
@@ -130,6 +131,7 @@ def process_build(pack_dir: str, char_attrs: dict[str, dict[str, str]],
             _process_source(
                 pack_dir, rules, category,
                 char_attrs, char_abilities, level, result,
+                char_items=char_items,
             )
 
     # --- Arrays ---
@@ -383,11 +385,42 @@ def _process_sub_budgets(rules: dict, result: BuildResult) -> None:
 # Source-based operations (writes, effects, progressions)
 # ---------------------------------------------------------------------------
 
+def _flatten_catalog(data: Any) -> dict[str, dict]:
+    """Flatten a JSON subtree into a name-keyed dict.
+
+    Handles:
+    - list of dicts with "name" key
+    - dict of dicts (key becomes name)
+    - nested dicts of lists (recursively flattens all sublists)
+    """
+    result: dict[str, dict] = {}
+
+    if isinstance(data, list):
+        for item in data:
+            if isinstance(item, dict) and "name" in item:
+                result[item["name"].lower()] = item
+    elif isinstance(data, dict):
+        for key, value in data.items():
+            if isinstance(value, list):
+                # Nested subcategory (e.g., weapons.simple_melee)
+                for item in value:
+                    if isinstance(item, dict) and "name" in item:
+                        result[item["name"].lower()] = item
+            elif isinstance(value, dict) and "name" in value:
+                result[value["name"].lower()] = value
+            elif isinstance(value, dict):
+                # Could be a name-keyed dict
+                result[key.lower()] = value
+
+    return result
+
+
 def _process_source(
     pack_dir: str, rules: dict, category: str,
     char_attrs: dict[str, dict[str, str]],
     char_abilities: list[dict[str, str]], level: int,
     result: BuildResult,
+    char_items: list[dict[str, Any]] | None = None,
 ) -> None:
     """Process a source-based build category."""
     source_pattern = rules["source"]
@@ -437,6 +470,27 @@ def _process_source(
             effect_cost = _apply_effects(source_data, char_abilities, result, cost_per_rank)
             if effect_cost > 0:
                 result.costs[category] = result.costs.get(category, 0) + effect_cost
+
+    elif select_mode == "equipped":
+        items = char_items or []
+        if not items or not has_writes:
+            return
+
+        # Scope to catalog subtree if specified
+        catalog_data = source_data
+        catalog_path = rules.get("catalog_path")
+        if catalog_path:
+            catalog_data = _resolve_path(source_data, catalog_path)
+            if catalog_data is None:
+                return
+
+        catalog = _flatten_catalog(catalog_data)
+
+        for inv_item in items:
+            item_name = inv_item.get("name", "").lower()
+            matched = catalog.get(item_name)
+            if matched:
+                _apply_writes(rules["writes"], matched, result)
 
 
 def _apply_writes(write_map: dict[str, str], source_data: dict,

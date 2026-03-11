@@ -1,0 +1,37 @@
+{
+  "weapons": {
+    "simple_melee": [
+      {
+        "name": "Dagger",
+        "damage_die": "1d4",
+        "damage_type": "P",
+        "group": "Knife",
+        "traits": ["agile", "finesse", "thrown_10"]
+      }
+    ],
+    "martial_melee": [
+      {
+        "name": "Longsword",
+        "damage_die": "1d8",
+        "damage_type": "S",
+        "group": "Sword",
+        "traits": ["versatile_P"]
+      }
+    ]
+  },
+  "armor": [
+    {
+      "name": "Chain mail",
+      "ac_bonus": 4,
+      "dex_cap": 1,
+      "check_penalty": -2,
+      "speed_penalty": -5
+    }
+  ],
+  "shields": [
+    {
+      "name": "Steel shield",
+      "ac_bonus": 2
+    }
+  ]
+}
