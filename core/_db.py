@@ -113,6 +113,20 @@ CREATE TABLE IF NOT EXISTS story_acts (
     UNIQUE(session_id, act_order)
 );
 
+CREATE TABLE IF NOT EXISTS combat_state (
+    id             INTEGER PRIMARY KEY AUTOINCREMENT,
+    character_id   INTEGER NOT NULL REFERENCES characters(id) ON DELETE CASCADE,
+    source         TEXT    NOT NULL,
+    target_stat    TEXT    NOT NULL,
+    modifier_type  TEXT    NOT NULL,
+    value          INTEGER NOT NULL,
+    bonus_type     TEXT,
+    duration_type  TEXT    NOT NULL DEFAULT 'encounter',
+    duration       INTEGER,
+    created_at     TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+    UNIQUE(character_id, source, target_stat)
+);
+
 CREATE TABLE IF NOT EXISTS embeddings (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
     source      TEXT    NOT NULL,
@@ -145,6 +159,7 @@ CREATE INDEX IF NOT EXISTS idx_char_abilities ON character_abilities(character_i
 CREATE INDEX IF NOT EXISTS idx_session_meta ON session_meta(session_id);
 CREATE INDEX IF NOT EXISTS idx_story_acts_session ON story_acts(session_id, act_order);
 CREATE INDEX IF NOT EXISTS idx_regions_session ON regions(session_id);
+CREATE INDEX IF NOT EXISTS idx_combat_state ON combat_state(character_id);
 CREATE INDEX IF NOT EXISTS idx_embeddings_session ON embeddings(session_id, source);
 CREATE INDEX IF NOT EXISTS idx_checkpoints_session ON checkpoints(session_id);
 """
@@ -337,12 +352,30 @@ _CASCADE_MIGRATIONS = {
         )""",
         ["id", "session_id", "act_order", "title", "description", "goal", "event", "status", "created_at"],
     ),
+    "combat_state": (
+        """CREATE TABLE combat_state (
+            id             INTEGER PRIMARY KEY AUTOINCREMENT,
+            character_id   INTEGER NOT NULL REFERENCES characters(id) ON DELETE CASCADE,
+            source         TEXT    NOT NULL,
+            target_stat    TEXT    NOT NULL,
+            modifier_type  TEXT    NOT NULL,
+            value          INTEGER NOT NULL,
+            bonus_type     TEXT,
+            duration_type  TEXT    NOT NULL DEFAULT 'encounter',
+            duration       INTEGER,
+            created_at     TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+            UNIQUE(character_id, source, target_stat)
+        )""",
+        ["id", "character_id", "source", "target_stat", "modifier_type",
+         "value", "bonus_type", "duration_type", "duration", "created_at"],
+    ),
 }
 
 # Order matters: tables with no FK deps first, then dependents.
 _CASCADE_MIGRATION_ORDER = [
     "session_meta", "regions", "journal", "timeline", "stories", "story_acts",
     "characters", "character_attributes", "character_inventory", "character_abilities",
+    "combat_state",
 ]
 
 

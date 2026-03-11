@@ -1343,6 +1343,179 @@ def rules_calc(character_id: int, system_path: str = "") -> str:
         db.close()
 
 
+@mcp.tool()
+def combat_modifier(
+    character_id: int, action: str, source: str = "",
+    target_stat: str = "", value: int = 0,
+    modifier_type: str = "buff", bonus_type: str = "",
+    duration_type: str = "encounter", duration: int = 0,
+) -> str:
+    """Manage transient combat modifiers on a character.
+
+    action: "add", "list", "remove", or "clear".
+
+    add — apply a transient modifier (pre-combat buffs, environmental effects,
+    GM fiat). Requires source, target_stat, value, duration_type.
+    list — show all active modifiers on the character.
+    remove — remove a modifier by source name.
+    clear — remove all encounter/rounds/concentration modifiers (end of combat).
+    """
+    from _db import LoreKitError, require_db
+
+    db = require_db()
+    try:
+        if action == "add":
+            if not source or not target_stat:
+                return "ERROR: 'add' requires source and target_stat"
+            db.execute(
+                "INSERT INTO combat_state "
+                "(character_id, source, target_stat, modifier_type, value, bonus_type, duration_type, duration) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?) "
+                "ON CONFLICT(character_id, source, target_stat) DO UPDATE SET "
+                "value = excluded.value, bonus_type = excluded.bonus_type, "
+                "duration_type = excluded.duration_type, duration = excluded.duration",
+                (character_id, source, target_stat, modifier_type, value,
+                 bonus_type or None, duration_type, duration or None),
+            )
+            db.commit()
+            type_tag = f" [{bonus_type}]" if bonus_type else ""
+            return (
+                f"MODIFIER ADDED: {source} → {target_stat} {value:+d}{type_tag} "
+                f"({duration_type}{f', {duration} rounds' if duration else ''})"
+            )
+
+        elif action == "list":
+            rows = db.execute(
+                "SELECT source, target_stat, value, bonus_type, modifier_type, "
+                "duration_type, duration FROM combat_state "
+                "WHERE character_id = ? ORDER BY created_at",
+                (character_id,),
+            ).fetchall()
+            if not rows:
+                return f"No active modifiers on character {character_id}"
+            lines = [f"MODIFIERS: character {character_id}"]
+            for src, stat, val, btype, mtype, dtype, dur in rows:
+                type_tag = f" [{btype}]" if btype else ""
+                dur_info = f" ({dur} rounds)" if dur else ""
+                lines.append(f"  {src}: {stat} {val:+d}{type_tag} ({dtype}{dur_info})")
+            return "\n".join(lines)
+
+        elif action == "remove":
+            if not source:
+                return "ERROR: 'remove' requires source"
+            deleted = db.execute(
+                "DELETE FROM combat_state WHERE character_id = ? AND source = ?",
+                (character_id, source),
+            ).rowcount
+            db.commit()
+            return f"REMOVED: {deleted} modifier(s) from source '{source}'"
+
+        elif action == "clear":
+            deleted = db.execute(
+                "DELETE FROM combat_state WHERE character_id = ? "
+                "AND duration_type IN ('encounter', 'rounds', 'concentration')",
+                (character_id,),
+            ).rowcount
+            db.commit()
+            return f"CLEARED: {deleted} transient modifier(s) from character {character_id}"
+
+        else:
+            return f"ERROR: Unknown action '{action}'. Use add, list, remove, or clear."
+
+    except LoreKitError as e:
+        return f"ERROR: {e}"
+    finally:
+        db.close()
+
+
+@mcp.tool()
+def rules_modifiers(character_id: int, stat: str = "", system_path: str = "") -> str:
+    """Show modifier decomposition for a character's stats.
+
+    Displays all active modifiers with their types, sources, and which
+    ones survived stacking. If stat is specified, shows only that stat;
+    otherwise shows all stats with active modifiers.
+
+    If system_path is empty, reads the session's 'rules_system' metadata.
+    """
+    import os
+
+    from _db import LoreKitError, require_db
+
+    db = require_db()
+    try:
+        if not system_path:
+            row = db.execute(
+                "SELECT session_id FROM characters WHERE id = ?",
+                (character_id,),
+            ).fetchone()
+            if row is None:
+                return f"ERROR: Character {character_id} not found"
+            session_id = row[0]
+            meta_row = db.execute(
+                "SELECT value FROM session_meta WHERE session_id = ? AND key = 'rules_system'",
+                (session_id,),
+            ).fetchone()
+            if meta_row is None:
+                return "ERROR: No rules_system set for this session."
+            system_name = meta_row[0]
+            project_root = os.path.dirname(os.path.abspath(__file__))
+            system_path = os.path.join(project_root, "systems", system_name)
+
+        from rules_engine import (
+            CharacterData,
+            load_character_data,
+            load_system_pack,
+            _load_combat_modifiers,
+        )
+        from rules_stacking import (
+            ModifierEntry,
+            decompose_modifiers,
+            load_stacking_policy,
+        )
+
+        pack = load_system_pack(system_path)
+        char = load_character_data(db, character_id)
+        policy = load_stacking_policy(pack.stacking)
+
+        # Collect modifiers from character attributes
+        all_mods: list[ModifierEntry] = []
+        for cat, attrs in char.attributes.items():
+            for key, val in attrs.items():
+                if key.startswith("bonus_"):
+                    try:
+                        num_val = float(val) if "." in val else int(val)
+                    except (ValueError, TypeError):
+                        continue
+                    if num_val != 0:
+                        all_mods.append(ModifierEntry(key, num_val, source=cat))
+
+        # Add combat_state modifiers
+        all_mods.extend(_load_combat_modifiers(db, character_id))
+
+        if not all_mods:
+            return f"No active modifiers on {char.name}"
+
+        decomposed = decompose_modifiers(all_mods, policy, stat=stat or None)
+
+        if not decomposed:
+            return f"No modifiers found for stat '{stat}' on {char.name}"
+
+        lines = [f"MODIFIERS: {char.name}" + (f" — {stat}" if stat else "")]
+        for d in decomposed:
+            status = "" if d.active else " (suppressed)"
+            type_tag = f" [{d.bonus_type}]" if d.bonus_type else ""
+            lines.append(
+                f"  {d.source}: {d.target_stat} {d.value:+g}{type_tag}{status}"
+            )
+        return "\n".join(lines)
+
+    except LoreKitError as e:
+        return f"ERROR: {e}"
+    finally:
+        db.close()
+
+
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------

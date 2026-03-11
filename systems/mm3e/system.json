@@ -4,6 +4,12 @@
     "dice": "d20"
   },
 
+  "stacking": {
+    "group_by": "source",
+    "positive": "max",
+    "negative": "min"
+  },
+
   "defaults": {
     "str": 0, "sta": 0, "dex": 0, "agl": 0,
     "fgt": 0, "int": 0, "awe": 0, "pre": 0,

@@ -546,7 +546,11 @@ def _apply_effects(source_data: dict, char_abilities: list[dict[str, str]],
         if item_def.get("ranked", False):
             effects = item_def.get("effects_per_rank", effects)
 
-        for stat, bonus in effects.items():
+        for stat, effect_val in effects.items():
+            if isinstance(effect_val, dict):
+                bonus = effect_val.get("value", 0)
+            else:
+                bonus = effect_val
             bonuses[stat] = bonuses.get(stat, 0) + bonus * rank
 
         if cost_per_rank > 0:

@@ -4,6 +4,16 @@
     "dice": "d20"
   },
 
+  "stacking": {
+    "group_by": "bonus_type",
+    "positive": "max",
+    "negative": "sum",
+    "overrides": {
+      "untyped": {"positive": "sum"},
+      "_none": {"positive": "sum"}
+    }
+  },
+
   "proficiency_ranks": {
     "untrained": 0,
     "trained": 2,

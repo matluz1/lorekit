@@ -24,6 +24,12 @@ from rules_formulas import (
     extract_deps,
     parse,
 )
+from rules_stacking import (
+    ModifierEntry,
+    StackingPolicy,
+    load_stacking_policy,
+    resolve_stacking,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -54,6 +60,9 @@ class SystemPack:
 
     # Action definitions: {"melee_attack": {"attack_stat": ..., "defense_stat": ..., ...}, ...}
     actions: dict[str, dict[str, Any]] = field(default_factory=dict)
+
+    # Stacking policy: {"group_by": ..., "positive": ..., "negative": ..., ...}
+    stacking: dict[str, Any] = field(default_factory=dict)
 
 
 # ---------------------------------------------------------------------------
@@ -96,6 +105,9 @@ def load_system_pack(pack_dir: str) -> SystemPack:
     # Combat resolution
     pack.resolution = dict(data.get("resolution", {}))
     pack.actions = dict(data.get("actions", {}))
+
+    # Stacking policy
+    pack.stacking = dict(data.get("stacking", {}))
 
     return pack
 
@@ -232,8 +244,17 @@ def _try_parse_number(val: str) -> int | float | str:
         return val
 
 
-def _build_context(pack: SystemPack, char: CharacterData) -> FormulaContext:
-    """Build a FormulaContext from a system pack and character data."""
+def _build_context(
+    pack: SystemPack,
+    char: CharacterData,
+    db=None,
+) -> FormulaContext:
+    """Build a FormulaContext from a system pack and character data.
+
+    When db is provided, loads active combat_state modifiers and resolves
+    stacking for all bonus_* variables. Without db, falls back to simple
+    override (backward compatible with pure-mode tests).
+    """
     ctx = FormulaContext()
     ctx.tables = dict(pack.tables)
 
@@ -244,17 +265,60 @@ def _build_context(pack: SystemPack, char: CharacterData) -> FormulaContext:
     for key, val in pack.defaults.items():
         ctx.values[key] = val
 
-    # Load all character attributes as flat variables
+    # Load all character attributes as flat variables, collecting
+    # bonus_* entries as modifier entries for stacking resolution
+    bonus_modifiers: list[ModifierEntry] = []
     for cat, attrs in char.attributes.items():
         for key, val in attrs.items():
             parsed = _try_parse_number(val)
             ctx.values[f"{cat}.{key}"] = parsed
             ctx.values[key] = parsed
 
+            # Collect bonus_* attributes as modifiers (source = category)
+            if key.startswith("bonus_") and isinstance(parsed, (int, float)):
+                bonus_modifiers.append(
+                    ModifierEntry(target_stat=key, value=parsed, source=cat)
+                )
+
+    # Load combat_state modifiers when db is available
+    if db is not None:
+        combat_mods = _load_combat_modifiers(db, char.character_id)
+        bonus_modifiers.extend(combat_mods)
+
+    # Resolve stacking if we have modifiers and a stacking policy
+    if bonus_modifiers and pack.stacking:
+        policy = load_stacking_policy(pack.stacking)
+        resolved = resolve_stacking(bonus_modifiers, policy)
+        for stat, net_value in resolved.items():
+            ctx.values[stat] = net_value
+    elif db is not None and bonus_modifiers:
+        # No stacking policy declared but combat_state rows exist —
+        # sum combat modifiers on top of existing values (rule="all")
+        for m in _load_combat_modifiers(db, char.character_id):
+            ctx.values[m.target_stat] = ctx.values.get(m.target_stat, 0) + m.value
+
     return ctx
 
 
-def recalculate(pack: SystemPack, char: CharacterData) -> CalcResult:
+def _load_combat_modifiers(db, character_id: int) -> list[ModifierEntry]:
+    """Load active combat_state rows as ModifierEntry items."""
+    rows = db.execute(
+        "SELECT target_stat, value, bonus_type, source FROM combat_state "
+        "WHERE character_id = ?",
+        (character_id,),
+    ).fetchall()
+    return [
+        ModifierEntry(
+            target_stat=row[0],
+            value=row[1],
+            bonus_type=row[2],
+            source=row[3],
+        )
+        for row in rows
+    ]
+
+
+def recalculate(pack: SystemPack, char: CharacterData, db=None) -> CalcResult:
     """Recalculate all derived stats for a character.
 
     Returns a CalcResult with computed values, constraint violations,
@@ -266,7 +330,7 @@ def recalculate(pack: SystemPack, char: CharacterData) -> CalcResult:
         return result
 
     # Build evaluation context
-    ctx = _build_context(pack, char)
+    ctx = _build_context(pack, char, db=db)
 
     # Load previous derived values for diffing
     old_derived: dict[str, str] = {}
@@ -442,7 +506,7 @@ def rules_calc(db, character_id: int, pack_dir: str) -> str:
     # them into char so derived formulas can reference them
     _run_build(db, character_id, pack_dir, char)
 
-    result = recalculate(pack, char)
+    result = recalculate(pack, char, db=db)
 
     if not result.derived:
         return f"RULES_CALC: {char.name} — no derived stats defined in system pack"
