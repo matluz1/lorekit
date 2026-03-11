@@ -31,10 +31,12 @@ The MCP server is configured in `.mcp.json`. On first use, the agent calls
 
 ## Playing
 
-Open your AI agent in the project directory and ask it to start a game.
-The agent reads `GAMEMASTER_GUIDE.md` and takes it from there. All game
-tools are provided through the MCP server -- no manual script invocation
-needed.
+```bash
+npx tsx tui/src/index.tsx opus
+```
+
+The TUI launches the GM agent, which reads `GAMEMASTER_GUIDE.md` and takes
+it from there. All game tools are provided through the MCP server.
 
 ## Game Systems
 
