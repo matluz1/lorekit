@@ -258,6 +258,10 @@ def resolve_action(
     attacker = load_character_data(db, attacker_id)
     defender = load_character_data(db, defender_id)
 
+    # Auto-checkpoint before resolution so turn_revert can undo combat actions
+    from checkpoint import create_checkpoint
+    create_checkpoint(db, attacker.session_id)
+
     if action not in pack.actions:
         raise LoreKitError(
             f"Unknown action '{action}'. Available: {', '.join(pack.actions.keys())}"
