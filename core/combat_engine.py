@@ -1,11 +1,12 @@
-"""Combat resolution engine — zero-knowledge action resolver.
+"""Combat resolution engine — data-configured action resolver.
 
 Reads action definitions and resolution rules from the system pack,
 looks up pre-computed stats on attacker/defender, rolls dice, and
 applies stat mutations (subtract_from, increment) to the defender.
 
-The engine knows nothing about RPG concepts — it just applies the
-operations declared in the system pack JSON.
+The engine has two hardcoded resolution strategies (threshold and
+degree) but delegates all stat names, formulas, and action definitions
+to the system pack JSON.
 """
 
 from __future__ import annotations
