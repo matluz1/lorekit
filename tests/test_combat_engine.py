@@ -483,6 +483,193 @@ class TestForcedMovement:
             db.close()
 
 
+class TestAreaEffect:
+    """Area effect resolution — hits multiple targets in zones within radius."""
+
+    def _setup_encounter(self, db, make_session, make_character, set_attr):
+        """Set up 3 fighters in a 3-zone linear encounter: Near ↔ Mid ↔ Far."""
+        from encounter import start_encounter
+
+        sid, atk_id = _setup_fighter(db, make_session, make_character, set_attr, "Caster")
+        _, t1_id = _setup_fighter(db, make_session, make_character, set_attr, "Target1")
+        _, t2_id = _setup_fighter(db, make_session, make_character, set_attr, "Target2")
+        set_attr(db, t1_id, "combat", "current_hp", "35")
+        set_attr(db, t2_id, "combat", "current_hp", "35")
+
+        sess_id = db.execute(
+            "SELECT session_id FROM characters WHERE id = ?", (atk_id,)
+        ).fetchone()[0]
+
+        start_encounter(
+            db, sess_id,
+            [{"name": "Near"}, {"name": "Mid"}, {"name": "Far"}],
+            [
+                {"character_id": atk_id, "roll": 20},
+                {"character_id": t1_id, "roll": 15},
+                {"character_id": t2_id, "roll": 10},
+            ],
+            placements=[
+                {"character_id": atk_id, "zone": "Near"},
+                {"character_id": t1_id, "zone": "Mid"},
+                {"character_id": t2_id, "zone": "Far"},
+            ],
+            combat_cfg={"zone_scale": 30, "movement_unit": "ft", "melee_range": 0, "zone_tags": {}},
+        )
+        return sess_id, atk_id, t1_id, t2_id
+
+    def test_area_radius0_hits_center_zone_only(self, make_session, make_character):
+        """radius=0 only hits characters in the center zone."""
+        from _db import require_db
+        from character import set_attr
+        from combat_engine import resolve_area_action
+
+        db = require_db()
+        try:
+            sid, atk_id, t1_id, t2_id = self._setup_encounter(
+                db, make_session, make_character, set_attr,
+            )
+
+            # Mock: attack roll + damage roll for one target
+            roll_calls = iter([17, 5])  # hit, damage
+            with patch("secrets.randbelow", side_effect=roll_calls):
+                output = resolve_area_action(
+                    db, atk_id, "fireball", TEST_SYSTEM,
+                    center_zone="Mid", radius=0,
+                )
+
+            assert "Target1" in output
+            assert "Target2" not in output
+            assert "HIT!" in output
+        finally:
+            db.close()
+
+    def test_area_radius1_hits_adjacent_zones(self, make_session, make_character):
+        """radius=1 hits center + adjacent zones."""
+        from _db import require_db
+        from character import set_attr
+        from combat_engine import resolve_area_action
+
+        db = require_db()
+        try:
+            sid, atk_id, t1_id, t2_id = self._setup_encounter(
+                db, make_session, make_character, set_attr,
+            )
+
+            # Mock: 2 targets × (attack roll + damage roll)
+            roll_calls = iter([17, 5, 17, 5])
+            with patch("secrets.randbelow", side_effect=roll_calls):
+                output = resolve_area_action(
+                    db, atk_id, "fireball", TEST_SYSTEM,
+                    center_zone="Mid", radius=1,
+                )
+
+            # Both targets hit (attacker excluded by default)
+            assert "Target1" in output
+            assert "Target2" in output
+            # Caster appears as attacker but never as defender
+            assert "→ Caster" not in output
+        finally:
+            db.close()
+
+    def test_area_attacker_excluded_by_default(self, make_session, make_character):
+        """Attacker is excluded from area targets by default."""
+        from _db import require_db
+        from character import set_attr
+        from combat_engine import resolve_area_action
+
+        db = require_db()
+        try:
+            sid, atk_id, t1_id, t2_id = self._setup_encounter(
+                db, make_session, make_character, set_attr,
+            )
+
+            # Center on attacker's zone (Near), radius=0
+            roll_calls = iter([])  # no targets expected
+            with patch("secrets.randbelow", side_effect=roll_calls):
+                output = resolve_area_action(
+                    db, atk_id, "fireball", TEST_SYSTEM,
+                    center_zone="self", radius=0,
+                )
+
+            assert "no targets" in output
+        finally:
+            db.close()
+
+    def test_area_center_self_uses_attacker_zone(self, make_session, make_character):
+        """center='self' uses the attacker's zone."""
+        from _db import require_db
+        from character import set_attr
+        from combat_engine import resolve_area_action
+
+        db = require_db()
+        try:
+            sid, atk_id, t1_id, t2_id = self._setup_encounter(
+                db, make_session, make_character, set_attr,
+            )
+
+            # Center on self (Near), radius=1 reaches Mid (Target1)
+            roll_calls = iter([17, 5])  # one target
+            with patch("secrets.randbelow", side_effect=roll_calls):
+                output = resolve_area_action(
+                    db, atk_id, "fireball", TEST_SYSTEM,
+                    center_zone="self", radius=1,
+                )
+
+            assert "Target1" in output
+            assert "Target2" not in output  # Far is 2 hops from Near
+        finally:
+            db.close()
+
+    def test_area_no_encounter_raises(self, make_session, make_character):
+        """Area effect without an active encounter raises an error."""
+        from _db import require_db, LoreKitError
+        from character import set_attr
+        from combat_engine import resolve_area_action
+
+        db = require_db()
+        try:
+            sid, atk_id = _setup_fighter(db, make_session, make_character, set_attr, "Caster")
+
+            with pytest.raises(LoreKitError, match="No active encounter"):
+                resolve_area_action(
+                    db, atk_id, "fireball", TEST_SYSTEM,
+                    center_zone="Mid", radius=1,
+                )
+        finally:
+            db.close()
+
+    def test_area_empty_no_targets(self, make_session, make_character):
+        """Area with no targets returns a clean message."""
+        from _db import require_db
+        from character import set_attr
+        from combat_engine import resolve_area_action
+        from encounter import start_encounter
+
+        db = require_db()
+        try:
+            sid, atk_id = _setup_fighter(db, make_session, make_character, set_attr, "Caster")
+
+            sess_id = db.execute(
+                "SELECT session_id FROM characters WHERE id = ?", (atk_id,)
+            ).fetchone()[0]
+
+            start_encounter(
+                db, sess_id,
+                [{"name": "Near"}, {"name": "Far"}],
+                [{"character_id": atk_id, "roll": 20}],
+                placements=[{"character_id": atk_id, "zone": "Near"}],
+                combat_cfg={"zone_scale": 30, "movement_unit": "ft", "melee_range": 0, "zone_tags": {}},
+            )
+
+            output = resolve_area_action(
+                db, atk_id, "fireball", TEST_SYSTEM,
+                center_zone="Far", radius=0,
+            )
+            assert "no targets" in output
+        finally:
+            db.close()
+
+
 class TestDegreeOnHit:
     def test_mm3e_grab_applies_modifiers(self, make_session, make_character):
         """M&M3e grab: degree action with on_hit modifiers (no resistance check)."""

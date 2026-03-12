@@ -81,6 +81,15 @@
         "push": 30,
         "push_direction": "away"
       }
+    },
+    "fireball": {
+      "attack_stat": "ranged_attack",
+      "defense_stat": "armor_class",
+      "range": "ranged",
+      "on_hit": {
+        "damage_roll": {"dice_attr": "weapon_damage_die", "bonus_stat": "str_mod"},
+        "subtract_from": "current_hp"
+      }
     }
   },
   "build": {

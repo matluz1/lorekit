@@ -527,6 +527,74 @@ def end_turn(db, character_id: int, pack_dir: str) -> str:
 # Public API
 # ---------------------------------------------------------------------------
 
+def resolve_area_action(
+    db, attacker_id: int, action: str, pack_dir: str,
+    center_zone: str, radius: int, exclude_self: bool = True,
+    options: dict | None = None,
+) -> str:
+    """Resolve an action against all targets in an area.
+
+    Finds all characters within `radius` zone hops of `center_zone`,
+    then runs the standard resolution against each target.
+    """
+    from encounter import (
+        _get_active_encounter,
+        _get_character_zone,
+        _zone_name_to_id,
+        get_area_targets,
+    )
+
+    pack = load_system_pack(pack_dir)
+    attacker = load_character_data(db, attacker_id)
+
+    # Auto-checkpoint
+    from checkpoint import create_checkpoint
+    create_checkpoint(db, attacker.session_id)
+
+    if action not in pack.actions:
+        raise LoreKitError(
+            f"Unknown action '{action}'. Available: {', '.join(pack.actions.keys())}"
+        )
+
+    enc = _get_active_encounter(db, attacker.session_id)
+    if enc is None:
+        raise LoreKitError("No active encounter — area effects require an encounter")
+
+    enc_id = enc[0]
+
+    # Resolve center zone
+    if center_zone == "self":
+        center_zid = _get_character_zone(db, enc_id, attacker_id)
+        if center_zid is None:
+            raise LoreKitError(f"{attacker.name} is not placed in the encounter")
+    else:
+        center_zid = _zone_name_to_id(db, enc_id, center_zone)
+
+    # Collect targets
+    exclude_ids = {attacker_id} if exclude_self else set()
+    target_ids = get_area_targets(db, enc_id, center_zid, radius, exclude_ids)
+
+    if not target_ids:
+        return f"AREA: {attacker.name} uses {action} — no targets in area"
+
+    action_def = pack.actions[action]
+    opts = options or {}
+    resolution_type = pack.resolution.get("type", "threshold")
+
+    results = []
+    for tid in target_ids:
+        defender = load_character_data(db, tid)
+        if resolution_type == "threshold":
+            result = _resolve_threshold(db, pack, attacker, defender, action_def, opts)
+        elif resolution_type == "degree":
+            result = _resolve_degree(db, pack, attacker, defender, action_def, opts)
+        else:
+            raise LoreKitError(f"Unknown resolution type: {resolution_type}")
+        results.append(result)
+
+    return "\n---\n".join(results)
+
+
 def resolve_action(
     db, attacker_id: int, defender_id: int, action: str,
     pack_dir: str, options: dict | None = None,

@@ -1380,6 +1380,43 @@ def rules_resolve(attacker_id: int, defender_id: int, action: str,
             system_path = os.path.join(project_root, "systems", system_name)
 
         opts = json.loads(options) if options else {}
+
+        # Area effect: options contains "area" dict
+        area = opts.pop("area", None)
+        if area:
+            from combat_engine import resolve_area_action
+
+            radius = area.get("radius", 0)
+            center = area.get("center", "target")
+            exclude_self = area.get("exclude_self", True)
+
+            # Resolve center zone name
+            if center == "target":
+                if defender_id <= 0:
+                    return "ERROR: area.center is 'target' but no defender_id provided"
+                # Look up defender's zone name
+                from encounter import (
+                    _get_active_encounter,
+                    _get_character_zone,
+                    _zone_id_to_name,
+                )
+                enc = _get_active_encounter(db, session_id)
+                if enc is None:
+                    return "ERROR: No active encounter — area effects require an encounter"
+                def_zid = _get_character_zone(db, enc[0], defender_id)
+                if def_zid is None:
+                    return f"ERROR: Defender {defender_id} is not placed in the encounter"
+                center_zone = _zone_id_to_name(db, def_zid)
+            elif center == "self":
+                center_zone = "self"
+            else:
+                center_zone = center
+
+            return resolve_area_action(
+                db, attacker_id, action, system_path,
+                center_zone, radius, exclude_self, opts,
+            )
+
         from combat_engine import resolve_action
 
         return resolve_action(db, attacker_id, defender_id, action, system_path, opts)

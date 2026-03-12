@@ -694,6 +694,41 @@ def update_zone_tags(
 # Range validation (for rules_resolve integration)
 # ---------------------------------------------------------------------------
 
+def get_area_targets(db, encounter_id: int, center_zone_id: int,
+                     radius: int, exclude_ids: set[int] | None = None) -> list[int]:
+    """Return character_ids in all zones within `radius` hops of center.
+
+    Uses BFS on the zone adjacency graph to collect zones, then queries
+    character_zone for all characters in those zones minus exclude_ids.
+    """
+    adj = _build_adjacency(db, encounter_id)
+
+    # BFS to collect zones within radius hops
+    visited: set[int] = {center_zone_id}
+    frontier = [center_zone_id]
+    for _ in range(radius):
+        next_frontier = []
+        for zid in frontier:
+            for neighbor, _weight in adj.get(zid, []):
+                if neighbor not in visited:
+                    visited.add(neighbor)
+                    next_frontier.append(neighbor)
+        frontier = next_frontier
+        if not frontier:
+            break
+
+    # Query characters in those zones
+    ph = ",".join("?" * len(visited))
+    rows = db.execute(
+        f"SELECT character_id FROM character_zone "
+        f"WHERE encounter_id = ? AND zone_id IN ({ph})",
+        [encounter_id, *visited],
+    ).fetchall()
+
+    exclude = exclude_ids or set()
+    return [r[0] for r in rows if r[0] not in exclude]
+
+
 def check_range(
     db, encounter_id: int, attacker_id: int, defender_id: int,
     action_type: str, weapon_range: int | None, combat_cfg: dict,
