@@ -198,11 +198,14 @@
     "close_attack": {
       "attack_stat": "close_attack",
       "defense_stat": "parry",
+      "range": "melee",
       "damage_rank_stat": "unarmed_damage"
     },
     "ranged_attack": {
       "attack_stat": "ranged_attack",
       "defense_stat": "dodge",
+      "range": "ranged",
+      "range_stat": "weapon_range",
       "damage_rank_stat": "unarmed_damage"
     }
   },

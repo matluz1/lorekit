@@ -392,6 +392,29 @@ def resolve_action(
     action_def = pack.actions[action]
     opts = options or {}
 
+    # Range validation when an encounter is active
+    range_type = action_def.get("range")
+    if range_type and pack.combat:
+        from encounter import _get_active_encounter, check_range
+
+        enc = _get_active_encounter(db, attacker.session_id)
+        if enc is not None:
+            enc_id = enc[0]
+            weapon_range = None
+            if range_type == "ranged":
+                range_stat = action_def.get("range_stat")
+                if range_stat:
+                    try:
+                        weapon_range = _get_derived(attacker, range_stat)
+                    except LoreKitError:
+                        pass
+            err = check_range(
+                db, enc_id, attacker_id, defender_id,
+                range_type, weapon_range, pack.combat,
+            )
+            if err:
+                raise LoreKitError(err)
+
     resolution_type = pack.resolution.get("type", "threshold")
 
     if resolution_type == "threshold":

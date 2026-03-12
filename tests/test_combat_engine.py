@@ -236,6 +236,75 @@ class TestUnknownAction:
             db.close()
 
 
+class TestRangeValidation:
+    def test_melee_out_of_range_rejected(self, make_session, make_character):
+        """Melee attack across zones is rejected when encounter is active."""
+        from _db import require_db, LoreKitError
+        from character import set_attr
+        from encounter import start_encounter
+
+        db = require_db()
+        try:
+            sid, atk_id = _setup_fighter(db, make_session, make_character, set_attr, "Attacker")
+            _, def_id = _setup_fighter(db, make_session, make_character, set_attr, "Defender")
+            set_attr(db, def_id, "combat", "current_hp", "35")
+
+            # Start encounter with characters in different zones
+            start_encounter(
+                db, atk_id and db.execute(
+                    "SELECT session_id FROM characters WHERE id = ?", (atk_id,)
+                ).fetchone()[0],
+                [{"name": "Near"}, {"name": "Far"}],
+                [{"character_id": atk_id, "roll": 20}, {"character_id": def_id, "roll": 10}],
+                placements=[
+                    {"character_id": atk_id, "zone": "Near"},
+                    {"character_id": def_id, "zone": "Far"},
+                ],
+                combat_cfg={"zone_scale": 30, "movement_unit": "ft", "melee_range": 0, "zone_tags": {}},
+            )
+
+            with pytest.raises(LoreKitError, match="out of range"):
+                resolve_action(db, atk_id, def_id, "melee_attack", TEST_SYSTEM)
+        finally:
+            db.close()
+
+    def test_melee_same_zone_allowed(self, make_session, make_character):
+        """Melee attack in same zone proceeds normally."""
+        from _db import require_db
+        from character import set_attr
+        from encounter import start_encounter
+        from unittest.mock import patch
+
+        db = require_db()
+        try:
+            sid, atk_id = _setup_fighter(db, make_session, make_character, set_attr, "Attacker")
+            _, def_id = _setup_fighter(db, make_session, make_character, set_attr, "Defender")
+            set_attr(db, def_id, "combat", "current_hp", "35")
+
+            sess_id = db.execute(
+                "SELECT session_id FROM characters WHERE id = ?", (atk_id,)
+            ).fetchone()[0]
+
+            start_encounter(
+                db, sess_id,
+                [{"name": "Arena"}],
+                [{"character_id": atk_id, "roll": 20}, {"character_id": def_id, "roll": 10}],
+                placements=[
+                    {"character_id": atk_id, "zone": "Arena"},
+                    {"character_id": def_id, "zone": "Arena"},
+                ],
+                combat_cfg={"zone_scale": 30, "movement_unit": "ft", "melee_range": 0, "zone_tags": {}},
+            )
+
+            roll_calls = iter([17, 5])
+            with patch("secrets.randbelow", side_effect=roll_calls):
+                output = resolve_action(db, atk_id, def_id, "melee_attack", TEST_SYSTEM)
+
+            assert "HIT!" in output
+        finally:
+            db.close()
+
+
 class TestMissingStats:
     def test_missing_attack_stat_raises(self, make_session, make_character):
         """Character without the required attack stat → error."""
