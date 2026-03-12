@@ -14,7 +14,7 @@ export function openDb(projectRoot: string) {
   if (!existsSync(dbPath)) {
     mkdirSync(dirname(dbPath), { recursive: true });
     const python = resolve(projectRoot, ".venv/bin/python");
-    execFileSync(python, ["scripts/init_db.py"], { cwd: projectRoot });
+    execFileSync(python, ["core/init_db.py"], { cwd: projectRoot });
   }
   db = new Database(dbPath, { readonly: true });
 }
