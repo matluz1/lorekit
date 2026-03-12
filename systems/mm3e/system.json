@@ -10,6 +10,10 @@
     "negative": "min"
   },
 
+  "end_turn": {
+    "rounds": {"action": "decrement", "remove_at": 0}
+  },
+
   "defaults": {
     "str": 0, "sta": 0, "dex": 0, "agl": 0,
     "fgt": 0, "int": 0, "awe": 0, "pre": 0,

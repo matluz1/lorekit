@@ -1,12 +1,15 @@
-"""Combat resolution engine — data-configured action resolver.
+"""Combat engine — action resolution and turn lifecycle.
 
-Reads action definitions and resolution rules from the system pack,
-looks up pre-computed stats on attacker/defender, rolls dice, and
-applies stat mutations (subtract_from, increment) to the defender.
+Action resolution: reads action definitions and resolution rules from
+the system pack, looks up pre-computed stats on attacker/defender, rolls
+dice, and applies stat mutations (subtract_from, increment). Two
+hardcoded resolution strategies (threshold and degree); all stat names,
+formulas, and action definitions come from the system pack JSON.
 
-The engine has two hardcoded resolution strategies (threshold and
-degree) but delegates all stat names, formulas, and action definitions
-to the system pack JSON.
+Turn lifecycle: end-of-turn duration ticking reads the system pack's
+end_turn config and processes each combat modifier according to its
+duration type's declared tick behavior (decrement, check). Recomputes
+derived stats when modifiers expire.
 """
 
 from __future__ import annotations
@@ -248,6 +251,125 @@ def _resolve_degree(
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
+
+# ---------------------------------------------------------------------------
+# End-of-turn duration ticking
+# ---------------------------------------------------------------------------
+
+def end_turn(db, character_id: int, pack_dir: str) -> str:
+    """Tick durations on a character's combat modifiers at end of turn.
+
+    Reads the system pack's end_turn config, processes each active modifier
+    according to its duration_type's declared tick behavior, and returns a
+    summary of what changed.
+
+    Tick behaviors:
+    - decrement: subtract 1 from duration, remove at remove_at (default 0)
+    - check: roll a save (save_stat vs save_dc on the modifier row),
+      remove on success if remove_on="success"
+    """
+    from rolldice import roll_expr
+
+    pack = load_system_pack(pack_dir)
+    char = load_character_data(db, character_id)
+
+    if not pack.end_turn:
+        return f"END TURN: {char.name} — no end_turn config in system pack"
+
+    # Auto-checkpoint before ticking so turn_revert can undo
+    from checkpoint import create_checkpoint
+    create_checkpoint(db, char.session_id)
+
+    # Load all active combat_state rows for this character
+    rows = db.execute(
+        "SELECT id, source, target_stat, value, duration_type, duration, "
+        "save_stat, save_dc FROM combat_state WHERE character_id = ?",
+        (character_id,),
+    ).fetchall()
+
+    if not rows:
+        return f"END TURN: {char.name} — no active modifiers"
+
+    lines = [f"END TURN: {char.name}"]
+    removed_any = False
+
+    for row_id, source, target_stat, value, dur_type, duration, save_stat, save_dc in rows:
+        tick_cfg = pack.end_turn.get(dur_type)
+        if tick_cfg is None:
+            continue  # duration type not configured for ticking
+
+        action = tick_cfg.get("action")
+
+        if action == "decrement":
+            remove_at = tick_cfg.get("remove_at", 0)
+            if duration is None:
+                continue  # no duration set, nothing to decrement
+            new_dur = duration - 1
+            if new_dur <= remove_at:
+                db.execute(
+                    "DELETE FROM combat_state WHERE id = ?", (row_id,),
+                )
+                lines.append(f"  EXPIRED: {source} ({target_stat} {value:+d}) — removed")
+                removed_any = True
+            else:
+                db.execute(
+                    "UPDATE combat_state SET duration = ? WHERE id = ?",
+                    (new_dur, row_id),
+                )
+                lines.append(f"  TICKED: {source} ({new_dur} rounds remaining)")
+
+        elif action == "check":
+            remove_on = tick_cfg.get("remove_on", "success")
+            if not save_stat or save_dc is None:
+                lines.append(f"  SKIPPED: {source} — missing save_stat/save_dc")
+                continue
+
+            # Read the character's derived stat for the save
+            derived = char.attributes.get("derived", {})
+            bonus_str = derived.get(save_stat)
+            if bonus_str is None:
+                lines.append(
+                    f"  SKIPPED: {source} — save stat '{save_stat}' not found"
+                )
+                continue
+
+            bonus = int(bonus_str)
+            result = roll_expr(pack.dice)
+            roll_val = result["total"]
+            total = roll_val + bonus
+            success = total >= save_dc
+
+            outcome_str = "SUCCESS" if success else "FAILURE"
+            lines.append(
+                f"  SAVE: {source} — {save_stat} "
+                f"{pack.dice}({roll_val}) + {bonus} = {total} vs DC {save_dc} "
+                f"→ {outcome_str}"
+            )
+
+            should_remove = (
+                (remove_on == "success" and success) or
+                (remove_on == "failure" and not success)
+            )
+            if should_remove:
+                db.execute(
+                    "DELETE FROM combat_state WHERE id = ?", (row_id,),
+                )
+                lines.append(f"    REMOVED: {source} ({target_stat} {value:+d})")
+                removed_any = True
+
+    db.commit()
+
+    # Recompute derived stats if any modifiers were removed
+    if removed_any:
+        from rules_engine import rules_calc as _rules_calc
+        recomp = _rules_calc(db, character_id, pack_dir)
+        # Extract change lines from recompute output
+        for line in recomp.split("\n"):
+            if line.startswith("  ") and "→" in line:
+                lines.append(f"  RECOMPUTED: {line.strip()}")
+
+    return "\n".join(lines)
+
 
 def resolve_action(
     db, attacker_id: int, defender_id: int, action: str,

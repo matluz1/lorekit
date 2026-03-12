@@ -64,6 +64,9 @@ class SystemPack:
     # Stacking policy: {"group_by": ..., "positive": ..., "negative": ..., ...}
     stacking: dict[str, Any] = field(default_factory=dict)
 
+    # End-of-turn tick config: {"rounds": {"action": "decrement", "remove_at": 0}, ...}
+    end_turn: dict[str, dict[str, Any]] = field(default_factory=dict)
+
 
 # ---------------------------------------------------------------------------
 # JSON loader
@@ -108,6 +111,9 @@ def load_system_pack(pack_dir: str) -> SystemPack:
 
     # Stacking policy
     pack.stacking = dict(data.get("stacking", {}))
+
+    # End-of-turn tick config
+    pack.end_turn = dict(data.get("end_turn", {}))
 
     return pack
 

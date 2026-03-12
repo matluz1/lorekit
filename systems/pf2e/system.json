@@ -14,6 +14,10 @@
     }
   },
 
+  "end_turn": {
+    "rounds": {"action": "decrement", "remove_at": 0}
+  },
+
   "proficiency_ranks": {
     "untrained": 0,
     "trained": 2,

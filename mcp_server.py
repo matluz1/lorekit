@@ -1344,11 +1344,57 @@ def rules_calc(character_id: int, system_path: str = "") -> str:
 
 
 @mcp.tool()
+def end_turn(character_id: int, system_path: str = "") -> str:
+    """Tick durations on a character's combat modifiers at end of turn.
+
+    Processes each modifier according to the system pack's end_turn config:
+    - rounds: decrement duration, remove when expired
+    - save_ends (D&D): roll a save, remove on success
+
+    Automatically recomputes derived stats when modifiers expire.
+
+    If system_path is empty, reads the session's 'rules_system' metadata.
+    """
+    import os
+
+    from _db import LoreKitError, require_db
+
+    db = require_db()
+    try:
+        if not system_path:
+            row = db.execute(
+                "SELECT session_id FROM characters WHERE id = ?",
+                (character_id,),
+            ).fetchone()
+            if row is None:
+                return f"ERROR: Character {character_id} not found"
+            session_id = row[0]
+            meta_row = db.execute(
+                "SELECT value FROM session_meta WHERE session_id = ? AND key = 'rules_system'",
+                (session_id,),
+            ).fetchone()
+            if meta_row is None:
+                return "ERROR: No rules_system set for this session. Use session_meta_set to configure it."
+            system_name = meta_row[0]
+            project_root = os.path.dirname(os.path.abspath(__file__))
+            system_path = os.path.join(project_root, "systems", system_name)
+
+        from combat_engine import end_turn as _end_turn
+
+        return _end_turn(db, character_id, system_path)
+    except LoreKitError as e:
+        return f"ERROR: {e}"
+    finally:
+        db.close()
+
+
+@mcp.tool()
 def combat_modifier(
     character_id: int, action: str, source: str = "",
     target_stat: str = "", value: int = 0,
     modifier_type: str = "buff", bonus_type: str = "",
     duration_type: str = "encounter", duration: int = 0,
+    save_stat: str = "", save_dc: int = 0,
 ) -> str:
     """Manage transient combat modifiers on a character.
 
@@ -1356,6 +1402,7 @@ def combat_modifier(
 
     add — apply a transient modifier (pre-combat buffs, environmental effects,
     GM fiat). Requires source, target_stat, value, duration_type.
+    Optional save_stat/save_dc for save-ends duration types.
     list — show all active modifiers on the character.
     remove — remove a modifier by source name.
     clear — remove all encounter/rounds/concentration modifiers (end of combat).
@@ -1369,13 +1416,16 @@ def combat_modifier(
                 return "ERROR: 'add' requires source and target_stat"
             db.execute(
                 "INSERT INTO combat_state "
-                "(character_id, source, target_stat, modifier_type, value, bonus_type, duration_type, duration) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?) "
+                "(character_id, source, target_stat, modifier_type, value, "
+                "bonus_type, duration_type, duration, save_stat, save_dc) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) "
                 "ON CONFLICT(character_id, source, target_stat) DO UPDATE SET "
                 "value = excluded.value, bonus_type = excluded.bonus_type, "
-                "duration_type = excluded.duration_type, duration = excluded.duration",
+                "duration_type = excluded.duration_type, duration = excluded.duration, "
+                "save_stat = excluded.save_stat, save_dc = excluded.save_dc",
                 (character_id, source, target_stat, modifier_type, value,
-                 bonus_type or None, duration_type, duration or None),
+                 bonus_type or None, duration_type, duration or None,
+                 save_stat or None, save_dc or None),
             )
             db.commit()
             type_tag = f" [{bonus_type}]" if bonus_type else ""

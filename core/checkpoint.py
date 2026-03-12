@@ -66,10 +66,22 @@ def snapshot_session(db, session_id):
                 f"FROM character_abilities WHERE character_id IN ({ph})", char_ids,
             ).fetchall()
         ]
+        snap["combat_state"] = [
+            {"id": r[0], "character_id": r[1], "source": r[2], "target_stat": r[3],
+             "modifier_type": r[4], "value": r[5], "bonus_type": r[6],
+             "duration_type": r[7], "duration": r[8], "save_stat": r[9],
+             "save_dc": r[10], "created_at": r[11]}
+            for r in db.execute(
+                f"SELECT id, character_id, source, target_stat, modifier_type, "
+                f"value, bonus_type, duration_type, duration, save_stat, save_dc, "
+                f"created_at FROM combat_state WHERE character_id IN ({ph})", char_ids,
+            ).fetchall()
+        ]
     else:
         snap["character_attributes"] = []
         snap["character_inventory"] = []
         snap["character_abilities"] = []
+        snap["combat_state"] = []
 
     # Stories
     snap["stories"] = [
@@ -123,6 +135,7 @@ def restore_snapshot(db, session_id, snapshot):
             db.execute(f"DELETE FROM character_attributes WHERE character_id IN ({ph})", cur_char_ids)
             db.execute(f"DELETE FROM character_inventory WHERE character_id IN ({ph})", cur_char_ids)
             db.execute(f"DELETE FROM character_abilities WHERE character_id IN ({ph})", cur_char_ids)
+            db.execute(f"DELETE FROM combat_state WHERE character_id IN ({ph})", cur_char_ids)
 
         db.execute("DELETE FROM characters WHERE session_id = ?", (session_id,))
         db.execute("DELETE FROM session_meta WHERE session_id = ?", (session_id,))
@@ -196,6 +209,19 @@ def restore_snapshot(db, session_id, snapshot):
                 "VALUES (?, ?, ?, ?, ?, ?)",
                 (r["id"], r["character_id"], r["name"], r["description"],
                  r["category"], r["uses"]),
+            )
+
+        # Combat state modifiers
+        for r in snapshot.get("combat_state", []):
+            db.execute(
+                "INSERT INTO combat_state (id, character_id, source, target_stat, "
+                "modifier_type, value, bonus_type, duration_type, duration, "
+                "save_stat, save_dc, created_at) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (r["id"], r["character_id"], r["source"], r["target_stat"],
+                 r["modifier_type"], r["value"], r["bonus_type"],
+                 r["duration_type"], r["duration"], r["save_stat"],
+                 r["save_dc"], r["created_at"]),
             )
 
         db.commit()

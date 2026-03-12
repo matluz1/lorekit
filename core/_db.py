@@ -123,6 +123,8 @@ CREATE TABLE IF NOT EXISTS combat_state (
     bonus_type     TEXT,
     duration_type  TEXT    NOT NULL DEFAULT 'encounter',
     duration       INTEGER,
+    save_stat      TEXT,
+    save_dc        INTEGER,
     created_at     TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
     UNIQUE(character_id, source, target_stat)
 );
@@ -172,6 +174,8 @@ ADD_COLUMN_MIGRATIONS = [
     ("regions", "parent_id", "ALTER TABLE regions ADD COLUMN parent_id INTEGER REFERENCES regions(id)"),
     ("timeline", "narrative_time", "ALTER TABLE timeline ADD COLUMN narrative_time TEXT NOT NULL DEFAULT ''"),
     ("journal", "narrative_time", "ALTER TABLE journal ADD COLUMN narrative_time TEXT NOT NULL DEFAULT ''"),
+    ("combat_state", "save_stat", "ALTER TABLE combat_state ADD COLUMN save_stat TEXT"),
+    ("combat_state", "save_dc", "ALTER TABLE combat_state ADD COLUMN save_dc INTEGER"),
 ]
 
 DROP_COLUMN_MIGRATIONS = [
@@ -363,11 +367,14 @@ _CASCADE_MIGRATIONS = {
             bonus_type     TEXT,
             duration_type  TEXT    NOT NULL DEFAULT 'encounter',
             duration       INTEGER,
+            save_stat      TEXT,
+            save_dc        INTEGER,
             created_at     TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
             UNIQUE(character_id, source, target_stat)
         )""",
         ["id", "character_id", "source", "target_stat", "modifier_type",
-         "value", "bonus_type", "duration_type", "duration", "created_at"],
+         "value", "bonus_type", "duration_type", "duration", "save_stat",
+         "save_dc", "created_at"],
     ),
 }
 

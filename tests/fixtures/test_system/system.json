@@ -36,6 +36,10 @@
   "constraints": {
     "hp_positive": "max_hp > 0"
   },
+  "end_turn": {
+    "rounds": {"action": "decrement", "remove_at": 0},
+    "save_ends": {"action": "check", "remove_on": "success"}
+  },
   "resolution": {"type": "threshold"},
   "actions": {
     "melee_attack": {
