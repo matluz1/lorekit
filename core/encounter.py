@@ -746,3 +746,71 @@ def check_range(
             )
 
     return None
+
+
+def force_move(
+    db, encounter_id: int, attacker_id: int, target_id: int,
+    push_zones: int, combat_cfg: dict,
+) -> str | None:
+    """Force-move a target away from the attacker by push_zones hops.
+
+    Finds the neighbor of target's current zone that is farthest from the
+    attacker's zone, then repeats for each hop.  If the target is at a
+    boundary (no further zones away from attacker), movement stops early.
+
+    Returns a description of the movement, or None if no movement occurred.
+    """
+    if push_zones <= 0:
+        return None
+
+    atk_zid = _get_character_zone(db, encounter_id, attacker_id)
+    cur_zid = _get_character_zone(db, encounter_id, target_id)
+    if atk_zid is None or cur_zid is None:
+        return None
+
+    adj = _build_adjacency(db, encounter_id)
+    start_zid = cur_zid
+    moved = 0
+
+    for _ in range(push_zones):
+        neighbors = adj.get(cur_zid, [])
+        if not neighbors:
+            break
+
+        # Pick the neighbor that maximizes distance from attacker
+        best_zid = None
+        best_dist = -1
+        for nid, _w in neighbors:
+            d = _shortest_path(adj, atk_zid, nid)
+            if d is not None and d > best_dist:
+                best_dist = d
+                best_zid = nid
+
+        # Also check current distance from attacker
+        cur_dist = _shortest_path(adj, atk_zid, cur_zid)
+        if best_zid is None or best_dist <= (cur_dist or 0):
+            break  # No zone farther away — boundary
+
+        cur_zid = best_zid
+        moved += 1
+
+    if moved == 0:
+        return None
+
+    # Perform the actual zone transition
+    start_name = _zone_id_to_name(db, start_zid)
+    end_name = _zone_id_to_name(db, cur_zid)
+    target_name = _char_name(db, target_id)
+
+    _remove_zone_terrain(db, target_id, start_name)
+    db.execute(
+        "UPDATE character_zone SET zone_id = ? WHERE encounter_id = ? AND character_id = ?",
+        (cur_zid, encounter_id, target_id),
+    )
+    terrain = _apply_zone_terrain(db, target_id, cur_zid, end_name, combat_cfg)
+    db.commit()
+
+    parts = [f"FORCED MOVEMENT: {target_name} pushed {start_name} → {end_name} ({moved} zone(s))"]
+    if terrain:
+        parts.append(f"  Terrain: {', '.join(terrain)}")
+    return "\n".join(parts)

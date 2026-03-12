@@ -2,9 +2,10 @@
 
 Action resolution: reads action definitions and resolution rules from
 the system pack, looks up pre-computed stats on attacker/defender, rolls
-dice, and applies stat mutations (subtract_from, increment). Two
-hardcoded resolution strategies (threshold and degree); all stat names,
-formulas, and action definitions come from the system pack JSON.
+dice, and applies stat mutations (subtract_from, increment, apply_modifiers,
+push). Two hardcoded resolution strategies (threshold and degree), with an
+optional contested mode where both sides roll; all stat names, formulas,
+and action definitions come from the system pack JSON.
 
 Turn lifecycle: end-of-turn duration ticking reads the system pack's
 end_turn config and processes each combat modifier according to its
@@ -99,6 +100,137 @@ def _ensure_current_hp(db, defender: CharacterData) -> int:
 
 
 # ---------------------------------------------------------------------------
+# On-hit effects — shared by all resolution types
+# ---------------------------------------------------------------------------
+
+def _apply_on_hit(
+    db, pack: SystemPack, attacker: CharacterData,
+    defender: CharacterData, on_hit: dict, lines: list[str],
+) -> None:
+    """Apply all declared on_hit effects from an action definition.
+
+    Supported effects (all optional, composable):
+    - damage_roll + subtract_from: roll damage dice, subtract from a stat
+    - apply_modifiers: insert combat_state rows on the defender
+    - push + push_direction: force-move defender via zone graph
+    """
+    # --- Damage ---
+    damage_info = on_hit.get("damage_roll")
+    subtract_target = on_hit.get("subtract_from")
+
+    if damage_info and subtract_target:
+        dice_attr = damage_info["dice_attr"]
+        bonus_stat = damage_info["bonus_stat"]
+
+        dice_expr = _get_attr_str(attacker, dice_attr)
+        damage_bonus = _get_derived(attacker, bonus_stat)
+
+        damage_result = roll_expr(dice_expr)
+        damage_roll = damage_result["total"]
+        total_damage = damage_roll + damage_bonus
+
+        lines.append(
+            f"DAMAGE: {dice_expr}({damage_roll}) + {damage_bonus} = {total_damage}"
+        )
+
+        if subtract_target == "current_hp":
+            current = _ensure_current_hp(db, defender)
+        else:
+            current = _get_derived(defender, subtract_target)
+
+        new_val = current - total_damage
+        _write_attr(db, defender.character_id, subtract_target, new_val)
+        lines.append(f"{subtract_target}: {current} → {new_val}")
+
+    # --- Apply modifiers (combat_state rows) ---
+    modifiers = on_hit.get("apply_modifiers")
+    if modifiers and isinstance(modifiers, list):
+        for mod in modifiers:
+            source = mod["source"]
+            target_stat = mod["target_stat"]
+            value = mod["value"]
+            mod_type = mod.get("modifier_type", "condition")
+            dur_type = mod.get("duration_type", "encounter")
+            bonus_type = mod.get("bonus_type")
+
+            db.execute(
+                "INSERT INTO combat_state "
+                "(character_id, source, target_stat, modifier_type, value, "
+                "bonus_type, duration_type) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?) "
+                "ON CONFLICT(character_id, source, target_stat) DO UPDATE SET "
+                "value = excluded.value",
+                (defender.character_id, source, target_stat, mod_type, value,
+                 bonus_type, dur_type),
+            )
+            lines.append(f"MODIFIER: {source} → {target_stat} {value:+d} ({dur_type})")
+        db.commit()
+
+    # --- Forced movement ---
+    push = on_hit.get("push")
+    if push:
+        from encounter import _get_active_encounter, force_move
+
+        direction = on_hit.get("push_direction", "away")
+        enc = _get_active_encounter(db, attacker.session_id)
+        if enc is not None:
+            enc_id = enc[0]
+            zone_scale = pack.combat.get("zone_scale", 1)
+            push_zones = math.ceil(push / zone_scale) if zone_scale > 0 else push
+
+            if direction == "away":
+                result = force_move(
+                    db, enc_id, attacker.character_id, defender.character_id,
+                    push_zones, pack.combat,
+                )
+            elif direction == "toward":
+                result = force_move(
+                    db, enc_id, defender.character_id, attacker.character_id,
+                    push_zones, pack.combat,
+                )
+            else:
+                result = None
+
+            if result:
+                lines.append(result)
+            else:
+                lines.append(f"PUSH: {defender.name} — no movement (boundary)")
+
+
+# ---------------------------------------------------------------------------
+# Contested roll — optional mode for any action
+# ---------------------------------------------------------------------------
+
+def _contested_roll(
+    pack: SystemPack, attacker: CharacterData, defender: CharacterData,
+    action_def: dict,
+) -> tuple[int, int, int, int | None, int]:
+    """Roll a contested check. Returns (atk_roll, atk_total, def_total, def_roll, def_bonus).
+
+    def_roll is None when the defender uses a static DC.
+    """
+    attack_stat = action_def["attack_stat"]
+    defense_stat = action_def["defense_stat"]
+
+    atk_bonus = _get_derived(attacker, attack_stat)
+    def_bonus = _get_derived(defender, defense_stat)
+
+    atk_result = roll_expr(pack.dice)
+    atk_roll = atk_result["total"]
+    atk_total = atk_roll + atk_bonus
+
+    if action_def.get("contested"):
+        def_result = roll_expr(pack.dice)
+        def_roll = def_result["total"]
+        def_total = def_roll + def_bonus
+    else:
+        def_roll = None
+        def_total = def_bonus
+
+    return atk_roll, atk_total, def_total, def_roll, def_bonus
+
+
+# ---------------------------------------------------------------------------
 # Threshold resolution (PF2e-style)
 # ---------------------------------------------------------------------------
 
@@ -106,57 +238,57 @@ def _resolve_threshold(
     db, pack: SystemPack, attacker: CharacterData,
     defender: CharacterData, action_def: dict, options: dict,
 ) -> str:
-    """Resolve an action using threshold (hit if roll >= defense)."""
+    """Resolve an action using threshold (hit if roll >= defense).
+
+    Supports both static defense and contested rolls (both sides roll).
+    On hit, applies all declared on_hit effects (damage, modifiers, push).
+    """
     attack_stat = action_def["attack_stat"]
     defense_stat = action_def["defense_stat"]
 
-    attack_bonus = _get_derived(attacker, attack_stat)
-    defense_value = _get_derived(defender, defense_stat)
+    if action_def.get("contested"):
+        atk_roll, atk_total, def_total, def_roll, def_bonus = _contested_roll(
+            pack, attacker, defender, action_def,
+        )
+        atk_bonus = _get_derived(attacker, attack_stat)
 
-    roll_result = roll_expr(pack.dice)
-    roll_val = roll_result["total"]
-    attack_total = roll_val + attack_bonus
+        lines = [f"ACTION: {attacker.name} → {defender.name}"]
+        lines.append(
+            f"ATTACKER: {pack.dice}({atk_roll}) + {atk_bonus} ({attack_stat}) = {atk_total}"
+        )
+        lines.append(
+            f"DEFENDER: {pack.dice}({def_roll}) + {def_bonus} ({defense_stat}) = {def_total}"
+        )
 
-    lines = [
-        f"ACTION: {attacker.name} → {defender.name}",
-        f"ATTACK: {pack.dice}({roll_val}) + {attack_bonus} = {attack_total} vs {defense_stat} {defense_value}",
-    ]
-
-    if attack_total >= defense_value:
-        lines.append("HIT!")
-
-        on_hit = action_def.get("on_hit", {})
-        damage_info = on_hit.get("damage_roll")
-        subtract_target = on_hit.get("subtract_from")
-
-        if damage_info and subtract_target:
-            dice_attr = damage_info["dice_attr"]
-            bonus_stat = damage_info["bonus_stat"]
-
-            dice_expr = _get_attr_str(attacker, dice_attr)
-            damage_bonus = _get_derived(attacker, bonus_stat)
-
-            damage_result = roll_expr(dice_expr)
-            damage_roll = damage_result["total"]
-            total_damage = damage_roll + damage_bonus
-
-            lines.append(
-                f"DAMAGE: {dice_expr}({damage_roll}) + {damage_bonus} = {total_damage}"
-            )
-
-            # Apply damage
-            if subtract_target == "current_hp":
-                current = _ensure_current_hp(db, defender)
-            else:
-                current = _get_derived(defender, subtract_target)
-
-            new_val = current - total_damage
-            _write_attr(db, defender.character_id, subtract_target, new_val)
-            lines.append(f"{subtract_target}: {current} → {new_val}")
+        if atk_total >= def_total:
+            margin = atk_total - def_total
+            lines.append(f"HIT! (wins by {margin})")
+            on_hit = action_def.get("on_hit", {})
+            _apply_on_hit(db, pack, attacker, defender, on_hit, lines)
+        else:
+            margin = def_total - atk_total
+            lines.append(f"MISS! ({defender.name} resists by {margin})")
     else:
-        lines.append("MISS!")
-        margin = defense_value - attack_total
-        lines.append(f"Missed by {margin}")
+        attack_bonus = _get_derived(attacker, attack_stat)
+        defense_value = _get_derived(defender, defense_stat)
+
+        roll_result = roll_expr(pack.dice)
+        roll_val = roll_result["total"]
+        attack_total = roll_val + attack_bonus
+
+        lines = [
+            f"ACTION: {attacker.name} → {defender.name}",
+            f"ATTACK: {pack.dice}({roll_val}) + {attack_bonus} = {attack_total} vs {defense_stat} {defense_value}",
+        ]
+
+        if attack_total >= defense_value:
+            lines.append("HIT!")
+            on_hit = action_def.get("on_hit", {})
+            _apply_on_hit(db, pack, attacker, defender, on_hit, lines)
+        else:
+            lines.append("MISS!")
+            margin = defense_value - attack_total
+            lines.append(f"Missed by {margin}")
 
     return "\n".join(lines)
 
@@ -169,88 +301,108 @@ def _resolve_degree(
     db, pack: SystemPack, attacker: CharacterData,
     defender: CharacterData, action_def: dict, options: dict,
 ) -> str:
-    """Resolve an action using degree of failure system."""
+    """Resolve an action using degree of failure system.
+
+    Supports both static defense and contested rolls. On hit, runs a
+    resistance check (if damage_rank_stat is set) or applies on_hit
+    effects directly.
+    """
     resolution = pack.resolution
     attack_stat = action_def["attack_stat"]
     defense_stat = action_def["defense_stat"]
-
-    attack_bonus = _get_derived(attacker, attack_stat)
-    defense_value = _get_derived(defender, defense_stat)
     dc_offset = resolution.get("defense_dc_offset", 10)
 
-    roll_result = roll_expr(pack.dice)
-    roll_val = roll_result["total"]
-    attack_total = roll_val + attack_bonus
-    defense_dc = dc_offset + defense_value
+    if action_def.get("contested"):
+        atk_roll, atk_total, def_total, def_roll, def_bonus = _contested_roll(
+            pack, attacker, defender, action_def,
+        )
+        atk_bonus = _get_derived(attacker, attack_stat)
 
-    lines = [
-        f"ACTION: {attacker.name} → {defender.name}",
-        f"ATTACK: {pack.dice}({roll_val}) + {attack_bonus} = {attack_total} vs DC {defense_dc}",
-    ]
+        lines = [f"ACTION: {attacker.name} → {defender.name}"]
+        lines.append(
+            f"ATTACKER: {pack.dice}({atk_roll}) + {atk_bonus} ({attack_stat}) = {atk_total}"
+        )
+        lines.append(
+            f"DEFENDER: {pack.dice}({def_roll}) + {def_bonus} ({defense_stat}) = {def_total}"
+        )
+        hit = atk_total >= def_total
+    else:
+        attack_bonus = _get_derived(attacker, attack_stat)
+        defense_value = _get_derived(defender, defense_stat)
 
-    if attack_total >= defense_dc:
+        roll_result = roll_expr(pack.dice)
+        roll_val = roll_result["total"]
+        attack_total = roll_val + attack_bonus
+        defense_dc = dc_offset + defense_value
+
+        lines = [
+            f"ACTION: {attacker.name} → {defender.name}",
+            f"ATTACK: {pack.dice}({roll_val}) + {attack_bonus} = {attack_total} vs DC {defense_dc}",
+        ]
+        hit = attack_total >= defense_dc
+
+    if hit:
         lines.append("HIT!")
 
-        # Defender resistance roll
-        resistance_stat = resolution.get("resistance_stat", "toughness")
-        dc_base = resolution.get("dc_base", 15)
+        # If action has damage_rank_stat, run resistance check (standard degree flow)
         damage_rank_stat = action_def.get("damage_rank_stat")
-
         if damage_rank_stat:
+            resistance_stat = resolution.get("resistance_stat", "toughness")
+            dc_base = resolution.get("dc_base", 15)
             damage_rank = _get_derived(attacker, damage_rank_stat)
+
+            resistance_bonus = _get_derived(defender, resistance_stat)
+            resist_result = roll_expr(pack.dice)
+            resist_roll = resist_result["total"]
+            resistance_total = resist_roll + resistance_bonus
+            resist_dc = dc_base + damage_rank
+
+            lines.append(
+                f"RESISTANCE: {pack.dice}({resist_roll}) + {resistance_bonus} = "
+                f"{resistance_total} vs DC {resist_dc}"
+            )
+
+            if resistance_total >= resist_dc:
+                lines.append("RESULT: No effect")
+            else:
+                degree = math.floor((resist_dc - resistance_total) / 5)
+                degree = max(1, min(degree, 4))
+
+                on_failure = resolution.get("on_failure", {})
+                effect = on_failure.get(str(degree), {})
+
+                lines.append(f"DEGREE OF FAILURE: {degree}")
+
+                # Apply increments from degree table
+                increment = effect.get("increment")
+                if increment and isinstance(increment, dict):
+                    for stat, value in increment.items():
+                        try:
+                            current = _get_derived(defender, stat)
+                        except LoreKitError:
+                            current = 0
+                        new_val = current + value
+                        _write_attr(db, defender.character_id, stat, new_val)
+                        lines.append(f"{stat}: {current} → {new_val}")
+
+                label = effect.get("label")
+                if label:
+                    lines.append(f"CONDITION: {label}")
         else:
-            damage_rank = 0
-
-        resistance_bonus = _get_derived(defender, resistance_stat)
-        resist_result = roll_expr(pack.dice)
-        resist_roll = resist_result["total"]
-        resistance_total = resist_roll + resistance_bonus
-
-        resist_dc = dc_base + damage_rank
-
-        lines.append(
-            f"RESISTANCE: {pack.dice}({resist_roll}) + {resistance_bonus} = "
-            f"{resistance_total} vs DC {resist_dc}"
-        )
-
-        if resistance_total >= resist_dc:
-            lines.append("RESULT: No effect")
-        else:
-            degree = math.floor((resist_dc - resistance_total) / 5)
-            degree = max(1, min(degree, 4))
-
-            on_failure = resolution.get("on_failure", {})
-            effect = on_failure.get(str(degree), {})
-
-            lines.append(f"DEGREE OF FAILURE: {degree}")
-
-            # Apply increments
-            increment = effect.get("increment")
-            if increment and isinstance(increment, dict):
-                for stat, value in increment.items():
-                    try:
-                        current = _get_derived(defender, stat)
-                    except LoreKitError:
-                        current = 0
-                    new_val = current + value
-                    _write_attr(db, defender.character_id, stat, new_val)
-                    lines.append(f"{stat}: {current} → {new_val}")
-
-            # Labels
-            label = effect.get("label")
-            if label:
-                lines.append(f"CONDITION: {label}")
+            # No resistance check — apply on_hit effects directly
+            on_hit = action_def.get("on_hit", {})
+            _apply_on_hit(db, pack, attacker, defender, on_hit, lines)
     else:
         lines.append("MISS!")
-        margin = defense_dc - attack_total
-        lines.append(f"Missed by {margin}")
+        if not action_def.get("contested"):
+            margin = defense_dc - attack_total
+            lines.append(f"Missed by {margin}")
+        else:
+            margin = def_total - atk_total
+            lines.append(f"{defender.name} resists by {margin}")
 
     return "\n".join(lines)
 
-
-# ---------------------------------------------------------------------------
-# Public API
-# ---------------------------------------------------------------------------
 
 # ---------------------------------------------------------------------------
 # End-of-turn duration ticking
@@ -370,6 +522,10 @@ def end_turn(db, character_id: int, pack_dir: str) -> str:
 
     return "\n".join(lines)
 
+
+# ---------------------------------------------------------------------------
+# Public API
+# ---------------------------------------------------------------------------
 
 def resolve_action(
     db, attacker_id: int, defender_id: int, action: str,

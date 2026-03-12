@@ -321,3 +321,215 @@ class TestMissingStats:
                 resolve_action(db, atk_id, def_id, "melee_attack", TEST_SYSTEM)
         finally:
             db.close()
+
+
+class TestContestedAction:
+    def test_grapple_success_applies_modifiers(self, make_session, make_character):
+        """Contested grapple: attacker wins → modifiers applied via combat_state."""
+        from _db import require_db
+        from character import set_attr
+
+        db = require_db()
+        try:
+            sid, atk_id = _setup_fighter(db, make_session, make_character, set_attr, "Grappler")
+            _, def_id = _setup_fighter(db, make_session, make_character, set_attr, "Target")
+
+            # Attacker rolls 18, defender rolls 5 → attacker wins
+            roll_calls = iter([17, 4])  # 17+1=18, 4+1=5
+            with patch("secrets.randbelow", side_effect=roll_calls):
+                output = resolve_action(db, atk_id, def_id, "grapple", TEST_SYSTEM)
+
+            assert "HIT!" in output
+            assert "MODIFIER: grapple" in output
+
+            # Verify combat_state row was created
+            row = db.execute(
+                "SELECT source, target_stat, value FROM combat_state "
+                "WHERE character_id = ? AND source = 'grapple'",
+                (def_id,),
+            ).fetchone()
+            assert row is not None
+            assert row[1] == "bonus_defense"
+            assert row[2] == -2
+        finally:
+            db.close()
+
+    def test_grapple_failure(self, make_session, make_character):
+        """Contested grapple: defender wins → no modifiers applied."""
+        from _db import require_db
+        from character import set_attr
+
+        db = require_db()
+        try:
+            sid, atk_id = _setup_fighter(db, make_session, make_character, set_attr, "Grappler")
+            _, def_id = _setup_fighter(db, make_session, make_character, set_attr, "Target")
+
+            # Attacker rolls 3, defender rolls 18 → defender wins
+            roll_calls = iter([2, 17])  # 2+1=3, 17+1=18
+            with patch("secrets.randbelow", side_effect=roll_calls):
+                output = resolve_action(db, atk_id, def_id, "grapple", TEST_SYSTEM)
+
+            assert "MISS!" in output
+            assert "Target resists" in output
+            assert "MODIFIER" not in output
+        finally:
+            db.close()
+
+    def test_no_damage_action(self, make_session, make_character):
+        """Action with on_hit modifiers but no damage_roll skips damage."""
+        from _db import require_db
+        from character import set_attr
+
+        db = require_db()
+        try:
+            sid, atk_id = _setup_fighter(db, make_session, make_character, set_attr, "Grappler")
+            _, def_id = _setup_fighter(db, make_session, make_character, set_attr, "Target")
+            set_attr(db, def_id, "combat", "current_hp", "35")
+
+            roll_calls = iter([17, 4])
+            with patch("secrets.randbelow", side_effect=roll_calls):
+                output = resolve_action(db, atk_id, def_id, "grapple", TEST_SYSTEM)
+
+            assert "HIT!" in output
+            assert "DAMAGE:" not in output
+
+            # HP unchanged
+            row = db.execute(
+                "SELECT value FROM character_attributes "
+                "WHERE character_id = ? AND category = 'combat' AND key = 'current_hp'",
+                (def_id,),
+            ).fetchone()
+            assert row[0] == "35"
+        finally:
+            db.close()
+
+
+class TestForcedMovement:
+    def test_shove_pushes_target(self, make_session, make_character):
+        """Shove action pushes target to adjacent zone on success."""
+        from _db import require_db
+        from character import set_attr
+        from encounter import start_encounter
+
+        db = require_db()
+        try:
+            sid, atk_id = _setup_fighter(db, make_session, make_character, set_attr, "Pusher")
+            _, def_id = _setup_fighter(db, make_session, make_character, set_attr, "Target")
+
+            sess_id = db.execute(
+                "SELECT session_id FROM characters WHERE id = ?", (atk_id,)
+            ).fetchone()[0]
+
+            start_encounter(
+                db, sess_id,
+                [{"name": "Near"}, {"name": "Mid"}, {"name": "Far"}],
+                [{"character_id": atk_id, "roll": 20}, {"character_id": def_id, "roll": 10}],
+                placements=[
+                    {"character_id": atk_id, "zone": "Near"},
+                    {"character_id": def_id, "zone": "Near"},
+                ],
+                combat_cfg={"zone_scale": 30, "movement_unit": "ft", "melee_range": 0, "zone_tags": {}},
+            )
+
+            # Attacker rolls 18, defender rolls 3 → attacker wins, push 30ft = 1 zone
+            roll_calls = iter([17, 2])
+            with patch("secrets.randbelow", side_effect=roll_calls):
+                output = resolve_action(db, atk_id, def_id, "shove", TEST_SYSTEM)
+
+            assert "HIT!" in output
+            assert "FORCED MOVEMENT" in output
+            assert "Near → Mid" in output
+
+            # Verify target moved to Mid zone
+            row = db.execute(
+                "SELECT ez.name FROM character_zone cz "
+                "JOIN encounter_zones ez ON ez.id = cz.zone_id "
+                "WHERE cz.character_id = ?",
+                (def_id,),
+            ).fetchone()
+            assert row[0] == "Mid"
+        finally:
+            db.close()
+
+    def test_shove_out_of_range_rejected(self, make_session, make_character):
+        """Shove across zones is rejected — melee requires same zone."""
+        from _db import require_db, LoreKitError
+        from character import set_attr
+        from encounter import start_encounter
+
+        db = require_db()
+        try:
+            sid, atk_id = _setup_fighter(db, make_session, make_character, set_attr, "Pusher")
+            _, def_id = _setup_fighter(db, make_session, make_character, set_attr, "Target")
+
+            sess_id = db.execute(
+                "SELECT session_id FROM characters WHERE id = ?", (atk_id,)
+            ).fetchone()[0]
+
+            start_encounter(
+                db, sess_id,
+                [{"name": "Near"}, {"name": "Far"}],
+                [{"character_id": atk_id, "roll": 20}, {"character_id": def_id, "roll": 10}],
+                placements=[
+                    {"character_id": atk_id, "zone": "Near"},
+                    {"character_id": def_id, "zone": "Far"},
+                ],
+                combat_cfg={"zone_scale": 30, "movement_unit": "ft", "melee_range": 0, "zone_tags": {}},
+            )
+
+            with pytest.raises(LoreKitError, match="out of range"):
+                resolve_action(db, atk_id, def_id, "shove", TEST_SYSTEM)
+        finally:
+            db.close()
+
+
+class TestDegreeOnHit:
+    def test_mm3e_grab_applies_modifiers(self, make_session, make_character):
+        """M&M3e grab: degree action with on_hit modifiers (no resistance check)."""
+        from _db import require_db
+        from character import set_attr
+
+        db = require_db()
+        try:
+            sid = make_session()
+            atk_id = make_character(sid, name="Hero", level=1)
+            def_id = make_character(sid, name="Villain", level=1)
+
+            for key, val in [
+                ("fgt", "6"), ("agl", "2"), ("dex", "0"),
+                ("str", "6"), ("sta", "4"), ("int", "0"), ("awe", "2"), ("pre", "0"),
+            ]:
+                set_attr(db, atk_id, "stat", key, val)
+            from rules_engine import rules_calc
+            rules_calc(db, atk_id, MM3E_SYSTEM)
+
+            for key, val in [
+                ("fgt", "4"), ("agl", "4"), ("dex", "0"),
+                ("str", "2"), ("sta", "4"), ("int", "0"), ("awe", "2"), ("pre", "0"),
+                ("ranks_parry", "2"),
+            ]:
+                set_attr(db, def_id, "stat", key, val)
+            rules_calc(db, def_id, MM3E_SYSTEM)
+
+            # Attack roll=15 + close_attack(6) = 21 vs DC 10+parry(6) = 16 → HIT
+            # No damage_rank_stat → on_hit effects applied directly (no resistance check)
+            roll_calls = iter([14])  # 14+1=15
+            with patch("secrets.randbelow", side_effect=roll_calls):
+                output = resolve_action(db, atk_id, def_id, "grab", MM3E_SYSTEM)
+
+            assert "HIT!" in output
+            assert "MODIFIER: grab" in output
+            assert "RESISTANCE:" not in output
+
+            # Verify combat_state modifiers applied
+            rows = db.execute(
+                "SELECT source, target_stat, value FROM combat_state "
+                "WHERE character_id = ? AND source = 'grab'",
+                (def_id,),
+            ).fetchall()
+            assert len(rows) == 2
+            stats = {r[1] for r in rows}
+            assert "bonus_dodge" in stats
+            assert "bonus_speed" in stats
+        finally:
+            db.close()

@@ -162,6 +162,46 @@
         "damage_roll": {"dice_attr": "weapon_damage_die", "bonus_stat": "dex_mod"},
         "subtract_from": "current_hp"
       }
+    },
+    "grapple": {
+      "attack_stat": "skill_athletics",
+      "defense_stat": "fortitude_dc",
+      "range": "melee",
+      "on_hit": {
+        "apply_modifiers": [
+          {"source": "grapple", "target_stat": "bonus_ac", "value": -2, "modifier_type": "circumstance", "duration_type": "until_escape"},
+          {"source": "grapple", "target_stat": "bonus_speed", "value": -999, "modifier_type": "condition", "duration_type": "until_escape"}
+        ]
+      }
+    },
+    "shove": {
+      "attack_stat": "skill_athletics",
+      "defense_stat": "fortitude_dc",
+      "range": "melee",
+      "on_hit": {
+        "push": 5,
+        "push_direction": "away"
+      }
+    },
+    "disarm": {
+      "attack_stat": "skill_athletics",
+      "defense_stat": "reflex_dc",
+      "range": "melee",
+      "on_hit": {
+        "apply_modifiers": [
+          {"source": "disarm", "target_stat": "bonus_melee_attack", "value": -2, "modifier_type": "circumstance", "duration_type": "until_escape"}
+        ]
+      }
+    },
+    "trip": {
+      "attack_stat": "skill_athletics",
+      "defense_stat": "reflex_dc",
+      "range": "melee",
+      "on_hit": {
+        "apply_modifiers": [
+          {"source": "trip", "target_stat": "bonus_ac", "value": -2, "modifier_type": "circumstance", "duration_type": "until_escape"}
+        ]
+      }
     }
   },
 

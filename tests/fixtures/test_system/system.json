@@ -60,6 +60,27 @@
         "damage_roll": {"dice_attr": "weapon_damage_die", "bonus_stat": "str_mod"},
         "subtract_from": "current_hp"
       }
+    },
+    "grapple": {
+      "attack_stat": "melee_attack",
+      "defense_stat": "melee_attack",
+      "contested": true,
+      "range": "melee",
+      "on_hit": {
+        "apply_modifiers": [
+          {"source": "grapple", "target_stat": "bonus_defense", "value": -2, "modifier_type": "condition", "duration_type": "encounter"}
+        ]
+      }
+    },
+    "shove": {
+      "attack_stat": "melee_attack",
+      "defense_stat": "melee_attack",
+      "contested": true,
+      "range": "melee",
+      "on_hit": {
+        "push": 30,
+        "push_direction": "away"
+      }
     }
   },
   "build": {
