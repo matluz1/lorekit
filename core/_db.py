@@ -129,6 +129,38 @@ CREATE TABLE IF NOT EXISTS combat_state (
     UNIQUE(character_id, source, target_stat)
 );
 
+CREATE TABLE IF NOT EXISTS encounter_state (
+    id               INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id       INTEGER NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+    status           TEXT    NOT NULL DEFAULT 'active',
+    round            INTEGER NOT NULL DEFAULT 1,
+    initiative_order TEXT    NOT NULL DEFAULT '[]',
+    current_turn     INTEGER NOT NULL DEFAULT 0,
+    created_at       TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
+);
+
+CREATE TABLE IF NOT EXISTS encounter_zones (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    encounter_id INTEGER NOT NULL REFERENCES encounter_state(id) ON DELETE CASCADE,
+    name         TEXT    NOT NULL,
+    tags         TEXT    NOT NULL DEFAULT '[]',
+    UNIQUE(encounter_id, name)
+);
+
+CREATE TABLE IF NOT EXISTS zone_adjacency (
+    zone_a INTEGER NOT NULL REFERENCES encounter_zones(id) ON DELETE CASCADE,
+    zone_b INTEGER NOT NULL REFERENCES encounter_zones(id) ON DELETE CASCADE,
+    weight INTEGER NOT NULL DEFAULT 1,
+    PRIMARY KEY (zone_a, zone_b)
+);
+
+CREATE TABLE IF NOT EXISTS character_zone (
+    encounter_id INTEGER NOT NULL REFERENCES encounter_state(id) ON DELETE CASCADE,
+    character_id INTEGER NOT NULL REFERENCES characters(id) ON DELETE CASCADE,
+    zone_id      INTEGER NOT NULL REFERENCES encounter_zones(id) ON DELETE CASCADE,
+    PRIMARY KEY (encounter_id, character_id)
+);
+
 CREATE TABLE IF NOT EXISTS embeddings (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
     source      TEXT    NOT NULL,
@@ -164,6 +196,9 @@ CREATE INDEX IF NOT EXISTS idx_regions_session ON regions(session_id);
 CREATE INDEX IF NOT EXISTS idx_combat_state ON combat_state(character_id);
 CREATE INDEX IF NOT EXISTS idx_embeddings_session ON embeddings(session_id, source);
 CREATE INDEX IF NOT EXISTS idx_checkpoints_session ON checkpoints(session_id);
+CREATE INDEX IF NOT EXISTS idx_encounter_state_session ON encounter_state(session_id);
+CREATE INDEX IF NOT EXISTS idx_encounter_zones ON encounter_zones(encounter_id);
+CREATE INDEX IF NOT EXISTS idx_character_zone ON character_zone(encounter_id);
 """
 
 # Migrations: add or drop columns on older databases
@@ -356,6 +391,46 @@ _CASCADE_MIGRATIONS = {
         )""",
         ["id", "session_id", "act_order", "title", "description", "goal", "event", "status", "created_at"],
     ),
+    "encounter_state": (
+        """CREATE TABLE encounter_state (
+            id               INTEGER PRIMARY KEY AUTOINCREMENT,
+            session_id       INTEGER NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+            status           TEXT    NOT NULL DEFAULT 'active',
+            round            INTEGER NOT NULL DEFAULT 1,
+            initiative_order TEXT    NOT NULL DEFAULT '[]',
+            current_turn     INTEGER NOT NULL DEFAULT 0,
+            created_at       TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
+        )""",
+        ["id", "session_id", "status", "round", "initiative_order", "current_turn", "created_at"],
+    ),
+    "encounter_zones": (
+        """CREATE TABLE encounter_zones (
+            id           INTEGER PRIMARY KEY AUTOINCREMENT,
+            encounter_id INTEGER NOT NULL REFERENCES encounter_state(id) ON DELETE CASCADE,
+            name         TEXT    NOT NULL,
+            tags         TEXT    NOT NULL DEFAULT '[]',
+            UNIQUE(encounter_id, name)
+        )""",
+        ["id", "encounter_id", "name", "tags"],
+    ),
+    "zone_adjacency": (
+        """CREATE TABLE zone_adjacency (
+            zone_a INTEGER NOT NULL REFERENCES encounter_zones(id) ON DELETE CASCADE,
+            zone_b INTEGER NOT NULL REFERENCES encounter_zones(id) ON DELETE CASCADE,
+            weight INTEGER NOT NULL DEFAULT 1,
+            PRIMARY KEY (zone_a, zone_b)
+        )""",
+        ["zone_a", "zone_b", "weight"],
+    ),
+    "character_zone": (
+        """CREATE TABLE character_zone (
+            encounter_id INTEGER NOT NULL REFERENCES encounter_state(id) ON DELETE CASCADE,
+            character_id INTEGER NOT NULL REFERENCES characters(id) ON DELETE CASCADE,
+            zone_id      INTEGER NOT NULL REFERENCES encounter_zones(id) ON DELETE CASCADE,
+            PRIMARY KEY (encounter_id, character_id)
+        )""",
+        ["encounter_id", "character_id", "zone_id"],
+    ),
     "combat_state": (
         """CREATE TABLE combat_state (
             id             INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -382,7 +457,7 @@ _CASCADE_MIGRATIONS = {
 _CASCADE_MIGRATION_ORDER = [
     "session_meta", "regions", "journal", "timeline", "stories", "story_acts",
     "characters", "character_attributes", "character_inventory", "character_abilities",
-    "combat_state",
+    "combat_state", "encounter_state", "encounter_zones", "zone_adjacency", "character_zone",
 ]
 
 

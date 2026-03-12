@@ -40,6 +40,16 @@
     "rounds": {"action": "decrement", "remove_at": 0},
     "save_ends": {"action": "check", "remove_on": "success"}
   },
+  "combat": {
+    "zone_scale": 30,
+    "movement_unit": "ft",
+    "melee_range": 0,
+    "zone_tags": {
+      "difficult_terrain": {"movement_multiplier": 2},
+      "cover": {"target_stat": "bonus_defense", "value": 2, "modifier_type": "environment"},
+      "elevated": {"target_stat": "bonus_ranged_attack", "value": 1, "modifier_type": "environment"}
+    }
+  },
   "resolution": {"type": "threshold"},
   "actions": {
     "melee_attack": {

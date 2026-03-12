@@ -103,6 +103,53 @@ def snapshot_session(db, session_id):
         ).fetchall()
     ]
 
+    # Encounter state
+    enc_rows = db.execute(
+        "SELECT id, status, round, initiative_order, current_turn, created_at "
+        "FROM encounter_state WHERE session_id = ?",
+        (session_id,),
+    ).fetchall()
+    enc_ids = [r[0] for r in enc_rows]
+    snap["encounter_state"] = [
+        {"id": r[0], "status": r[1], "round": r[2], "initiative_order": r[3],
+         "current_turn": r[4], "created_at": r[5]}
+        for r in enc_rows
+    ]
+
+    if enc_ids:
+        eph = ",".join("?" * len(enc_ids))
+        zone_rows = db.execute(
+            f"SELECT id, encounter_id, name, tags FROM encounter_zones "
+            f"WHERE encounter_id IN ({eph})", enc_ids,
+        ).fetchall()
+        zone_ids = [r[0] for r in zone_rows]
+        snap["encounter_zones"] = [
+            {"id": r[0], "encounter_id": r[1], "name": r[2], "tags": r[3]}
+            for r in zone_rows
+        ]
+        if zone_ids:
+            zph = ",".join("?" * len(zone_ids))
+            snap["zone_adjacency"] = [
+                {"zone_a": r[0], "zone_b": r[1], "weight": r[2]}
+                for r in db.execute(
+                    f"SELECT zone_a, zone_b, weight FROM zone_adjacency "
+                    f"WHERE zone_a IN ({zph})", zone_ids,
+                ).fetchall()
+            ]
+        else:
+            snap["zone_adjacency"] = []
+        snap["character_zone"] = [
+            {"encounter_id": r[0], "character_id": r[1], "zone_id": r[2]}
+            for r in db.execute(
+                f"SELECT encounter_id, character_id, zone_id FROM character_zone "
+                f"WHERE encounter_id IN ({eph})", enc_ids,
+            ).fetchall()
+        ]
+    else:
+        snap["encounter_zones"] = []
+        snap["zone_adjacency"] = []
+        snap["character_zone"] = []
+
     # Regions
     snap["regions"] = [
         {"id": r[0], "name": r[1], "description": r[2], "parent_id": r[3], "created_at": r[4]}
@@ -137,6 +184,26 @@ def restore_snapshot(db, session_id, snapshot):
             db.execute(f"DELETE FROM character_abilities WHERE character_id IN ({ph})", cur_char_ids)
             db.execute(f"DELETE FROM combat_state WHERE character_id IN ({ph})", cur_char_ids)
 
+        # Clean up encounter tables
+        cur_enc_ids = [
+            r[0] for r in db.execute(
+                "SELECT id FROM encounter_state WHERE session_id = ?", (session_id,)
+            ).fetchall()
+        ]
+        if cur_enc_ids:
+            eph = ",".join("?" * len(cur_enc_ids))
+            cur_zone_ids = [
+                r[0] for r in db.execute(
+                    f"SELECT id FROM encounter_zones WHERE encounter_id IN ({eph})", cur_enc_ids,
+                ).fetchall()
+            ]
+            if cur_zone_ids:
+                zph = ",".join("?" * len(cur_zone_ids))
+                db.execute(f"DELETE FROM zone_adjacency WHERE zone_a IN ({zph})", cur_zone_ids)
+            db.execute(f"DELETE FROM character_zone WHERE encounter_id IN ({eph})", cur_enc_ids)
+            db.execute(f"DELETE FROM encounter_zones WHERE encounter_id IN ({eph})", cur_enc_ids)
+        db.execute("DELETE FROM encounter_state WHERE session_id = ?", (session_id,))
+
         db.execute("DELETE FROM characters WHERE session_id = ?", (session_id,))
         db.execute("DELETE FROM session_meta WHERE session_id = ?", (session_id,))
         db.execute("DELETE FROM story_acts WHERE session_id = ?", (session_id,))
@@ -167,6 +234,33 @@ def restore_snapshot(db, session_id, snapshot):
                 "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
                 (r["id"], session_id, r["act_order"], r["title"], r["description"],
                  r["goal"], r["event"], r["status"]),
+            )
+
+        # Encounter state
+        for r in snapshot.get("encounter_state", []):
+            db.execute(
+                "INSERT INTO encounter_state (id, session_id, status, round, "
+                "initiative_order, current_turn, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (r["id"], session_id, r["status"], r["round"],
+                 r["initiative_order"], r["current_turn"], r["created_at"]),
+            )
+
+        for r in snapshot.get("encounter_zones", []):
+            db.execute(
+                "INSERT INTO encounter_zones (id, encounter_id, name, tags) VALUES (?, ?, ?, ?)",
+                (r["id"], r["encounter_id"], r["name"], r["tags"]),
+            )
+
+        for r in snapshot.get("zone_adjacency", []):
+            db.execute(
+                "INSERT INTO zone_adjacency (zone_a, zone_b, weight) VALUES (?, ?, ?)",
+                (r["zone_a"], r["zone_b"], r["weight"]),
+            )
+
+        for r in snapshot.get("character_zone", []):
+            db.execute(
+                "INSERT INTO character_zone (encounter_id, character_id, zone_id) VALUES (?, ?, ?)",
+                (r["encounter_id"], r["character_id"], r["zone_id"]),
             )
 
         # Session meta

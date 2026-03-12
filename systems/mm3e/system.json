@@ -14,6 +14,17 @@
     "rounds": {"action": "decrement", "remove_at": 0}
   },
 
+  "combat": {
+    "zone_scale": 1,
+    "movement_unit": "rank",
+    "melee_range": 0,
+    "zone_tags": {
+      "cover": {"target_stat": "bonus_dodge", "value": 2, "modifier_type": "environment"},
+      "total_cover": {"target_stat": "bonus_dodge", "value": 10, "modifier_type": "environment"},
+      "concealment": {"miss_chance": 0.2}
+    }
+  },
+
   "defaults": {
     "str": 0, "sta": 0, "dex": 0, "agl": 0,
     "fgt": 0, "int": 0, "awe": 0, "pre": 0,

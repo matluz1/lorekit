@@ -19,7 +19,7 @@ from typing import Any
 
 from _db import LoreKitError
 from rolldice import roll_expr
-from rules_engine import (
+from system_pack import (
     CharacterData,
     SystemPack,
     load_character_data,

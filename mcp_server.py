@@ -1567,6 +1567,224 @@ def rules_modifiers(character_id: int, stat: str = "", system_path: str = "") ->
 
 
 # ---------------------------------------------------------------------------
+# Encounter (combat positioning)
+# ---------------------------------------------------------------------------
+
+
+def _resolve_system_path_for_session(db, session_id: int) -> str:
+    """Resolve system pack path from session metadata."""
+    import os
+
+    meta_row = db.execute(
+        "SELECT value FROM session_meta WHERE session_id = ? AND key = 'rules_system'",
+        (session_id,),
+    ).fetchone()
+    if meta_row is None:
+        return ""
+    system_name = meta_row[0]
+    project_root = os.path.dirname(os.path.abspath(__file__))
+    return os.path.join(project_root, "systems", system_name)
+
+
+def _load_combat_cfg(db, session_id: int) -> dict:
+    """Load the combat config from the session's system pack."""
+    system_path = _resolve_system_path_for_session(db, session_id)
+    if not system_path:
+        return {}
+    from system_pack import load_system_pack
+    try:
+        pack = load_system_pack(system_path)
+        return pack.combat
+    except Exception:
+        return {}
+
+
+@mcp.tool()
+def encounter_start(
+    session_id: int, zones: str, initiative: str,
+    adjacency: str = "", placements: str = "",
+) -> str:
+    """Start a combat encounter with zone-based positioning.
+
+    Creates zones, sets initiative order, optionally places characters.
+    Adjacency defaults to a linear chain if not specified.
+
+    zones: JSON array — [{"name": "Entrance", "tags": ["cover"]}, ...]
+    initiative: JSON array — [{"character_id": 5, "roll": 22}, ...]
+    adjacency: JSON array (optional) — [{"from": "A", "to": "B", "weight": 1}, ...]
+    placements: JSON array (optional) — [{"character_id": 5, "zone": "Entrance"}, ...]
+    """
+    import json
+
+    from _db import LoreKitError, require_db
+
+    db = require_db()
+    try:
+        zones_list = json.loads(zones)
+        init_list = json.loads(initiative)
+        adj_list = json.loads(adjacency) if adjacency else None
+        place_list = json.loads(placements) if placements else None
+
+        combat_cfg = _load_combat_cfg(db, session_id)
+
+        from encounter import start_encounter
+
+        return start_encounter(
+            db, session_id, zones_list, init_list,
+            adjacency=adj_list, placements=place_list,
+            combat_cfg=combat_cfg,
+        )
+    except LoreKitError as e:
+        return f"ERROR: {e}"
+    finally:
+        db.close()
+
+
+@mcp.tool()
+def encounter_status(session_id: int) -> str:
+    """Return the current encounter state: round, turn, positions, distances.
+
+    Shows initiative order, zone positions with terrain tags, and pairwise
+    distances between all characters.
+    """
+    from _db import LoreKitError, require_db
+
+    db = require_db()
+    try:
+        combat_cfg = _load_combat_cfg(db, session_id)
+
+        from encounter import get_status
+
+        return get_status(db, session_id, combat_cfg=combat_cfg)
+    except LoreKitError as e:
+        return f"ERROR: {e}"
+    finally:
+        db.close()
+
+
+@mcp.tool()
+def encounter_move(character_id: int, target_zone: str) -> str:
+    """Move a character to a different zone during an encounter.
+
+    Validates movement cost against the character's movement budget
+    (derived stat 'movement_zones' or system default). Applies/removes
+    terrain modifiers automatically.
+    """
+    from _db import LoreKitError, require_db
+
+    db = require_db()
+    try:
+        # Find the character's session and active encounter
+        row = db.execute(
+            "SELECT session_id FROM characters WHERE id = ?",
+            (character_id,),
+        ).fetchone()
+        if row is None:
+            return f"ERROR: Character {character_id} not found"
+        session_id = row[0]
+
+        from encounter import _require_active_encounter
+
+        enc_id, _, _, _ = _require_active_encounter(db, session_id)
+        combat_cfg = _load_combat_cfg(db, session_id)
+
+        # Try to get movement budget from derived stats
+        movement_budget = None
+        mv_row = db.execute(
+            "SELECT value FROM character_attributes "
+            "WHERE character_id = ? AND key = 'movement_zones'",
+            (character_id,),
+        ).fetchone()
+        if mv_row is not None:
+            try:
+                movement_budget = int(mv_row[0])
+            except (ValueError, TypeError):
+                pass
+
+        from encounter import move_character
+
+        return move_character(
+            db, enc_id, character_id, target_zone,
+            combat_cfg=combat_cfg, movement_budget=movement_budget,
+        )
+    except LoreKitError as e:
+        return f"ERROR: {e}"
+    finally:
+        db.close()
+
+
+@mcp.tool()
+def encounter_advance_turn(session_id: int) -> str:
+    """Advance to the next character in initiative order.
+
+    Increments the round counter when wrapping past the last character.
+    Returns the new active character with position summary.
+    """
+    from _db import LoreKitError, require_db
+
+    db = require_db()
+    try:
+        combat_cfg = _load_combat_cfg(db, session_id)
+
+        from encounter import advance_turn
+
+        return advance_turn(db, session_id, combat_cfg=combat_cfg)
+    except LoreKitError as e:
+        return f"ERROR: {e}"
+    finally:
+        db.close()
+
+
+@mcp.tool()
+def encounter_end(session_id: int) -> str:
+    """End the active encounter.
+
+    Removes all zones, character positions, terrain modifiers, and
+    encounter-duration combat modifiers. The encounter record is kept
+    for history.
+    """
+    from _db import LoreKitError, require_db
+
+    db = require_db()
+    try:
+        from encounter import end_encounter
+
+        return end_encounter(db, session_id)
+    except LoreKitError as e:
+        return f"ERROR: {e}"
+    finally:
+        db.close()
+
+
+@mcp.tool()
+def encounter_zone_update(session_id: int, zone_name: str, tags: str) -> str:
+    """Modify zone tags mid-combat (fire spreads, wall collapses, Darkness cast).
+
+    Updates the zone's tags and applies/removes terrain modifiers for all
+    characters currently in the zone.
+
+    tags: JSON array — ["difficult_terrain", "cover"]
+    """
+    import json
+
+    from _db import LoreKitError, require_db
+
+    db = require_db()
+    try:
+        from encounter import _require_active_encounter, update_zone_tags
+
+        enc_id, _, _, _ = _require_active_encounter(db, session_id)
+        combat_cfg = _load_combat_cfg(db, session_id)
+        tags_list = json.loads(tags)
+
+        return update_zone_tags(db, enc_id, zone_name, tags_list, combat_cfg=combat_cfg)
+    except LoreKitError as e:
+        return f"ERROR: {e}"
+    finally:
+        db.close()
+
+
+# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 
