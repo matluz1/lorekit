@@ -633,6 +633,97 @@ def character_build(
 
 
 @mcp.tool()
+def ability_from_template(
+    character_id: int,
+    template_key: str,
+    overrides: str = "{}",
+) -> str:
+    """Create a power/ability from a common archetype template (e.g. Blast, Force Field, Strike).
+
+    Use this instead of manually building a power with character_sheet_update when the
+    player wants a standard power archetype. The template provides sensible defaults
+    (cost, action, range, duration, modifiers); overrides let you customize ranks,
+    add extras/flaws, or set feeds. Available templates depend on the system pack —
+    call with an invalid key to see the full list.
+
+    overrides: JSON object of fields to override on the template defaults.
+      M&M example: {"ranks": 10, "extras": ["Accurate"], "feeds": {"bonus_ranged_damage": 10}}
+    """
+    import json as _json
+    import os
+    import copy
+
+    from _db import require_db, LoreKitError
+    from character import set_ability
+
+    try:
+        overrides_dict = _json.loads(overrides)
+    except _json.JSONDecodeError as e:
+        return f"ERROR: Invalid JSON overrides: {e}"
+
+    db = require_db()
+    try:
+        # Find character's session and system path
+        row = db.execute(
+            "SELECT session_id FROM characters WHERE id = ?",
+            (character_id,),
+        ).fetchone()
+        if row is None:
+            return f"ERROR: Character {character_id} not found"
+
+        system_path = _resolve_system_path_for_session(db, row[0])
+        if not system_path:
+            return "ERROR: No rules_system set for this session."
+
+        # Load system.json templates config
+        system_file = os.path.join(system_path, "system.json")
+        if not os.path.isfile(system_file):
+            return "ERROR: system.json not found"
+
+        with open(system_file) as f:
+            system_data = _json.load(f)
+
+        templates_cfg = system_data.get("templates")
+        if not templates_cfg:
+            return "ERROR: No templates configured in system pack"
+
+        source_file = os.path.join(system_path, templates_cfg["source"])
+        if not os.path.isfile(source_file):
+            return f"ERROR: Templates file not found: {templates_cfg['source']}"
+
+        with open(source_file) as f:
+            templates_data = _json.load(f)
+
+        template = templates_data.get(template_key)
+        if template is None:
+            available = ", ".join(sorted(templates_data.keys()))
+            return f"ERROR: Template '{template_key}' not found. Available: {available}"
+
+        # Deep-merge overrides on top of template
+        merged = copy.deepcopy(template)
+        for key, val in overrides_dict.items():
+            merged[key] = val
+
+        ability_category = templates_cfg.get("ability_category", "ability")
+        ability_name = merged.get("name", template_key)
+
+        # Store the merged data as the ability description (JSON)
+        set_ability(db, character_id, ability_name, _json.dumps(merged),
+                    ability_category, "at_will")
+
+        # Auto-run rules_calc
+        rules_summary = _try_rules_calc(db, character_id, row[0])
+        result = f"ABILITY_FROM_TEMPLATE: {ability_name} (template={template_key})"
+        if rules_summary:
+            result += "\n" + rules_summary
+        return result
+    except LoreKitError as e:
+        return f"ERROR: {e}"
+    finally:
+        db.close()
+
+
+@mcp.tool()
 def session_setup(
     name: str,
     setting: str,

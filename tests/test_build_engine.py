@@ -604,6 +604,42 @@ class TestEquipment:
         result = process_build(TEST_SYSTEM, {}, [], level=1, char_items=[])
         assert "item_bonus_ac" not in result.attributes
 
+    def test_mm3e_melee_weapon_writes(self):
+        """M&M 3e: equipping a sword writes close damage stats."""
+        char_items = [{"name": "sword", "description": "", "quantity": 1}]
+        result = process_build(MM3E_SYSTEM, {}, [], level=1, char_items=char_items)
+        assert result.attributes["weapon_close_damage"] == 3
+        assert result.attributes["weapon_damage_type"] == "slashing"
+        assert result.attributes["weapon_strength_based"] == True
+        assert result.attributes["weapon_critical"] == 19
+
+    def test_mm3e_ranged_weapon_writes(self):
+        """M&M 3e: equipping a heavy pistol writes ranged damage stats."""
+        char_items = [{"name": "Heavy Pistol", "description": "", "quantity": 1}]
+        result = process_build(MM3E_SYSTEM, {}, [], level=1, char_items=char_items)
+        assert result.attributes["weapon_ranged_damage"] == 4
+        assert result.attributes["weapon_damage_type"] == "ballistic"
+        assert result.attributes["weapon_critical"] == 20
+
+    def test_mm3e_armor_writes(self):
+        """M&M 3e: equipping leather armor writes effect_protection."""
+        char_items = [{"name": "Leather Armor", "description": "", "quantity": 1}]
+        result = process_build(MM3E_SYSTEM, {}, [], level=1, char_items=char_items)
+        assert result.attributes["effect_protection"] == 1
+
+    def test_mm3e_shield_writes(self):
+        """M&M 3e: equipping a medium shield writes dodge/parry bonuses."""
+        char_items = [{"name": "Medium Shield", "description": "", "quantity": 1}]
+        result = process_build(MM3E_SYSTEM, {}, [], level=1, char_items=char_items)
+        assert result.attributes["bonus_dodge"] == 2
+        assert result.attributes["bonus_parry"] == 2
+
+    def test_mm3e_unknown_equipment_ignored(self):
+        """M&M 3e: unknown equipment is silently ignored."""
+        char_items = [{"name": "unobtanium_blade", "description": "", "quantity": 1}]
+        result = process_build(MM3E_SYSTEM, {}, [], level=1, char_items=char_items)
+        assert "weapon_close_damage" not in result.attributes
+
     def test_equipment_pf2e_armor(self):
         """PF2e system: chain mail equipped writes correct stats."""
         char_items = [{"name": "Chain mail", "description": "", "quantity": 1}]

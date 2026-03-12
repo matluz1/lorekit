@@ -256,6 +256,52 @@ def test_export_dump_and_clean(tmp_path):
     assert "CLEANED:" in result
 
 
+# ---- ability_from_template ------------------------------------------------
+
+
+def test_ability_from_template_blast():
+    """Template instantiation creates a power ability with merged overrides."""
+    import json
+    from mcp_server import session_setup, session_meta_set, character_build, ability_from_template
+
+    session_setup(name="MM3e Test", setting="Supers", system="mm3e")
+    session_meta_set(session_id=1, key="rules_system", value="mm3e")
+    character_build(session=1, name="Hero", level=1, attrs='[{"category":"stat","key":"power_level","value":"10"}]')
+
+    result = ability_from_template(
+        character_id=1,
+        template_key="blast",
+        overrides='{"ranks": 10, "feeds": {"bonus_ranged_damage": 10}}',
+    )
+    assert "ABILITY_FROM_TEMPLATE: Blast" in result
+    assert "template=blast" in result
+
+
+def test_ability_from_template_unknown():
+    """Unknown template returns an error with available keys."""
+    from mcp_server import session_setup, session_meta_set, character_build, ability_from_template
+
+    session_setup(name="MM3e Test", setting="Supers", system="mm3e")
+    session_meta_set(session_id=1, key="rules_system", value="mm3e")
+    character_build(session=1, name="Hero", level=1)
+
+    result = ability_from_template(character_id=1, template_key="nonexistent")
+    assert "ERROR" in result
+    assert "nonexistent" in result
+    assert "blast" in result  # should list available templates
+
+
+def test_ability_from_template_no_system():
+    """Template without rules_system set returns an error."""
+    from mcp_server import session_setup, character_build, ability_from_template
+
+    session_setup(name="NoRules", setting="Test", system="generic")
+    character_build(session=1, name="Hero", level=1)
+
+    result = ability_from_template(character_id=1, template_key="blast")
+    assert "ERROR" in result
+
+
 # ---- error handling --------------------------------------------------------
 
 

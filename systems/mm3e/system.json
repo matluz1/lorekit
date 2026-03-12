@@ -107,7 +107,11 @@
     "effect_enhanced_awe": 0,
     "effect_enhanced_pre": 0,
 
-    "damage_penalty": 0
+    "damage_penalty": 0,
+
+    "weapon_close_damage": 0,
+    "weapon_ranged_damage": 0,
+    "weapon_strength_based": 0
   },
 
   "derived": {
@@ -132,6 +136,8 @@
     "ranged_attack": "effective_dex + adv_ranged_attack + bonus_ranged_attack",
 
     "unarmed_damage": "effective_str + bonus_close_damage",
+    "close_damage": "max(unarmed_damage, weapon_close_damage + if(weapon_strength_based, effective_str, 0))",
+    "ranged_damage": "max(0, weapon_ranged_damage + bonus_ranged_damage)",
 
     "skill_acrobatics": "effective_agl + ranks_acrobatics + bonus_acrobatics",
     "skill_athletics": "effective_str + ranks_athletics + bonus_athletics",
@@ -199,14 +205,14 @@
       "attack_stat": "close_attack",
       "defense_stat": "parry",
       "range": "melee",
-      "damage_rank_stat": "unarmed_damage"
+      "damage_rank_stat": "close_damage"
     },
     "ranged_attack": {
       "attack_stat": "ranged_attack",
       "defense_stat": "dodge",
       "range": "ranged",
       "range_stat": "weapon_range",
-      "damage_rank_stat": "unarmed_damage"
+      "damage_rank_stat": "ranged_damage"
     },
     "grab": {
       "attack_stat": "close_attack",
@@ -282,11 +288,54 @@
       "alternate_cost": 1,
       "dynamic_cost": 2
     },
+    "equipment_melee": {
+      "source": "equipment.json",
+      "select": "equipped",
+      "catalog_path": "melee_weapons",
+      "writes": {
+        "weapon_close_damage": "ranks",
+        "weapon_damage_type": "damage_type",
+        "weapon_strength_based": "strength_based",
+        "weapon_critical": "critical"
+      }
+    },
+    "equipment_ranged": {
+      "source": "equipment.json",
+      "select": "equipped",
+      "catalog_path": "ranged_weapons",
+      "writes": {
+        "weapon_ranged_damage": "ranks",
+        "weapon_damage_type": "damage_type",
+        "weapon_critical": "critical"
+      }
+    },
+    "equipment_armor": {
+      "source": "equipment.json",
+      "select": "equipped",
+      "catalog_path": "armor",
+      "writes": {
+        "effect_protection": "toughness"
+      }
+    },
+    "equipment_shield": {
+      "source": "equipment.json",
+      "select": "equipped",
+      "catalog_path": "shields",
+      "writes": {
+        "bonus_dodge": "dodge_bonus",
+        "bonus_parry": "parry_bonus"
+      }
+    },
     "sub_budget": {
       "equipment": {
         "source_attribute": "adv_equipment",
         "points_per_rank": 5
       }
     }
+  },
+
+  "templates": {
+    "source": "sample_powers.json",
+    "ability_category": "power"
   }
 }
