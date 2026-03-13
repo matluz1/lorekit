@@ -1295,6 +1295,49 @@ def npc_interact(session_id: int, npc_id: int, message: str) -> str:
 
 
 # ---------------------------------------------------------------------------
+# System info
+# ---------------------------------------------------------------------------
+
+
+@mcp.tool()
+def system_info(system: str = "", session_id: int = 0, section: str = "all") -> str:
+    """Show what a system pack provides: actions, attributes, derived stats, build options.
+
+    Use this to discover action names, attribute names, and formulas before
+    calling rules_calc, rules_resolve, or character_build.
+
+    system: system pack name (e.g. "mm3e", "pf2e").
+    session_id: alternatively, resolve the system from a session's rules_system metadata.
+    section: "actions", "defaults", "derived", "build", "constraints", "resolution", "combat", or "all".
+    """
+    import os
+
+    from _db import LoreKitError, require_db
+
+    if not system and session_id <= 0:
+        return "ERROR: Provide either system (pack name) or session_id."
+
+    try:
+        if system:
+            project_root = os.path.dirname(os.path.abspath(__file__))
+            pack_dir = os.path.join(project_root, "systems", system)
+        else:
+            db = require_db()
+            try:
+                pack_dir = _resolve_system_path_for_session(db, session_id)
+                if not pack_dir:
+                    return "ERROR: No rules_system set for this session."
+            finally:
+                db.close()
+
+        from system_pack import system_info as _system_info
+
+        return _system_info(pack_dir, section)
+    except (LoreKitError, FileNotFoundError) as e:
+        return f"ERROR: {e}"
+
+
+# ---------------------------------------------------------------------------
 # Rules engine
 # ---------------------------------------------------------------------------
 

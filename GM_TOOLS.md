@@ -1,6 +1,7 @@
-# LoreKit -- Tool Reference
+# LoreKit -- GM Tool Reference
 
-This file documents every available tool. Read this before using anything.
+This file documents every tool available to the Game Master. Read this
+before using anything.
 
 All tools are called via the LoreKit MCP server. The database must be
 initialized first with `init_db`.
@@ -920,4 +921,483 @@ export_clean()
 **Output:**
 ```
 CLEANED: .export
+```
+
+---
+
+## Rules Engine
+
+The rules engine uses a system pack (JSON definitions under `systems/`) to
+compute derived stats, resolve combat actions, and manage modifiers. The
+session must have a `rules_system` metadata key set (e.g. `pf2e` or `mm3e`)
+so tools know which pack to load. `session_setup` sets this automatically
+when you pass a system that matches a pack directory name.
+
+## system_info
+
+Show what a system pack provides: actions, attributes, derived stats, build
+options, constraints, resolution rules, and combat positioning.
+
+**Call this before building characters or running combat** to discover the
+correct attribute names (e.g. `bonus_dodge` not `dodge_bought`) and action
+names (e.g. `close_attack` not `melee_strike`).
+
+```
+system_info(system="mm3e")
+system_info(session_id=1)
+system_info(system="pf2e", section="actions")
+system_info(system="mm3e", section="defaults")
+system_info(system="mm3e", section="derived")
+```
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| system | str | no | "" | System pack name (e.g. "mm3e", "pf2e") |
+| session_id | int | no | 0 | Resolve system from session's rules_system metadata |
+| section | str | no | "all" | actions, defaults, derived, build, constraints, resolution, combat, or all |
+
+At least one of `system` or `session_id` is required.
+
+When `section="derived"`, the output includes full formulas for each stat.
+When `section="all"`, formulas are omitted for brevity.
+
+Grouping is fully data-driven — prefixes are discovered from the variable
+names themselves (e.g. `bonus_*`, `ranks_*`, `prof_*`), so it works with
+any system pack without hardcoded knowledge.
+
+**Output (section="actions"):**
+```
+SYSTEM: Mutants & Masterminds 3e
+Dice: d20
+
+ACTIONS:
+  close_attack: close_attack vs parry, range=melee
+      effect: damage_rank=close_damage
+  ranged_attack: ranged_attack vs dodge, range=ranged
+      effect: damage_rank=ranged_damage
+  grab: close_attack vs parry, range=melee
+      effect: modifiers(bonus_dodge, bonus_speed)
+```
+
+**Output (section="defaults"):**
+```
+DEFAULTS (settable attributes):
+  bonus_*: bonus_dodge, bonus_fortitude, bonus_parry, bonus_toughness, bonus_will, ...
+  ranks_*: ranks_acrobatics, ranks_athletics, ranks_dodge, ranks_fortitude, ...
+  adv_*: adv_close_attack, adv_defensive_roll, adv_equipment, ...
+  effect_*: effect_enhanced_dodge, effect_enhanced_str, effect_protection, ...
+  other: agl, awe, dex, fgt, int, pre, sta, str, damage_penalty, power_level
+```
+
+---
+
+## rules_calc
+
+Recompute all derived stats for a character using the rules engine.
+
+Loads the system pack, reads the character's base attributes, resolves the
+dependency graph (topological sort), writes derived stats back to the sheet,
+and returns a summary of what changed.
+
+**Run this after any attribute change** — level up, equipment swap, buff
+applied, etc. — to keep derived stats (AC, attack bonus, saves, skill
+modifiers) current.
+
+```
+rules_calc(character_id=1)
+rules_calc(character_id=1, system_path="systems/pf2e")
+```
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| character_id | int | yes | | Character ID |
+| system_path | str | no | "" | Path to system pack directory. If empty, auto-resolves from session metadata. |
+
+**Output:**
+```
+RULES_CALC: Aldric
+  str_mod: 0 → 3
+  skill_athletics: 0 → 5
+  armor_class: 0 → 16
+  (12 unchanged)
+```
+
+## rules_check
+
+Roll a derived stat against a DC. Reads pre-computed values (run
+`rules_calc` first).
+
+```
+rules_check(character_id=1, check="skill_athletics", dc=15)
+```
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| character_id | int | yes | | Character ID |
+| check | str | yes | | Derived stat name to roll |
+| dc | int | yes | | Difficulty class |
+| system_path | str | no | "" | Path to system pack directory |
+
+**Output:**
+```
+CHECK: Aldric — skill_athletics vs DC 15
+ROLL: d20(14) + 5 = 19
+RESULT: SUCCESS (by 4)
+```
+
+## rules_resolve
+
+Resolve a combat action between two characters. Rolls attack vs defense,
+then applies damage/effects per the system's resolution rules.
+
+Two resolution strategies are supported:
+- **threshold** (PF2e-style): hit if roll + attack >= defense
+- **degree** (M&M3e-style): hit if roll + attack >= DC, then resistance
+  check with degrees of failure
+
+Supports single-target actions and **area effects** (via the `options`
+parameter). Both characters must have derived stats computed first.
+
+```
+rules_resolve(attacker_id=1, defender_id=2, action="melee_strike")
+rules_resolve(attacker_id=1, defender_id=2, action="grapple")
+rules_resolve(attacker_id=1, defender_id=2, action="shove")
+```
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| attacker_id | int | yes | | Attacker character ID |
+| defender_id | int | yes | | Defender character ID (0 for area self-centered) |
+| action | str | yes | | Action name from system pack |
+| options | str | no | "{}" | JSON object for extra options (see below) |
+| system_path | str | no | "" | Path to system pack directory |
+
+**Area effects:** Pass an `area` object inside `options`:
+```
+rules_resolve(attacker_id=1, defender_id=0, action="fireball", options='{"area": {"center": "self", "radius": 1, "exclude_self": true}}')
+rules_resolve(attacker_id=1, defender_id=3, action="fireball", options='{"area": {"center": "target", "radius": 1}}')
+```
+
+| Area field | Type | Default | Description |
+|------------|------|---------|-------------|
+| center | str | "target" | Center zone: "self", "target", or a zone name |
+| radius | int | 0 | Zone hops from center to include |
+| exclude_self | bool | true | Exclude attacker from targets |
+
+**Output (single target, threshold):**
+```
+ACTION: Aldric → Goblin
+ATTACK: d20(17) + 8 = 25 vs armor_class 14
+HIT!
+DAMAGE: 1d8(6) + 4 = 10
+current_hp: 20 → 10
+```
+
+**Output (contested action):**
+```
+ACTION: Aldric → Goblin
+ATTACKER: d20(14) + 6 (skill_athletics) = 20
+DEFENDER: d20(8) + 2 (skill_athletics) = 10
+HIT! (wins by 10)
+MODIFIER: grappled → bonus_speed -100 (encounter)
+```
+
+**Output (area effect):**
+```
+ACTION: Wizard → Goblin A
+ATTACK: d20(18) + 7 = 25 vs reflex_save 12
+HIT!
+DAMAGE: 6d6(21) + 0 = 21
+current_hp: 20 → -1
+---
+ACTION: Wizard → Goblin B
+ATTACK: d20(9) + 7 = 16 vs reflex_save 14
+HIT!
+DAMAGE: 6d6(15) + 0 = 15
+current_hp: 25 → 10
+```
+
+## rules_modifiers
+
+Show modifier decomposition for a character's stats. Displays all active
+modifiers with their types, sources, and which ones survived stacking.
+
+```
+rules_modifiers(character_id=1)
+rules_modifiers(character_id=1, stat="armor_class")
+```
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| character_id | int | yes | | Character ID |
+| stat | str | no | "" | Filter to a single stat, or empty for all |
+| system_path | str | no | "" | Path to system pack directory |
+
+**Output:**
+```
+MODIFIERS: Aldric — armor_class
+  build: bonus_armor_class +5 [item]
+  zone:Corridor:cover: bonus_armor_class +2 [circumstance]
+  shield_spell: bonus_armor_class +1 [item] (suppressed)
+```
+
+---
+
+## Combat Modifiers
+
+## combat_modifier
+
+Manage transient combat modifiers on a character — pre-combat buffs,
+environmental effects, spell effects, GM fiat.
+
+```
+combat_modifier(character_id=1, action="add", source="bless", target_stat="bonus_melee_attack", value=1, modifier_type="buff", bonus_type="status", duration_type="rounds", duration=10)
+combat_modifier(character_id=1, action="list")
+combat_modifier(character_id=1, action="remove", source="bless")
+combat_modifier(character_id=1, action="clear")
+```
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| character_id | int | yes | | Character ID |
+| action | str | yes | | `add`, `list`, `remove`, or `clear` |
+| source | str | no | "" | Modifier source name (required for add/remove) |
+| target_stat | str | no | "" | Stat to modify (required for add) |
+| value | int | no | 0 | Modifier value (required for add) |
+| modifier_type | str | no | "buff" | Type: buff, debuff, condition, environment |
+| bonus_type | str | no | "" | Stacking group (e.g. status, circumstance, item) |
+| duration_type | str | no | "encounter" | encounter, rounds, save_ends, concentration, permanent |
+| duration | int | no | 0 | Duration in rounds (for rounds type) |
+| save_stat | str | no | "" | Save stat for save_ends durations |
+| save_dc | int | no | 0 | Save DC for save_ends durations |
+
+**Output (add):**
+```
+MODIFIER ADDED: bless → bonus_melee_attack +1 [status] (rounds, 10 rounds)
+```
+
+**Output (list):**
+```
+MODIFIERS: character 1
+  bless: bonus_melee_attack +1 [status] (rounds (10 rounds))
+  zone:Corridor:cover: bonus_armor_class +2 (encounter)
+```
+
+**Output (remove):**
+```
+REMOVED: 1 modifier(s) from source 'bless'
+```
+
+**Output (clear):**
+```
+CLEARED: 3 transient modifier(s) from character 1
+```
+
+After adding or removing modifiers, run `rules_calc` to recompute derived
+stats.
+
+---
+
+## End of Turn
+
+## end_turn
+
+Tick durations on a character's combat modifiers at end of turn.
+
+Processes each modifier according to the system pack's `end_turn` config:
+- **rounds**: decrement duration, remove when expired (reaches 0)
+- **save_ends**: roll a save (save_stat vs save_dc), remove on success
+
+Automatically recomputes derived stats when modifiers expire.
+
+```
+end_turn(character_id=1)
+```
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| character_id | int | yes | | Character ID |
+| system_path | str | no | "" | Path to system pack directory |
+
+**Output:**
+```
+END TURN: Goblin
+  TICKED: bless (9 rounds remaining)
+  SAVE: grappled — fortitude d20(16) + 2 = 18 vs DC 15 → SUCCESS
+    REMOVED: grappled (bonus_speed -100)
+  RECOMPUTED: speed: 0 → 25
+```
+
+---
+
+## Encounters
+
+Zone-based combat positioning. Manages turn order, zone graph with
+weighted adjacency, terrain modifiers, and movement validation.
+
+## encounter_start
+
+Start a combat encounter with zone-based positioning.
+
+```
+encounter_start(session_id=1, zones='[{"name":"Corridor","tags":["cover"]},{"name":"Chamber"},{"name":"Balcony","tags":["elevated"]}]', initiative='[{"character_id":1,"roll":22},{"character_id":2,"roll":15}]', adjacency='[{"from":"Corridor","to":"Chamber","weight":1},{"from":"Chamber","to":"Balcony","weight":1}]', placements='[{"character_id":1,"zone":"Corridor"},{"character_id":2,"zone":"Chamber"}]')
+```
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| session_id | int | yes | | Session ID |
+| zones | str | yes | | JSON array of `{name, tags?}` objects |
+| initiative | str | yes | | JSON array of `{character_id, roll}` objects |
+| adjacency | str | no | "" | JSON array of `{from, to, weight?}` edges. Defaults to linear chain. |
+| placements | str | no | "" | JSON array of `{character_id, zone}` objects |
+
+Zone tags are defined in the system pack's `combat.zone_tags` section.
+Common tags: `difficult_terrain`, `cover`, `greater_cover`, `elevated`.
+Tags can apply stat modifiers and movement cost multipliers automatically.
+
+**Output:**
+```
+ENCOUNTER STARTED (session 1)
+Round: 1
+Initiative: Aldric (22), Goblin (15)
+Zones: Corridor [cover] ↔ Chamber ↔ Balcony [elevated]
+Positions: Aldric → Corridor, Goblin → Chamber
+  Terrain on Aldric: cover: bonus_armor_class +2
+```
+
+## encounter_status
+
+Return the current encounter state: round, turn, positions, distances.
+
+```
+encounter_status(session_id=1)
+```
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| session_id | int | yes | Session ID |
+
+**Output:**
+```
+ENCOUNTER STATUS (session 1)
+Round: 1, Turn: Aldric
+Initiative: Aldric, Goblin
+Positions:
+  Aldric → Corridor [cover]
+  Goblin → Chamber
+Distances:
+  Aldric ↔ Goblin: 1 zone(s)
+```
+
+## encounter_move
+
+Move a character to a different zone during an encounter.
+
+Validates movement cost against the character's movement budget (derived
+stat `movement_zones` if set, otherwise unrestricted). Applies/removes
+terrain modifiers automatically.
+
+```
+encounter_move(character_id=1, target_zone="Chamber")
+```
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| character_id | int | yes | Character ID |
+| target_zone | str | yes | Target zone name |
+
+**Output:**
+```
+MOVED: Aldric → Chamber (from Corridor, cost: 1 zone(s))
+  Terrain: difficult_terrain: bonus_speed -5
+```
+
+## encounter_advance_turn
+
+Advance to the next character in initiative order. Increments the round
+counter when wrapping past the last character.
+
+```
+encounter_advance_turn(session_id=1)
+```
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| session_id | int | yes | Session ID |
+
+**Output:**
+```
+TURN: Round 1, Goblin (character 2)
+Position: Chamber
+Others in zone: none
+Nearest other: Aldric, 1 zone(s) in Corridor
+```
+
+## encounter_zone_update
+
+Modify zone tags mid-combat (fire spreads, wall collapses, Darkness cast).
+Updates terrain modifiers for all characters currently in the zone.
+
+```
+encounter_zone_update(session_id=1, zone_name="Corridor", tags='["difficult_terrain","cover"]')
+```
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| session_id | int | yes | Session ID |
+| zone_name | str | yes | Zone name |
+| tags | str | yes | JSON array of new tags (replaces existing) |
+
+**Output:**
+```
+ZONE UPDATED: Corridor
+  Tags: ['cover'] → ['difficult_terrain', 'cover']
+  Aldric: difficult_terrain: bonus_speed -5, cover: bonus_armor_class +2
+```
+
+## encounter_end
+
+End the active encounter. Removes all zones, character positions, terrain
+modifiers, and encounter-duration combat modifiers.
+
+```
+encounter_end(session_id=1)
+```
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| session_id | int | yes | Session ID |
+
+**Output:**
+```
+ENCOUNTER ENDED (session 1, 5 rounds). Cleared: 3 terrain modifier(s), 2 combat modifier(s).
+```
+
+---
+
+## Templates
+
+## ability_from_template
+
+Create a power/ability from a common archetype template (e.g. Blast, Force
+Field, Strike). Available templates depend on the system pack.
+
+Use this instead of manually building a power with `character_sheet_update`
+when the player wants a standard power archetype. The template provides
+sensible defaults; overrides let you customize.
+
+```
+ability_from_template(character_id=1, template_key="Blast")
+ability_from_template(character_id=1, template_key="Blast", overrides='{"ranks": 10, "extras": ["Accurate"]}')
+```
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| character_id | int | yes | | Character ID |
+| template_key | str | yes | | Template name (call with invalid key to list all) |
+| overrides | str | no | "{}" | JSON object of fields to override |
+
+**Output:**
+```
+ABILITY_CREATED: Blast (id=5) from template Blast
 ```

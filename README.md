@@ -4,7 +4,7 @@ Tabletop RPG toolkit for AI agents. Tracks everything needed to run full
 campaigns -- characters, sessions, story arcs, regions, and more.
 
 All mechanical crunch is handled deterministically by the engine so the AI
-never has to guess numbers. The GM agent reads `GAMEMASTER_GUIDE.md` and
+never has to guess numbers. The GM agent reads `GM_GUIDE.md` and
 runs the adventure; NPCs are spawned as independent agents with their own
 context and tool set.
 
@@ -35,7 +35,7 @@ The MCP server is configured in `.mcp.json`. On first use, the agent calls
 npx tsx tui/src/index.tsx opus
 ```
 
-The TUI launches the GM agent, which reads `GAMEMASTER_GUIDE.md` and takes
+The TUI launches the GM agent, which reads `GM_GUIDE.md` and takes
 it from there. All game tools are provided through the MCP server.
 
 ## Game Systems
@@ -59,10 +59,10 @@ within that system's directory.
 
 | Path | Purpose |
 |------|---------|
-| `GAMEMASTER_GUIDE.md` | Instructions for the AI agent acting as GM |
+| `GM_GUIDE.md` | Instructions for the AI agent acting as GM |
 | `SHARED_GUIDE.md` | Rules shared by all participants (GM and NPCs) |
 | `NPC_GUIDE.md` | Instructions for NPC agents |
-| `TOOLS.md` | Reference for every MCP tool |
+| `GM_TOOLS.md` | Tool reference for the GM agent |
 | `NPC_TOOLS.md` | Restricted tool set available to NPCs |
 | `mcp_server.py` | MCP server -- primary interface to all game tools |
 | `.mcp.json` | MCP server configuration (stdio, for the GM agent) |

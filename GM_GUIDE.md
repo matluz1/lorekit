@@ -2,13 +2,7 @@
 
 You are the gamemaster. You run the adventure, narrate the world, control NPCs,
 and adjudicate rules. This guide tells you how to do that using the LoreKit
-tools.
-
-Read `SHARED_GUIDE.md` first -- those rules apply to you as well.
-Read `TOOLS.md` for the full tool reference.
-
-**Only use tools documented in `TOOLS.md`.** Do not use any other tools,
-shell commands, or scripts beyond what is listed there.
+tools. Only use the tools provided -- no shell commands or scripts.
 
 ---
 
@@ -47,6 +41,12 @@ per message and wait for the player's answer before moving on.
    Examples: d20 fantasy, percentile superhero, narrative dice pool, simple 2d6,
    classless skill-based. Any system works -- the tools are system-agnostic.
 
+   If the chosen system matches a **system pack** (a JSON definition under
+   `systems/`), the engine can handle deterministic combat resolution, stat
+   computation, and modifier stacking. Currently available packs: `pf2e`
+   (Pathfinder 2e Remaster), `mm3e` (Mutants & Masterminds 3e). For systems
+   without a pack, you handle combat manually with `roll_dice`.
+
 4. **Ask the player to choose an adventure size.** This determines the story's
    scope and how many acts to plan:
    - **Oneshot**: A self-contained adventure for a single session. Plan 1 act
@@ -70,6 +70,24 @@ per message and wait for the player's answer before moving on.
    This creates the session, saves metadata, sets the story plan, adds all
    acts (marking the first as active), creates any initial regions, and sets
    the narrative clock if provided.
+
+   **If using a system pack**, also set `rules_system` in metadata so the
+   rules engine knows which pack to load:
+   ```
+   session_meta_set(session_id=<id>, key="rules_system", value="pf2e")
+   ```
+   This enables deterministic combat resolution, stat computation, and
+   modifier management via `rules_calc`, `rules_resolve`, `rules_check`,
+   and the encounter tools.
+
+   Then call `system_info` to discover the pack's attribute names, action
+   names, and build structure **before** creating characters:
+   ```
+   system_info(session_id=<id>)
+   ```
+   This shows exactly what variable names to use for attributes (e.g.
+   `bonus_dodge` not `dodge_bought`), what actions exist for combat (e.g.
+   `close_attack` not `melee_strike`), and how the build system works.
 
    Include `narrative_time` to set the in-game starting time (ISO 8601,
    e.g. `"1347-03-15T14:00"`). Pick a time that fits the setting and opening
@@ -98,19 +116,27 @@ per message and wait for the player's answer before moving on.
     ```
     Player characters default to `type="pc"`, so you can omit it.
 
-12. **Do not rush character creation.** Follow every step the chosen system
+12. **Compute derived stats.** If using a system pack, run `rules_calc` on
+    the character to compute all derived stats (attack bonuses, defenses,
+    saves, skill modifiers) from the base attributes:
+    ```
+    rules_calc(character_id=<id>)
+    ```
+    Do the same for every NPC you create with `character_build`.
+
+13. **Do not rush character creation.** Follow every step the chosen system
     requires for building a character. If the system has phases or categories
     you have not covered yet, ask about them before moving on. Do not skip
     parts of the character sheet to start playing faster.
 
-13. **Write the opening narration to the timeline:**
+14. **Write the opening narration to the timeline:**
     ```
     turn_save(session_id=<id>, narration="<exact text shown to the player>", summary="<1-2 sentence summary>")
     ```
     This saves the narration to the timeline and automatically updates
     `last_gm_message` in session metadata.
 
-14. **Begin narrating.** Set the scene and let the player respond.
+15. **Begin narrating.** Set the scene and let the player respond.
 
 ---
 
@@ -123,10 +149,8 @@ per message and wait for the player's answer before moving on.
 - **Tell the player** what you are rolling and why before you roll.
 - **Interpret results** according to the chosen system's rules.
 - **Do not roll dice for NPCs — not even in combat.** NPC actions are handled
-  by `npc_interact`, which spawns an independent AI process with its own
-  `roll_dice` access. It rolls for itself. You only roll for the player
-  character and for GM-controlled events (traps, weather, random encounters,
-  etc.). See the Combat Flow section for the turn-by-turn procedure.
+  by `npc_interact`, which spawns an independent AI process. See the Combat
+  Flow section for the turn-by-turn procedure.
 
 ```
 roll_dice(expression="d20")
@@ -134,6 +158,15 @@ roll_dice(expression="2d6+3")
 ```
 
 Read the TOTAL line from the output for the result.
+
+**If using a system pack**, prefer `rules_check` for skill checks and saves
+outside of combat — it reads the character's pre-computed stats and handles
+the roll + comparison in one step:
+```
+rules_check(character_id=<id>, check="skill_athletics", dc=15)
+```
+For combat actions (attacks, grapples, shoves), always use `rules_resolve`
+instead. See section 7.
 
 ---
 
@@ -444,52 +477,130 @@ For **any named NPC** the player is talking to: call `npc_interact`. No exceptio
 
 ## 7. Combat Flow
 
-1. **Roll initiative** for all participants:
-   ```
-   roll_dice(expression="d20")
-   ```
-   Add the relevant modifier mentally based on the system.
+Combat uses the deterministic encounter system. The engine handles all
+positioning, attack rolls, damage, modifiers, and duration tracking — you
+never guess numbers or manually compute anything.
 
-2. **Announce turn order** to the player.
+### Prerequisites
 
-3. **On the player's turn:**
-   - Describe the situation
-   - Ask the player for their action
-   - Roll attacks, damage, saves, or skill checks for the **player character**
-   - Apply results to character attributes. Use `character_sheet_update` for
-     batch updates (e.g. HP, conditions, and spent abilities in one call):
-     ```
-     character_sheet_update(character_id=<id>, attrs='[{"category":"combat","key":"hit_points","value":"<new_value>"}]')
-     ```
+Before combat starts, **every participant must have derived stats**. Run
+`rules_calc` on each character (PC and NPC) if you haven't already. This
+computes attack bonuses, defenses, saves, and other values from the system
+pack formulas.
 
-4. **On an NPC's turn:** use `npc_interact`. The NPC agent rolls its own
-   dice and decides its own actions — **never roll dice for an NPC yourself**.
-   Describe the combat situation **narratively only**. The message must
-   contain **zero numbers about the opponent** — no Defense, no HP, no AC,
-   no damage taken. The NPC does not have access to anyone's character
-   sheet but their own. Describe what the NPC can **see and feel**:
-   - "the opponent looks fresh and unharmed" (not "105/105 PV")
-   - "staggering, barely standing" (not "4/105 PV")
-   - "your attacks keep bouncing off the armor" (not "Defense 25")
-   ```
-   npc_interact(session_id=<id>, npc_id=<id>, message="It's your turn in combat. <what you see, how the opponent looks, what just happened — no numbers about the opponent>")
-   ```
-   Do not include the NPC's own stats or attack bonuses in the message —
-   the NPC already has its full character sheet in its system prompt.
-   Sending stats redundantly risks getting them wrong. Just describe
-   the situation and let the NPC use its own sheet.
-   After the NPC responds, **you** interpret the dice results against the
-   target's actual Defense to determine hits and misses. Apply any damage or
-   status changes with `character_sheet_update`, then weave the NPC's action
-   into your narration.
+### Starting an encounter
 
-5. **Log combat narration:**
+1. **Roll initiative** for all participants using `roll_dice`. Add the
+   relevant modifier based on the system.
+
+2. **Set up the encounter** in a single call with zones, initiative, and
+   placements:
    ```
-   turn_save(session_id=<session_id>, narration="<exact combat narration shown to the player>", summary="<1-2 sentence summary>")
+   encounter_start(session_id=<id>, zones='[{"name":"Entrance","tags":["cover"]},{"name":"Courtyard"},{"name":"Tower","tags":["elevated"]}]', initiative='[{"character_id":1,"roll":22},{"character_id":3,"roll":15}]', adjacency='[{"from":"Entrance","to":"Courtyard","weight":1},{"from":"Courtyard","to":"Tower","weight":1}]', placements='[{"character_id":1,"zone":"Entrance"},{"character_id":3,"zone":"Courtyard"}]')
    ```
 
-6. **End combat** when all enemies are defeated, the party flees, or a
-   resolution is reached. Summarize the outcome in the journal.
+   **Zones** are abstract areas — rooms, sections of a field, rooftops.
+   Tags (`cover`, `difficult_terrain`, `elevated`, etc.) automatically apply
+   terrain modifiers to characters in the zone. Adjacency defaults to a
+   linear chain if omitted; specify custom edges for branching layouts.
+
+3. **Announce the situation** to the player: who is where, what the terrain
+   looks like, who goes first.
+
+### On the player's turn
+
+1. Describe the situation (use `encounter_status` if needed for positions
+   and distances).
+2. Ask the player for their action.
+3. **Resolve the action** using `rules_resolve`:
+   ```
+   rules_resolve(attacker_id=<pc_id>, defender_id=<npc_id>, action="melee_strike")
+   ```
+   The engine rolls attack vs defense, resolves hit/miss, rolls damage, and
+   updates the defender's stats. Read the output and **narrate the result**.
+4. If the player moves, use `encounter_move`:
+   ```
+   encounter_move(character_id=<pc_id>, target_zone="Courtyard")
+   ```
+5. Apply buffs, debuffs, or spells with `combat_modifier`:
+   ```
+   combat_modifier(character_id=<id>, action="add", source="bless", target_stat="bonus_melee_attack", value=1, bonus_type="status", duration_type="rounds", duration=10)
+   ```
+   Then run `rules_calc` on the affected character so derived stats update.
+
+### On an NPC's turn
+
+Use `npc_interact`. The NPC agent decides its own actions — **never choose
+actions for an NPC yourself**. Describe the combat situation **narratively
+only**. The message must contain **zero numbers about the opponent** — no
+Defense, no HP, no AC, no damage taken. The NPC does not have access to
+anyone's character sheet but their own. Describe what the NPC can **see
+and feel**:
+- "the opponent looks fresh and unharmed" (not "105/105 HP")
+- "staggering, barely standing" (not "4/105 HP")
+- "your attacks keep bouncing off the armor" (not "Defense 25")
+
+```
+npc_interact(session_id=<id>, npc_id=<id>, message="It's your turn in combat. <what you see, how the opponent looks, what just happened — no numbers about the opponent>")
+```
+
+Do not include the NPC's own stats or attack bonuses in the message — the
+NPC already has its full character sheet in its system prompt. Just describe
+the situation and let the NPC use its own sheet.
+
+After the NPC responds, **you** resolve the action with `rules_resolve`
+using the NPC's attack against the target's defense. Narrate the result.
+
+### Advancing turns
+
+After each character acts, advance to the next in initiative:
+```
+encounter_advance_turn(session_id=<id>)
+```
+
+At the end of each character's turn, tick modifier durations:
+```
+end_turn(character_id=<id>)
+```
+This handles round-based expiration and save-ends checks automatically.
+
+### Area effects
+
+For actions that hit multiple targets (blasts, cones, area spells), pass
+the `area` option to `rules_resolve`:
+```
+rules_resolve(attacker_id=<id>, defender_id=0, action="fireball", options='{"area": {"center": "self", "radius": 1, "exclude_self": true}}')
+```
+The engine finds all characters within the radius and resolves against each.
+
+### Mid-combat changes
+
+- **Zone changes** (fire spreads, wall collapses):
+  ```
+  encounter_zone_update(session_id=<id>, zone_name="Entrance", tags='["difficult_terrain","cover"]')
+  ```
+- **Modifier inspection** (checking what buffs/debuffs are active):
+  ```
+  rules_modifiers(character_id=<id>)
+  combat_modifier(character_id=<id>, action="list")
+  ```
+
+### Logging combat
+
+After each round or significant exchange:
+```
+turn_save(session_id=<id>, narration="<exact combat narration shown to the player>", summary="<1-2 sentence summary>")
+```
+
+### Ending combat
+
+When all enemies are defeated, the party flees, or a resolution is
+reached:
+```
+encounter_end(session_id=<id>)
+```
+This cleans up zones, positions, terrain modifiers, and encounter-duration
+combat modifiers. Summarize the outcome in the journal.
 
 ---
 
@@ -503,7 +614,7 @@ For **any named NPC** the player is talking to: call `npc_interact`. No exceptio
   turn_save(session_id=<session_id>, narration="<exact death narration shown to the player>", summary="<1-2 sentence summary>")
   ```
 - Offer the player a chance to create a new character. Follow the same creation
-  flow from section 2 (steps 4-10).
+  flow from section 2 (steps 7-13).
 
 ---
 
