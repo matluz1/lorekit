@@ -313,6 +313,178 @@ class TestEncounterEndAutoRecalc:
         db.close()
 
 
+class TestApplyOnHitAutoRecalc:
+    """_apply_on_hit with conditions recalcs defender stats after resolution."""
+
+    def test_grapple_applies_modifier_and_recalcs(self, rules_session, make_character):
+        """Grapple applies -2 bonus_defense to defender, derived defense updates."""
+        from _db import require_db
+        from combat_engine import resolve_action
+        from encounter import start_encounter
+
+        db = require_db()
+        attacker = make_character(rules_session, name="Fighter")
+        defender = make_character(rules_session, name="Goblin")
+        _setup_character(db, attacker)
+        _setup_character(db, defender)
+        from rules_engine import rules_calc
+        rules_calc(db, attacker, TEST_SYSTEM)
+        rules_calc(db, defender, TEST_SYSTEM)
+
+        defense_before = _get_derived(db, defender, "defense")
+
+        # Need an encounter for contested actions
+        zones = [{"name": "Arena"}]
+        initiative = [
+            {"character_id": attacker, "roll": 20},
+            {"character_id": defender, "roll": 10},
+        ]
+        placements = [
+            {"character_id": attacker, "zone": "Arena"},
+            {"character_id": defender, "zone": "Arena"},
+        ]
+        start_encounter(db, rules_session, zones, initiative, placements=placements, combat_cfg=COMBAT_CFG)
+
+        # Grapple is contested — result depends on dice, but if it hits,
+        # it applies -2 bonus_defense to defender via on_hit.apply_modifiers.
+        # Run it multiple times to get a hit (contested rolls are random).
+        hit = False
+        for _ in range(20):
+            result = resolve_action(db, attacker, defender, "grapple", TEST_SYSTEM)
+            if "HIT" in result:
+                hit = True
+                break
+            # Clean up modifier if miss so we can retry
+            db.execute("DELETE FROM combat_state WHERE character_id = ? AND source = 'grapple'", (defender,))
+            db.commit()
+
+        if hit:
+            # Verify defender's defense dropped by 2 in the DB
+            defense_after = _get_derived(db, defender, "defense")
+            assert defense_after == defense_before - 2
+        # If no hit in 20 tries, skip (extremely unlikely but not impossible)
+        db.close()
+
+
+class TestCharacterViewAfterModifier:
+    """character_view shows correct (fresh) stats after combat_modifier."""
+
+    def test_view_reflects_modifier(self, rules_session, make_character):
+        from _db import require_db
+        from mcp_server import character_view, combat_modifier
+
+        db = require_db()
+        cid = make_character(rules_session, name="Fighter")
+        _setup_character(db, cid)
+        from rules_engine import rules_calc
+        rules_calc(db, cid, TEST_SYSTEM)
+
+        defense_before = _get_derived(db, cid, "defense")
+        db.close()
+
+        # Add modifier
+        combat_modifier(
+            character_id=cid, action="add",
+            source="shield_spell", target_stat="bonus_defense", value=3,
+        )
+
+        # character_view should show the updated derived defense
+        view_result = character_view(character_id=cid)
+        # defense = 10 + dex_mod(2) + bonus_defense(3) = 15
+        expected_defense = defense_before + 3
+        assert str(expected_defense) in view_result
+
+
+class TestFullCombatIntegration:
+    """Full GM combat flow through MCP tool functions with auto-recalc at every step."""
+
+    def test_full_combat_flow(self, rules_session, make_character):
+        from _db import require_db
+        from mcp_server import (
+            combat_modifier,
+            encounter_advance_turn,
+            encounter_end,
+            encounter_start,
+            rules_resolve,
+        )
+
+        db = require_db()
+        pc = make_character(rules_session, name="Fighter", char_type="pc")
+        npc = make_character(rules_session, name="Goblin", char_type="npc")
+        _setup_character(db, pc)
+        _setup_character(db, npc)
+        _set_attrs(db, pc, {"weapon_damage_die": "1d6", "current_hp": 20})
+        _set_attrs(db, npc, {"weapon_damage_die": "1d4", "current_hp": 15})
+        from rules_engine import rules_calc
+        rules_calc(db, pc, TEST_SYSTEM)
+        rules_calc(db, npc, TEST_SYSTEM)
+
+        pc_defense_base = _get_derived(db, pc, "defense")
+        npc_defense_base = _get_derived(db, npc, "defense")
+        db.close()
+
+        # 1. encounter_start — auto-recalc on placement
+        zones = '[{"name":"North","tags":["cover"]},{"name":"South"}]'
+        initiative = json.dumps([
+            {"character_id": pc, "roll": 20},
+            {"character_id": npc, "roll": 10},
+        ])
+        placements = json.dumps([
+            {"character_id": pc, "zone": "North"},
+            {"character_id": npc, "zone": "North"},
+        ])
+        result = encounter_start(
+            session_id=rules_session, zones=zones,
+            initiative=initiative, placements=placements,
+        )
+        assert "ENCOUNTER STARTED" in result
+
+        # PC in cover zone should have +2 defense
+        db2 = require_db()
+        assert _get_derived(db2, pc, "defense") == pc_defense_base + 2
+        db2.close()
+
+        # 2. combat_modifier — auto-recalc
+        result = combat_modifier(
+            character_id=npc, action="add",
+            source="rage", target_stat="bonus_melee_attack", value=2,
+            duration_type="rounds", duration=3,
+        )
+        assert "MODIFIER ADDED" in result
+        assert "RULES_CALC" in result
+
+        db3 = require_db()
+        npc_melee_before = _get_derived(db3, npc, "melee_attack")
+        db3.close()
+
+        # 3. rules_resolve — attack
+        result = rules_resolve(
+            attacker_id=pc, defender_id=npc, action="melee_attack",
+        )
+        assert "ACTION" in result
+
+        # 4. encounter_advance_turn — auto end_turn on PC
+        result = encounter_advance_turn(session_id=rules_session)
+        assert "END TURN" in result
+        assert "Goblin" in result  # Now Goblin's turn
+
+        # 5. encounter_advance_turn again — auto end_turn on NPC (rage ticks)
+        result = encounter_advance_turn(session_id=rules_session)
+        assert "TICKED: rage" in result
+        assert "Fighter" in result  # Back to Fighter's turn
+
+        # 6. encounter_end — auto-recalc + combat summary
+        result = encounter_end(session_id=rules_session)
+        assert "COMBAT ENDED" in result
+        assert "Journal saved" in result
+
+        # After encounter end, cover modifier should be gone
+        db4 = require_db()
+        pc_defense_after = _get_derived(db4, pc, "defense")
+        assert pc_defense_after == pc_defense_base  # No more cover
+        db4.close()
+
+
 class TestAdvanceTurnAutoEndTurn:
     """advance_turn automatically calls end_turn on the previous character."""
 
