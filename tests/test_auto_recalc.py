@@ -567,6 +567,148 @@ class TestCombatHUD:
         db.close()
 
 
+class TestNpcCombatTurn:
+    """NPC combat turn: context builder, intent parser, orchestrator."""
+
+    def test_parse_intent_json_block(self):
+        from npc_combat import parse_combat_intent
+
+        response = '''The orc snarls!
+```json
+{"action": "melee_attack", "target": "Fighter", "move_to": "Center", "narration": "Charges forward!"}
+```'''
+        intent = parse_combat_intent(response)
+        assert intent["action"] == "melee_attack"
+        assert intent["target"] == "Fighter"
+        assert intent["move_to"] == "Center"
+        assert intent["narration"] == "Charges forward!"
+
+    def test_parse_intent_null_fields(self):
+        from npc_combat import parse_combat_intent
+
+        response = '''```json
+{"action": null, "target": null, "move_to": null, "narration": "The priest prays silently."}
+```'''
+        intent = parse_combat_intent(response)
+        assert intent["action"] is None
+        assert intent["target"] is None
+        assert intent["move_to"] is None
+        assert intent["narration"] == "The priest prays silently."
+
+    def test_parse_intent_no_json(self):
+        from npc_combat import parse_combat_intent
+
+        response = "The goblin shrieks and runs away!"
+        intent = parse_combat_intent(response)
+        assert intent["action"] is None
+        assert intent["target"] is None
+        assert intent["move_to"] is None
+        assert intent["narration"] == "The goblin shrieks and runs away!"
+
+    def test_build_combat_context(self, rules_session, make_character):
+        from _db import require_db
+        from encounter import start_encounter
+        from npc_combat import build_combat_context
+
+        db = require_db()
+        pc = make_character(rules_session, name="Fighter", char_type="pc")
+        npc = make_character(rules_session, name="Goblin", char_type="npc")
+        _setup_character(db, pc)
+        _setup_character(db, npc)
+
+        zones = [{"name": "North"}, {"name": "South"}]
+        initiative = [
+            {"character_id": npc, "roll": 20},
+            {"character_id": pc, "roll": 10},
+        ]
+        placements = [
+            {"character_id": pc, "zone": "North"},
+            {"character_id": npc, "zone": "South"},
+        ]
+        start_encounter(db, rules_session, zones, initiative, placements=placements, combat_cfg=COMBAT_CFG)
+
+        ctx = build_combat_context(db, npc, rules_session, COMBAT_CFG)
+        assert "Goblin" in ctx
+        assert "Fighter" in ctx
+        assert "North" in ctx
+        assert "South" in ctx
+        assert "Enemies:" in ctx
+        assert "json" in ctx  # JSON template
+        db.close()
+
+    def test_execute_narrative_only(self, rules_session, make_character):
+        """Narrative-only turn (null intent) still advances initiative."""
+        from _db import require_db
+        from encounter import start_encounter
+        from npc_combat import execute_combat_turn
+
+        db = require_db()
+        pc = make_character(rules_session, name="Fighter", char_type="pc")
+        npc = make_character(rules_session, name="Goblin", char_type="npc")
+        _setup_character(db, pc)
+        _setup_character(db, npc)
+
+        zones = [{"name": "Arena"}]
+        initiative = [
+            {"character_id": npc, "roll": 20},
+            {"character_id": pc, "roll": 10},
+        ]
+        placements = [
+            {"character_id": pc, "zone": "Arena"},
+            {"character_id": npc, "zone": "Arena"},
+        ]
+        start_encounter(db, rules_session, zones, initiative, placements=placements, combat_cfg=COMBAT_CFG)
+
+        intent = {"action": None, "target": None, "move_to": None, "narration": "Hesitates."}
+        lines = execute_combat_turn(db, rules_session, npc, intent, COMBAT_CFG, TEST_SYSTEM)
+        result = "\n".join(lines)
+
+        # Should advance to Fighter's turn
+        assert "Fighter" in result
+        assert "TURN" in result
+        db.close()
+
+    def test_execute_move_and_attack(self, rules_session, make_character):
+        """NPC moves and attacks."""
+        from _db import require_db
+        from encounter import start_encounter
+        from npc_combat import execute_combat_turn
+
+        db = require_db()
+        pc = make_character(rules_session, name="Fighter", char_type="pc")
+        npc = make_character(rules_session, name="Goblin", char_type="npc")
+        _setup_character(db, pc)
+        _setup_character(db, npc)
+        # Give both characters weapon damage die for melee_attack
+        _set_attrs(db, pc, {"weapon_damage_die": "1d6"})
+        _set_attrs(db, npc, {"weapon_damage_die": "1d4"})
+        from rules_engine import rules_calc
+        rules_calc(db, pc, TEST_SYSTEM)
+        rules_calc(db, npc, TEST_SYSTEM)
+
+        zones = [{"name": "North"}, {"name": "South"}]
+        initiative = [
+            {"character_id": npc, "roll": 20},
+            {"character_id": pc, "roll": 10},
+        ]
+        placements = [
+            {"character_id": pc, "zone": "North"},
+            {"character_id": npc, "zone": "South"},
+        ]
+        start_encounter(db, rules_session, zones, initiative, placements=placements, combat_cfg=COMBAT_CFG)
+
+        intent = {"action": "melee_attack", "target": "Fighter", "move_to": "North", "narration": None}
+        lines = execute_combat_turn(db, rules_session, npc, intent, COMBAT_CFG, TEST_SYSTEM)
+        result = "\n".join(lines)
+
+        assert "MOVED" in result  # movement happened
+        # Attack should resolve (hit or miss)
+        assert "ATTACK" in result or "ACTION FAILED" in result
+        # Should advance to Fighter's turn
+        assert "Fighter" in result
+        db.close()
+
+
 class TestEncounterTemplates:
     """encounter_start with template loads zones/adjacency from system pack."""
 

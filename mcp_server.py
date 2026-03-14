@@ -1330,6 +1330,124 @@ def npc_interact(session_id: int, npc_id: int | str, message: str) -> str:
 
 
 
+@mcp.tool()
+def npc_combat_turn(session_id: int, npc_id: int | str) -> str:
+    """Execute a full NPC combat turn: decision + movement + action + advance.
+
+    Asks the NPC agent what to do (with combat context: positions, relative
+    health, available actions), then executes the intent mechanically:
+    move (if chosen) → resolve action (if chosen) → advance turn.
+
+    The NPC returns structured intent (action, target, movement, narration).
+    Narrative-only turns (null intent) still tick modifiers and advance
+    initiative.
+
+    npc_id: numeric ID or NPC name (case-insensitive).
+    """
+    import subprocess
+
+    from _db import LoreKitError, require_db
+
+    db = require_db()
+    try:
+        npc_id = _resolve_character(db, npc_id, session_id)
+
+        # Load combat config and system path
+        combat_cfg = _load_combat_cfg(db, session_id)
+        system_path = _resolve_system_path_for_session(db, session_id)
+        if not system_path:
+            return "ERROR: No rules_system set for this session."
+
+        # Build NPC prompt + combat context
+        result = _build_npc_prompt(db, npc_id, session_id)
+        if not result:
+            return f"ERROR: NPC #{npc_id} not found in session #{session_id}"
+        system_prompt, model, npc_name = result
+
+        from npc_combat import build_combat_context
+        combat_context = build_combat_context(db, npc_id, session_id, combat_cfg)
+    except LoreKitError as e:
+        return f"ERROR: {e}"
+    finally:
+        db.close()
+
+    # Call NPC subprocess for combat decision
+    project_root = os.path.dirname(os.path.abspath(__file__))
+    if _is_npc_http_server_running():
+        mcp_config = os.path.join(project_root, ".npc_mcp.json")
+    else:
+        mcp_config = os.path.join(project_root, ".mcp.json")
+
+    cmd = [
+        "claude",
+        "-p",
+        "--verbose",
+        "--output-format", "stream-json",
+        "--no-session-persistence",
+        "--permission-mode", "bypassPermissions",
+        "--tools", "",
+        "--disable-slash-commands",
+        "--mcp-config", mcp_config,
+        "--strict-mcp-config",
+        "--allowed-tools", *_NPC_ALLOWED_TOOLS,
+        "--disallowed-tools", *_get_npc_disallowed_tools(),
+        "--model", model,
+        "--system-prompt", system_prompt,
+        combat_context,
+    ]
+
+    _npc_log(f"[COMBAT] → {npc_name}: combat turn")
+
+    try:
+        proc = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=120,
+            cwd=project_root,
+            stdin=subprocess.DEVNULL,
+        )
+        if proc.returncode != 0:
+            stderr = proc.stderr.strip()
+            return f"ERROR: NPC process failed: {stderr or 'unknown error'}"
+
+        response_text, _ = _parse_npc_stream(proc.stdout, npc_name)
+    except subprocess.TimeoutExpired:
+        return f"ERROR: NPC response timed out"
+    except FileNotFoundError:
+        return "ERROR: 'claude' CLI not found."
+
+    # Parse structured intent from NPC response
+    from npc_combat import execute_combat_turn, parse_combat_intent
+
+    intent = parse_combat_intent(response_text)
+
+    _npc_log(f"[COMBAT] ← {npc_name}: {json.dumps(intent, default=str)}")
+
+    # Build output
+    lines = [f"NPC TURN: {npc_name}"]
+
+    if intent.get("narration"):
+        lines.append(f'DECISION: "{intent["narration"]}"')
+
+    if not intent["action"] and not intent["move_to"]:
+        lines.append("ACTION: None (narrative only)")
+
+    # Execute mechanical part
+    db2 = require_db()
+    try:
+        mech_lines = execute_combat_turn(
+            db2, session_id, npc_id, intent, combat_cfg, system_path,
+        )
+        lines.extend(mech_lines)
+    except LoreKitError as e:
+        lines.append(f"ERROR: {e}")
+    finally:
+        db2.close()
+
+    return "\n".join(lines)
+
+
 # ---------------------------------------------------------------------------
 # System info
 # ---------------------------------------------------------------------------
