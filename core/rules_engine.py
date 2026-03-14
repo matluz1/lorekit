@@ -355,6 +355,46 @@ def rules_check(db, character_id: int, check: str, dc: int, pack_dir: str) -> st
     )
 
 
+def try_rules_calc(db, character_id: int) -> str:
+    """Auto-run rules_calc if the character's session has a rules_system.
+
+    Looks up session_id from the character row, then resolves the system pack
+    path from session_meta.  Returns the rules_calc summary string, or empty
+    string if not applicable (no system, missing pack dir, etc.).
+
+    This is the single entry-point every write-side function should call after
+    modifying combat_state or character_attributes.
+    """
+    import os
+
+    row = db.execute(
+        "SELECT session_id FROM characters WHERE id = ?",
+        (character_id,),
+    ).fetchone()
+    if row is None:
+        return ""
+    session_id = row[0]
+
+    meta_row = db.execute(
+        "SELECT value FROM session_meta WHERE session_id = ? AND key = 'rules_system'",
+        (session_id,),
+    ).fetchone()
+    if meta_row is None:
+        return ""
+
+    system_name = meta_row[0]
+    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    system_path = os.path.join(project_root, "systems", system_name)
+
+    if not os.path.isdir(system_path):
+        return ""
+
+    try:
+        return rules_calc(db, character_id, system_path)
+    except Exception as e:
+        return f"RULES_CALC_WARNING: {e}"
+
+
 def rules_calc(db, character_id: int, pack_dir: str) -> str:
     """Full recalculation pipeline: build → compute → write back → report."""
     pack = load_system_pack(pack_dir)

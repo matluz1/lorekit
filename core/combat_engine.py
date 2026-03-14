@@ -166,6 +166,12 @@ def _apply_on_hit(
             lines.append(f"MODIFIER: {source} → {target_stat} {value:+d} ({dur_type})")
         db.commit()
 
+        # Auto-recalc defender after on_hit modifiers
+        from rules_engine import try_rules_calc
+        recalc = try_rules_calc(db, defender.character_id)
+        if recalc:
+            lines.append(recalc)
+
     # --- Forced movement ---
     push = on_hit.get("push")
     if push:

@@ -320,6 +320,14 @@ def start_encounter(
 
     db.commit()
 
+    # Auto-recalc derived stats for placed characters with terrain modifiers
+    if placements:
+        from rules_engine import try_rules_calc
+        for p in placements:
+            recalc = try_rules_calc(db, p["character_id"])
+            if recalc:
+                terrain_lines.append(recalc)
+
     # Format output
     lines = [f"ENCOUNTER STARTED (session {session_id})"]
     lines.append(f"Round: 1")
@@ -505,6 +513,12 @@ def move_character(
     if terrain:
         lines.append(f"  Terrain: {', '.join(terrain)}")
 
+    # Auto-recalc derived stats after terrain modifier change
+    from rules_engine import try_rules_calc
+    recalc = try_rules_calc(db, character_id)
+    if recalc:
+        lines.append(recalc)
+
     return "\n".join(lines)
 
 
@@ -647,7 +661,19 @@ def end_encounter(db, session_id: int) -> str:
         parts.append(f"{encounter_removed} combat modifier(s)")
     cleanup = f" Cleared: {', '.join(parts)}." if parts else ""
 
-    return f"ENCOUNTER ENDED (session {session_id}, {rnd} rounds).{cleanup}"
+    # Auto-recalc derived stats for all participants after modifier cleanup
+    recalc_lines = []
+    if terrain_removed or encounter_removed:
+        from rules_engine import try_rules_calc
+        for cid in char_ids:
+            recalc = try_rules_calc(db, cid)
+            if recalc:
+                recalc_lines.append(recalc)
+
+    result = f"ENCOUNTER ENDED (session {session_id}, {rnd} rounds).{cleanup}"
+    if recalc_lines:
+        result += "\n" + "\n".join(recalc_lines)
+    return result
 
 
 def update_zone_tags(
@@ -686,6 +712,13 @@ def update_zone_tags(
     lines = [f"ZONE UPDATED: {zone_name}"]
     lines.append(f"  Tags: {old_tags} → {tags}")
     lines.extend(modifier_changes)
+
+    # Auto-recalc derived stats for all characters in the zone
+    from rules_engine import try_rules_calc
+    for (cid,) in chars_in_zone:
+        recalc = try_rules_calc(db, cid)
+        if recalc:
+            lines.append(recalc)
 
     return "\n".join(lines)
 

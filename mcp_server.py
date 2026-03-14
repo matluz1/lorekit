@@ -9,6 +9,7 @@ import sys
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "core"))
 
 from mcp.server.fastmcp import FastMCP
+from rules_engine import try_rules_calc
 
 NPC_MCP_PORT = 3847
 mcp = FastMCP("lorekit", host="127.0.0.1", port=NPC_MCP_PORT)
@@ -540,35 +541,6 @@ def turn_save(
         db.close()
 
 
-def _try_rules_calc(db, character_id: int, session_id: int) -> str:
-    """Try to auto-run rules_calc if the session has a rules_system configured.
-
-    Returns the rules_calc summary string, or empty string if not applicable.
-    """
-    import os
-
-    meta_row = db.execute(
-        "SELECT value FROM session_meta WHERE session_id = ? AND key = 'rules_system'",
-        (session_id,),
-    ).fetchone()
-    if meta_row is None:
-        return ""
-
-    system_name = meta_row[0]
-    project_root = os.path.dirname(os.path.abspath(__file__))
-    system_path = os.path.join(project_root, "systems", system_name)
-
-    if not os.path.isdir(system_path):
-        return ""
-
-    try:
-        from rules_engine import rules_calc as _rules_calc
-
-        return _rules_calc(db, character_id, system_path)
-    except Exception as e:
-        return f"RULES_CALC_WARNING: {e}"
-
-
 @mcp.tool()
 def character_build(
     session: int,
@@ -621,7 +593,7 @@ def character_build(
         summary = f"CHARACTER_BUILT: {char_id} (attrs={attr_count}, items={item_count}, abilities={ability_count})"
 
         # Auto-run rules_calc if session has a rules_system configured
-        rules_summary = _try_rules_calc(db, char_id, session)
+        rules_summary = try_rules_calc(db, char_id)
         if rules_summary:
             summary += "\n" + rules_summary
 
@@ -712,7 +684,7 @@ def ability_from_template(
                     ability_category, "at_will")
 
         # Auto-run rules_calc
-        rules_summary = _try_rules_calc(db, character_id, row[0])
+        rules_summary = try_rules_calc(db, character_id)
         result = f"ABILITY_FROM_TEMPLATE: {ability_name} (template={template_key})"
         if rules_summary:
             result += "\n" + rules_summary
@@ -981,14 +953,9 @@ def character_sheet_update(
 
         # Auto-run rules_calc if attributes changed and session has rules_system
         if attrs_list:
-            row = db.execute(
-                "SELECT session_id FROM characters WHERE id = ?",
-                (character_id,),
-            ).fetchone()
-            if row:
-                rules_summary = _try_rules_calc(db, character_id, row[0])
-                if rules_summary:
-                    results.append(rules_summary)
+            rules_summary = try_rules_calc(db, character_id)
+            if rules_summary:
+                results.append(rules_summary)
 
         return "\n".join(results)
     except LoreKitError as e:
@@ -1616,10 +1583,14 @@ def combat_modifier(
             )
             db.commit()
             type_tag = f" [{bonus_type}]" if bonus_type else ""
-            return (
+            result = (
                 f"MODIFIER ADDED: {source} → {target_stat} {value:+d}{type_tag} "
                 f"({duration_type}{f', {duration} rounds' if duration else ''})"
             )
+            recalc = try_rules_calc(db, character_id)
+            if recalc:
+                result += "\n" + recalc
+            return result
 
         elif action == "list":
             rows = db.execute(
@@ -1645,7 +1616,12 @@ def combat_modifier(
                 (character_id, source),
             ).rowcount
             db.commit()
-            return f"REMOVED: {deleted} modifier(s) from source '{source}'"
+            result = f"REMOVED: {deleted} modifier(s) from source '{source}'"
+            if deleted:
+                recalc = try_rules_calc(db, character_id)
+                if recalc:
+                    result += "\n" + recalc
+            return result
 
         elif action == "clear":
             deleted = db.execute(
@@ -1654,7 +1630,12 @@ def combat_modifier(
                 (character_id,),
             ).rowcount
             db.commit()
-            return f"CLEARED: {deleted} transient modifier(s) from character {character_id}"
+            result = f"CLEARED: {deleted} transient modifier(s) from character {character_id}"
+            if deleted:
+                recalc = try_rules_calc(db, character_id)
+                if recalc:
+                    result += "\n" + recalc
+            return result
 
         else:
             return f"ERROR: Unknown action '{action}'. Use add, list, remove, or clear."

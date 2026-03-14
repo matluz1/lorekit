@@ -1,0 +1,327 @@
+"""Tests for P1: auto-recalc on write.
+
+Verifies that derived stats in the DB are automatically recalculated
+after every combat_state or terrain modifier write, without the GM
+needing to call rules_calc manually.
+"""
+
+import json
+import os
+import sys
+
+import pytest
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "core"))
+
+FIXTURES = os.path.join(os.path.dirname(__file__), "fixtures")
+TEST_SYSTEM = os.path.join(FIXTURES, "test_system")
+
+COMBAT_CFG = {
+    "zone_scale": 30,
+    "movement_unit": "ft",
+    "melee_range": 0,
+    "zone_tags": {
+        "difficult_terrain": {"movement_multiplier": 2},
+        "cover": {
+            "target_stat": "bonus_defense",
+            "value": 2,
+            "modifier_type": "environment",
+        },
+        "elevated": {
+            "target_stat": "bonus_ranged_attack",
+            "value": 1,
+            "modifier_type": "environment",
+        },
+    },
+}
+
+
+@pytest.fixture
+def rules_session(make_session, tmp_path):
+    """Create a session with rules_system pointing at the test_system fixture.
+
+    Symlinks systems/test_system so try_rules_calc can resolve it.
+    """
+    sid = make_session()
+    from _db import require_db
+
+    db = require_db()
+
+    # Create symlink: <project>/systems/test_system -> tests/fixtures/test_system
+    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    link_path = os.path.join(project_root, "systems", "test_system")
+    if not os.path.exists(link_path):
+        os.symlink(TEST_SYSTEM, link_path)
+
+    db.execute(
+        "INSERT INTO session_meta (session_id, key, value) VALUES (?, 'rules_system', 'test_system')",
+        (sid,),
+    )
+    db.commit()
+    db.close()
+
+    yield sid
+
+    # Cleanup symlink
+    if os.path.islink(link_path):
+        os.unlink(link_path)
+
+
+def _set_attrs(db, cid, attrs):
+    for key, val in attrs.items():
+        db.execute(
+            "INSERT INTO character_attributes (character_id, category, key, value) "
+            "VALUES (?, 'stat', ?, ?) "
+            "ON CONFLICT(character_id, category, key) DO UPDATE SET value = excluded.value",
+            (cid, key, str(val)),
+        )
+    db.commit()
+
+
+def _get_derived(db, cid, stat):
+    row = db.execute(
+        "SELECT value FROM character_attributes WHERE character_id = ? AND category = 'derived' AND key = ?",
+        (cid, stat),
+    ).fetchone()
+    return int(row[0]) if row else None
+
+
+def _setup_character(db, cid):
+    """Set up base stats so derived formulas can compute."""
+    _set_attrs(db, cid, {
+        "str": 18, "dex": 14, "con": 12,
+        "base_attack": 5, "hit_die_avg": 6,
+    })
+    # Run initial rules_calc to populate derived stats
+    from rules_engine import rules_calc
+    rules_calc(db, cid, TEST_SYSTEM)
+
+
+class TestCombatModifierAutoRecalc:
+    """combat_modifier add/remove/clear auto-recalc derived stats."""
+
+    def test_add_recalcs(self, rules_session, make_character):
+        from _db import require_db
+        from mcp_server import combat_modifier
+
+        db = require_db()
+        cid = make_character(rules_session, name="Fighter")
+        _setup_character(db, cid)
+
+        defense_before = _get_derived(db, cid, "defense")
+        assert defense_before is not None
+
+        # Add +2 bonus_defense via combat_modifier
+        result = combat_modifier(
+            character_id=cid, action="add",
+            source="shield_spell", target_stat="bonus_defense", value=2,
+        )
+        assert "MODIFIER ADDED" in result
+        assert "RULES_CALC" in result
+
+        # Derived defense should be +2 in the DB without manual rules_calc
+        db2 = require_db()
+        defense_after = _get_derived(db2, cid, "defense")
+        assert defense_after == defense_before + 2
+        db.close()
+        db2.close()
+
+    def test_remove_recalcs(self, rules_session, make_character):
+        from _db import require_db
+        from mcp_server import combat_modifier
+
+        db = require_db()
+        cid = make_character(rules_session, name="Fighter")
+        _setup_character(db, cid)
+
+        defense_before = _get_derived(db, cid, "defense")
+
+        # Add then remove
+        combat_modifier(
+            character_id=cid, action="add",
+            source="shield_spell", target_stat="bonus_defense", value=2,
+        )
+        result = combat_modifier(
+            character_id=cid, action="remove", source="shield_spell",
+        )
+        assert "REMOVED" in result
+        assert "RULES_CALC" in result
+
+        db2 = require_db()
+        defense_after = _get_derived(db2, cid, "defense")
+        assert defense_after == defense_before
+        db.close()
+        db2.close()
+
+    def test_clear_recalcs(self, rules_session, make_character):
+        from _db import require_db
+        from mcp_server import combat_modifier
+
+        db = require_db()
+        cid = make_character(rules_session, name="Fighter")
+        _setup_character(db, cid)
+
+        defense_before = _get_derived(db, cid, "defense")
+
+        combat_modifier(
+            character_id=cid, action="add",
+            source="buff1", target_stat="bonus_defense", value=3,
+            duration_type="encounter",
+        )
+
+        result = combat_modifier(character_id=cid, action="clear")
+        assert "CLEARED" in result
+        assert "RULES_CALC" in result
+
+        db2 = require_db()
+        defense_after = _get_derived(db2, cid, "defense")
+        assert defense_after == defense_before
+        db.close()
+        db2.close()
+
+
+class TestEncounterMoveAutoRecalc:
+    """move_character auto-recalcs after terrain modifier changes."""
+
+    def test_move_to_cover_zone(self, rules_session, make_character):
+        from _db import require_db
+        from encounter import move_character, start_encounter
+
+        db = require_db()
+        cid = make_character(rules_session, name="Fighter")
+        _setup_character(db, cid)
+
+        defense_before = _get_derived(db, cid, "defense")
+
+        zones = [{"name": "Open"}, {"name": "Behind Wall", "tags": ["cover"]}]
+        initiative = [{"character_id": cid, "roll": 15}]
+        placements = [{"character_id": cid, "zone": "Open"}]
+        start_encounter(db, rules_session, zones, initiative, placements=placements, combat_cfg=COMBAT_CFG)
+
+        result = move_character(db, 1, cid, "Behind Wall", combat_cfg=COMBAT_CFG)
+        assert "MOVED" in result
+        assert "RULES_CALC" in result
+
+        defense_after = _get_derived(db, cid, "defense")
+        assert defense_after == defense_before + 2  # cover = +2 bonus_defense
+        db.close()
+
+    def test_move_out_of_cover_zone(self, rules_session, make_character):
+        from _db import require_db
+        from encounter import move_character, start_encounter
+
+        db = require_db()
+        cid = make_character(rules_session, name="Fighter")
+        _setup_character(db, cid)
+
+        zones = [{"name": "Open"}, {"name": "Behind Wall", "tags": ["cover"]}]
+        initiative = [{"character_id": cid, "roll": 15}]
+        placements = [{"character_id": cid, "zone": "Behind Wall"}]
+        start_encounter(db, rules_session, zones, initiative, placements=placements, combat_cfg=COMBAT_CFG)
+
+        defense_in_cover = _get_derived(db, cid, "defense")
+
+        result = move_character(db, 1, cid, "Open", combat_cfg=COMBAT_CFG)
+        assert "MOVED" in result
+
+        defense_in_open = _get_derived(db, cid, "defense")
+        assert defense_in_open == defense_in_cover - 2
+        db.close()
+
+
+class TestEncounterZoneUpdateAutoRecalc:
+    """update_zone_tags auto-recalcs for all characters in the zone."""
+
+    def test_add_cover_to_zone(self, rules_session, make_character):
+        from _db import require_db
+        from encounter import start_encounter, update_zone_tags
+
+        db = require_db()
+        cid = make_character(rules_session, name="Fighter")
+        _setup_character(db, cid)
+
+        defense_before = _get_derived(db, cid, "defense")
+
+        zones = [{"name": "Hall"}]
+        initiative = [{"character_id": cid, "roll": 15}]
+        placements = [{"character_id": cid, "zone": "Hall"}]
+        start_encounter(db, rules_session, zones, initiative, placements=placements, combat_cfg=COMBAT_CFG)
+
+        result = update_zone_tags(db, 1, "Hall", ["cover"], combat_cfg=COMBAT_CFG)
+        assert "ZONE UPDATED" in result
+        assert "RULES_CALC" in result
+
+        defense_after = _get_derived(db, cid, "defense")
+        assert defense_after == defense_before + 2
+        db.close()
+
+
+class TestEncounterStartAutoRecalc:
+    """start_encounter auto-recalcs when placing in terrain zones."""
+
+    def test_placement_in_cover_zone(self, rules_session, make_character):
+        from _db import require_db
+        from encounter import start_encounter
+
+        db = require_db()
+        cid = make_character(rules_session, name="Fighter")
+        _setup_character(db, cid)
+
+        defense_before = _get_derived(db, cid, "defense")
+
+        zones = [{"name": "Bunker", "tags": ["cover"]}]
+        initiative = [{"character_id": cid, "roll": 15}]
+        placements = [{"character_id": cid, "zone": "Bunker"}]
+        start_encounter(db, rules_session, zones, initiative, placements=placements, combat_cfg=COMBAT_CFG)
+
+        defense_after = _get_derived(db, cid, "defense")
+        assert defense_after == defense_before + 2
+        db.close()
+
+
+class TestEncounterEndAutoRecalc:
+    """end_encounter auto-recalcs after clearing modifiers."""
+
+    def test_end_clears_and_recalcs(self, rules_session, make_character):
+        from _db import require_db
+        from encounter import end_encounter, start_encounter
+
+        db = require_db()
+        cid = make_character(rules_session, name="Fighter")
+        _setup_character(db, cid)
+
+        defense_before = _get_derived(db, cid, "defense")
+
+        zones = [{"name": "Bunker", "tags": ["cover"]}]
+        initiative = [{"character_id": cid, "roll": 15}]
+        placements = [{"character_id": cid, "zone": "Bunker"}]
+        start_encounter(db, rules_session, zones, initiative, placements=placements, combat_cfg=COMBAT_CFG)
+
+        # Verify defense is boosted during encounter
+        defense_in_cover = _get_derived(db, cid, "defense")
+        assert defense_in_cover == defense_before + 2
+
+        result = end_encounter(db, rules_session)
+        assert "ENCOUNTER ENDED" in result
+        assert "RULES_CALC" in result
+
+        defense_after = _get_derived(db, cid, "defense")
+        assert defense_after == defense_before
+        db.close()
+
+
+class TestNoRecalcWithoutSystem:
+    """Sessions without rules_system skip recalc silently."""
+
+    def test_combat_modifier_no_system(self, make_session, make_character):
+        from mcp_server import combat_modifier
+
+        sid = make_session()
+        cid = make_character(sid)
+
+        result = combat_modifier(
+            character_id=cid, action="add",
+            source="buff", target_stat="bonus_defense", value=2,
+        )
+        assert "MODIFIER ADDED" in result
+        assert "RULES_CALC" not in result
