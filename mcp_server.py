@@ -963,6 +963,13 @@ def session_resume(session_id: int) -> str:
         parts.append("\n=== RECENT JOURNAL (last 5) ===")
         parts.append(journal_list_fn(db, session_id, last=5))
 
+        # Auto-reindex vector collections on resume
+        try:
+            from recall import reindex
+            reindex(db, session_id)
+        except Exception:
+            pass
+
         return "\n".join(parts)
     except LoreKitError as e:
         return f"ERROR: {e}"

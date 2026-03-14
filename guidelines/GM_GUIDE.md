@@ -8,10 +8,8 @@ tools. Only use the tools provided -- no shell commands or scripts.
 
 ## 1. Before You Begin
 
-Before anything else, initialize the database (if not already done) and check
-for existing sessions:
+Before anything else, check for existing sessions:
 ```
-init_db()
 session_list()
 ```
 
@@ -116,13 +114,11 @@ per message and wait for the player's answer before moving on.
     ```
     Player characters default to `type="pc"`, so you can omit it.
 
-12. **Compute derived stats.** If using a system pack, run `rules_calc` on
-    the character to compute all derived stats (attack bonuses, defenses,
-    saves, skill modifiers) from the base attributes:
-    ```
-    rules_calc(character_id=<id>)
-    ```
-    Do the same for every NPC you create with `character_build`.
+12. **Derived stats are computed automatically.** When using a system pack,
+    `character_build` automatically runs `rules_calc` to compute all derived
+    stats (attack bonuses, defenses, saves, skill modifiers). The same
+    happens after `character_sheet_update`, `combat_modifier`, and other
+    state-changing operations — no manual `rules_calc` calls needed.
 
 13. **Do not rush character creation.** Follow every step the chosen system
     requires for building a character. If the system has phases or categories
@@ -231,14 +227,14 @@ decision.
 When a turning-point event occurs during play -- the event described in the
 active act -- advance the story:
 ```
-story_advance(session_id=<session_id>)
+story(action="advance", session_id=<session_id>)
 ```
 
 If the story evolves beyond the original plan, add new acts or update existing
 ones mid-game:
 ```
-story_add_act(session_id=<session_id>, title="<title>", goal="<goal>", event="<event>")
-story_update_act(act_id=<act_id>, goal="<revised goal>")
+story(action="add_act", session_id=<session_id>, title="<title>", goal="<goal>", event="<event>")
+story(action="update_act", act_id=<act_id>, goal="<revised goal>")
 ```
 
 Sometimes a major event -- character death, a betrayal that flips the premise,
@@ -247,15 +243,15 @@ this happens, do not force the story back on track. Instead, replan:
 
 1. Mark any acts that no longer apply as skipped:
    ```
-   story_update_act(act_id=<act_id>, status="skipped")
+   story(action="update_act", act_id=<act_id>, status="skipped")
    ```
 2. Update the premise if the story's direction has fundamentally changed:
    ```
-   story_set(session_id=<session_id>, size="<same size>", premise="<new premise>")
+   story(action="set", session_id=<session_id>, size="<same size>", premise="<new premise>")
    ```
 3. Add new acts that follow from what actually happened:
    ```
-   story_add_act(session_id=<session_id>, title="<title>", goal="<goal>", event="<event>")
+   story(action="add_act", session_id=<session_id>, title="<title>", goal="<goal>", event="<event>")
    ```
 
 ### Character state changes
@@ -340,11 +336,6 @@ Set the starting time during session setup:
 session_setup(..., narrative_time="1347-03-15T14:00")
 ```
 
-Or set it later with `time_set`:
-```
-time_set(session_id=<id>, datetime="1347-03-15T14:00")
-```
-
 ### Advancing the clock
 
 Advance the clock **before** narrating time passage. This ensures the
@@ -382,15 +373,15 @@ locations and characters consistent across sessions.
 
 When the party enters a new area, create a region for it:
 ```
-region_create(session_id=<session_id>, name="Ashar", desc="A shepherds' village in the valley")
+region(action="create", session_id=<session_id>, name="Ashar", desc="A shepherds' village in the valley")
 ```
 
 Regions can be nested. Use `parent_id` to build a hierarchy (kingdom → city → district → building):
 ```
-region_create(session_id=<id>, name="Dockside District", desc="The harbor quarter", parent_id=<city_region_id>)
+region(action="create", session_id=<id>, name="Dockside District", desc="The harbor quarter", parent_id=<city_region_id>)
 ```
 
-`region_view` shows sub-regions and parent, so you can navigate the hierarchy.
+`region(action="view", region_id=<id>)` shows sub-regions and parent, so you can navigate the hierarchy.
 
 ### Introducing NPCs
 
@@ -429,8 +420,8 @@ correct region.
 When resuming a session, review the current region and its NPCs to maintain
 consistency:
 ```
-region_list(session_id=<session_id>)
-region_view(region_id=<region_id>)
+region(action="list", session_id=<session_id>)
+region(action="view", region_id=<region_id>)
 ```
 
 This ensures you do not contradict established NPC personalities or forget
@@ -483,28 +474,30 @@ never guess numbers or manually compute anything.
 
 ### Prerequisites
 
-Before combat starts, **every participant must have derived stats**. Run
-`rules_calc` on each character (PC and NPC) if you haven't already. This
-computes attack bonuses, defenses, saves, and other values from the system
-pack formulas.
+Before combat starts, **every participant must have derived stats**. These
+are computed automatically by `character_build` and `character_sheet_update`.
 
 ### Starting an encounter
 
-1. **Roll initiative** for all participants using `roll_dice`. Add the
-   relevant modifier based on the system.
+1. **Set up the encounter** with zones, initiative, and placements:
+   ```
+   encounter_start(session_id=<id>, zones='[{"name":"Entrance","tags":["cover"]},{"name":"Courtyard"},{"name":"Tower","tags":["elevated"]}]', initiative='auto', placements='[{"character_id":1,"zone":"Entrance"},{"character_id":3,"zone":"Courtyard"}]')
+   ```
 
-2. **Set up the encounter** in a single call with zones, initiative, and
-   placements:
-   ```
-   encounter_start(session_id=<id>, zones='[{"name":"Entrance","tags":["cover"]},{"name":"Courtyard"},{"name":"Tower","tags":["elevated"]}]', initiative='[{"character_id":1,"roll":22},{"character_id":3,"roll":15}]', adjacency='[{"from":"Entrance","to":"Courtyard","weight":1},{"from":"Courtyard","to":"Tower","weight":1}]', placements='[{"character_id":1,"zone":"Entrance"},{"character_id":3,"zone":"Courtyard"}]')
-   ```
+   **Initiative** can be `"auto"` (rolls d20 + initiative_stat for each
+   placed character) or a manual list of rolls.
 
    **Zones** are abstract areas — rooms, sections of a field, rooftops.
    Tags (`cover`, `difficult_terrain`, `elevated`, etc.) automatically apply
    terrain modifiers to characters in the zone. Adjacency defaults to a
    linear chain if omitted; specify custom edges for branching layouts.
 
-3. **Announce the situation** to the player: who is where, what the terrain
+   **Templates** provide pre-built zone layouts from the system pack:
+   ```
+   encounter_start(session_id=<id>, template="tavern_brawl", initiative='auto', placements='[...]')
+   ```
+
+2. **Announce the situation** to the player: who is where, what the terrain
    looks like, who goes first.
 
 ### On the player's turn
@@ -526,30 +519,25 @@ pack formulas.
    ```
    combat_modifier(character_id=<id>, action="add", source="bless", target_stat="bonus_melee_attack", value=1, bonus_type="status", duration_type="rounds", duration=10)
    ```
-   Then run `rules_calc` on the affected character so derived stats update.
+   Derived stats are recalculated automatically after every modifier change.
 
 ### On an NPC's turn
 
-Use `npc_interact`. The NPC agent decides its own actions — **never choose
-actions for an NPC yourself**. Describe the combat situation **narratively
-only**. The message must contain **zero numbers about the opponent** — no
-Defense, no HP, no AC, no damage taken. The NPC does not have access to
-anyone's character sheet but their own. Describe what the NPC can **see
-and feel**:
-- "the opponent looks fresh and unharmed" (not "105/105 HP")
-- "staggering, barely standing" (not "4/105 HP")
-- "your attacks keep bouncing off the armor" (not "Defense 25")
+Use `npc_combat_turn` for a full NPC turn in one call. It automatically:
+1. Builds combat context (positions, relative health, available actions)
+2. Asks the NPC agent for a decision (action, target, movement, narration)
+3. Executes movement, resolves the action, and advances initiative
 
 ```
-npc_interact(session_id=<id>, npc_id=<id>, message="It's your turn in combat. <what you see, how the opponent looks, what just happened — no numbers about the opponent>")
+npc_combat_turn(session_id=<id>, npc_id=<id>)
 ```
 
-Do not include the NPC's own stats or attack bonuses in the message — the
-NPC already has its full character sheet in its system prompt. Just describe
-the situation and let the NPC use its own sheet.
+The NPC sees relative health ("wounded", "critical") instead of exact
+numbers. It returns structured intent that the engine resolves mechanically.
+Narrative-only turns (NPC speaks, surrenders, hesitates) still tick
+modifiers and advance initiative.
 
-After the NPC responds, **you** resolve the action with `rules_resolve`
-using the NPC's attack against the target's defense. Narrate the result.
+For non-combat NPC interaction, use `npc_interact` as before.
 
 ### Advancing turns
 
@@ -558,11 +546,9 @@ After each character acts, advance to the next in initiative:
 encounter_advance_turn(session_id=<id>)
 ```
 
-At the end of each character's turn, tick modifier durations:
-```
-end_turn(character_id=<id>)
-```
-This handles round-based expiration and save-ends checks automatically.
+This automatically calls `end_turn` on the character whose turn just ended,
+ticking modifier durations and removing expired modifiers. No manual
+`end_turn` call is needed.
 
 ### Area effects
 
@@ -581,9 +567,9 @@ The engine finds all characters within the radius and resolves against each.
   ```
 - **Modifier inspection** (checking what buffs/debuffs are active):
   ```
-  rules_modifiers(character_id=<id>)
   combat_modifier(character_id=<id>, action="list")
   ```
+  The `encounter_status` HUD also shows active modifiers per character.
 
 ### Logging combat
 
@@ -600,7 +586,18 @@ reached:
 encounter_end(session_id=<id>)
 ```
 This cleans up zones, positions, terrain modifiers, and encounter-duration
-combat modifiers. Summarize the outcome in the journal.
+combat modifiers. A combat summary (participants, defeated, vital stats) is
+automatically generated and saved to the journal.
+
+### Resting after combat
+
+After combat, use `rest` to apply mechanical rest rules to all PCs:
+```
+rest(session_id=<id>, type="short")
+rest(session_id=<id>, type="long")
+```
+This restores stats, resets ability uses, clears combat modifiers, and
+optionally advances time — all based on the system pack's rest rules.
 
 ---
 
@@ -723,9 +720,10 @@ export_dump(session_id=<session_id>)
 The dump includes everything: session info, story arcs, characters, regions,
 the full timeline, and journal notes. This is raw material -- not a finished
 story. Read it, then use it as the basis for rewriting the adventure as prose
-narrative in Markdown. After rewriting, clean up the temporary export:
+narrative in Markdown. Use `clean_previous=true` on the next export to clean
+up old files:
 ```
-export_clean()
+export_dump(session_id=<id>, clean_previous=true)
 ```
 
 ### Rewriting guidelines

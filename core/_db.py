@@ -249,10 +249,10 @@ def get_db(db_path=None):
 
 
 def require_db():
-    """Return a connection to the database, or raise if it doesn't exist."""
+    """Return a connection to the database, auto-creating if needed."""
     db_path, _ = resolve_db_path()
     if not os.path.isfile(db_path):
-        raise LoreKitError("Database not found. Run init_db.py first.")
+        init_schema(db_path)
     return get_db(db_path)
 
 

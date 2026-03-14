@@ -3,33 +3,19 @@
 This file documents every tool available to the Game Master. Read this
 before using anything.
 
-All tools are called via the LoreKit MCP server. The database must be
-initialized first with `init_db`.
+All tools are called via the LoreKit MCP server. The database is
+auto-created on first access — no manual initialization needed.
 
 Errors are returned as text starting with `ERROR:`.
+
+All character-facing tools accept character names (case-insensitive)
+in addition to numeric IDs.
 
 Tools are organized into two groups:
 - **Aggregate tools** (recommended) — high-level wrappers that combine common
   multi-step workflows into single calls. Use these by default.
 - **Domain tools** — individual operations organized by domain. Use these when
   you need to do something the aggregates don't cover.
-
----
-
-## init_db
-
-Create or verify the database. Safe to re-run.
-
-```
-init_db()
-```
-
-**Output:**
-```
-Database initialized at data/game.db
-```
-
-Run this once before using any other tool.
 
 ---
 
@@ -219,23 +205,7 @@ NARRATIVE_TIME: 1347-03-15T14:00
 
 If not set: `NARRATIVE_TIME: (not set)`.
 
-## time_set
-
-Set the in-game narrative time to an absolute value.
-
-```
-time_set(session_id=1, datetime="1347-03-15T14:00")
-```
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| session_id | int | yes | Session ID |
-| datetime | str | yes | ISO 8601 datetime (e.g. "1347-03-15T14:00") |
-
-**Output:**
-```
-TIME_SET: 1347-03-15T14:00
-```
+Set the initial time via `session_setup(narrative_time="...")`.
 
 ## time_advance
 
@@ -407,134 +377,32 @@ All keys output: table with columns `key, value`.
 
 ## Story
 
-## story_set
+## story
 
-Create or overwrite the story plan for a session.
-
-```
-story_set(session_id=1, size="short", premise="A cursed forest threatens the village")
-```
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| session_id | int | yes | Session ID |
-| size | str | yes | oneshot, short, or campaign |
-| premise | str | yes | One-line story premise |
-
-**Output:**
-```
-STORY_SET: 1
-```
-
-## story_view
-
-Show the story premise and all acts. Optionally show full details for a
-specific act.
+Manage story plan and acts. All story operations go through this single tool
+with an `action` parameter.
 
 ```
-story_view(session_id=1)
-story_view(session_id=1, act_id=2)
+story(action="set", session_id=1, size="short", premise="A cursed forest threatens the village")
+story(action="view", session_id=1)
+story(action="view", session_id=1, act_id=2)
+story(action="add_act", session_id=1, title="The Call", goal="Reach the temple", event="The temple collapses")
+story(action="update_act", act_id=1, status="skipped")
+story(action="advance", session_id=1)
 ```
 
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
-| session_id | int | yes | | Session ID |
-| act_id | int | no | 0 | Act ID. When given, shows full details for that act instead of the overview. |
-
-**Output (overview, act_id=0):**
-```
-ID: 1
-SESSION: 1
-SIZE: short
-PREMISE: A cursed forest threatens the village
-CREATED: 2026-02-21T16:00:00Z
-
---- ACTS ---
-act_order  title          status
----------  -------------  ---------
-1          The Call        active
-2          The Descent     pending
-3          The Resolution  pending
-```
-
-**Output (single act, act_id=2):**
-```
-ID: 2
-SESSION: 1
-ORDER: 2
-TITLE: The Descent
-DESCRIPTION: Heroes descend into the cursed forest
-GOAL: Find the source of the curse
-EVENT: The guardian awakens
-STATUS: pending
-CREATED: 2026-02-21T16:00:00Z
-```
-
-## story_add_act
-
-Append an act to the story. Order is auto-assigned.
-
-```
-story_add_act(session_id=1, title="The Call", desc="Heroes are summoned", goal="Reach the temple", event="The temple collapses")
-```
-
-| Parameter | Type | Required | Default | Description |
-|-----------|------|----------|---------|-------------|
-| session_id | int | yes | | Session ID |
-| title | str | yes | | Act title |
-| desc | str | no | "" | Description |
-| goal | str | no | "" | What PCs pursue |
-| event | str | no | "" | Turning point |
-
-**Output:**
-```
-ACT_ADDED: 1
-```
-
-## story_update_act
-
-Update one or more fields on an act.
-
-```
-story_update_act(act_id=1, status="active")
-story_update_act(act_id=1, title="New Title", desc="New description")
-```
-
-| Parameter | Type | Required | Default | Description |
-|-----------|------|----------|---------|-------------|
-| act_id | int | yes | | Act ID |
-| title | str | no | "" | New title |
-| desc | str | no | "" | New description |
-| goal | str | no | "" | New goal |
-| event | str | no | "" | New event |
-| status | str | no | "" | New status |
-
-**Output:**
-```
-ACT_UPDATED: 1
-```
-
-## story_advance
-
-Complete the current active act and activate the next pending one.
-
-```
-story_advance(session_id=1)
-```
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| session_id | int | yes | Session ID |
-
-**Output (next act exists):**
-```
-ACT_ADVANCED: completed act 1, activated act 2
-```
-
-**Output (no more acts):**
-```
-ACT_ADVANCED: completed act 3, no remaining acts
-```
+| action | str | yes | | `set`, `view`, `add_act`, `update_act`, or `advance` |
+| session_id | int | varies | 0 | Required for set, view, add_act, advance |
+| act_id | int | varies | 0 | Required for update_act; optional for view |
+| size | str | no | "" | Story size (for set): oneshot, short, campaign |
+| premise | str | no | "" | Story premise (for set) |
+| title | str | no | "" | Act title (for add_act, update_act) |
+| desc | str | no | "" | Act description |
+| goal | str | no | "" | Act goal |
+| event | str | no | "" | Act turning point |
+| status | str | no | "" | Act status (for update_act) |
 
 ---
 
@@ -601,94 +469,27 @@ character_list(session=1, type="npc", region=1)
 
 ## Region
 
-## region_create
+## region
 
-Create a region in a session.
-
-```
-region_create(session_id=1, name="Ashar", desc="A shepherds' village in the valley")
-region_create(session_id=1, name="Dockside", desc="The harbor quarter", parent_id=1)
-```
-
-| Parameter | Type | Required | Default | Description |
-|-----------|------|----------|---------|-------------|
-| session_id | int | yes | | Session ID |
-| name | str | yes | | Region name |
-| desc | str | no | "" | Description |
-| parent_id | int | no | 0 | Parent region ID (for nesting) |
-
-**Output:**
-```
-REGION_CREATED: 1
-```
-
-## region_list
-
-List all regions in a session.
+Manage regions in a session. All region operations go through this single tool
+with an `action` parameter.
 
 ```
-region_list(session_id=1)
-```
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| session_id | int | yes | Session ID |
-
-**Output:** table with columns `id, name, description, parent, created_at`.
-
-## region_view
-
-Shows region details, parent region, sub-regions, and all NPCs linked to the region.
-
-```
-region_view(region_id=1)
-```
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| region_id | int | yes | Region ID |
-
-**Output:**
-```
-ID: 1
-SESSION: 1
-NAME: Ashar
-DESCRIPTION: A shepherds' village in the valley
-PARENT: Kingdom of Valen (id=3)
-CREATED: 2026-02-21T16:00:00Z
-
---- SUB-REGIONS ---
-  [4] Market Square
-  [5] Temple District
-
---- NPCs IN THIS REGION ---
-id  name    level  status
---  ------  -----  ------
-2   Elder   1      alive
-```
-
-The PARENT line only appears if the region has a parent. The SUB-REGIONS section only appears if child regions exist.
-
-## region_update
-
-Update region name, description, and/or parent.
-
-```
-region_update(region_id=1, name="Ashar (ruins)", desc="The village was destroyed")
-region_update(region_id=4, parent_id=1)
+region(action="create", session_id=1, name="Ashar", desc="A shepherds' village")
+region(action="create", session_id=1, name="Dockside", desc="Harbor quarter", parent_id=1)
+region(action="list", session_id=1)
+region(action="view", region_id=1)
+region(action="update", region_id=1, name="Ashar (ruins)", desc="The village was destroyed")
 ```
 
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
-| region_id | int | yes | | Region ID |
-| name | str | no | "" | New name |
-| desc | str | no | "" | New description |
-| parent_id | int | no | 0 | New parent region ID |
-
-**Output:**
-```
-REGION_UPDATED: 1
-```
+| action | str | yes | | `create`, `list`, `view`, or `update` |
+| session_id | int | varies | 0 | Required for create, list |
+| region_id | int | varies | 0 | Required for view, update |
+| name | str | no | "" | Region name (for create, update) |
+| desc | str | no | "" | Description (for create, update) |
+| parent_id | int | no | 0 | Parent region ID for nesting (for create, update) |
 
 ---
 
@@ -837,6 +638,50 @@ The NPC gets all relevant context (personality, attributes, inventory,
 abilities, recent timeline) baked into its system prompt. Each call is
 independent — there is no persistent NPC process.
 
+## npc_combat_turn
+
+Execute a full NPC combat turn in one call: decision + movement + action +
+advance initiative.
+
+```
+npc_combat_turn(session_id=1, npc_id=3)
+npc_combat_turn(session_id=1, npc_id="Goblin")
+```
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| session_id | int | yes | Session ID |
+| npc_id | int/str | yes | NPC character ID or name |
+
+The tool:
+1. Builds combat context (positions, relative health, available actions)
+2. Asks the NPC agent for a structured decision (action, target, movement)
+3. Executes: move → resolve action → advance turn (auto end_turn)
+
+Supports narrative-only turns when the NPC chooses no mechanical action.
+
+---
+
+## Rest
+
+## rest
+
+Apply rest rules to all PCs in the session.
+
+```
+rest(session_id=1, type="short")
+rest(session_id=1, type="long")
+```
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| session_id | int | yes | Session ID |
+| type | str | yes | Rest type from system pack (e.g. "short", "long") |
+
+Restores stats via formulas, resets ability uses, clears combat modifiers,
+and optionally advances time. All rules come from the system pack's `rest`
+section. Only affects PCs.
+
 ---
 
 ## Recall
@@ -871,23 +716,7 @@ regardless of whether `source` is specified or empty.
 **Output (keyword mode):** table with columns `source, id, content, created_at`.
 Ordered oldest first.
 
-## recall_reindex
-
-Rebuild the vector collections from SQL data for a session. Use after
-importing data or if the vector DB gets out of sync.
-
-```
-recall_reindex(session_id=1)
-```
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| session_id | int | yes | Session ID |
-
-**Output:**
-```
-REINDEX_COMPLETE: 5 timeline entries, 2 journal entries
-```
+Vector collections are automatically reindexed on `session_resume`.
 
 ---
 
@@ -899,28 +728,17 @@ Export all session data to `.export/session_<id>.txt`.
 
 ```
 export_dump(session_id=1)
+export_dump(session_id=1, clean_previous=true)
 ```
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| session_id | int | yes | Session ID |
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| session_id | int | yes | | Session ID |
+| clean_previous | bool | no | false | Remove `.export/` directory before exporting |
 
 **Output:**
 ```
 EXPORTED: .export/session_1.txt
-```
-
-## export_clean
-
-Remove the `.export/` directory and all files inside it.
-
-```
-export_clean()
-```
-
-**Output:**
-```
-CLEANED: .export
 ```
 
 ---
@@ -991,36 +809,9 @@ DEFAULTS (settable attributes):
 
 ---
 
-## rules_calc
-
-Recompute all derived stats for a character using the rules engine.
-
-Loads the system pack, reads the character's base attributes, resolves the
-dependency graph (topological sort), writes derived stats back to the sheet,
-and returns a summary of what changed.
-
-**Run this after any attribute change** — level up, equipment swap, buff
-applied, etc. — to keep derived stats (AC, attack bonus, saves, skill
-modifiers) current.
-
-```
-rules_calc(character_id=1)
-rules_calc(character_id=1, system_path="systems/pf2e")
-```
-
-| Parameter | Type | Required | Default | Description |
-|-----------|------|----------|---------|-------------|
-| character_id | int | yes | | Character ID |
-| system_path | str | no | "" | Path to system pack directory. If empty, auto-resolves from session metadata. |
-
-**Output:**
-```
-RULES_CALC: Aldric
-  str_mod: 0 → 3
-  skill_athletics: 0 → 5
-  armor_class: 0 → 16
-  (12 unchanged)
-```
+Derived stats are **automatically recalculated** after every state change
+(character_build, character_sheet_update, combat_modifier, encounter_move,
+encounter_start, encounter_end). No manual recalc call needed.
 
 ## rules_check
 
@@ -1117,29 +908,8 @@ DAMAGE: 6d6(15) + 0 = 15
 current_hp: 25 → 10
 ```
 
-## rules_modifiers
-
-Show modifier decomposition for a character's stats. Displays all active
-modifiers with their types, sources, and which ones survived stacking.
-
-```
-rules_modifiers(character_id=1)
-rules_modifiers(character_id=1, stat="armor_class")
-```
-
-| Parameter | Type | Required | Default | Description |
-|-----------|------|----------|---------|-------------|
-| character_id | int | yes | | Character ID |
-| stat | str | no | "" | Filter to a single stat, or empty for all |
-| system_path | str | no | "" | Path to system pack directory |
-
-**Output:**
-```
-MODIFIERS: Aldric — armor_class
-  build: bonus_armor_class +5 [item]
-  zone:Corridor:cover: bonus_armor_class +2 [circumstance]
-  shield_spell: bonus_armor_class +1 [item] (suppressed)
-```
+Active modifiers are visible in `encounter_status` (HUD view) and
+`combat_modifier(action="list")`.
 
 ---
 
@@ -1193,40 +963,9 @@ REMOVED: 1 modifier(s) from source 'bless'
 CLEARED: 3 transient modifier(s) from character 1
 ```
 
-After adding or removing modifiers, run `rules_calc` to recompute derived
-stats.
-
----
-
-## End of Turn
-
-## end_turn
-
-Tick durations on a character's combat modifiers at end of turn.
-
-Processes each modifier according to the system pack's `end_turn` config:
-- **rounds**: decrement duration, remove when expired (reaches 0)
-- **save_ends**: roll a save (save_stat vs save_dc), remove on success
-
-Automatically recomputes derived stats when modifiers expire.
-
-```
-end_turn(character_id=1)
-```
-
-| Parameter | Type | Required | Default | Description |
-|-----------|------|----------|---------|-------------|
-| character_id | int | yes | | Character ID |
-| system_path | str | no | "" | Path to system pack directory |
-
-**Output:**
-```
-END TURN: Goblin
-  TICKED: bless (9 rounds remaining)
-  SAVE: grappled — fortitude d20(16) + 2 = 18 vs DC 15 → SUCCESS
-    REMOVED: grappled (bonus_speed -100)
-  RECOMPUTED: speed: 0 → 25
-```
+Derived stats are automatically recalculated after adding or removing
+modifiers. End-of-turn modifier ticking is handled automatically by
+`encounter_advance_turn`.
 
 ---
 
@@ -1240,16 +979,18 @@ weighted adjacency, terrain modifiers, and movement validation.
 Start a combat encounter with zone-based positioning.
 
 ```
-encounter_start(session_id=1, zones='[{"name":"Corridor","tags":["cover"]},{"name":"Chamber"},{"name":"Balcony","tags":["elevated"]}]', initiative='[{"character_id":1,"roll":22},{"character_id":2,"roll":15}]', adjacency='[{"from":"Corridor","to":"Chamber","weight":1},{"from":"Chamber","to":"Balcony","weight":1}]', placements='[{"character_id":1,"zone":"Corridor"},{"character_id":2,"zone":"Chamber"}]')
+encounter_start(session_id=1, zones='[{"name":"Corridor","tags":["cover"]},{"name":"Chamber"}]', initiative='auto', placements='[{"character_id":1,"zone":"Corridor"},{"character_id":2,"zone":"Chamber"}]')
+encounter_start(session_id=1, template="tavern_brawl", initiative='auto', placements='[...]')
 ```
 
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
 | session_id | int | yes | | Session ID |
-| zones | str | yes | | JSON array of `{name, tags?}` objects |
-| initiative | str | yes | | JSON array of `{character_id, roll}` objects |
+| zones | str | no | "[]" | JSON array of `{name, tags?}` objects. Can be empty when using template. |
+| initiative | str | no | "auto" | `"auto"` or JSON array of `{character_id, roll}`. Auto rolls d20 + initiative_stat. |
 | adjacency | str | no | "" | JSON array of `{from, to, weight?}` edges. Defaults to linear chain. |
 | placements | str | no | "" | JSON array of `{character_id, zone}` objects |
+| template | str | no | "" | Encounter template name from system pack (loads pre-built zones + adjacency) |
 
 Zone tags are defined in the system pack's `combat.zone_tags` section.
 Common tags: `difficult_terrain`, `cover`, `greater_cover`, `elevated`.
@@ -1277,17 +1018,22 @@ encounter_status(session_id=1)
 |-----------|------|----------|-------------|
 | session_id | int | yes | Session ID |
 
-**Output:**
+**Output (zone-grouped HUD):**
 ```
-ENCOUNTER STATUS (session 1)
-Round: 1, Turn: Aldric
+Round 1 — Turn: Aldric
+
 Initiative: Aldric, Goblin
-Positions:
-  Aldric → Corridor [cover]
-  Goblin → Chamber
-Distances:
-  Aldric ↔ Goblin: 1 zone(s)
+
+┌─ Corridor [cover] ───────────────────────────┐
+│  Aldric (PC)  HP 35/35 ►
+└────────────────────────────────────────────────┘
+       ↕ 1 zone(s)
+┌─ Chamber ─────────────────────────────────────┐
+│  Goblin (NPC)  HP 12/20  [Rage +2 3r]
+└────────────────────────────────────────────────┘
 ```
+
+Shows per-character vital stats, active modifiers, and current turn marker (►).
 
 ## encounter_move
 
@@ -1314,8 +1060,9 @@ MOVED: Aldric → Chamber (from Corridor, cost: 1 zone(s))
 
 ## encounter_advance_turn
 
-Advance to the next character in initiative order. Increments the round
-counter when wrapping past the last character.
+Advance to the next character in initiative order. Automatically calls
+`end_turn` on the character whose turn just ended (ticks modifier durations,
+removes expired modifiers). Increments the round counter when wrapping.
 
 ```
 encounter_advance_turn(session_id=1)
@@ -1358,7 +1105,9 @@ ZONE UPDATED: Corridor
 ## encounter_end
 
 End the active encounter. Removes all zones, character positions, terrain
-modifiers, and encounter-duration combat modifiers.
+modifiers, and encounter-duration combat modifiers. Generates a combat
+summary (participants, defeated, vital stats) and auto-saves it to the
+journal.
 
 ```
 encounter_end(session_id=1)
@@ -1370,7 +1119,12 @@ encounter_end(session_id=1)
 
 **Output:**
 ```
-ENCOUNTER ENDED (session 1, 5 rounds). Cleared: 3 terrain modifier(s), 2 combat modifier(s).
+COMBAT ENDED (5 rounds)
+Participants: Aldric (pc), Goblin (npc)
+Defeated: Goblin
+  Aldric: HP 28/35
+Cleared: 3 terrain modifier(s), 2 combat modifier(s)
+Journal saved: JOURNAL_ADDED: 42
 ```
 
 ---
