@@ -456,12 +456,13 @@ class TestEncounterStatus:
 
             result = get_status(db, sid, combat_cfg=COMBAT_CFG)
 
-            assert "ENCOUNTER STATUS" in result
-            assert "Round: 1" in result
-            assert "Valeros → Gate" in result
-            assert "Goblin → Tower" in result
-            assert "2 zone(s)" in result  # Gate → Bridge → Tower = 2
-            assert "60ft" in result  # 2 * 30
+            assert "Round 1" in result
+            assert "Turn: Valeros" in result
+            assert "Gate" in result
+            assert "Valeros" in result
+            assert "Tower" in result
+            assert "Goblin" in result
+            assert "1 zone(s) (30ft)" in result  # adjacent zones
         finally:
             db.close()
 

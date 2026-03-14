@@ -432,74 +432,146 @@ def _char_name(db, character_id: int) -> str:
     return row[0] if row else f"character {character_id}"
 
 
+def _get_char_vital(db, cid: int, hud_cfg: dict) -> str:
+    """Build vital stat string from HUD config (e.g. 'HP 45/62')."""
+    vital = hud_cfg.get("vital_stat")
+    if not vital:
+        return ""
+    current_key = vital.get("current")
+    max_key = vital.get("max")
+    label = vital.get("label", "")
+
+    current_val = None
+    max_val = None
+    if current_key:
+        row = db.execute(
+            "SELECT value FROM character_attributes WHERE character_id = ? AND key = ?",
+            (cid, current_key),
+        ).fetchone()
+        if row:
+            current_val = row[0]
+    if max_key:
+        row = db.execute(
+            "SELECT value FROM character_attributes WHERE character_id = ? AND key = ?",
+            (cid, max_key),
+        ).fetchone()
+        if row:
+            max_val = row[0]
+
+    if current_val is None:
+        return ""
+    if max_val is not None:
+        return f"{label} {current_val}/{max_val}" if label else f"{current_val}/{max_val}"
+    return f"{label} {current_val}" if label else str(current_val)
+
+
+def _get_char_modifiers_summary(db, cid: int) -> list[str]:
+    """Get compact modifier summaries for a character."""
+    rows = db.execute(
+        "SELECT source, target_stat, value, duration_type, duration "
+        "FROM combat_state WHERE character_id = ? ORDER BY created_at",
+        (cid,),
+    ).fetchall()
+    parts = []
+    for source, _stat, value, dur_type, duration in rows:
+        dur_str = ""
+        if dur_type == "rounds" and duration is not None:
+            dur_str = f" {duration}r"
+        parts.append(f"{source} {value:+d}{dur_str}")
+    return parts
+
+
 def get_status(db, session_id: int, combat_cfg: dict | None = None) -> str:
-    """Return the current encounter state as a formatted string."""
+    """Return the current encounter state as a formatted HUD string.
+
+    Shows zone-grouped layout with per-character vital stats and active
+    modifiers. Falls back to basic output when HUD config is absent.
+    """
     enc_id, rnd, init_json, current_turn = _require_active_encounter(db, session_id)
     init_order = json.loads(init_json)
     cfg = combat_cfg or {}
     zone_scale = cfg.get("zone_scale", 1)
     movement_unit = cfg.get("movement_unit", "zone")
+    hud_cfg = cfg.get("hud", {})
 
     # Current turn character
     current_char_id = init_order[current_turn] if init_order else None
     current_name = _char_name(db, current_char_id) if current_char_id else "none"
 
-    lines = [f"ENCOUNTER STATUS (session {session_id})"]
-    lines.append(f"Round: {rnd}, Turn: {current_name}")
+    lines = [f"Round {rnd} — Turn: {current_name}"]
+    lines.append("")
 
     # Initiative
     init_names = [_char_name(db, cid) for cid in init_order]
     lines.append(f"Initiative: {', '.join(init_names)}")
+    lines.append("")
 
-    # Positions
+    # Zone-grouped positions with HUD
     zones_rows = db.execute(
-        "SELECT id, name, tags FROM encounter_zones WHERE encounter_id = ?",
+        "SELECT id, name, tags FROM encounter_zones WHERE encounter_id = ? ORDER BY id",
         (enc_id,),
     ).fetchall()
     zone_map = {r[0]: (r[1], json.loads(r[2])) for r in zones_rows}
+    zone_order = [r[0] for r in zones_rows]
 
     char_zones = db.execute(
         "SELECT character_id, zone_id FROM character_zone WHERE encounter_id = ?",
         (enc_id,),
     ).fetchall()
 
-    lines.append("Positions:")
+    # Group characters by zone
+    zone_chars: dict[int, list[int]] = {zid: [] for zid in zone_order}
     char_zone_map: dict[int, int] = {}
     for cid, zid in char_zones:
+        zone_chars.setdefault(zid, []).append(cid)
         char_zone_map[cid] = zid
-        zname, ztags = zone_map.get(zid, (f"zone {zid}", []))
-        tag_str = f" [{', '.join(ztags)}]" if ztags else ""
-        lines.append(f"  {_char_name(db, cid)} → {zname}{tag_str}")
 
-    # Distances
-    if len(char_zones) > 1:
-        adj = _build_adjacency(db, enc_id)
-        lines.append("Distances:")
-        seen = set()
-        for cid_a, zid_a in char_zones:
-            for cid_b, zid_b in char_zones:
-                if cid_a >= cid_b:
-                    continue
-                pair = (min(cid_a, cid_b), max(cid_a, cid_b))
-                if pair in seen:
-                    continue
-                seen.add(pair)
-                dist = _shortest_path(adj, zid_a, zid_b)
-                if dist is not None:
-                    if zone_scale > 1:
-                        lines.append(
-                            f"  {_char_name(db, cid_a)} ↔ {_char_name(db, cid_b)}: "
-                            f"{dist} zone(s) ({dist * zone_scale}{movement_unit})"
-                        )
-                    else:
-                        lines.append(
-                            f"  {_char_name(db, cid_a)} ↔ {_char_name(db, cid_b)}: "
-                            f"{dist} zone(s)"
-                        )
+    # Build zone blocks
+    adj = _build_adjacency(db, enc_id) if len(zones_rows) > 1 else {}
+    prev_zid = None
+    for zid in zone_order:
+        zname, ztags = zone_map[zid]
+        tag_str = f" [{', '.join(ztags)}]" if ztags else ""
+
+        # Zone separator with distance
+        if prev_zid is not None and adj:
+            dist = _shortest_path(adj, prev_zid, zid)
+            if dist is not None:
+                if zone_scale > 1:
+                    lines.append(f"       ↕ {dist} zone(s) ({dist * zone_scale}{movement_unit})")
                 else:
-                    lines.append(
-                        f"  {_char_name(db, cid_a)} ↔ {_char_name(db, cid_b)}: unreachable"
-                    )
+                    lines.append(f"       ↕ {dist} zone(s)")
+
+        header = f"┌─ {zname}{tag_str} "
+        lines.append(f"{header}{'─' * max(1, 48 - len(header))}┐")
+
+        chars_in_zone = zone_chars.get(zid, [])
+        if chars_in_zone:
+            for cid in chars_in_zone:
+                cname = _char_name(db, cid)
+                # Get character type
+                type_row = db.execute(
+                    "SELECT type FROM characters WHERE id = ?", (cid,),
+                ).fetchone()
+                ctype = f" ({type_row[0].upper()})" if type_row else ""
+
+                # Vital stat
+                vital = _get_char_vital(db, cid, hud_cfg)
+                vital_str = f"  {vital}" if vital else ""
+
+                # Active modifiers
+                mods = _get_char_modifiers_summary(db, cid)
+                mod_str = f"  [{', '.join(mods)}]" if mods else ""
+
+                # Marker for current turn
+                marker = " ►" if cid == current_char_id else ""
+
+                lines.append(f"│  {cname}{ctype}{vital_str}{mod_str}{marker}")
+        else:
+            lines.append("│  (empty)")
+
+        lines.append(f"└{'─' * 48}┘")
+        prev_zid = zid
 
     return "\n".join(lines)
 

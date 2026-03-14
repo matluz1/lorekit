@@ -23,6 +23,9 @@
     "movement_unit": "ft",
     "melee_range": 0,
     "initiative_stat": "perception",
+    "hud": {
+      "vital_stat": {"current": "current_hp", "max": "max_hp", "label": "HP"}
+    },
     "zone_tags": {
       "difficult_terrain": {"movement_multiplier": 2},
       "cover": {"target_stat": "bonus_ac", "value": 2, "modifier_type": "circumstance"},

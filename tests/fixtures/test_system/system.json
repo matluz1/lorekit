@@ -45,6 +45,9 @@
     "movement_unit": "ft",
     "melee_range": 0,
     "initiative_stat": "melee_attack",
+    "hud": {
+      "vital_stat": {"current": "current_hp", "max": "max_hp", "label": "HP"}
+    },
     "zone_tags": {
       "difficult_terrain": {"movement_multiplier": 2},
       "cover": {"target_stat": "bonus_defense", "value": 2, "modifier_type": "environment"},

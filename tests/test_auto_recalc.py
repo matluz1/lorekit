@@ -21,6 +21,9 @@ COMBAT_CFG = {
     "movement_unit": "ft",
     "melee_range": 0,
     "initiative_stat": "melee_attack",
+    "hud": {
+        "vital_stat": {"current": "current_hp", "max": "max_hp", "label": "HP"},
+    },
     "zone_tags": {
         "difficult_terrain": {"movement_multiplier": 2},
         "cover": {
@@ -463,6 +466,105 @@ class TestInitiativeAutoRoll:
         assert "Fighter (5)" in result
         # Rogue should be first (higher roll)
         assert result.index("Rogue") < result.index("Fighter")
+        db.close()
+
+
+class TestCombatHUD:
+    """encounter_status shows zone-grouped HUD with vitals and modifiers."""
+
+    def test_hud_shows_hp(self, rules_session, make_character):
+        from _db import require_db
+        from encounter import get_status, start_encounter
+
+        db = require_db()
+        cid = make_character(rules_session, name="Fighter")
+        _setup_character(db, cid)
+        # max_hp = hit_die_avg(6) * level(1) + con_mod(1) * level(1) = 7
+        # Set current_hp to 5 (wounded)
+        _set_attrs(db, cid, {"current_hp": 5})
+        from rules_engine import rules_calc
+        rules_calc(db, cid, TEST_SYSTEM)
+
+        zones = [{"name": "Hall"}]
+        initiative = [{"character_id": cid, "roll": 15}]
+        placements = [{"character_id": cid, "zone": "Hall"}]
+        start_encounter(db, rules_session, zones, initiative, placements=placements, combat_cfg=COMBAT_CFG)
+
+        result = get_status(db, rules_session, combat_cfg=COMBAT_CFG)
+        assert "HP 5/7" in result
+        assert "Fighter" in result
+        assert "Hall" in result
+        db.close()
+
+    def test_hud_shows_modifiers(self, rules_session, make_character):
+        from _db import require_db
+        from encounter import get_status, start_encounter
+        from mcp_server import combat_modifier
+
+        db = require_db()
+        cid = make_character(rules_session, name="Fighter")
+        _setup_character(db, cid)
+
+        zones = [{"name": "Hall"}]
+        initiative = [{"character_id": cid, "roll": 15}]
+        placements = [{"character_id": cid, "zone": "Hall"}]
+        start_encounter(db, rules_session, zones, initiative, placements=placements, combat_cfg=COMBAT_CFG)
+
+        combat_modifier(
+            character_id=cid, action="add",
+            source="Blessed", target_stat="bonus_melee_attack", value=1,
+            duration_type="rounds", duration=3,
+        )
+
+        result = get_status(db, rules_session, combat_cfg=COMBAT_CFG)
+        assert "Blessed +1 3r" in result
+        db.close()
+
+    def test_hud_without_config(self, make_session, make_character):
+        """Graceful fallback when no hud config exists."""
+        from _db import require_db
+        from encounter import get_status, start_encounter
+
+        db = require_db()
+        sid = make_session()
+        cid = make_character(sid, name="Fighter")
+
+        zones = [{"name": "Hall"}]
+        initiative = [{"character_id": cid, "roll": 15}]
+        placements = [{"character_id": cid, "zone": "Hall"}]
+        # No combat_cfg → no hud config
+        start_encounter(db, sid, zones, initiative, placements=placements)
+
+        result = get_status(db, sid)
+        assert "Round 1" in result
+        assert "Fighter" in result
+        # No HP shown (no hud config)
+        assert "HP" not in result
+        db.close()
+
+    def test_hud_current_turn_marker(self, rules_session, make_character):
+        from _db import require_db
+        from encounter import get_status, start_encounter
+
+        db = require_db()
+        c1 = make_character(rules_session, name="Fighter")
+        c2 = make_character(rules_session, name="Goblin")
+
+        zones = [{"name": "Arena"}]
+        initiative = [
+            {"character_id": c1, "roll": 20},
+            {"character_id": c2, "roll": 10},
+        ]
+        placements = [
+            {"character_id": c1, "zone": "Arena"},
+            {"character_id": c2, "zone": "Arena"},
+        ]
+        start_encounter(db, rules_session, zones, initiative, placements=placements, combat_cfg=COMBAT_CFG)
+
+        result = get_status(db, rules_session, combat_cfg=COMBAT_CFG)
+        # Fighter has current turn marker
+        assert "Fighter" in result
+        assert "►" in result
         db.close()
 
 

@@ -19,6 +19,9 @@
     "movement_unit": "rank",
     "melee_range": 0,
     "initiative_stat": "initiative",
+    "hud": {
+      "vital_stat": {"current": "damage_condition", "label": "Condition"}
+    },
     "zone_tags": {
       "cover": {"target_stat": "bonus_dodge", "value": 2, "modifier_type": "environment"},
       "total_cover": {"target_stat": "bonus_dodge", "value": 10, "modifier_type": "environment"},
