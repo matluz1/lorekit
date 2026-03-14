@@ -353,5 +353,33 @@
       "clear_duration_types": ["encounter", "rounds", "save_ends"],
       "time_advance": {"amount": 8, "unit": "hours"}
     }
+  },
+
+  "encounter_templates": {
+    "city_street": {
+      "zones": [
+        {"name": "Rooftop", "tags": ["cover"]},
+        {"name": "Street", "tags": []},
+        {"name": "Alley", "tags": ["cover"]}
+      ],
+      "adjacency": [["Rooftop", "Street", 1], ["Street", "Alley", 1]]
+    },
+    "open_field": {
+      "zones": [
+        {"name": "North", "tags": []},
+        {"name": "Center", "tags": []},
+        {"name": "South", "tags": []}
+      ],
+      "adjacency": [["North", "Center", 1], ["Center", "South", 1]]
+    },
+    "warehouse": {
+      "zones": [
+        {"name": "Loading Dock", "tags": []},
+        {"name": "Floor", "tags": []},
+        {"name": "Catwalks", "tags": ["cover"]},
+        {"name": "Office", "tags": ["total_cover"]}
+      ],
+      "adjacency": [["Loading Dock", "Floor", 1], ["Floor", "Catwalks", 1], ["Floor", "Office", 1]]
+    }
   }
 }

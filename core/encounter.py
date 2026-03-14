@@ -248,23 +248,81 @@ def _get_character_zone(db, encounter_id: int, character_id: int):
     return row[0] if row else None
 
 
+def _load_encounter_template(session_id: int, template_name: str,
+                             pack_dir: str | None) -> tuple[list[dict], list[dict] | None]:
+    """Load zones and adjacency from a system pack encounter template.
+
+    Returns (zones, adjacency) or raises LoreKitError if template not found.
+    """
+    import os
+
+    if not pack_dir:
+        raise LoreKitError("Templates require a system pack (rules_system)")
+
+    system_json_path = os.path.join(pack_dir, "system.json")
+    if not os.path.isfile(system_json_path):
+        raise LoreKitError(f"System pack not found: {pack_dir}")
+
+    with open(system_json_path) as f:
+        data = json.load(f)
+
+    templates = data.get("encounter_templates", {})
+    if not templates:
+        raise LoreKitError("No encounter_templates defined in system pack")
+
+    tmpl = templates.get(template_name)
+    if tmpl is None:
+        available = ", ".join(templates.keys())
+        raise LoreKitError(
+            f"Unknown template '{template_name}'. Available: {available}"
+        )
+
+    zones = tmpl.get("zones", [])
+    if not zones:
+        raise LoreKitError(f"Template '{template_name}' has no zones")
+
+    # Convert adjacency from compact [A, B, weight] to [{"from": A, "to": B, "weight": W}]
+    raw_adj = tmpl.get("adjacency")
+    adjacency = None
+    if raw_adj:
+        adjacency = [
+            {"from": edge[0], "to": edge[1], "weight": edge[2] if len(edge) > 2 else 1}
+            for edge in raw_adj
+        ]
+
+    return zones, adjacency
+
+
 def start_encounter(
-    db, session_id: int, zones: list[dict],
-    initiative: list[dict] | str,
+    db, session_id: int, zones: list[dict] | None = None,
+    initiative: list[dict] | str = "auto",
     adjacency: list[dict] | None = None,
     placements: list[dict] | None = None,
     combat_cfg: dict | None = None,
+    template: str = "",
+    pack_dir: str | None = None,
 ) -> str:
     """Start a combat encounter with zones, initiative, and optional placements.
 
     Parameters:
-    - zones: [{"name": "...", "tags": ["cover", ...]}, ...]
+    - zones: [{"name": "...", "tags": ["cover", ...]}, ...] or None if using template
     - initiative: [{"character_id": N, "roll": M}, ...] or "auto"
       When "auto", rolls d20 + initiative_stat for each placed character.
     - adjacency: [{"from": "A", "to": "B", "weight": 1}, ...] or None for linear chain
     - placements: [{"character_id": N, "zone": "name"}, ...] or None
     - combat_cfg: system pack's combat section (for terrain modifiers)
+    - template: encounter template name from system pack (loads zones + adjacency)
+    - pack_dir: system pack directory (needed for template resolution)
     """
+    # Resolve template if specified
+    if template:
+        tmpl_zones, tmpl_adj = _load_encounter_template(session_id, template, pack_dir)
+        if zones is None:
+            zones = tmpl_zones
+            # Only use template adjacency when using template zones
+            if adjacency is None and tmpl_adj is not None:
+                adjacency = tmpl_adj
+
     # Check no active encounter already
     existing = _get_active_encounter(db, session_id)
     if existing is not None:

@@ -567,6 +567,83 @@ class TestCombatHUD:
         db.close()
 
 
+class TestEncounterTemplates:
+    """encounter_start with template loads zones/adjacency from system pack."""
+
+    def test_template_creates_zones(self, rules_session, make_character):
+        from _db import require_db
+        from encounter import start_encounter
+
+        db = require_db()
+        c1 = make_character(rules_session, name="Fighter")
+
+        placements = [{"character_id": c1, "zone": "North"}]
+        initiative = [{"character_id": c1, "roll": 15}]
+
+        result = start_encounter(
+            db, rules_session, initiative=initiative,
+            placements=placements, combat_cfg=COMBAT_CFG,
+            template="arena", pack_dir=TEST_SYSTEM,
+        )
+        assert "ENCOUNTER STARTED" in result
+        assert "North" in result
+        assert "Center" in result
+        assert "South" in result
+
+        # Verify 3 zones were created
+        enc_id = db.execute(
+            "SELECT id FROM encounter_state WHERE session_id = ?",
+            (rules_session,),
+        ).fetchone()[0]
+        zone_count = db.execute(
+            "SELECT COUNT(*) FROM encounter_zones WHERE encounter_id = ?",
+            (enc_id,),
+        ).fetchone()[0]
+        assert zone_count == 3
+        db.close()
+
+    def test_template_with_custom_zones_override(self, rules_session, make_character):
+        from _db import require_db
+        from encounter import start_encounter
+
+        db = require_db()
+        c1 = make_character(rules_session, name="Fighter")
+
+        # Custom zones override template zones
+        custom_zones = [{"name": "Custom1"}, {"name": "Custom2"}]
+        placements = [{"character_id": c1, "zone": "Custom1"}]
+        initiative = [{"character_id": c1, "roll": 15}]
+
+        result = start_encounter(
+            db, rules_session, zones=custom_zones, initiative=initiative,
+            placements=placements, combat_cfg=COMBAT_CFG,
+            template="arena", pack_dir=TEST_SYSTEM,
+        )
+        assert "Custom1" in result
+        assert "Custom2" in result
+        # Template zones should NOT appear
+        assert "North" not in result
+        db.close()
+
+    def test_unknown_template_error(self, rules_session, make_character):
+        from _db import require_db
+        from encounter import start_encounter
+
+        db = require_db()
+        c1 = make_character(rules_session, name="Fighter")
+
+        try:
+            start_encounter(
+                db, rules_session, initiative=[{"character_id": c1, "roll": 15}],
+                combat_cfg=COMBAT_CFG,
+                template="nonexistent", pack_dir=TEST_SYSTEM,
+            )
+            assert False, "Should have raised"
+        except Exception as e:
+            assert "Unknown template" in str(e)
+        db.close()
+
+
 class TestRest:
     """rest tool applies system pack rest rules to all PCs."""
 

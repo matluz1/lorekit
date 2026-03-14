@@ -1866,15 +1866,20 @@ def _load_combat_cfg(db, session_id: int) -> dict:
 
 @mcp.tool()
 def encounter_start(
-    session_id: int, zones: str, initiative: str,
+    session_id: int, zones: str = "[]", initiative: str = "auto",
     adjacency: str = "", placements: str = "",
+    template: str = "",
 ) -> str:
     """Start a combat encounter with zone-based positioning.
 
     Creates zones, sets initiative order, optionally places characters.
     Adjacency defaults to a linear chain if not specified.
 
+    template: encounter template name from system pack (e.g. "tavern_brawl").
+      Loads pre-built zones and adjacency. zones/adjacency params override
+      template values if both are provided.
     zones: JSON array — [{"name": "Entrance", "tags": ["cover"]}, ...]
+      Can be empty "[]" when using a template.
     initiative: "auto" or JSON array — [{"character_id": 5, "roll": 22}, ...]
       When "auto", rolls d20 + initiative_stat (from system pack) for each
       placed character. Requires placements.
@@ -1887,7 +1892,9 @@ def encounter_start(
 
     db = require_db()
     try:
-        zones_list = json.loads(zones)
+        zones_list = json.loads(zones) if zones else None
+        if not zones_list:
+            zones_list = None
         init_value = initiative.strip()
         if init_value == '"auto"' or init_value == "auto":
             init_list = "auto"
@@ -1897,6 +1904,7 @@ def encounter_start(
         place_list = json.loads(placements) if placements else None
 
         combat_cfg = _load_combat_cfg(db, session_id)
+        system_path = _resolve_system_path_for_session(db, session_id)
 
         from encounter import start_encounter
 
@@ -1904,6 +1912,7 @@ def encounter_start(
             db, session_id, zones_list, init_list,
             adjacency=adj_list, placements=place_list,
             combat_cfg=combat_cfg,
+            template=template, pack_dir=system_path,
         )
     except LoreKitError as e:
         return f"ERROR: {e}"

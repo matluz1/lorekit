@@ -140,5 +140,16 @@
       "reset_uses": ["per_day", "per_encounter"],
       "clear_duration_types": ["encounter", "rounds", "save_ends"]
     }
+  },
+
+  "encounter_templates": {
+    "arena": {
+      "zones": [
+        {"name": "North", "tags": ["cover"]},
+        {"name": "Center", "tags": []},
+        {"name": "South", "tags": []}
+      ],
+      "adjacency": [["North", "Center", 1], ["Center", "South", 1]]
+    }
   }
 }

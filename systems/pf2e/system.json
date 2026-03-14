@@ -274,5 +274,42 @@
       "clear_duration_types": ["encounter", "rounds", "save_ends"],
       "time_advance": {"amount": 8, "unit": "hours"}
     }
+  },
+
+  "encounter_templates": {
+    "tavern_brawl": {
+      "zones": [
+        {"name": "Bar", "tags": ["cover"]},
+        {"name": "Common Room", "tags": []},
+        {"name": "Kitchen", "tags": ["difficult_terrain"]},
+        {"name": "Street", "tags": []}
+      ],
+      "adjacency": [["Bar", "Common Room", 1], ["Common Room", "Kitchen", 1], ["Common Room", "Street", 1]]
+    },
+    "dungeon_corridor": {
+      "zones": [
+        {"name": "Entrance", "tags": []},
+        {"name": "Hallway", "tags": []},
+        {"name": "Chamber", "tags": []}
+      ],
+      "adjacency": [["Entrance", "Hallway", 1], ["Hallway", "Chamber", 1]]
+    },
+    "open_field": {
+      "zones": [
+        {"name": "North", "tags": []},
+        {"name": "Center", "tags": []},
+        {"name": "South", "tags": []}
+      ],
+      "adjacency": [["North", "Center", 1], ["Center", "South", 1]]
+    },
+    "forest_ambush": {
+      "zones": [
+        {"name": "Trail", "tags": []},
+        {"name": "Dense Trees", "tags": ["cover", "difficult_terrain"]},
+        {"name": "Clearing", "tags": []},
+        {"name": "Ridge", "tags": ["elevated"]}
+      ],
+      "adjacency": [["Trail", "Dense Trees", 1], ["Dense Trees", "Clearing", 1], ["Clearing", "Ridge", 1], ["Trail", "Clearing", 2]]
+    }
   }
 }
