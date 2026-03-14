@@ -1014,6 +1014,51 @@ _NPC_ALLOWED_TOOLS = [
     "mcp__lorekit__time_get",
 ]
 
+# Tools the NPC must never see (removed from context, not just blocked).
+_NPC_DISALLOWED_TOOLS = [
+    "mcp__lorekit__init_db",
+    "mcp__lorekit__session_list",
+    "mcp__lorekit__session_update",
+    "mcp__lorekit__session_meta_set",
+    "mcp__lorekit__session_meta_get",
+    "mcp__lorekit__story_set",
+    "mcp__lorekit__story_view",
+    "mcp__lorekit__story_add_act",
+    "mcp__lorekit__story_update_act",
+    "mcp__lorekit__story_advance",
+    "mcp__lorekit__region_create",
+    "mcp__lorekit__region_list",
+    "mcp__lorekit__region_update",
+    "mcp__lorekit__timeline_set_summary",
+    "mcp__lorekit__turn_revert",
+    "mcp__lorekit__journal_add",
+    "mcp__lorekit__time_set",
+    "mcp__lorekit__time_advance",
+    "mcp__lorekit__recall_reindex",
+    "mcp__lorekit__export_dump",
+    "mcp__lorekit__export_clean",
+    "mcp__lorekit__turn_save",
+    "mcp__lorekit__character_build",
+    "mcp__lorekit__ability_from_template",
+    "mcp__lorekit__session_setup",
+    "mcp__lorekit__session_resume",
+    "mcp__lorekit__character_sheet_update",
+    "mcp__lorekit__npc_interact",
+    "mcp__lorekit__system_info",
+    "mcp__lorekit__rules_check",
+    "mcp__lorekit__rules_resolve",
+    "mcp__lorekit__rules_calc",
+    "mcp__lorekit__end_turn",
+    "mcp__lorekit__combat_modifier",
+    "mcp__lorekit__rules_modifiers",
+    "mcp__lorekit__encounter_start",
+    "mcp__lorekit__encounter_status",
+    "mcp__lorekit__encounter_move",
+    "mcp__lorekit__encounter_advance_turn",
+    "mcp__lorekit__encounter_end",
+    "mcp__lorekit__encounter_zone_update",
+]
+
 _DEFAULT_NPC_MODEL = "opus"
 
 
@@ -1261,6 +1306,7 @@ def npc_interact(session_id: int, npc_id: int, message: str) -> str:
         "--mcp-config", mcp_config,
         "--strict-mcp-config",
         "--allowed-tools", *_NPC_ALLOWED_TOOLS,
+        "--disallowed-tools", *_NPC_DISALLOWED_TOOLS,
         "--model", model,
         "--system-prompt", system_prompt,
     ]
