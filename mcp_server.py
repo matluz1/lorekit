@@ -1032,11 +1032,12 @@ _DEFAULT_NPC_MODEL = "opus"
 
 
 def _load_npc_guides() -> str:
-    """Load SHARED_GUIDE.md + NPC_GUIDE.md from project root."""
+    """Load SHARED_GUIDE.md + NPC_GUIDE.md from guidelines/."""
     project_root = os.path.dirname(os.path.abspath(__file__))
+    guidelines_dir = os.path.join(project_root, "guidelines")
     parts = []
     for fname in ("SHARED_GUIDE.md", "NPC_GUIDE.md", "NPC_TOOLS.md"):
-        path = os.path.join(project_root, fname)
+        path = os.path.join(guidelines_dir, fname)
         try:
             with open(path, "r") as f:
                 parts.append(f.read())
