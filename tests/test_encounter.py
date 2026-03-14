@@ -493,7 +493,7 @@ class TestEndEncounter:
             db.commit()
 
             result = end_encounter(db, sid)
-            assert "ENCOUNTER ENDED" in result
+            assert "COMBAT ENDED" in result
 
             # Verify cleanup
             enc = db.execute(

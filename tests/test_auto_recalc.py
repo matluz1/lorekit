@@ -306,8 +306,7 @@ class TestEncounterEndAutoRecalc:
         assert defense_in_cover == defense_before + 2
 
         result = end_encounter(db, rules_session)
-        assert "ENCOUNTER ENDED" in result
-        assert "RULES_CALC" in result
+        assert "COMBAT ENDED" in result
 
         defense_after = _get_derived(db, cid, "defense")
         assert defense_after == defense_before
@@ -565,6 +564,83 @@ class TestCombatHUD:
         # Fighter has current turn marker
         assert "Fighter" in result
         assert "►" in result
+        db.close()
+
+
+class TestCombatSummary:
+    """encounter_end generates combat summary with participants and vitals."""
+
+    def test_summary_with_defeated(self, rules_session, make_character):
+        from _db import require_db
+        from encounter import end_encounter, start_encounter
+
+        db = require_db()
+        c1 = make_character(rules_session, name="Fighter")
+        c2 = make_character(rules_session, name="Goblin", char_type="npc")
+        _setup_character(db, c1)
+        _setup_character(db, c2)
+
+        # Mark goblin as defeated
+        db.execute("UPDATE characters SET status = 'defeated' WHERE id = ?", (c2,))
+        db.commit()
+
+        zones = [{"name": "Arena"}]
+        initiative = [
+            {"character_id": c1, "roll": 20},
+            {"character_id": c2, "roll": 10},
+        ]
+        placements = [
+            {"character_id": c1, "zone": "Arena"},
+            {"character_id": c2, "zone": "Arena"},
+        ]
+        start_encounter(db, rules_session, zones, initiative, placements=placements, combat_cfg=COMBAT_CFG)
+
+        result = end_encounter(db, rules_session, combat_cfg=COMBAT_CFG)
+        assert "COMBAT ENDED" in result
+        assert "Fighter (pc)" in result
+        assert "Goblin (npc)" in result
+        assert "Defeated: Goblin" in result
+        assert "Journal saved" in result
+        db.close()
+
+    def test_summary_with_vitals(self, rules_session, make_character):
+        from _db import require_db
+        from encounter import end_encounter, start_encounter
+
+        db = require_db()
+        cid = make_character(rules_session, name="Fighter")
+        _setup_character(db, cid)
+        _set_attrs(db, cid, {"current_hp": 3})
+        from rules_engine import rules_calc
+        rules_calc(db, cid, TEST_SYSTEM)
+
+        zones = [{"name": "Arena"}]
+        initiative = [{"character_id": cid, "roll": 15}]
+        placements = [{"character_id": cid, "zone": "Arena"}]
+        start_encounter(db, rules_session, zones, initiative, placements=placements, combat_cfg=COMBAT_CFG)
+
+        result = end_encounter(db, rules_session, combat_cfg=COMBAT_CFG)
+        assert "HP 3/7" in result
+        db.close()
+
+    def test_summary_without_hud_config(self, make_session, make_character):
+        from _db import require_db
+        from encounter import end_encounter, start_encounter
+
+        db = require_db()
+        sid = make_session()
+        cid = make_character(sid, name="Fighter")
+
+        zones = [{"name": "Arena"}]
+        initiative = [{"character_id": cid, "roll": 15}]
+        placements = [{"character_id": cid, "zone": "Arena"}]
+        start_encounter(db, sid, zones, initiative, placements=placements)
+
+        result = end_encounter(db, sid)
+        assert "COMBAT ENDED" in result
+        assert "Fighter (pc)" in result
+        # No HP shown (no hud config)
+        assert "HP" not in result
         db.close()
 
 

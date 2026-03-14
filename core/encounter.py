@@ -757,9 +757,15 @@ def advance_turn(db, session_id: int, combat_cfg: dict | None = None) -> str:
     return "\n".join(lines)
 
 
-def end_encounter(db, session_id: int) -> str:
-    """End the active encounter. Removes zones, positions, and encounter-duration modifiers."""
+def end_encounter(db, session_id: int, combat_cfg: dict | None = None) -> str:
+    """End the active encounter with combat summary.
+
+    Collects participant stats before cleanup, removes zones/positions/modifiers,
+    generates a combat summary, and auto-saves it as a journal entry.
+    """
     enc_id, rnd, _, _ = _require_active_encounter(db, session_id)
+    cfg = combat_cfg or {}
+    hud_cfg = cfg.get("hud", {})
 
     # Get all characters in the encounter for modifier cleanup
     char_ids = [
@@ -769,6 +775,28 @@ def end_encounter(db, session_id: int) -> str:
         ).fetchall()
     ]
 
+    # --- Collect combat summary data BEFORE cleanup ---
+    participants = []
+    defeated = []
+    vital_lines = []
+    for cid in char_ids:
+        row = db.execute(
+            "SELECT name, type, status FROM characters WHERE id = ?", (cid,),
+        ).fetchone()
+        if not row:
+            continue
+        cname, ctype, cstatus = row
+        participants.append(f"{cname} ({ctype})")
+
+        if cstatus in ("defeated", "dead", "unconscious"):
+            defeated.append(cname)
+
+        # Vital stats
+        vital = _get_char_vital(db, cid, hud_cfg)
+        if vital:
+            vital_lines.append(f"  {cname}: {vital}")
+
+    # --- Cleanup ---
     # Get zone names for terrain modifier cleanup
     zone_rows = db.execute(
         "SELECT id, name FROM encounter_zones WHERE encounter_id = ?",
@@ -805,26 +833,38 @@ def end_encounter(db, session_id: int) -> str:
     )
     db.commit()
 
+    # Auto-recalc derived stats for all participants after modifier cleanup
+    if terrain_removed or encounter_removed:
+        from rules_engine import try_rules_calc
+        for cid in char_ids:
+            try_rules_calc(db, cid)
+
+    # --- Format combat summary ---
+    lines = [f"COMBAT ENDED ({rnd} rounds)"]
+    if participants:
+        lines.append(f"Participants: {', '.join(participants)}")
+    if defeated:
+        lines.append(f"Defeated: {', '.join(defeated)}")
+    lines.extend(vital_lines)
+
     parts = []
     if terrain_removed:
         parts.append(f"{terrain_removed} terrain modifier(s)")
     if encounter_removed:
         parts.append(f"{encounter_removed} combat modifier(s)")
-    cleanup = f" Cleared: {', '.join(parts)}." if parts else ""
+    if parts:
+        lines.append(f"Cleared: {', '.join(parts)}")
 
-    # Auto-recalc derived stats for all participants after modifier cleanup
-    recalc_lines = []
-    if terrain_removed or encounter_removed:
-        from rules_engine import try_rules_calc
-        for cid in char_ids:
-            recalc = try_rules_calc(db, cid)
-            if recalc:
-                recalc_lines.append(recalc)
+    # Auto-save combat summary to journal
+    summary_text = "\n".join(lines)
+    try:
+        from journal import add as journal_add
+        journal_result = journal_add(db, session_id, "combat", summary_text)
+        lines.append(f"Journal saved: {journal_result}")
+    except Exception:
+        pass  # journal save is best-effort
 
-    result = f"ENCOUNTER ENDED (session {session_id}, {rnd} rounds).{cleanup}"
-    if recalc_lines:
-        result += "\n" + "\n".join(recalc_lines)
-    return result
+    return "\n".join(lines)
 
 
 def update_zone_tags(

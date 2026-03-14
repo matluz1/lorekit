@@ -1980,19 +1980,20 @@ def encounter_advance_turn(session_id: int) -> str:
 
 @mcp.tool()
 def encounter_end(session_id: int) -> str:
-    """End the active encounter.
+    """End the active encounter with combat summary.
 
     Removes all zones, character positions, terrain modifiers, and
-    encounter-duration combat modifiers. The encounter record is kept
-    for history.
+    encounter-duration combat modifiers. Generates a combat summary
+    (participants, defeated, vital stats) and auto-saves to journal.
     """
     from _db import LoreKitError, require_db
 
     db = require_db()
     try:
+        combat_cfg = _load_combat_cfg(db, session_id)
         from encounter import end_encounter
 
-        return end_encounter(db, session_id)
+        return end_encounter(db, session_id, combat_cfg=combat_cfg)
     except LoreKitError as e:
         return f"ERROR: {e}"
     finally:
