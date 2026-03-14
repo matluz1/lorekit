@@ -23,10 +23,17 @@ python3.13 -m venv .venv
 The MCP server is configured in `.mcp.json`. On first use, the agent calls
 `init_db` to create the database.
 
+## Development
+
+```bash
+.venv/bin/pip install -r requirements-dev.txt
+pre-commit install
+```
+
 ## Testing
 
 ```bash
-.venv/bin/pytest tests/ -v
+.venv/bin/pytest tests/
 ```
 
 ## Playing
@@ -50,6 +57,11 @@ LoreKit ships with two system packs under `systems/`:
 System packs are pure JSON. The rules engine is zero-knowledge: it only knows
 variables, formulas, tables, and constraints. All domain logic lives in the
 system pack files and the data-driven build engine.
+
+Each pack ships a `test_config.json` alongside `system.json` so the
+parametrized test harness can exercise the full combat flow, rest, initiative,
+HUD, and encounter templates for that system. Packs without a config trigger a
+pytest warning.
 
 **System data is NOT covered by the project's Apache 2.0 license.** Each
 system's data is governed by its own license, found in the `LICENSE` file

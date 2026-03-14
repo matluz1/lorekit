@@ -12,6 +12,25 @@ sys.path.insert(0, ROOT)
 sys.path.insert(0, os.path.join(ROOT, "core"))
 
 
+def pytest_configure(config):
+    """Warn about system packs that ship without a test_config.json."""
+    systems_dir = os.path.join(ROOT, "systems")
+    if not os.path.isdir(systems_dir):
+        return
+    for name in sorted(os.listdir(systems_dir)):
+        pack_dir = os.path.join(systems_dir, name)
+        system_json = os.path.join(pack_dir, "system.json")
+        test_cfg = os.path.join(pack_dir, "test_config.json")
+        if os.path.isfile(system_json) and not os.path.isfile(test_cfg):
+            config.issue_config_time_warning(
+                pytest.PytestConfigWarning(
+                    f"System pack '{name}' has no test_config.json — "
+                    f"it won't be covered by the parametrized test harness"
+                ),
+                stacklevel=1,
+            )
+
+
 def _extract_id(result):
     """Extract integer ID from result strings like 'FOO_CREATED: 123'."""
     m = re.search(r":\s*(\d+)", result)
