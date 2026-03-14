@@ -260,5 +260,19 @@
         "weapon_traits": "traits"
       }
     }
+  },
+
+  "rest": {
+    "short": {
+      "restore": {"current_hp": "current_hp"},
+      "reset_uses": ["per_encounter"],
+      "clear_duration_types": ["encounter"]
+    },
+    "long": {
+      "restore": {"current_hp": "max_hp"},
+      "reset_uses": ["per_day", "per_encounter"],
+      "clear_duration_types": ["encounter", "rounds", "save_ends"],
+      "time_advance": {"amount": 8, "unit": "hours"}
+    }
   }
 }

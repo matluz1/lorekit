@@ -1801,6 +1801,37 @@ def rules_modifiers(character_id: int | str, stat: str = "", system_path: str = 
 
 
 # ---------------------------------------------------------------------------
+# Rest
+# ---------------------------------------------------------------------------
+
+
+@mcp.tool()
+def rest(session_id: int, type: str) -> str:
+    """Apply rest rules to all PCs in the session.
+
+    type: rest type from system pack (e.g. "short", "long").
+    Restores stats via formulas, resets ability uses, clears combat
+    modifiers, and optionally advances time. All rules come from
+    the system pack's "rest" section.
+    """
+    from _db import LoreKitError, require_db
+
+    db = require_db()
+    try:
+        system_path = _resolve_system_path_for_session(db, session_id)
+        if not system_path:
+            return "ERROR: No rules_system set for this session."
+
+        from rest import rest as _rest
+
+        return _rest(db, session_id, type, system_path)
+    except LoreKitError as e:
+        return f"ERROR: {e}"
+    finally:
+        db.close()
+
+
+# ---------------------------------------------------------------------------
 # Encounter (combat positioning)
 # ---------------------------------------------------------------------------
 

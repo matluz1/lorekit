@@ -567,6 +567,121 @@ class TestCombatHUD:
         db.close()
 
 
+class TestRest:
+    """rest tool applies system pack rest rules to all PCs."""
+
+    def test_short_rest_partial_heal(self, rules_session, make_character):
+        from _db import require_db
+        from rest import rest
+
+        db = require_db()
+        cid = make_character(rules_session, name="Fighter")
+        _setup_character(db, cid)
+        # max_hp = 7 (hit_die_avg=6*1 + con_mod=1*1)
+        # short rest restores floor(max_hp / 2) = floor(3.5) = 3
+        _set_attrs(db, cid, {"current_hp": 1})
+        from rules_engine import rules_calc
+        rules_calc(db, cid, TEST_SYSTEM)
+
+        result = rest(db, rules_session, "short", TEST_SYSTEM)
+        assert "REST (SHORT)" in result
+        assert "current_hp: 1 → 3" in result
+
+        hp = _get_derived(db, cid, "current_hp")
+        # current_hp is a stat, not derived — check stat category
+        row = db.execute(
+            "SELECT value FROM character_attributes "
+            "WHERE character_id = ? AND category = 'stat' AND key = 'current_hp'",
+            (cid,),
+        ).fetchone()
+        assert row is not None
+        assert int(row[0]) == 3
+        db.close()
+
+    def test_long_rest_full_heal(self, rules_session, make_character):
+        from _db import require_db
+        from rest import rest
+
+        db = require_db()
+        cid = make_character(rules_session, name="Fighter")
+        _setup_character(db, cid)
+        _set_attrs(db, cid, {"current_hp": 1})
+        from rules_engine import rules_calc
+        rules_calc(db, cid, TEST_SYSTEM)
+
+        result = rest(db, rules_session, "long", TEST_SYSTEM)
+        assert "REST (LONG)" in result
+        assert "current_hp: 1 → 7" in result
+        db.close()
+
+    def test_clears_modifiers(self, rules_session, make_character):
+        from _db import require_db
+        from mcp_server import combat_modifier
+        from rest import rest
+
+        db = require_db()
+        cid = make_character(rules_session, name="Fighter")
+        _setup_character(db, cid)
+
+        combat_modifier(
+            character_id=cid, action="add",
+            source="bless", target_stat="bonus_melee_attack", value=1,
+            duration_type="encounter",
+        )
+
+        result = rest(db, rules_session, "short", TEST_SYSTEM)
+        assert "Modifiers cleared: 1" in result
+
+        # Verify modifier is gone
+        count = db.execute(
+            "SELECT COUNT(*) FROM combat_state WHERE character_id = ?", (cid,),
+        ).fetchone()[0]
+        assert count == 0
+        db.close()
+
+    def test_only_affects_pcs(self, rules_session, make_character):
+        from _db import require_db
+        from rest import rest
+
+        db = require_db()
+        pc = make_character(rules_session, name="Fighter", char_type="pc")
+        npc = make_character(rules_session, name="Goblin", char_type="npc")
+        _setup_character(db, pc)
+        _setup_character(db, npc)
+        _set_attrs(db, pc, {"current_hp": 1})
+        _set_attrs(db, npc, {"current_hp": 1})
+        from rules_engine import rules_calc
+        rules_calc(db, pc, TEST_SYSTEM)
+        rules_calc(db, npc, TEST_SYSTEM)
+
+        result = rest(db, rules_session, "long", TEST_SYSTEM)
+        assert "Fighter" in result
+        assert "Goblin" not in result
+
+        # NPC HP unchanged
+        row = db.execute(
+            "SELECT value FROM character_attributes "
+            "WHERE character_id = ? AND category = 'stat' AND key = 'current_hp'",
+            (npc,),
+        ).fetchone()
+        assert int(row[0]) == 1
+        db.close()
+
+    def test_invalid_rest_type(self, rules_session, make_character):
+        from _db import require_db
+        from rest import rest
+
+        db = require_db()
+        make_character(rules_session, name="Fighter")
+
+        try:
+            rest(db, rules_session, "mega", TEST_SYSTEM)
+            assert False, "Should have raised"
+        except Exception as e:
+            assert "Unknown rest type" in str(e)
+        db.close()
+
+
 class TestCombatSummary:
     """encounter_end generates combat summary with participants and vitals."""
 
