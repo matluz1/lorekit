@@ -249,7 +249,8 @@ def _get_character_zone(db, encounter_id: int, character_id: int):
 
 
 def start_encounter(
-    db, session_id: int, zones: list[dict], initiative: list[dict],
+    db, session_id: int, zones: list[dict],
+    initiative: list[dict] | str,
     adjacency: list[dict] | None = None,
     placements: list[dict] | None = None,
     combat_cfg: dict | None = None,
@@ -258,7 +259,8 @@ def start_encounter(
 
     Parameters:
     - zones: [{"name": "...", "tags": ["cover", ...]}, ...]
-    - initiative: [{"character_id": N, "roll": M}, ...]
+    - initiative: [{"character_id": N, "roll": M}, ...] or "auto"
+      When "auto", rolls d20 + initiative_stat for each placed character.
     - adjacency: [{"from": "A", "to": "B", "weight": 1}, ...] or None for linear chain
     - placements: [{"character_id": N, "zone": "name"}, ...] or None
     - combat_cfg: system pack's combat section (for terrain modifiers)
@@ -271,8 +273,49 @@ def start_encounter(
     if not zones:
         raise LoreKitError("At least one zone is required")
 
-    # Sort initiative descending
-    sorted_init = sorted(initiative, key=lambda x: x["roll"], reverse=True)
+    cfg = combat_cfg or {}
+
+    # Auto-roll initiative if requested
+    if initiative == "auto":
+        if not placements:
+            raise LoreKitError(
+                "initiative='auto' requires placements to know which characters to roll for"
+            )
+        init_stat = cfg.get("initiative_stat")
+        if not init_stat:
+            raise LoreKitError(
+                "initiative='auto' requires combat.initiative_stat in system pack"
+            )
+
+        from random import random
+        from rolldice import roll_expr
+
+        initiative = []
+        for p in placements:
+            cid = p["character_id"]
+            # Read derived stat
+            row = db.execute(
+                "SELECT value FROM character_attributes "
+                "WHERE character_id = ? AND category = 'derived' AND key = ?",
+                (cid, init_stat),
+            ).fetchone()
+            bonus = int(row[0]) if row else 0
+            roll_result = roll_expr("d20")
+            roll_val = roll_result["total"]
+            # Add tiny random tiebreaker (0-0.99) so ties resolve randomly
+            initiative.append({
+                "character_id": cid,
+                "roll": roll_val + bonus,
+                "_tiebreak": random(),
+                "_detail": f"d20({roll_val}) + {bonus}",
+            })
+
+    # Sort initiative descending (with tiebreaker if present)
+    sorted_init = sorted(
+        initiative,
+        key=lambda x: (x["roll"], x.get("_tiebreak", 0)),
+        reverse=True,
+    )
     init_order = [entry["character_id"] for entry in sorted_init]
 
     # Create encounter
@@ -319,7 +362,6 @@ def start_encounter(
             )
 
     # Place characters
-    cfg = combat_cfg or {}
     terrain_lines = []
     if placements:
         for p in placements:
@@ -356,7 +398,11 @@ def start_encounter(
     init_names = []
     for entry in sorted_init:
         cname = _char_name(db, entry["character_id"])
-        init_names.append(f"{cname} ({entry['roll']})")
+        detail = entry.get("_detail")
+        if detail:
+            init_names.append(f"{cname} ({detail} = {entry['roll']})")
+        else:
+            init_names.append(f"{cname} ({entry['roll']})")
     lines.append(f"Initiative: {', '.join(init_names)}")
 
     # Zones display

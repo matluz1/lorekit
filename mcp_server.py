@@ -1778,7 +1778,9 @@ def encounter_start(
     Adjacency defaults to a linear chain if not specified.
 
     zones: JSON array — [{"name": "Entrance", "tags": ["cover"]}, ...]
-    initiative: JSON array — [{"character_id": 5, "roll": 22}, ...]
+    initiative: "auto" or JSON array — [{"character_id": 5, "roll": 22}, ...]
+      When "auto", rolls d20 + initiative_stat (from system pack) for each
+      placed character. Requires placements.
     adjacency: JSON array (optional) — [{"from": "A", "to": "B", "weight": 1}, ...]
     placements: JSON array (optional) — [{"character_id": 5, "zone": "Entrance"}, ...]
     """
@@ -1789,7 +1791,11 @@ def encounter_start(
     db = require_db()
     try:
         zones_list = json.loads(zones)
-        init_list = json.loads(initiative)
+        init_value = initiative.strip()
+        if init_value == '"auto"' or init_value == "auto":
+            init_list = "auto"
+        else:
+            init_list = json.loads(initiative)
         adj_list = json.loads(adjacency) if adjacency else None
         place_list = json.loads(placements) if placements else None
 

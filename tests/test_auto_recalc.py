@@ -20,6 +20,7 @@ COMBAT_CFG = {
     "zone_scale": 30,
     "movement_unit": "ft",
     "melee_range": 0,
+    "initiative_stat": "melee_attack",
     "zone_tags": {
         "difficult_terrain": {"movement_multiplier": 2},
         "cover": {
@@ -383,6 +384,85 @@ class TestAdvanceTurnAutoEndTurn:
         assert "Goblin" in result
         # No END TURN section since no rules_system
         assert "END TURN" not in result
+        db.close()
+
+
+class TestInitiativeAutoRoll:
+    """encounter_start with initiative='auto' rolls d20 + derived stat."""
+
+    def test_auto_roll_produces_valid_order(self, rules_session, make_character):
+        from _db import require_db
+        from encounter import start_encounter
+
+        db = require_db()
+        c1 = make_character(rules_session, name="Fighter")
+        c2 = make_character(rules_session, name="Rogue")
+        _setup_character(db, c1)
+        _setup_character(db, c2)
+
+        zones = [{"name": "Arena"}]
+        placements = [
+            {"character_id": c1, "zone": "Arena"},
+            {"character_id": c2, "zone": "Arena"},
+        ]
+
+        result = start_encounter(
+            db, rules_session, zones, "auto",
+            placements=placements, combat_cfg=COMBAT_CFG,
+        )
+        assert "ENCOUNTER STARTED" in result
+        assert "d20(" in result  # auto-roll detail shown
+        assert "Fighter" in result
+        assert "Rogue" in result
+
+        # Verify initiative order was stored
+        enc = db.execute(
+            "SELECT initiative_order FROM encounter_state WHERE session_id = ?",
+            (rules_session,),
+        ).fetchone()
+        import json
+        order = json.loads(enc[0])
+        assert len(order) == 2
+        assert set(order) == {c1, c2}
+        db.close()
+
+    def test_auto_roll_requires_placements(self, rules_session, make_character):
+        from _db import LoreKitError, require_db
+        from encounter import start_encounter
+
+        db = require_db()
+        zones = [{"name": "Arena"}]
+
+        with pytest.raises(LoreKitError, match="requires placements"):
+            start_encounter(db, rules_session, zones, "auto", combat_cfg=COMBAT_CFG)
+        db.close()
+
+    def test_manual_override_still_works(self, rules_session, make_character):
+        from _db import require_db
+        from encounter import start_encounter
+
+        db = require_db()
+        c1 = make_character(rules_session, name="Fighter")
+        c2 = make_character(rules_session, name="Rogue")
+
+        zones = [{"name": "Arena"}]
+        initiative = [
+            {"character_id": c1, "roll": 5},
+            {"character_id": c2, "roll": 20},
+        ]
+        placements = [
+            {"character_id": c1, "zone": "Arena"},
+            {"character_id": c2, "zone": "Arena"},
+        ]
+
+        result = start_encounter(
+            db, rules_session, zones, initiative,
+            placements=placements, combat_cfg=COMBAT_CFG,
+        )
+        assert "Rogue (20)" in result
+        assert "Fighter (5)" in result
+        # Rogue should be first (higher roll)
+        assert result.index("Rogue") < result.index("Fighter")
         db.close()
 
 

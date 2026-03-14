@@ -22,6 +22,7 @@
     "zone_scale": 30,
     "movement_unit": "ft",
     "melee_range": 0,
+    "initiative_stat": "perception",
     "zone_tags": {
       "difficult_terrain": {"movement_multiplier": 2},
       "cover": {"target_stat": "bonus_ac", "value": 2, "modifier_type": "circumstance"},
