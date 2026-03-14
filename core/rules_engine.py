@@ -262,11 +262,12 @@ def write_derived(db, character_id: int, derived: dict[str, Any]) -> int:
 # ---------------------------------------------------------------------------
 
 def _run_build(db, character_id: int, pack_dir: str,
-               char: CharacterData) -> None:
+               char: CharacterData):
     """Run the build engine and write results to the DB.
 
     Build attributes are written under category='build'. This must
     run before recalculate() so derived formulas can reference them.
+    Returns the BuildResult (or None if nothing to process).
     """
     from build_engine import process_build
 
@@ -276,7 +277,7 @@ def _run_build(db, character_id: int, pack_dir: str,
     )
 
     if not build_result.attributes and not build_result.costs:
-        return
+        return None
 
     # Write build attributes to DB and merge into character data
     count = 0
@@ -321,6 +322,8 @@ def _run_build(db, character_id: int, pack_dir: str,
 
     if count:
         db.commit()
+
+    return build_result
 
 
 def rules_check(db, character_id: int, check: str, dc: int, pack_dir: str) -> str:
@@ -402,7 +405,7 @@ def rules_calc(db, character_id: int, pack_dir: str) -> str:
 
     # Run build engine first — writes build attributes to DB and merges
     # them into char so derived formulas can reference them
-    _run_build(db, character_id, pack_dir, char)
+    build_result = _run_build(db, character_id, pack_dir, char)
 
     result = recalculate(pack, char, db=db)
 
@@ -425,5 +428,17 @@ def rules_calc(db, character_id: int, pack_dir: str) -> str:
         lines.append("VIOLATIONS:")
         for v in result.violations:
             lines.append(f"  ⚠ {v}")
+
+    # Budget summary (only for systems with budget, e.g. M&M3e)
+    if build_result and build_result.budget_total:
+        remaining = build_result.budget_total - build_result.budget_spent
+        lines.append(
+            f"BUDGET: {build_result.budget_spent}/{build_result.budget_total} spent "
+            f"({remaining} remaining)"
+        )
+        if build_result.costs:
+            for cat, cost in sorted(build_result.costs.items()):
+                if cost:
+                    lines.append(f"  {cat}: {cost}")
 
     return "\n".join(lines)

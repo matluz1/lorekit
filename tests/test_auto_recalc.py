@@ -310,6 +310,82 @@ class TestEncounterEndAutoRecalc:
         db.close()
 
 
+class TestAdvanceTurnAutoEndTurn:
+    """advance_turn automatically calls end_turn on the previous character."""
+
+    def test_modifiers_tick_on_advance(self, rules_session, make_character):
+        from _db import require_db
+        from encounter import advance_turn, start_encounter
+        from mcp_server import combat_modifier
+
+        db = require_db()
+        c1 = make_character(rules_session, name="Fighter")
+        c2 = make_character(rules_session, name="Goblin")
+        _setup_character(db, c1)
+        _setup_character(db, c2)
+
+        zones = [{"name": "Arena"}]
+        initiative = [
+            {"character_id": c1, "roll": 20},
+            {"character_id": c2, "roll": 10},
+        ]
+        placements = [
+            {"character_id": c1, "zone": "Arena"},
+            {"character_id": c2, "zone": "Arena"},
+        ]
+        start_encounter(db, rules_session, zones, initiative, placements=placements)
+
+        # Add a 2-round modifier to Fighter (whose turn is current)
+        combat_modifier(
+            character_id=c1, action="add",
+            source="rage", target_stat="bonus_melee_attack", value=2,
+            duration_type="rounds", duration=2,
+        )
+
+        # Advance: should end Fighter's turn (tick rage to 1 round), start Goblin's
+        result = advance_turn(db, rules_session)
+        assert "END TURN" in result
+        assert "TICKED: rage (1 rounds remaining)" in result
+        assert "Goblin" in result
+
+        # Advance again: end Goblin's turn (no modifiers), start Fighter's (round 2)
+        result = advance_turn(db, rules_session)
+        assert "Fighter" in result
+
+        # Advance again: end Fighter's turn → rage expires (0 remaining)
+        result = advance_turn(db, rules_session)
+        assert "EXPIRED: rage" in result
+        db.close()
+
+    def test_advance_without_system_still_works(self, make_session, make_character):
+        """Sessions without rules_system skip end_turn gracefully."""
+        from _db import require_db
+        from encounter import advance_turn, start_encounter
+
+        db = require_db()
+        sid = make_session()
+        c1 = make_character(sid, name="Fighter")
+        c2 = make_character(sid, name="Goblin")
+
+        zones = [{"name": "Arena"}]
+        initiative = [
+            {"character_id": c1, "roll": 20},
+            {"character_id": c2, "roll": 10},
+        ]
+        placements = [
+            {"character_id": c1, "zone": "Arena"},
+            {"character_id": c2, "zone": "Arena"},
+        ]
+        start_encounter(db, sid, zones, initiative, placements=placements)
+
+        result = advance_turn(db, sid)
+        assert "TURN" in result
+        assert "Goblin" in result
+        # No END TURN section since no rules_system
+        assert "END TURN" not in result
+        db.close()
+
+
 class TestNoRecalcWithoutSystem:
     """Sessions without rules_system skip recalc silently."""
 

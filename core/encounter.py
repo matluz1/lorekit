@@ -19,6 +19,26 @@ from typing import Any
 from _db import LoreKitError
 
 
+def _resolve_system_path(db, session_id: int) -> str | None:
+    """Resolve the system pack directory from session metadata.
+
+    Returns the full path, or None if no rules_system is configured.
+    """
+    import os
+
+    meta_row = db.execute(
+        "SELECT value FROM session_meta WHERE session_id = ? AND key = 'rules_system'",
+        (session_id,),
+    ).fetchone()
+    if meta_row is None:
+        return None
+
+    system_name = meta_row[0]
+    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    system_path = os.path.join(project_root, "systems", system_name)
+    return system_path if os.path.isdir(system_path) else None
+
+
 # ---------------------------------------------------------------------------
 # Zone graph — shortest path
 # ---------------------------------------------------------------------------
@@ -525,6 +545,8 @@ def move_character(
 def advance_turn(db, session_id: int, combat_cfg: dict | None = None) -> str:
     """Advance to the next character in initiative order.
 
+    Automatically calls end_turn on the character whose turn just ended
+    (ticks modifier durations, removes expired modifiers, recalcs stats).
     Wraps around at end of initiative, incrementing the round counter.
     """
     enc_id, rnd, init_json, current_turn = _require_active_encounter(db, session_id)
@@ -534,6 +556,17 @@ def advance_turn(db, session_id: int, combat_cfg: dict | None = None) -> str:
 
     if not init_order:
         raise LoreKitError("Initiative order is empty")
+
+    lines = []
+
+    # Auto end_turn on the character whose turn just ended
+    ending_char_id = init_order[current_turn]
+    system_path = _resolve_system_path(db, session_id)
+    if system_path:
+        from combat_engine import end_turn as _end_turn
+        end_result = _end_turn(db, ending_char_id, system_path)
+        lines.append(end_result)
+        lines.append("")
 
     # Advance
     next_turn = current_turn + 1
@@ -551,7 +584,7 @@ def advance_turn(db, session_id: int, combat_cfg: dict | None = None) -> str:
     char_id = init_order[next_turn]
     cname = _char_name(db, char_id)
 
-    lines = [f"TURN: Round {new_round}, {cname} (character {char_id})"]
+    lines.append(f"TURN: Round {new_round}, {cname} (character {char_id})")
 
     # Position info
     zid = _get_character_zone(db, enc_id, char_id)
