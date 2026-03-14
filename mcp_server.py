@@ -77,7 +77,6 @@ def _run_with_db(fn, *args, **kwargs):
 # ---------------------------------------------------------------------------
 
 
-@mcp.tool()
 def init_db() -> str:
     """Create or verify the LoreKit database schema. Safe to re-run."""
     from _db import init_schema
@@ -142,7 +141,6 @@ def session_meta_get(session_id: int, key: str = "") -> str:
 # ---------------------------------------------------------------------------
 
 
-@mcp.tool()
 def story_set(session_id: int, size: str, premise: str) -> str:
     """Create or overwrite the story plan for a session. Size: oneshot, short, campaign."""
     from story import set_story
@@ -150,7 +148,6 @@ def story_set(session_id: int, size: str, premise: str) -> str:
     return _run_with_db(set_story, session_id, size, premise)
 
 
-@mcp.tool()
 def story_view(session_id: int, act_id: int = 0) -> str:
     """Show the story premise and all acts. If act_id is given, show full details for that act only."""
     if act_id:
@@ -160,7 +157,6 @@ def story_view(session_id: int, act_id: int = 0) -> str:
     return _run_with_db(view, session_id)
 
 
-@mcp.tool()
 def story_add_act(session_id: int, title: str, desc: str = "", goal: str = "", event: str = "") -> str:
     """Append an act to the story. Order is auto-assigned."""
     from story import add_act
@@ -175,7 +171,6 @@ def story_view_act(act_id: int) -> str:
     return _run_with_db(view_act, act_id)
 
 
-@mcp.tool()
 def story_update_act(act_id: int, title: str = "", desc: str = "", goal: str = "", event: str = "", status: str = "") -> str:
     """Update one or more fields on an act."""
     from story import update_act
@@ -183,12 +178,41 @@ def story_update_act(act_id: int, title: str = "", desc: str = "", goal: str = "
     return _run_with_db(update_act, act_id, title, desc, goal, event, status)
 
 
-@mcp.tool()
 def story_advance(session_id: int) -> str:
     """Complete the current active act and activate the next pending one."""
     from story import advance
 
     return _run_with_db(advance, session_id)
+
+
+@mcp.tool()
+def story(
+    action: str, session_id: int = 0, act_id: int = 0,
+    title: str = "", desc: str = "", goal: str = "",
+    event: str = "", status: str = "", size: str = "", premise: str = "",
+) -> str:
+    """Manage story plan and acts.
+
+    action: "set", "view", "add_act", "update_act", or "advance".
+
+    set — create/overwrite story plan (requires session_id, size, premise)
+    view — show story + acts (requires session_id; optional act_id for detail)
+    add_act — append an act (requires session_id, title; optional desc, goal, event)
+    update_act — update act fields (requires act_id; optional title, desc, goal, event, status)
+    advance — complete current act, activate next (requires session_id)
+    """
+    if action == "set":
+        return story_set(session_id, size, premise)
+    elif action == "view":
+        return story_view(session_id, act_id)
+    elif action == "add_act":
+        return story_add_act(session_id, title, desc, goal, event)
+    elif action == "update_act":
+        return story_update_act(act_id, title, desc, goal, event, status)
+    elif action == "advance":
+        return story_advance(session_id)
+    else:
+        return f"ERROR: Unknown action '{action}'. Use set, view, add_act, update_act, or advance."
 
 
 # ---------------------------------------------------------------------------
@@ -291,7 +315,6 @@ def character_get_abilities(character_id: int) -> str:
 # ---------------------------------------------------------------------------
 
 
-@mcp.tool()
 def region_create(session_id: int, name: str, desc: str = "", parent_id: int = 0) -> str:
     """Create a region in a session. Set parent_id to nest under another region."""
     from region import create
@@ -299,7 +322,6 @@ def region_create(session_id: int, name: str, desc: str = "", parent_id: int = 0
     return _run_with_db(create, session_id, name, desc, parent_id)
 
 
-@mcp.tool()
 def region_list(session_id: int) -> str:
     """List all regions in a session."""
     from region import list_regions
@@ -307,7 +329,6 @@ def region_list(session_id: int) -> str:
     return _run_with_db(list_regions, session_id)
 
 
-@mcp.tool()
 def region_view(region_id: int) -> str:
     """View region details and all NPCs linked to it."""
     from region import view
@@ -315,12 +336,37 @@ def region_view(region_id: int) -> str:
     return _run_with_db(view, region_id)
 
 
-@mcp.tool()
 def region_update(region_id: int, name: str = "", desc: str = "", parent_id: int = 0) -> str:
     """Update region name, description, and/or parent."""
     from region import update
 
     return _run_with_db(update, region_id, name, desc, parent_id)
+
+
+@mcp.tool()
+def region(
+    action: str, session_id: int = 0, region_id: int = 0,
+    name: str = "", desc: str = "", parent_id: int = 0,
+) -> str:
+    """Manage regions in a session.
+
+    action: "create", "list", "view", or "update".
+
+    create — create a region (requires session_id, name; optional desc, parent_id)
+    list — list all regions (requires session_id)
+    view — view region details + linked NPCs (requires region_id)
+    update — update region fields (requires region_id; optional name, desc, parent_id)
+    """
+    if action == "create":
+        return region_create(session_id, name, desc, parent_id)
+    elif action == "list":
+        return region_list(session_id)
+    elif action == "view":
+        return region_view(region_id)
+    elif action == "update":
+        return region_update(region_id, name, desc, parent_id)
+    else:
+        return f"ERROR: Unknown action '{action}'. Use create, list, view, or update."
 
 
 # ---------------------------------------------------------------------------
@@ -412,7 +458,6 @@ def time_get(session_id: int) -> str:
     return _run_with_db(get_time, session_id)
 
 
-@mcp.tool()
 def time_set(session_id: int, datetime: str) -> str:
     """Set the in-game narrative time (ISO 8601, e.g. '1347-03-15T14:00')."""
     from narrative_time import set_time
@@ -499,7 +544,6 @@ def recall_search(session_id: int, query: str, source: str = "", n: int = 0, mod
     return _run_with_db(search, session_id, query, source, n)
 
 
-@mcp.tool()
 def recall_reindex(session_id: int) -> str:
     """Rebuild vector collections from SQL data for a session."""
     from recall import reindex
@@ -513,14 +557,19 @@ def recall_reindex(session_id: int) -> str:
 
 
 @mcp.tool()
-def export_dump(session_id: int) -> str:
-    """Export all session data to .export/session_<id>.txt."""
+def export_dump(session_id: int, clean_previous: bool = False) -> str:
+    """Export all session data to .export/session_<id>.txt.
+
+    clean_previous: if true, removes the .export/ directory before exporting.
+    """
+    if clean_previous:
+        from export import clean
+        _run_with_db(clean)
     from export import dump
 
     return _run_with_db(dump, session_id)
 
 
-@mcp.tool()
 def export_clean() -> str:
     """Remove the .export/ directory and all files inside it."""
     from export import clean
@@ -1027,7 +1076,7 @@ _NPC_ALLOWED_TOOLS = [
     "mcp__lorekit__timeline_list",
     "mcp__lorekit__journal_list",
     "mcp__lorekit__recall_search",
-    "mcp__lorekit__region_view",
+    "mcp__lorekit__region",
     "mcp__lorekit__time_get",
 ]
 
@@ -1628,7 +1677,6 @@ def rules_resolve(attacker_id: int | str, defender_id: int | str, action: str,
         db.close()
 
 
-@mcp.tool()
 def rules_calc(character_id: int | str, system_path: str = "") -> str:
     """Recompute all derived stats for a character using the rules engine.
 
@@ -1675,7 +1723,6 @@ def rules_calc(character_id: int | str, system_path: str = "") -> str:
         db.close()
 
 
-@mcp.tool()
 def end_turn(character_id: int | str, system_path: str = "") -> str:
     """Tick durations on a character's combat modifiers at end of turn.
 
@@ -1828,7 +1875,6 @@ def combat_modifier(
         db.close()
 
 
-@mcp.tool()
 def rules_modifiers(character_id: int | str, stat: str = "", system_path: str = "") -> str:
     """Show modifier decomposition for a character's stats.
 
