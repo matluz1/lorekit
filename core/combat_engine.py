@@ -27,10 +27,10 @@ from system_pack import (
     load_system_pack,
 )
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _get_derived(char: CharacterData, stat: str) -> int:
     """Read a derived stat value. Falls back to build, then any category."""
@@ -93,19 +93,21 @@ def _ensure_current_hp(db, defender: CharacterData) -> int:
         defender.attributes.setdefault("combat", {})["current_hp"] = str(hp)
         return hp
 
-    raise LoreKitError(
-        f"No current_hp or max_hp found on {defender.name}. "
-        f"Set combat stats before resolving actions."
-    )
+    raise LoreKitError(f"No current_hp or max_hp found on {defender.name}. Set combat stats before resolving actions.")
 
 
 # ---------------------------------------------------------------------------
 # On-hit effects — shared by all resolution types
 # ---------------------------------------------------------------------------
 
+
 def _apply_on_hit(
-    db, pack: SystemPack, attacker: CharacterData,
-    defender: CharacterData, on_hit: dict, lines: list[str],
+    db,
+    pack: SystemPack,
+    attacker: CharacterData,
+    defender: CharacterData,
+    on_hit: dict,
+    lines: list[str],
 ) -> None:
     """Apply all declared on_hit effects from an action definition.
 
@@ -129,9 +131,7 @@ def _apply_on_hit(
         damage_roll = damage_result["total"]
         total_damage = damage_roll + damage_bonus
 
-        lines.append(
-            f"DAMAGE: {dice_expr}({damage_roll}) + {damage_bonus} = {total_damage}"
-        )
+        lines.append(f"DAMAGE: {dice_expr}({damage_roll}) + {damage_bonus} = {total_damage}")
 
         if subtract_target == "current_hp":
             current = _ensure_current_hp(db, defender)
@@ -160,14 +160,14 @@ def _apply_on_hit(
                 "VALUES (?, ?, ?, ?, ?, ?, ?) "
                 "ON CONFLICT(character_id, source, target_stat) DO UPDATE SET "
                 "value = excluded.value",
-                (defender.character_id, source, target_stat, mod_type, value,
-                 bonus_type, dur_type),
+                (defender.character_id, source, target_stat, mod_type, value, bonus_type, dur_type),
             )
             lines.append(f"MODIFIER: {source} → {target_stat} {value:+d} ({dur_type})")
         db.commit()
 
         # Auto-recalc defender after on_hit modifiers
         from rules_engine import try_rules_calc
+
         recalc = try_rules_calc(db, defender.character_id)
         if recalc:
             lines.append(recalc)
@@ -186,13 +186,21 @@ def _apply_on_hit(
 
             if direction == "away":
                 result = force_move(
-                    db, enc_id, attacker.character_id, defender.character_id,
-                    push_zones, pack.combat,
+                    db,
+                    enc_id,
+                    attacker.character_id,
+                    defender.character_id,
+                    push_zones,
+                    pack.combat,
                 )
             elif direction == "toward":
                 result = force_move(
-                    db, enc_id, defender.character_id, attacker.character_id,
-                    push_zones, pack.combat,
+                    db,
+                    enc_id,
+                    defender.character_id,
+                    attacker.character_id,
+                    push_zones,
+                    pack.combat,
                 )
             else:
                 result = None
@@ -207,8 +215,11 @@ def _apply_on_hit(
 # Contested roll — optional mode for any action
 # ---------------------------------------------------------------------------
 
+
 def _contested_roll(
-    pack: SystemPack, attacker: CharacterData, defender: CharacterData,
+    pack: SystemPack,
+    attacker: CharacterData,
+    defender: CharacterData,
     action_def: dict,
 ) -> tuple[int, int, int, int | None, int]:
     """Roll a contested check. Returns (atk_roll, atk_total, def_total, def_roll, def_bonus).
@@ -240,9 +251,14 @@ def _contested_roll(
 # Threshold resolution (PF2e-style)
 # ---------------------------------------------------------------------------
 
+
 def _resolve_threshold(
-    db, pack: SystemPack, attacker: CharacterData,
-    defender: CharacterData, action_def: dict, options: dict,
+    db,
+    pack: SystemPack,
+    attacker: CharacterData,
+    defender: CharacterData,
+    action_def: dict,
+    options: dict,
 ) -> str:
     """Resolve an action using threshold (hit if roll >= defense).
 
@@ -254,17 +270,16 @@ def _resolve_threshold(
 
     if action_def.get("contested"):
         atk_roll, atk_total, def_total, def_roll, def_bonus = _contested_roll(
-            pack, attacker, defender, action_def,
+            pack,
+            attacker,
+            defender,
+            action_def,
         )
         atk_bonus = _get_derived(attacker, attack_stat)
 
         lines = [f"ACTION: {attacker.name} → {defender.name}"]
-        lines.append(
-            f"ATTACKER: {pack.dice}({atk_roll}) + {atk_bonus} ({attack_stat}) = {atk_total}"
-        )
-        lines.append(
-            f"DEFENDER: {pack.dice}({def_roll}) + {def_bonus} ({defense_stat}) = {def_total}"
-        )
+        lines.append(f"ATTACKER: {pack.dice}({atk_roll}) + {atk_bonus} ({attack_stat}) = {atk_total}")
+        lines.append(f"DEFENDER: {pack.dice}({def_roll}) + {def_bonus} ({defense_stat}) = {def_total}")
 
         if atk_total >= def_total:
             margin = atk_total - def_total
@@ -303,9 +318,14 @@ def _resolve_threshold(
 # Degree resolution (M&M3e-style)
 # ---------------------------------------------------------------------------
 
+
 def _resolve_degree(
-    db, pack: SystemPack, attacker: CharacterData,
-    defender: CharacterData, action_def: dict, options: dict,
+    db,
+    pack: SystemPack,
+    attacker: CharacterData,
+    defender: CharacterData,
+    action_def: dict,
+    options: dict,
 ) -> str:
     """Resolve an action using degree of failure system.
 
@@ -320,17 +340,16 @@ def _resolve_degree(
 
     if action_def.get("contested"):
         atk_roll, atk_total, def_total, def_roll, def_bonus = _contested_roll(
-            pack, attacker, defender, action_def,
+            pack,
+            attacker,
+            defender,
+            action_def,
         )
         atk_bonus = _get_derived(attacker, attack_stat)
 
         lines = [f"ACTION: {attacker.name} → {defender.name}"]
-        lines.append(
-            f"ATTACKER: {pack.dice}({atk_roll}) + {atk_bonus} ({attack_stat}) = {atk_total}"
-        )
-        lines.append(
-            f"DEFENDER: {pack.dice}({def_roll}) + {def_bonus} ({defense_stat}) = {def_total}"
-        )
+        lines.append(f"ATTACKER: {pack.dice}({atk_roll}) + {atk_bonus} ({attack_stat}) = {atk_total}")
+        lines.append(f"DEFENDER: {pack.dice}({def_roll}) + {def_bonus} ({defense_stat}) = {def_total}")
         hit = atk_total >= def_total
     else:
         attack_bonus = _get_derived(attacker, attack_stat)
@@ -364,8 +383,7 @@ def _resolve_degree(
             resist_dc = dc_base + damage_rank
 
             lines.append(
-                f"RESISTANCE: {pack.dice}({resist_roll}) + {resistance_bonus} = "
-                f"{resistance_total} vs DC {resist_dc}"
+                f"RESISTANCE: {pack.dice}({resist_roll}) + {resistance_bonus} = {resistance_total} vs DC {resist_dc}"
             )
 
             if resistance_total >= resist_dc:
@@ -414,6 +432,7 @@ def _resolve_degree(
 # End-of-turn duration ticking
 # ---------------------------------------------------------------------------
 
+
 def end_turn(db, character_id: int, pack_dir: str) -> str:
     """Tick durations on a character's combat modifiers at end of turn.
 
@@ -436,6 +455,7 @@ def end_turn(db, character_id: int, pack_dir: str) -> str:
 
     # Auto-checkpoint before ticking so turn_revert can undo
     from checkpoint import create_checkpoint
+
     create_checkpoint(db, char.session_id)
 
     # Load all active combat_state rows for this character
@@ -465,7 +485,8 @@ def end_turn(db, character_id: int, pack_dir: str) -> str:
             new_dur = duration - 1
             if new_dur <= remove_at:
                 db.execute(
-                    "DELETE FROM combat_state WHERE id = ?", (row_id,),
+                    "DELETE FROM combat_state WHERE id = ?",
+                    (row_id,),
                 )
                 lines.append(f"  EXPIRED: {source} ({target_stat} {value:+d}) — removed")
                 removed_any = True
@@ -486,9 +507,7 @@ def end_turn(db, character_id: int, pack_dir: str) -> str:
             derived = char.attributes.get("derived", {})
             bonus_str = derived.get(save_stat)
             if bonus_str is None:
-                lines.append(
-                    f"  SKIPPED: {source} — save stat '{save_stat}' not found"
-                )
+                lines.append(f"  SKIPPED: {source} — save stat '{save_stat}' not found")
                 continue
 
             bonus = int(bonus_str)
@@ -504,13 +523,11 @@ def end_turn(db, character_id: int, pack_dir: str) -> str:
                 f"→ {outcome_str}"
             )
 
-            should_remove = (
-                (remove_on == "success" and success) or
-                (remove_on == "failure" and not success)
-            )
+            should_remove = (remove_on == "success" and success) or (remove_on == "failure" and not success)
             if should_remove:
                 db.execute(
-                    "DELETE FROM combat_state WHERE id = ?", (row_id,),
+                    "DELETE FROM combat_state WHERE id = ?",
+                    (row_id,),
                 )
                 lines.append(f"    REMOVED: {source} ({target_stat} {value:+d})")
                 removed_any = True
@@ -520,6 +537,7 @@ def end_turn(db, character_id: int, pack_dir: str) -> str:
     # Recompute derived stats if any modifiers were removed
     if removed_any:
         from rules_engine import rules_calc as _rules_calc
+
         recomp = _rules_calc(db, character_id, pack_dir)
         # Extract change lines from recompute output
         for line in recomp.split("\n"):
@@ -533,9 +551,15 @@ def end_turn(db, character_id: int, pack_dir: str) -> str:
 # Public API
 # ---------------------------------------------------------------------------
 
+
 def resolve_area_action(
-    db, attacker_id: int, action: str, pack_dir: str,
-    center_zone: str, radius: int, exclude_self: bool = True,
+    db,
+    attacker_id: int,
+    action: str,
+    pack_dir: str,
+    center_zone: str,
+    radius: int,
+    exclude_self: bool = True,
     options: dict | None = None,
 ) -> str:
     """Resolve an action against all targets in an area.
@@ -555,12 +579,11 @@ def resolve_area_action(
 
     # Auto-checkpoint
     from checkpoint import create_checkpoint
+
     create_checkpoint(db, attacker.session_id)
 
     if action not in pack.actions:
-        raise LoreKitError(
-            f"Unknown action '{action}'. Available: {', '.join(pack.actions.keys())}"
-        )
+        raise LoreKitError(f"Unknown action '{action}'. Available: {', '.join(pack.actions.keys())}")
 
     enc = _get_active_encounter(db, attacker.session_id)
     if enc is None:
@@ -602,8 +625,12 @@ def resolve_area_action(
 
 
 def resolve_action(
-    db, attacker_id: int, defender_id: int, action: str,
-    pack_dir: str, options: dict | None = None,
+    db,
+    attacker_id: int,
+    defender_id: int,
+    action: str,
+    pack_dir: str,
+    options: dict | None = None,
 ) -> str:
     """Resolve a combat action between two characters."""
     pack = load_system_pack(pack_dir)
@@ -612,12 +639,11 @@ def resolve_action(
 
     # Auto-checkpoint before resolution so turn_revert can undo combat actions
     from checkpoint import create_checkpoint
+
     create_checkpoint(db, attacker.session_id)
 
     if action not in pack.actions:
-        raise LoreKitError(
-            f"Unknown action '{action}'. Available: {', '.join(pack.actions.keys())}"
-        )
+        raise LoreKitError(f"Unknown action '{action}'. Available: {', '.join(pack.actions.keys())}")
 
     action_def = pack.actions[action]
     opts = options or {}
@@ -639,8 +665,13 @@ def resolve_action(
                     except LoreKitError:
                         pass
             err = check_range(
-                db, enc_id, attacker_id, defender_id,
-                range_type, weapon_range, pack.combat,
+                db,
+                enc_id,
+                attacker_id,
+                defender_id,
+                range_type,
+                weapon_range,
+                pack.combat,
             )
             if err:
                 raise LoreKitError(err)

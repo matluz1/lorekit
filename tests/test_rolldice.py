@@ -2,7 +2,6 @@
 
 from mcp_server import roll_dice
 
-
 # -- Happy Path --
 
 

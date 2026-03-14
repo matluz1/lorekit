@@ -9,7 +9,6 @@ from mcp_server import (
     region_view,
 )
 
-
 # -- Happy Path --
 
 

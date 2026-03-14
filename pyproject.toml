@@ -1,0 +1,19 @@
+[tool.ruff]
+target-version = "py313"
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]
+ignore = [
+    "E501",   # line too long — handled by formatter
+    "E741",   # ambiguous variable name (l, O, I)
+    "F401",   # unused import — false positives with lazy imports
+    "F841",   # unused variable — false positives in test setup code
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["core", "mcp_server"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "--cov=core --cov=mcp_server.py --cov-report=term-missing --no-header -q"

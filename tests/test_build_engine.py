@@ -8,7 +8,7 @@ import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "core"))
 
-from build_engine import process_build, BuildResult
+from build_engine import BuildResult, process_build
 
 PF2E_SYSTEM = os.path.join(os.path.dirname(__file__), "..", "systems", "pf2e")
 FIXTURES = os.path.join(os.path.dirname(__file__), "fixtures")
@@ -257,11 +257,15 @@ class TestMM3eDefenses:
     """Test defense purchase cost tracking."""
 
     def test_defense_costs(self):
-        char_attrs = {"stat": {
-            "ranks_dodge": "5", "ranks_parry": "3",
-            "ranks_fortitude": "4", "ranks_will": "6",
-            "power_level": "10",
-        }}
+        char_attrs = {
+            "stat": {
+                "ranks_dodge": "5",
+                "ranks_parry": "3",
+                "ranks_fortitude": "4",
+                "ranks_will": "6",
+                "power_level": "10",
+            }
+        }
         result = process_build(MM3E_SYSTEM, char_attrs, [], level=1)
         # 5 + 3 + 4 + 6 = 18 PP
         assert result.costs["defense"] == 18
@@ -276,19 +280,24 @@ class TestMM3eSkills:
     """Test skill cost tracking (0.5 PP per rank)."""
 
     def test_skill_costs(self):
-        char_attrs = {"stat": {
-            "ranks_acrobatics": "8", "ranks_perception": "4",
-            "power_level": "10",
-        }}
+        char_attrs = {
+            "stat": {
+                "ranks_acrobatics": "8",
+                "ranks_perception": "4",
+                "power_level": "10",
+            }
+        }
         result = process_build(MM3E_SYSTEM, char_attrs, [], level=1)
         # 12 ranks * 0.5 = 6 PP
         assert result.costs["skill"] == 6
 
     def test_odd_ranks_round_up(self):
-        char_attrs = {"stat": {
-            "ranks_athletics": "5",
-            "power_level": "10",
-        }}
+        char_attrs = {
+            "stat": {
+                "ranks_athletics": "5",
+                "power_level": "10",
+            }
+        }
         result = process_build(MM3E_SYSTEM, char_attrs, [], level=1)
         # 5 ranks * 0.5 = 2.5 → ceil = 3 PP
         assert result.costs["skill"] == 3
@@ -345,20 +354,32 @@ class TestMM3ePipeline:
     def test_ranged_damage(self):
         """Damage 10 + Increased Range (+1/rank) → 2/rank × 10 = 20 PP."""
         char_attrs = {"stat": {"power_level": "10"}}
-        abilities = [_power_ability("Blast", {
-            "effect": "damage", "ranks": 10,
-            "extras": ["increased_range"],
-        })]
+        abilities = [
+            _power_ability(
+                "Blast",
+                {
+                    "effect": "damage",
+                    "ranks": 10,
+                    "extras": ["increased_range"],
+                },
+            )
+        ]
         result = process_build(MM3E_SYSTEM, char_attrs, abilities, level=1)
         assert result.costs["powers"] == 20
 
     def test_limited_damage(self):
         """Damage 10 + Limited (-1/rank) → (1-1)=0 effective, fractional: ceil(10/2)=5 PP."""
         char_attrs = {"stat": {"power_level": "10"}}
-        abilities = [_power_ability("Blast", {
-            "effect": "damage", "ranks": 10,
-            "flaws": ["limited"],
-        })]
+        abilities = [
+            _power_ability(
+                "Blast",
+                {
+                    "effect": "damage",
+                    "ranks": 10,
+                    "flaws": ["limited"],
+                },
+            )
+        ]
         result = process_build(MM3E_SYSTEM, char_attrs, abilities, level=1)
         assert result.costs["powers"] == 5
 
@@ -379,41 +400,65 @@ class TestMM3ePipeline:
     def test_removable_device(self):
         """Protection 10 (Removable -1/5) → 10 - (10/5)*1 = 8 PP."""
         char_attrs = {"stat": {"power_level": "10"}}
-        abilities = [_power_ability("Shield", {
-            "effect": "protection", "ranks": 10,
-            "removable": 1,
-        })]
+        abilities = [
+            _power_ability(
+                "Shield",
+                {
+                    "effect": "protection",
+                    "ranks": 10,
+                    "removable": 1,
+                },
+            )
+        ]
         result = process_build(MM3E_SYSTEM, char_attrs, abilities, level=1)
         assert result.costs["powers"] == 8
 
     def test_easily_removable(self):
         """Protection 10 (Easily Removable -2/5) → 10 - (10/5)*2 = 6 PP."""
         char_attrs = {"stat": {"power_level": "10"}}
-        abilities = [_power_ability("Shield", {
-            "effect": "protection", "ranks": 10,
-            "removable": 2,
-        })]
+        abilities = [
+            _power_ability(
+                "Shield",
+                {
+                    "effect": "protection",
+                    "ranks": 10,
+                    "removable": 2,
+                },
+            )
+        ]
         result = process_build(MM3E_SYSTEM, char_attrs, abilities, level=1)
         assert result.costs["powers"] == 6
 
     def test_flat_extras(self):
         """Damage 10 + Subtle (flat +1) → 10 + 1 = 11 PP."""
         char_attrs = {"stat": {"power_level": "10"}}
-        abilities = [_power_ability("Blast", {
-            "effect": "damage", "ranks": 10,
-            "flat_extras": ["subtle"],
-        })]
+        abilities = [
+            _power_ability(
+                "Blast",
+                {
+                    "effect": "damage",
+                    "ranks": 10,
+                    "flat_extras": ["subtle"],
+                },
+            )
+        ]
         result = process_build(MM3E_SYSTEM, char_attrs, abilities, level=1)
         assert result.costs["powers"] == 11
 
     def test_multiple_extras_and_flaws(self):
         """Damage 10 + Increased Range (+1) + Multiattack (+1) + Limited (-1) → 2/rank × 10 = 20 PP."""
         char_attrs = {"stat": {"power_level": "10"}}
-        abilities = [_power_ability("Blast", {
-            "effect": "damage", "ranks": 10,
-            "extras": ["increased_range", "multiattack"],
-            "flaws": ["limited"],
-        })]
+        abilities = [
+            _power_ability(
+                "Blast",
+                {
+                    "effect": "damage",
+                    "ranks": 10,
+                    "extras": ["increased_range", "multiattack"],
+                    "flaws": ["limited"],
+                },
+            )
+        ]
         result = process_build(MM3E_SYSTEM, char_attrs, abilities, level=1)
         assert result.costs["powers"] == 20
 
@@ -434,20 +479,32 @@ class TestMM3eFeeds:
     def test_protection_feeds_toughness(self):
         """Protection with feeds writes to effect_protection."""
         char_attrs = {"stat": {"power_level": "10"}}
-        abilities = [_power_ability("Armor", {
-            "effect": "protection", "ranks": 10,
-            "feeds": {"effect_protection": 10},
-        })]
+        abilities = [
+            _power_ability(
+                "Armor",
+                {
+                    "effect": "protection",
+                    "ranks": 10,
+                    "feeds": {"effect_protection": 10},
+                },
+            )
+        ]
         result = process_build(MM3E_SYSTEM, char_attrs, abilities, level=1)
         assert result.attributes["effect_protection"] == 10
 
     def test_enhanced_ability_feeds(self):
         """Enhanced Strength feeds effective_str via effect_enhanced_str."""
         char_attrs = {"stat": {"power_level": "10"}}
-        abilities = [_power_ability("Enhanced Strength", {
-            "effect": "enhanced_trait", "ranks": 5,
-            "feeds": {"effect_enhanced_str": 5},
-        })]
+        abilities = [
+            _power_ability(
+                "Enhanced Strength",
+                {
+                    "effect": "enhanced_trait",
+                    "ranks": 5,
+                    "feeds": {"effect_enhanced_str": 5},
+                },
+            )
+        ]
         result = process_build(MM3E_SYSTEM, char_attrs, abilities, level=1)
         assert result.attributes["effect_enhanced_str"] == 5
 
@@ -455,14 +512,22 @@ class TestMM3eFeeds:
         """Two powers feeding the same stat should stack."""
         char_attrs = {"stat": {"power_level": "10"}}
         abilities = [
-            _power_ability("Armor", {
-                "effect": "protection", "ranks": 5,
-                "feeds": {"effect_protection": 5},
-            }),
-            _power_ability("Force Field", {
-                "effect": "protection", "ranks": 3,
-                "feeds": {"effect_protection": 3},
-            }),
+            _power_ability(
+                "Armor",
+                {
+                    "effect": "protection",
+                    "ranks": 5,
+                    "feeds": {"effect_protection": 5},
+                },
+            ),
+            _power_ability(
+                "Force Field",
+                {
+                    "effect": "protection",
+                    "ranks": 3,
+                    "feeds": {"effect_protection": 3},
+                },
+            ),
         ]
         result = process_build(MM3E_SYSTEM, char_attrs, abilities, level=1)
         assert result.attributes["effect_protection"] == 8
@@ -475,10 +540,8 @@ class TestMM3eArrays:
         """An alternate effect costs 1 PP (not the full power cost)."""
         char_attrs = {"stat": {"power_level": "10"}}
         abilities = [
-            _power_ability("Blast", {"effect": "damage", "ranks": 10,
-                                      "extras": ["increased_range"]}),
-            _power_ability("Strike", {"effect": "damage", "ranks": 10,
-                                       "array_of": "Blast"}),
+            _power_ability("Blast", {"effect": "damage", "ranks": 10, "extras": ["increased_range"]}),
+            _power_ability("Strike", {"effect": "damage", "ranks": 10, "array_of": "Blast"}),
         ]
         result = process_build(MM3E_SYSTEM, char_attrs, abilities, level=1)
         # Primary: 20 PP, Alternate: 1 PP
@@ -489,10 +552,8 @@ class TestMM3eArrays:
         """A dynamic alternate effect costs 2 PP."""
         char_attrs = {"stat": {"power_level": "10"}}
         abilities = [
-            _power_ability("Blast", {"effect": "damage", "ranks": 10,
-                                      "extras": ["increased_range"]}),
-            _power_ability("Strike", {"effect": "damage", "ranks": 10,
-                                       "array_of": "Blast", "dynamic": True}),
+            _power_ability("Blast", {"effect": "damage", "ranks": 10, "extras": ["increased_range"]}),
+            _power_ability("Strike", {"effect": "damage", "ranks": 10, "array_of": "Blast", "dynamic": True}),
         ]
         result = process_build(MM3E_SYSTEM, char_attrs, abilities, level=1)
         assert result.costs["arrays"] == 2
@@ -501,13 +562,11 @@ class TestMM3eArrays:
         """Multiple alternates each cost their flat PP."""
         char_attrs = {"stat": {"power_level": "10"}}
         abilities = [
-            _power_ability("Blast", {"effect": "damage", "ranks": 10,
-                                      "extras": ["increased_range"]}),
-            _power_ability("Strike", {"effect": "damage", "ranks": 10,
-                                       "array_of": "Blast"}),
-            _power_ability("Snare", {"effect": "affliction", "ranks": 10,
-                                      "extras": ["increased_range"],
-                                      "array_of": "Blast"}),
+            _power_ability("Blast", {"effect": "damage", "ranks": 10, "extras": ["increased_range"]}),
+            _power_ability("Strike", {"effect": "damage", "ranks": 10, "array_of": "Blast"}),
+            _power_ability(
+                "Snare", {"effect": "affliction", "ranks": 10, "extras": ["increased_range"], "array_of": "Blast"}
+            ),
         ]
         result = process_build(MM3E_SYSTEM, char_attrs, abilities, level=1)
         assert result.costs["arrays"] == 2  # 1 + 1
@@ -517,8 +576,7 @@ class TestMM3eArrays:
         char_attrs = {"stat": {"power_level": "10"}}
         abilities = [
             _power_ability("Blast", {"effect": "damage", "ranks": 10}),
-            _power_ability("Strike", {"effect": "damage", "ranks": 10,
-                                       "array_of": "Blast"}),
+            _power_ability("Strike", {"effect": "damage", "ranks": 10, "array_of": "Blast"}),
         ]
         result = process_build(MM3E_SYSTEM, char_attrs, abilities, level=1)
         # Only the primary's cost in powers
@@ -546,12 +604,15 @@ class TestMM3eBudgetTotal:
 
     def test_total_spent(self):
         """All categories sum into budget_spent."""
-        char_attrs = {"stat": {
-            "str": "2", "sta": "2",  # 8 PP abilities
-            "ranks_dodge": "5",  # 5 PP defense
-            "ranks_acrobatics": "4",  # 2 PP skills
-            "power_level": "10",
-        }}
+        char_attrs = {
+            "stat": {
+                "str": "2",
+                "sta": "2",  # 8 PP abilities
+                "ranks_dodge": "5",  # 5 PP defense
+                "ranks_acrobatics": "4",  # 2 PP skills
+                "power_level": "10",
+            }
+        }
         abilities = [
             {"name": "Close Attack", "description": "", "category": "advantage", "uses": ""},
             _power_ability("Blast", {"effect": "damage", "ranks": 10}),
@@ -565,6 +626,7 @@ class TestMM3eBudgetTotal:
 # ---------------------------------------------------------------------------
 # Equipment build tests
 # ---------------------------------------------------------------------------
+
 
 class TestEquipment:
     """Test the 'equipped' select mode — equipment items to attributes."""
@@ -610,7 +672,7 @@ class TestEquipment:
         result = process_build(MM3E_SYSTEM, {}, [], level=1, char_items=char_items)
         assert result.attributes["weapon_close_damage"] == 3
         assert result.attributes["weapon_damage_type"] == "slashing"
-        assert result.attributes["weapon_strength_based"] == True
+        assert result.attributes["weapon_strength_based"] is True
         assert result.attributes["weapon_critical"] == 19
 
     def test_mm3e_ranged_weapon_writes(self):

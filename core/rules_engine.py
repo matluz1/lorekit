@@ -37,10 +37,10 @@ from system_pack import (
     load_system_pack,
 )
 
-
 # ---------------------------------------------------------------------------
 # Dependency graph
 # ---------------------------------------------------------------------------
+
 
 def _build_dep_graph(derived: dict[str, str]) -> dict[str, set[str]]:
     """Build a dependency graph: stat -> set of stats it depends on."""
@@ -86,9 +86,11 @@ def _topo_sort(graph: dict[str, set[str]]) -> list[str]:
 # Recalculation engine
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class CalcResult:
     """Result of a rules recalculation."""
+
     derived: dict[str, Any] = field(default_factory=dict)
     violations: list[str] = field(default_factory=list)
     changes: dict[str, tuple[Any, Any]] = field(default_factory=dict)  # stat -> (old, new)
@@ -134,9 +136,7 @@ def _build_context(
 
             # Collect bonus_* attributes as modifiers (source = category)
             if key.startswith("bonus_") and isinstance(parsed, (int, float)):
-                bonus_modifiers.append(
-                    ModifierEntry(target_stat=key, value=parsed, source=cat)
-                )
+                bonus_modifiers.append(ModifierEntry(target_stat=key, value=parsed, source=cat))
 
     # Load combat_state modifiers when db is available
     if db is not None:
@@ -161,8 +161,7 @@ def _build_context(
 def _load_combat_modifiers(db, character_id: int) -> list[ModifierEntry]:
     """Load active combat_state rows as ModifierEntry items."""
     rows = db.execute(
-        "SELECT target_stat, value, bonus_type, source FROM combat_state "
-        "WHERE character_id = ?",
+        "SELECT target_stat, value, bonus_type, source FROM combat_state WHERE character_id = ?",
         (character_id,),
     ).fetchall()
     return [
@@ -237,6 +236,7 @@ def recalculate(pack: SystemPack, char: CharacterData, db=None) -> CalcResult:
 # Write results back to DB
 # ---------------------------------------------------------------------------
 
+
 def write_derived(db, character_id: int, derived: dict[str, Any]) -> int:
     """Write derived stats to character_attributes with category='derived'.
 
@@ -261,8 +261,8 @@ def write_derived(db, character_id: int, derived: dict[str, Any]) -> int:
 # Top-level: full recalc from DB
 # ---------------------------------------------------------------------------
 
-def _run_build(db, character_id: int, pack_dir: str,
-               char: CharacterData):
+
+def _run_build(db, character_id: int, pack_dir: str, char: CharacterData):
     """Run the build engine and write results to the DB.
 
     Build attributes are written under category='build'. This must
@@ -272,7 +272,10 @@ def _run_build(db, character_id: int, pack_dir: str,
     from build_engine import process_build
 
     build_result = process_build(
-        pack_dir, char.attributes, char.abilities, char.level,
+        pack_dir,
+        char.attributes,
+        char.abilities,
+        char.level,
         char_items=char.items,
     )
 
@@ -338,10 +341,8 @@ def rules_check(db, character_id: int, check: str, dc: int, pack_dir: str) -> st
     bonus_str = derived.get(check)
     if bonus_str is None:
         from _db import LoreKitError
-        raise LoreKitError(
-            f"Stat '{check}' not found in derived attributes for {char.name}. "
-            f"Run rules_calc first."
-        )
+
+        raise LoreKitError(f"Stat '{check}' not found in derived attributes for {char.name}. Run rules_calc first.")
 
     bonus = int(bonus_str)
     result = roll_expr(pack.dice)
@@ -432,10 +433,7 @@ def rules_calc(db, character_id: int, pack_dir: str) -> str:
     # Budget summary (only for systems with budget, e.g. M&M3e)
     if build_result and build_result.budget_total:
         remaining = build_result.budget_total - build_result.budget_spent
-        lines.append(
-            f"BUDGET: {build_result.budget_spent}/{build_result.budget_total} spent "
-            f"({remaining} remaining)"
-        )
+        lines.append(f"BUDGET: {build_result.budget_spent}/{build_result.budget_total} spent ({remaining} remaining)")
         if build_result.costs:
             for cat, cost in sorted(build_result.costs.items()):
                 if cost:

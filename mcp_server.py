@@ -4,7 +4,6 @@
 import os
 import sys
 
-
 # Allow imports from core/
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "core"))
 
@@ -39,8 +38,7 @@ def _resolve_character(db, identifier, session_id: int | None = None) -> int:
     name = identifier.strip()
     if session_id is not None:
         rows = db.execute(
-            "SELECT id, name FROM characters "
-            "WHERE session_id = ? AND LOWER(name) = LOWER(?)",
+            "SELECT id, name FROM characters WHERE session_id = ? AND LOWER(name) = LOWER(?)",
             (session_id, name),
         ).fetchall()
     else:
@@ -60,7 +58,7 @@ def _resolve_character(db, identifier, session_id: int | None = None) -> int:
 
 def _run_with_db(fn, *args, **kwargs):
     """Get a DB connection, call fn(db, ...), close DB."""
-    from _db import require_db, LoreKitError
+    from _db import LoreKitError, require_db
 
     db = require_db()
     try:
@@ -69,7 +67,6 @@ def _run_with_db(fn, *args, **kwargs):
         return f"ERROR: {e}"
     finally:
         db.close()
-
 
 
 # ---------------------------------------------------------------------------
@@ -152,8 +149,10 @@ def story_view(session_id: int, act_id: int = 0) -> str:
     """Show the story premise and all acts. If act_id is given, show full details for that act only."""
     if act_id:
         from story import view_act
+
         return _run_with_db(view_act, act_id)
     from story import view
+
     return _run_with_db(view, session_id)
 
 
@@ -171,7 +170,9 @@ def story_view_act(act_id: int) -> str:
     return _run_with_db(view_act, act_id)
 
 
-def story_update_act(act_id: int, title: str = "", desc: str = "", goal: str = "", event: str = "", status: str = "") -> str:
+def story_update_act(
+    act_id: int, title: str = "", desc: str = "", goal: str = "", event: str = "", status: str = ""
+) -> str:
     """Update one or more fields on an act."""
     from story import update_act
 
@@ -187,9 +188,16 @@ def story_advance(session_id: int) -> str:
 
 @mcp.tool()
 def story(
-    action: str, session_id: int = 0, act_id: int = 0,
-    title: str = "", desc: str = "", goal: str = "",
-    event: str = "", status: str = "", size: str = "", premise: str = "",
+    action: str,
+    session_id: int = 0,
+    act_id: int = 0,
+    title: str = "",
+    desc: str = "",
+    goal: str = "",
+    event: str = "",
+    status: str = "",
+    size: str = "",
+    premise: str = "",
 ) -> str:
     """Manage story plan and acts.
 
@@ -345,8 +353,12 @@ def region_update(region_id: int, name: str = "", desc: str = "", parent_id: int
 
 @mcp.tool()
 def region(
-    action: str, session_id: int = 0, region_id: int = 0,
-    name: str = "", desc: str = "", parent_id: int = 0,
+    action: str,
+    session_id: int = 0,
+    region_id: int = 0,
+    name: str = "",
+    desc: str = "",
+    parent_id: int = 0,
 ) -> str:
     """Manage regions in a session.
 
@@ -481,9 +493,8 @@ def time_advance(session_id: int, amount: int, unit: str) -> str:
 @mcp.tool()
 def roll_dice(expression: str) -> str:
     """Roll dice using tabletop notation. Format: [N]d<sides>[kh<keep>][+/-mod]. Separate multiple expressions with spaces."""
-    from rolldice import roll_expr, format_result
-
     from _db import LoreKitError
+    from rolldice import format_result, roll_expr
 
     expressions = expression.split()
     results = []
@@ -516,9 +527,9 @@ def recall_search(session_id: int, query: str, source: str = "", n: int = 0, mod
     n: override result count (0 = defaults). Only applies to semantic mode.
     """
     if mode == "keyword":
-        from timeline import search as tl_search
+        from _db import LoreKitError, require_db
         from journal import search as jn_search
-        from _db import require_db, LoreKitError
+        from timeline import search as tl_search
 
         db = require_db()
         try:
@@ -564,6 +575,7 @@ def export_dump(session_id: int, clean_previous: bool = False) -> str:
     """
     if clean_previous:
         from export import clean
+
         _run_with_db(clean)
     from export import dump
 
@@ -602,10 +614,10 @@ def turn_save(
     if not narration and not player_choice:
         return "ERROR: Provide at least one of narration or player_choice"
 
-    from _db import require_db, LoreKitError
-    from timeline import add as tl_add
-    from session import meta_set
+    from _db import LoreKitError, require_db
     from checkpoint import create_checkpoint
+    from session import meta_set
+    from timeline import add as tl_add
 
     db = require_db()
     try:
@@ -658,8 +670,9 @@ def character_build(
     """
     import json as _json
 
-    from _db import require_db, LoreKitError
-    from character import create as char_create, set_attr, set_item, set_ability
+    from _db import LoreKitError, require_db
+    from character import create as char_create
+    from character import set_ability, set_attr, set_item
 
     try:
         attrs_list = _json.loads(attrs)
@@ -719,11 +732,11 @@ def ability_from_template(
     overrides: JSON object of fields to override on the template defaults.
       M&M example: {"ranks": 10, "extras": ["Accurate"], "feeds": {"bonus_ranged_damage": 10}}
     """
+    import copy
     import json as _json
     import os
-    import copy
 
-    from _db import require_db, LoreKitError
+    from _db import LoreKitError, require_db
     from character import set_ability
 
     try:
@@ -778,8 +791,7 @@ def ability_from_template(
         ability_name = merged.get("name", template_key)
 
         # Store the merged data as the ability description (JSON)
-        set_ability(db, character_id, ability_name, _json.dumps(merged),
-                    ability_category, "at_will")
+        set_ability(db, character_id, ability_name, _json.dumps(merged), ability_category, "at_will")
 
         # Auto-run rules_calc
         rules_summary = try_rules_calc(db, character_id)
@@ -815,10 +827,12 @@ def session_setup(
     """
     import json as _json
 
-    from _db import require_db, LoreKitError
-    from session import create as sess_create, meta_set
-    from story import set_story as story_set_fn, add_act, update_act
+    from _db import LoreKitError, require_db
     from region import create as region_create_fn
+    from session import create as sess_create
+    from session import meta_set
+    from story import add_act, update_act
+    from story import set_story as story_set_fn
 
     try:
         meta_dict = _json.loads(meta)
@@ -892,13 +906,14 @@ def session_resume(session_id: int) -> str:
     """
     import sqlite3
 
-    from _db import require_db, LoreKitError, format_table
-    from session import view as sess_view, meta_get
-    from story import view as story_view_fn
+    from _db import LoreKitError, format_table, require_db
     from character import view as char_view
-    from region import list_regions as region_list_fn
-    from timeline import list_entries as timeline_list_fn
     from journal import list_entries as journal_list_fn
+    from region import list_regions as region_list_fn
+    from session import meta_get
+    from session import view as sess_view
+    from story import view as story_view_fn
+    from timeline import list_entries as timeline_list_fn
 
     db = require_db()
     try:
@@ -915,7 +930,7 @@ def session_resume(session_id: int) -> str:
             (session_id,),
         ).fetchone()
         if nt_row:
-            parts.append(f"\n=== NARRATIVE TIME ===")
+            parts.append("\n=== NARRATIVE TIME ===")
             parts.append(f"CURRENT: {nt_row[0]}")
 
         parts.append("\n=== STORY ===")
@@ -966,6 +981,7 @@ def session_resume(session_id: int) -> str:
         # Auto-reindex vector collections on resume
         try:
             from recall import reindex
+
             reindex(db, session_id)
         except Exception:
             pass
@@ -997,8 +1013,9 @@ def character_sheet_update(
     """
     import json as _json
 
-    from _db import require_db, LoreKitError
-    from character import update as char_update, set_attr, set_item, set_ability, remove_item
+    from _db import LoreKitError, require_db
+    from character import remove_item, set_ability, set_attr, set_item
+    from character import update as char_update
 
     try:
         attrs_list = _json.loads(attrs)
@@ -1096,10 +1113,9 @@ def _get_npc_disallowed_tools() -> list[str]:
 
     New tools are automatically blocked for the NPC without manual updates.
     """
-    all_tools = [
-        f"{_MCP_PREFIX}{name}" for name in mcp._tool_manager._tools
-    ]
+    all_tools = [f"{_MCP_PREFIX}{name}" for name in mcp._tool_manager._tools]
     return [t for t in all_tools if t not in _NPC_ALLOWED_SET]
+
 
 _DEFAULT_NPC_MODEL = "opus"
 
@@ -1125,17 +1141,14 @@ def _build_npc_prompt(db, npc_id: int, session_id: int) -> tuple[str, str, str] 
     Returns (system_prompt, model, npc_name) or None if NPC/session not found.
     """
     import sqlite3
+
     db.row_factory = sqlite3.Row
 
-    npc = db.execute(
-        "SELECT id, name FROM characters WHERE id = ? AND type = 'npc'", (npc_id,)
-    ).fetchone()
+    npc = db.execute("SELECT id, name FROM characters WHERE id = ? AND type = 'npc'", (npc_id,)).fetchone()
     if not npc:
         return None
 
-    session = db.execute(
-        "SELECT setting, system_type FROM sessions WHERE id = ?", (session_id,)
-    ).fetchone()
+    session = db.execute("SELECT setting, system_type FROM sessions WHERE id = ?", (session_id,)).fetchone()
     if not session:
         return None
 
@@ -1217,6 +1230,7 @@ Your abilities:
 def _npc_log(msg: str):
     """Append a line to data/npc.log."""
     from datetime import datetime
+
     project_root = os.path.dirname(os.path.abspath(__file__))
     log_path = os.path.join(project_root, "data", "npc.log")
     ts = datetime.now().strftime("%H:%M:%S.%f")[:12]
@@ -1264,10 +1278,7 @@ def _parse_npc_stream(stdout: str, npc_name: str = "NPC") -> tuple[str, list[str
                     _npc_log(f"[TEXT] {block.get('text', '')}")
         elif msg.get("type") == "stream_event":
             evt = msg.get("event", {})
-            if (
-                evt.get("type") == "content_block_start"
-                and evt.get("content_block", {}).get("type") == "tool_use"
-            ):
+            if evt.get("type") == "content_block_start" and evt.get("content_block", {}).get("type") == "tool_use":
                 name = evt["content_block"].get("name", "")
                 if name:
                     tool_names.append(name)
@@ -1344,17 +1355,25 @@ def npc_interact(session_id: int, npc_id: int | str, message: str) -> str:
         "claude",
         "-p",
         "--verbose",
-        "--output-format", "stream-json",
+        "--output-format",
+        "stream-json",
         "--no-session-persistence",
-        "--permission-mode", "bypassPermissions",
-        "--tools", "",
+        "--permission-mode",
+        "bypassPermissions",
+        "--tools",
+        "",
         "--disable-slash-commands",
-        "--mcp-config", mcp_config,
+        "--mcp-config",
+        mcp_config,
         "--strict-mcp-config",
-        "--allowed-tools", *_NPC_ALLOWED_TOOLS,
-        "--disallowed-tools", *_get_npc_disallowed_tools(),
-        "--model", model,
-        "--system-prompt", system_prompt,
+        "--allowed-tools",
+        *_NPC_ALLOWED_TOOLS,
+        "--disallowed-tools",
+        *_get_npc_disallowed_tools(),
+        "--model",
+        model,
+        "--system-prompt",
+        system_prompt,
     ]
     cmd.append(message)
     _npc_log(f"[USER] → {npc_name}: {message[:500]}")
@@ -1380,10 +1399,9 @@ def npc_interact(session_id: int, npc_id: int | str, message: str) -> str:
             result = f"{marker}\n{result}"
         return result
     except subprocess.TimeoutExpired:
-        return f"ERROR: NPC response timed out"
+        return "ERROR: NPC response timed out"
     except FileNotFoundError:
         return "ERROR: 'claude' CLI not found. Ensure it is installed and on PATH."
-
 
 
 @mcp.tool()
@@ -1421,6 +1439,7 @@ def npc_combat_turn(session_id: int, npc_id: int | str) -> str:
         system_prompt, model, npc_name = result
 
         from npc_combat import build_combat_context
+
         combat_context = build_combat_context(db, npc_id, session_id, combat_cfg)
     except LoreKitError as e:
         return f"ERROR: {e}"
@@ -1438,17 +1457,25 @@ def npc_combat_turn(session_id: int, npc_id: int | str) -> str:
         "claude",
         "-p",
         "--verbose",
-        "--output-format", "stream-json",
+        "--output-format",
+        "stream-json",
         "--no-session-persistence",
-        "--permission-mode", "bypassPermissions",
-        "--tools", "",
+        "--permission-mode",
+        "bypassPermissions",
+        "--tools",
+        "",
         "--disable-slash-commands",
-        "--mcp-config", mcp_config,
+        "--mcp-config",
+        mcp_config,
         "--strict-mcp-config",
-        "--allowed-tools", *_NPC_ALLOWED_TOOLS,
-        "--disallowed-tools", *_get_npc_disallowed_tools(),
-        "--model", model,
-        "--system-prompt", system_prompt,
+        "--allowed-tools",
+        *_NPC_ALLOWED_TOOLS,
+        "--disallowed-tools",
+        *_get_npc_disallowed_tools(),
+        "--model",
+        model,
+        "--system-prompt",
+        system_prompt,
         combat_context,
     ]
 
@@ -1469,7 +1496,7 @@ def npc_combat_turn(session_id: int, npc_id: int | str) -> str:
 
         response_text, _ = _parse_npc_stream(proc.stdout, npc_name)
     except subprocess.TimeoutExpired:
-        return f"ERROR: NPC response timed out"
+        return "ERROR: NPC response timed out"
     except FileNotFoundError:
         return "ERROR: 'claude' CLI not found."
 
@@ -1477,6 +1504,8 @@ def npc_combat_turn(session_id: int, npc_id: int | str) -> str:
     from npc_combat import execute_combat_turn, parse_combat_intent
 
     intent = parse_combat_intent(response_text)
+
+    import json
 
     _npc_log(f"[COMBAT] ← {npc_name}: {json.dumps(intent, default=str)}")
 
@@ -1493,7 +1522,12 @@ def npc_combat_turn(session_id: int, npc_id: int | str) -> str:
     db2 = require_db()
     try:
         mech_lines = execute_combat_turn(
-            db2, session_id, npc_id, intent, combat_cfg, system_path,
+            db2,
+            session_id,
+            npc_id,
+            intent,
+            combat_cfg,
+            system_path,
         )
         lines.extend(mech_lines)
     except LoreKitError as e:
@@ -1597,8 +1631,9 @@ def rules_check(character_id: int | str, check: str, dc: int, system_path: str =
 
 
 @mcp.tool()
-def rules_resolve(attacker_id: int | str, defender_id: int | str, action: str,
-                  options: str = "{}", system_path: str = "") -> str:
+def rules_resolve(
+    attacker_id: int | str, defender_id: int | str, action: str, options: str = "{}", system_path: str = ""
+) -> str:
     """Resolve a combat action between two characters.
 
     Rolls attack vs defense, then applies damage/effects per the system's
@@ -1658,6 +1693,7 @@ def rules_resolve(attacker_id: int | str, defender_id: int | str, action: str,
                     _get_character_zone,
                     _zone_id_to_name,
                 )
+
                 enc = _get_active_encounter(db, session_id)
                 if enc is None:
                     return "ERROR: No active encounter — area effects require an encounter"
@@ -1671,8 +1707,14 @@ def rules_resolve(attacker_id: int | str, defender_id: int | str, action: str,
                 center_zone = center
 
             return resolve_area_action(
-                db, attacker_id, action, system_path,
-                center_zone, radius, exclude_self, opts,
+                db,
+                attacker_id,
+                action,
+                system_path,
+                center_zone,
+                radius,
+                exclude_self,
+                opts,
             )
 
         from combat_engine import resolve_action
@@ -1778,11 +1820,17 @@ def end_turn(character_id: int | str, system_path: str = "") -> str:
 
 @mcp.tool()
 def combat_modifier(
-    character_id: int | str, action: str, source: str = "",
-    target_stat: str = "", value: int = 0,
-    modifier_type: str = "buff", bonus_type: str = "",
-    duration_type: str = "encounter", duration: int = 0,
-    save_stat: str = "", save_dc: int = 0,
+    character_id: int | str,
+    action: str,
+    source: str = "",
+    target_stat: str = "",
+    value: int = 0,
+    modifier_type: str = "buff",
+    bonus_type: str = "",
+    duration_type: str = "encounter",
+    duration: int = 0,
+    save_stat: str = "",
+    save_dc: int = 0,
 ) -> str:
     """Manage transient combat modifiers on a character.
 
@@ -1813,9 +1861,18 @@ def combat_modifier(
                 "value = excluded.value, bonus_type = excluded.bonus_type, "
                 "duration_type = excluded.duration_type, duration = excluded.duration, "
                 "save_stat = excluded.save_stat, save_dc = excluded.save_dc",
-                (character_id, source, target_stat, modifier_type, value,
-                 bonus_type or None, duration_type, duration or None,
-                 save_stat or None, save_dc or None),
+                (
+                    character_id,
+                    source,
+                    target_stat,
+                    modifier_type,
+                    value,
+                    bonus_type or None,
+                    duration_type,
+                    duration or None,
+                    save_stat or None,
+                    save_dc or None,
+                ),
             )
             db.commit()
             type_tag = f" [{bonus_type}]" if bonus_type else ""
@@ -1919,9 +1976,9 @@ def rules_modifiers(character_id: int | str, stat: str = "", system_path: str = 
 
         from rules_engine import (
             CharacterData,
+            _load_combat_modifiers,
             load_character_data,
             load_system_pack,
-            _load_combat_modifiers,
         )
         from rules_stacking import (
             ModifierEntry,
@@ -1960,9 +2017,7 @@ def rules_modifiers(character_id: int | str, stat: str = "", system_path: str = 
         for d in decomposed:
             status = "" if d.active else " (suppressed)"
             type_tag = f" [{d.bonus_type}]" if d.bonus_type else ""
-            lines.append(
-                f"  {d.source}: {d.target_stat} {d.value:+g}{type_tag}{status}"
-            )
+            lines.append(f"  {d.source}: {d.target_stat} {d.value:+g}{type_tag}{status}")
         return "\n".join(lines)
 
     except LoreKitError as e:
@@ -2028,6 +2083,7 @@ def _load_combat_cfg(db, session_id: int) -> dict:
     if not system_path:
         return {}
     from system_pack import load_system_pack
+
     try:
         pack = load_system_pack(system_path)
         return pack.combat
@@ -2037,8 +2093,11 @@ def _load_combat_cfg(db, session_id: int) -> dict:
 
 @mcp.tool()
 def encounter_start(
-    session_id: int, zones: str = "[]", initiative: str = "auto",
-    adjacency: str = "", placements: str = "",
+    session_id: int,
+    zones: str = "[]",
+    initiative: str = "auto",
+    adjacency: str = "",
+    placements: str = "",
     template: str = "",
 ) -> str:
     """Start a combat encounter with zone-based positioning.
@@ -2080,10 +2139,15 @@ def encounter_start(
         from encounter import start_encounter
 
         return start_encounter(
-            db, session_id, zones_list, init_list,
-            adjacency=adj_list, placements=place_list,
+            db,
+            session_id,
+            zones_list,
+            init_list,
+            adjacency=adj_list,
+            placements=place_list,
             combat_cfg=combat_cfg,
-            template=template, pack_dir=system_path,
+            template=template,
+            pack_dir=system_path,
         )
     except LoreKitError as e:
         return f"ERROR: {e}"
@@ -2145,8 +2209,7 @@ def encounter_move(character_id: int | str, target_zone: str) -> str:
         # Try to get movement budget from derived stats
         movement_budget = None
         mv_row = db.execute(
-            "SELECT value FROM character_attributes "
-            "WHERE character_id = ? AND key = 'movement_zones'",
+            "SELECT value FROM character_attributes WHERE character_id = ? AND key = 'movement_zones'",
             (character_id,),
         ).fetchone()
         if mv_row is not None:
@@ -2158,8 +2221,12 @@ def encounter_move(character_id: int | str, target_zone: str) -> str:
         from encounter import move_character
 
         return move_character(
-            db, enc_id, character_id, target_zone,
-            combat_cfg=combat_cfg, movement_budget=movement_budget,
+            db,
+            enc_id,
+            character_id,
+            target_zone,
+            combat_cfg=combat_cfg,
+            movement_budget=movement_budget,
         )
     except LoreKitError as e:
         return f"ERROR: {e}"

@@ -5,8 +5,8 @@ import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _db import require_db, format_table, LoreKitError
 from _args import parse_args
+from _db import LoreKitError, format_table, require_db
 
 
 def usage():
@@ -70,14 +70,19 @@ def create(db, session_id: int, name: str, level: int, char_type: str = "pc", re
 
 
 def cmd_create(db, args):
-    _, p = parse_args(args, {
-        "--session": ("session", True, ""),
-        "--name": ("name", True, ""),
-        "--level": ("level", True, ""),
-        "--type": ("char_type", False, "pc"),
-        "--region": ("region", False, ""),
-    })
-    return create(db, int(p["session"]), p["name"], int(p["level"]), p["char_type"], int(p["region"]) if p["region"] else 0)
+    _, p = parse_args(
+        args,
+        {
+            "--session": ("session", True, ""),
+            "--name": ("name", True, ""),
+            "--level": ("level", True, ""),
+            "--type": ("char_type", False, "pc"),
+            "--region": ("region", False, ""),
+        },
+    )
+    return create(
+        db, int(p["session"]), p["name"], int(p["level"]), p["char_type"], int(p["region"]) if p["region"] else 0
+    )
 
 
 def view(db, character_id: int) -> str:
@@ -103,8 +108,7 @@ def view(db, character_id: int) -> str:
         "--- ATTRIBUTES ---",
     ]
     cur = db.execute(
-        "SELECT category, key, value FROM character_attributes "
-        "WHERE character_id = ? ORDER BY category, key",
+        "SELECT category, key, value FROM character_attributes WHERE character_id = ? ORDER BY category, key",
         (character_id,),
     )
     lines.append(format_table(cur))
@@ -147,16 +151,24 @@ def list_chars(db, session_id: int, char_type: str = "", region_id: int = 0) -> 
 
 
 def cmd_list(db, args):
-    _, p = parse_args(args, {
-        "--session": ("session", True, ""),
-        "--type": ("char_type", False, ""),
-        "--region": ("region", False, ""),
-    })
+    _, p = parse_args(
+        args,
+        {
+            "--session": ("session", True, ""),
+            "--type": ("char_type", False, ""),
+            "--region": ("region", False, ""),
+        },
+    )
     return list_chars(db, int(p["session"]), p["char_type"], int(p["region"]) if p["region"] else 0)
 
 
 def update(db, character_id: int, name: str = "", level: int = 0, status: str = "", region_id: int = 0) -> str:
-    _COLUMN_MAP = {"name": ("name", str), "level": ("level", int), "status": ("status", str), "region_id": ("region_id", int)}
+    _COLUMN_MAP = {
+        "name": ("name", str),
+        "level": ("level", int),
+        "status": ("status", str),
+        "region_id": ("region_id", int),
+    }
     values = {"name": name, "level": level, "status": status, "region_id": region_id}
     sets = []
     params = []
@@ -173,13 +185,24 @@ def update(db, character_id: int, name: str = "", level: int = 0, status: str = 
 
 
 def cmd_update(db, args):
-    cid, p = parse_args(args, {
-        "--name": ("name", False, ""),
-        "--level": ("level", False, ""),
-        "--status": ("status", False, ""),
-        "--region": ("region", False, ""),
-    }, positional="character_id")
-    return update(db, int(cid), p["name"], int(p["level"]) if p["level"] else 0, p["status"], int(p["region"]) if p["region"] else 0)
+    cid, p = parse_args(
+        args,
+        {
+            "--name": ("name", False, ""),
+            "--level": ("level", False, ""),
+            "--status": ("status", False, ""),
+            "--region": ("region", False, ""),
+        },
+        positional="character_id",
+    )
+    return update(
+        db,
+        int(cid),
+        p["name"],
+        int(p["level"]) if p["level"] else 0,
+        p["status"],
+        int(p["region"]) if p["region"] else 0,
+    )
 
 
 def set_attr(db, character_id: int, category: str, key: str, value: str) -> str:
@@ -193,34 +216,40 @@ def set_attr(db, character_id: int, category: str, key: str, value: str) -> str:
 
 
 def cmd_set_attr(db, args):
-    cid, p = parse_args(args, {
-        "--category": ("category", True, ""),
-        "--key": ("key", True, ""),
-        "--value": ("value", True, ""),
-    }, positional="character_id")
+    cid, p = parse_args(
+        args,
+        {
+            "--category": ("category", True, ""),
+            "--key": ("key", True, ""),
+            "--value": ("value", True, ""),
+        },
+        positional="character_id",
+    )
     return set_attr(db, int(cid), p["category"], p["key"], p["value"])
 
 
 def get_attr(db, character_id: int, category: str = "") -> str:
     if category:
         cur = db.execute(
-            "SELECT key, value FROM character_attributes "
-            "WHERE character_id = ? AND category = ? ORDER BY key",
+            "SELECT key, value FROM character_attributes WHERE character_id = ? AND category = ? ORDER BY key",
             (character_id, category),
         )
     else:
         cur = db.execute(
-            "SELECT category, key, value FROM character_attributes "
-            "WHERE character_id = ? ORDER BY category, key",
+            "SELECT category, key, value FROM character_attributes WHERE character_id = ? ORDER BY category, key",
             (character_id,),
         )
     return format_table(cur)
 
 
 def cmd_get_attr(db, args):
-    cid, p = parse_args(args, {
-        "--category": ("category", False, ""),
-    }, positional="character_id")
+    cid, p = parse_args(
+        args,
+        {
+            "--category": ("category", False, ""),
+        },
+        positional="character_id",
+    )
     return get_attr(db, int(cid), p["category"])
 
 
@@ -237,12 +266,16 @@ def set_item(db, character_id: int, name: str, desc: str = "", qty: int = 1, equ
 
 
 def cmd_set_item(db, args):
-    cid, p = parse_args(args, {
-        "--name": ("name", True, ""),
-        "--desc": ("desc", False, ""),
-        "--qty": ("qty", False, "1"),
-        "--equipped": ("equipped", False, "0"),
-    }, positional="character_id")
+    cid, p = parse_args(
+        args,
+        {
+            "--name": ("name", True, ""),
+            "--desc": ("desc", False, ""),
+            "--qty": ("qty", False, "1"),
+            "--equipped": ("equipped", False, "0"),
+        },
+        positional="character_id",
+    )
     return set_item(db, int(cid), p["name"], p["desc"], int(p["qty"]), int(p["equipped"]))
 
 
@@ -284,12 +317,16 @@ def set_ability(db, character_id: int, name: str, desc: str, category: str, uses
 
 
 def cmd_set_ability(db, args):
-    cid, p = parse_args(args, {
-        "--name": ("name", True, ""),
-        "--desc": ("desc", True, ""),
-        "--category": ("category", True, ""),
-        "--uses": ("uses", False, "at_will"),
-    }, positional="character_id")
+    cid, p = parse_args(
+        args,
+        {
+            "--name": ("name", True, ""),
+            "--desc": ("desc", True, ""),
+            "--category": ("category", True, ""),
+            "--uses": ("uses", False, "at_will"),
+        },
+        positional="character_id",
+    )
     return set_ability(db, int(cid), p["name"], p["desc"], p["category"], p["uses"])
 
 

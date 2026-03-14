@@ -106,7 +106,9 @@
     "bonus_society": 0,
     "bonus_stealth": 0,
     "bonus_survival": 0,
-    "bonus_thievery": 0
+    "bonus_thievery": 0,
+    "bonus_melee_attack": 0,
+    "bonus_ranged_attack": 0
   },
 
   "derived": {
@@ -143,7 +145,10 @@
     "skill_society": "int_mod + if(prof_society > 0, prof_society + level, 0) + bonus_society",
     "skill_stealth": "dex_mod + if(prof_stealth > 0, prof_stealth + level, 0) + bonus_stealth",
     "skill_survival": "wis_mod + if(prof_survival > 0, prof_survival + level, 0) + bonus_survival",
-    "skill_thievery": "dex_mod + if(prof_thievery > 0, prof_thievery + level, 0) + bonus_thievery"
+    "skill_thievery": "dex_mod + if(prof_thievery > 0, prof_thievery + level, 0) + bonus_thievery",
+
+    "melee_attack": "str_mod + if(prof_simple_weapons > 0, prof_simple_weapons + level, 0) + bonus_melee_attack",
+    "ranged_attack": "dex_mod + if(prof_simple_weapons > 0, prof_simple_weapons + level, 0) + bonus_ranged_attack"
   },
 
   "resolution": {"type": "threshold"},

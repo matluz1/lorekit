@@ -12,22 +12,25 @@ import re
 from dataclasses import dataclass, field
 from typing import Any
 
-
 # ---------------------------------------------------------------------------
 # AST nodes
 # ---------------------------------------------------------------------------
+
 
 @dataclass
 class Num:
     value: float | int | bool
 
+
 @dataclass
 class Str:
     value: str
 
+
 @dataclass
 class Var:
-    parts: list[str]   # ["armor", "bonus"] for dotted access
+    parts: list[str]  # ["armor", "bonus"] for dotted access
+
 
 @dataclass
 class BinOp:
@@ -35,15 +38,18 @@ class BinOp:
     left: Any
     right: Any
 
+
 @dataclass
 class UnaryNeg:
     operand: Any
+
 
 @dataclass
 class Compare:
     op: str
     left: Any
     right: Any
+
 
 @dataclass
 class Call:
@@ -55,14 +61,17 @@ class Call:
 # Tokenizer
 # ---------------------------------------------------------------------------
 
-_TOKEN_RE = re.compile(r"""
+_TOKEN_RE = re.compile(
+    r"""
     (?P<num>    \d+(?:\.\d+)? ) |
     (?P<cmp>    [<>!=]=|[<>]  ) |
     (?P<ident>  [a-zA-Z_][a-zA-Z0-9_]* ) |
     (?P<str>    '[^']*'|"[^"]*" ) |
     (?P<op>     [+\-*/(),.]   ) |
     (?P<ws>     \s+           )
-""", re.VERBOSE)
+""",
+    re.VERBOSE,
+)
 
 _KEYWORDS = {"true": True, "false": False}
 
@@ -94,6 +103,7 @@ def _tokenize(expr: str) -> list[tuple[str, Any]]:
 # ---------------------------------------------------------------------------
 # Parser — recursive descent, produces AST
 # ---------------------------------------------------------------------------
+
 
 class _Parser:
     def __init__(self, tokens: list[tuple[str, Any]]):
@@ -200,6 +210,7 @@ def parse(expr: str):
 # Dependency extraction — collect variable names referenced by a formula
 # ---------------------------------------------------------------------------
 
+
 def extract_deps(node) -> set[str]:
     """Return the set of variable names (top-level) referenced in the AST.
 
@@ -235,9 +246,11 @@ def extract_deps(node) -> set[str]:
 # Evaluation context
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class FormulaContext:
     """Holds all data needed to evaluate formulas."""
+
     values: dict[str, Any] = field(default_factory=dict)
     tables: dict[str, list] = field(default_factory=dict)
 
@@ -245,6 +258,7 @@ class FormulaContext:
 # ---------------------------------------------------------------------------
 # Evaluator
 # ---------------------------------------------------------------------------
+
 
 class FormulaError(Exception):
     """Raised when formula evaluation fails."""
@@ -363,6 +377,7 @@ def _eval_call(node: Call, ctx: FormulaContext) -> Any:
 # ---------------------------------------------------------------------------
 # Convenience: parse + evaluate in one call
 # ---------------------------------------------------------------------------
+
 
 def calc(expr: str, ctx: FormulaContext | None = None) -> Any:
     """Parse and evaluate a formula string."""

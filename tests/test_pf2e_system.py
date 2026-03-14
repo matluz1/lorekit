@@ -84,12 +84,15 @@ class TestPF2ESystemPack:
 class TestPF2EFighterCalc:
     """Test derived stat calculation for a PF2e Fighter."""
 
-    def _make_fighter(self, level=1, str_score=18, dex_score=14,
-                      con_score=12, int_score=10, wis_score=12,
-                      cha_score=10, ancestry_hp=8) -> CharacterData:
+    def _make_fighter(
+        self, level=1, str_score=18, dex_score=14, con_score=12, int_score=10, wis_score=12, cha_score=10, ancestry_hp=8
+    ) -> CharacterData:
         char = CharacterData(
-            character_id=1, session_id=1,
-            name="Valeros", level=level, char_type="pc",
+            character_id=1,
+            session_id=1,
+            name="Valeros",
+            level=level,
+            char_type="pc",
         )
         char.attributes["stat"] = {
             "str": str(str_score),
@@ -170,8 +173,7 @@ class TestPF2EFighterCalc:
 
     def test_level_10_fighter(self):
         pack = load_system_pack(PF2E_SYSTEM)
-        char = self._make_fighter(level=10, str_score=20, con_score=16,
-                                  dex_score=14, wis_score=12)
+        char = self._make_fighter(level=10, str_score=20, con_score=16, dex_score=14, wis_score=12)
         result = recalculate(pack, char)
         # HP: 8 + (10+3)*10 = 138
         assert result.derived["max_hp"] == 138
@@ -210,15 +212,21 @@ class TestPF2EFighterCalc:
 class TestPF2EWizardCalc:
     """Test derived stat calculation for a PF2e Wizard."""
 
-    def _make_wizard(self, level=1, int_score=18, con_score=12,
-                     dex_score=12, wis_score=14) -> CharacterData:
+    def _make_wizard(self, level=1, int_score=18, con_score=12, dex_score=12, wis_score=14) -> CharacterData:
         char = CharacterData(
-            character_id=2, session_id=1,
-            name="Ezren", level=level, char_type="pc",
+            character_id=2,
+            session_id=1,
+            name="Ezren",
+            level=level,
+            char_type="pc",
         )
         char.attributes["stat"] = {
-            "str": "10", "dex": str(dex_score), "con": str(con_score),
-            "int": str(int_score), "wis": str(wis_score), "cha": "10",
+            "str": "10",
+            "dex": str(dex_score),
+            "con": str(con_score),
+            "int": str(int_score),
+            "wis": str(wis_score),
+            "cha": "10",
         }
         key_mod = math.floor((int_score - 10) / 2)
         char.attributes["build"] = {
@@ -264,12 +272,19 @@ class TestPF2ERogueCalc:
 
     def _make_rogue(self, level=1, dex_score=18, con_score=12) -> CharacterData:
         char = CharacterData(
-            character_id=3, session_id=1,
-            name="Merisiel", level=level, char_type="pc",
+            character_id=3,
+            session_id=1,
+            name="Merisiel",
+            level=level,
+            char_type="pc",
         )
         char.attributes["stat"] = {
-            "str": "10", "dex": str(dex_score), "con": str(con_score),
-            "int": "12", "wis": "14", "cha": "10",
+            "str": "10",
+            "dex": str(dex_score),
+            "con": str(con_score),
+            "int": "12",
+            "wis": "14",
+            "cha": "10",
         }
         key_mod = math.floor((dex_score - 10) / 2)
         char.attributes["build"] = {

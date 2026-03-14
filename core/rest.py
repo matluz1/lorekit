@@ -40,9 +40,7 @@ def rest(db, session_id: int, rest_type: str, pack_dir: str) -> str:
     type_cfg = rest_cfg.get(rest_type)
     if type_cfg is None:
         available = ", ".join(rest_cfg.keys())
-        raise LoreKitError(
-            f"Unknown rest type '{rest_type}'. Available: {available}"
-        )
+        raise LoreKitError(f"Unknown rest type '{rest_type}'. Available: {available}")
 
     # Get all PCs in the session
     pc_rows = db.execute(
@@ -82,8 +80,7 @@ def rest(db, session_id: int, rest_type: str, pack_dir: str) -> str:
 
                 # Read old value
                 old_row = db.execute(
-                    "SELECT value FROM character_attributes "
-                    "WHERE character_id = ? AND key = ?",
+                    "SELECT value FROM character_attributes WHERE character_id = ? AND key = ?",
                     (cid, stat),
                 ).fetchone()
                 old_val = old_row[0] if old_row else "0"
@@ -108,14 +105,14 @@ def rest(db, session_id: int, rest_type: str, pack_dir: str) -> str:
                 # Strip "per_" prefix for matching
                 keyword = use_category.replace("per_", "")
                 rows = db.execute(
-                    "SELECT id, name, uses FROM character_abilities "
-                    "WHERE character_id = ? AND uses LIKE ?",
+                    "SELECT id, name, uses FROM character_abilities WHERE character_id = ? AND uses LIKE ?",
                     (cid, f"%{keyword}%"),
                 ).fetchall()
                 for aid, aname, uses in rows:
                     # Reset uses to original max (e.g. "0/3 day" → "3/3 day")
                     # Parse "N/M unit" format
                     import re
+
                     m = re.match(r"(\d+)/(\d+)\s*(.*)", uses)
                     if m:
                         max_uses = m.group(2)
@@ -134,8 +131,7 @@ def rest(db, session_id: int, rest_type: str, pack_dir: str) -> str:
         if clear_types:
             ph = ",".join("?" * len(clear_types))
             cleared = db.execute(
-                f"DELETE FROM combat_state WHERE character_id = ? "
-                f"AND duration_type IN ({ph})",
+                f"DELETE FROM combat_state WHERE character_id = ? AND duration_type IN ({ph})",
                 (cid, *clear_types),
             ).rowcount
             if cleared:
@@ -156,6 +152,7 @@ def rest(db, session_id: int, rest_type: str, pack_dir: str) -> str:
     if time_cfg:
         try:
             from narrative_time import advance as time_advance
+
             amount = time_cfg["amount"]
             unit = time_cfg["unit"]
             time_result = time_advance(db, session_id, amount, unit)

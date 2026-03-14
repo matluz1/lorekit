@@ -8,7 +8,6 @@ from mcp_server import (
     journal_search,
 )
 
-
 # -- Happy Path --
 
 

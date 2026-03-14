@@ -5,9 +5,8 @@ import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _db import require_db, LoreKitError
 from _args import parse_args
-
+from _db import LoreKitError, require_db
 
 _VALID_UNITS = ("minutes", "hours", "days", "weeks", "months", "years")
 
@@ -49,9 +48,13 @@ def set_time(db, session_id: int, dt_str: str) -> str:
 
 
 def cmd_set(db, args):
-    sid, p = parse_args(args, {
-        "--datetime": ("datetime", True, ""),
-    }, positional="session_id")
+    sid, p = parse_args(
+        args,
+        {
+            "--datetime": ("datetime", True, ""),
+        },
+        positional="session_id",
+    )
     return set_time(db, int(sid), p["datetime"])
 
 
@@ -93,10 +96,12 @@ def advance(db, session_id: int, amount: int, unit: str) -> str:
         new_month = ((new_month - 1) % 12) + 1
         # Clamp day to valid range for target month
         import calendar
+
         max_day = calendar.monthrange(new_year, new_month)[1]
         dt = dt.replace(year=new_year, month=new_month, day=min(dt.day, max_day))
     elif unit == "years":
         import calendar
+
         new_year = dt.year + amount
         # Handle leap year edge case (Feb 29)
         max_day = calendar.monthrange(new_year, dt.month)[1]
@@ -108,10 +113,14 @@ def advance(db, session_id: int, amount: int, unit: str) -> str:
 
 
 def cmd_advance(db, args):
-    sid, p = parse_args(args, {
-        "--amount": ("amount", True, ""),
-        "--unit": ("unit", True, ""),
-    }, positional="session_id")
+    sid, p = parse_args(
+        args,
+        {
+            "--amount": ("amount", True, ""),
+            "--unit": ("unit", True, ""),
+        },
+        positional="session_id",
+    )
     return advance(db, int(sid), int(p["amount"]), p["unit"])
 
 

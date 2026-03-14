@@ -2,6 +2,8 @@
 
 import re
 
+from conftest import _extract_id
+
 from mcp_server import (
     character_create,
     character_get_abilities,
@@ -15,8 +17,6 @@ from mcp_server import (
     character_update,
     character_view,
 )
-from conftest import _extract_id
-
 
 # -- Happy Path --
 
@@ -162,8 +162,11 @@ def test_set_and_get_ability(make_session, make_character):
     sid = make_session()
     cid = make_character(sid, "Wizard")
     character_set_ability(
-        character_id=cid, name="Flame Burst", desc="3d6 fire damage",
-        category="spell", uses="3/day",
+        character_id=cid,
+        name="Flame Burst",
+        desc="3d6 fire damage",
+        category="spell",
+        uses="3/day",
     )
     result = character_get_abilities(character_id=cid)
     assert "Flame Burst" in result

@@ -29,6 +29,7 @@ from typing import Any
 @dataclass
 class ModifierEntry:
     """A single modifier targeting a variable."""
+
     target_stat: str
     value: float
     bonus_type: str | None = None
@@ -38,9 +39,10 @@ class ModifierEntry:
 @dataclass
 class StackingPolicy:
     """Parsed stacking policy from a system pack."""
-    group_by: str | None = None          # field name to group on, None = no grouping
-    positive: str = "sum"                # "sum" or "max"
-    negative: str = "sum"                # "sum" or "min"
+
+    group_by: str | None = None  # field name to group on, None = no grouping
+    positive: str = "sum"  # "sum" or "max"
+    negative: str = "sum"  # "sum" or "min"
     overrides: dict[str, dict] = field(default_factory=dict)  # group_value -> {positive/negative}
 
 
@@ -59,6 +61,7 @@ def load_stacking_policy(stacking_cfg: dict[str, Any]) -> StackingPolicy:
 # ---------------------------------------------------------------------------
 # Stacking resolver
 # ---------------------------------------------------------------------------
+
 
 def resolve_stacking(
     modifiers: list[ModifierEntry],
@@ -93,9 +96,7 @@ def _resolve_grouped(
 ) -> dict[str, float]:
     """Group by a field, apply combine rules per group, sum across groups."""
     # Group by stat, then by group_key
-    by_stat: dict[str, dict[str | None, list[float]]] = defaultdict(
-        lambda: defaultdict(list)
-    )
+    by_stat: dict[str, dict[str | None, list[float]]] = defaultdict(lambda: defaultdict(list))
     for m in modifiers:
         group_key = getattr(m, policy.group_by, None)
         by_stat[m.target_stat][group_key].append(m.value)
@@ -143,9 +144,11 @@ def _rules_for_group(
 # Decomposition (for audit tool)
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class DecomposedModifier:
     """A modifier with its stacking resolution status."""
+
     target_stat: str
     value: float
     bonus_type: str | None
@@ -162,16 +165,11 @@ def decompose_modifiers(
 
     If stat is specified, only modifiers for that stat are returned.
     """
-    filtered = modifiers if stat is None else [
-        m for m in modifiers if m.target_stat == stat
-    ]
+    filtered = modifiers if stat is None else [m for m in modifiers if m.target_stat == stat]
 
     if policy.group_by is None:
         # No grouping — everything is active
-        return [
-            DecomposedModifier(m.target_stat, m.value, m.bonus_type, m.source, active=True)
-            for m in filtered
-        ]
+        return [DecomposedModifier(m.target_stat, m.value, m.bonus_type, m.source, active=True) for m in filtered]
 
     active_set = _compute_active_set(filtered, policy)
     return [
@@ -188,9 +186,7 @@ def _compute_active_set(
     active: set[int] = set()
 
     # Group by (stat, group_key)
-    by_stat: dict[str, dict[str | None, list[tuple[int, float]]]] = defaultdict(
-        lambda: defaultdict(list)
-    )
+    by_stat: dict[str, dict[str | None, list[tuple[int, float]]]] = defaultdict(lambda: defaultdict(list))
     for i, m in enumerate(modifiers):
         group_key = getattr(m, policy.group_by, None)
         by_stat[m.target_stat][group_key].append((i, m.value))

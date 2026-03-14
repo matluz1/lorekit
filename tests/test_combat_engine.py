@@ -21,8 +21,11 @@ def _setup_fighter(db, make_session, make_character, set_attr, name, **overrides
     sid = make_session()
     cid = make_character(sid, name=name, level=5)
     defaults = {
-        "str": "18", "dex": "14", "con": "12",
-        "base_attack": "5", "hit_die_avg": "6",
+        "str": "18",
+        "dex": "14",
+        "con": "12",
+        "base_attack": "5",
+        "hit_die_avg": "6",
     }
     defaults.update(overrides)
 
@@ -34,6 +37,7 @@ def _setup_fighter(db, make_session, make_character, set_attr, name, **overrides
 
     # Run rules_calc to compute derived stats
     from rules_engine import rules_calc
+
     rules_calc(db, cid, TEST_SYSTEM)
 
     # Set weapon (build attribute)
@@ -146,18 +150,31 @@ class TestDegreeHitResistanceFail:
 
             # Set up attacker stats
             for key, val in [
-                ("fgt", "6"), ("agl", "2"), ("dex", "0"),
-                ("str", "6"), ("sta", "4"), ("int", "0"), ("awe", "2"), ("pre", "0"),
+                ("fgt", "6"),
+                ("agl", "2"),
+                ("dex", "0"),
+                ("str", "6"),
+                ("sta", "4"),
+                ("int", "0"),
+                ("awe", "2"),
+                ("pre", "0"),
             ]:
                 set_attr(db, atk_id, "stat", key, val)
             # Run calc to get derived
             from rules_engine import rules_calc
+
             rules_calc(db, atk_id, MM3E_SYSTEM)
 
             # Set up defender stats
             for key, val in [
-                ("fgt", "4"), ("agl", "4"), ("dex", "0"),
-                ("str", "2"), ("sta", "4"), ("int", "0"), ("awe", "2"), ("pre", "0"),
+                ("fgt", "4"),
+                ("agl", "4"),
+                ("dex", "0"),
+                ("str", "2"),
+                ("sta", "4"),
+                ("int", "0"),
+                ("awe", "2"),
+                ("pre", "0"),
                 ("ranks_parry", "2"),
             ]:
                 set_attr(db, def_id, "stat", key, val)
@@ -193,17 +210,31 @@ class TestDegreeNoEffect:
             def_id = make_character(sid, name="Villain", level=1)
 
             for key, val in [
-                ("fgt", "6"), ("agl", "2"), ("dex", "0"),
-                ("str", "6"), ("sta", "4"), ("int", "0"), ("awe", "2"), ("pre", "0"),
+                ("fgt", "6"),
+                ("agl", "2"),
+                ("dex", "0"),
+                ("str", "6"),
+                ("sta", "4"),
+                ("int", "0"),
+                ("awe", "2"),
+                ("pre", "0"),
             ]:
                 set_attr(db, atk_id, "stat", key, val)
             from rules_engine import rules_calc
+
             rules_calc(db, atk_id, MM3E_SYSTEM)
 
             for key, val in [
-                ("fgt", "4"), ("agl", "4"), ("dex", "0"),
-                ("str", "2"), ("sta", "8"), ("int", "0"), ("awe", "2"), ("pre", "0"),
-                ("ranks_parry", "2"), ("ranks_toughness", "4"),
+                ("fgt", "4"),
+                ("agl", "4"),
+                ("dex", "0"),
+                ("str", "2"),
+                ("sta", "8"),
+                ("int", "0"),
+                ("awe", "2"),
+                ("pre", "0"),
+                ("ranks_parry", "2"),
+                ("ranks_toughness", "4"),
             ]:
                 set_attr(db, def_id, "stat", key, val)
             rules_calc(db, def_id, MM3E_SYSTEM)
@@ -222,7 +253,7 @@ class TestDegreeNoEffect:
 
 class TestUnknownAction:
     def test_unknown_action_raises(self, make_session, make_character):
-        from _db import require_db, LoreKitError
+        from _db import LoreKitError, require_db
         from character import set_attr
 
         db = require_db()
@@ -239,7 +270,7 @@ class TestUnknownAction:
 class TestRangeValidation:
     def test_melee_out_of_range_rejected(self, make_session, make_character):
         """Melee attack across zones is rejected when encounter is active."""
-        from _db import require_db, LoreKitError
+        from _db import LoreKitError, require_db
         from character import set_attr
         from encounter import start_encounter
 
@@ -251,9 +282,8 @@ class TestRangeValidation:
 
             # Start encounter with characters in different zones
             start_encounter(
-                db, atk_id and db.execute(
-                    "SELECT session_id FROM characters WHERE id = ?", (atk_id,)
-                ).fetchone()[0],
+                db,
+                atk_id and db.execute("SELECT session_id FROM characters WHERE id = ?", (atk_id,)).fetchone()[0],
                 [{"name": "Near"}, {"name": "Far"}],
                 [{"character_id": atk_id, "roll": 20}, {"character_id": def_id, "roll": 10}],
                 placements=[
@@ -270,10 +300,11 @@ class TestRangeValidation:
 
     def test_melee_same_zone_allowed(self, make_session, make_character):
         """Melee attack in same zone proceeds normally."""
+        from unittest.mock import patch
+
         from _db import require_db
         from character import set_attr
         from encounter import start_encounter
-        from unittest.mock import patch
 
         db = require_db()
         try:
@@ -281,12 +312,11 @@ class TestRangeValidation:
             _, def_id = _setup_fighter(db, make_session, make_character, set_attr, "Defender")
             set_attr(db, def_id, "combat", "current_hp", "35")
 
-            sess_id = db.execute(
-                "SELECT session_id FROM characters WHERE id = ?", (atk_id,)
-            ).fetchone()[0]
+            sess_id = db.execute("SELECT session_id FROM characters WHERE id = ?", (atk_id,)).fetchone()[0]
 
             start_encounter(
-                db, sess_id,
+                db,
+                sess_id,
                 [{"name": "Arena"}],
                 [{"character_id": atk_id, "roll": 20}, {"character_id": def_id, "roll": 10}],
                 placements=[
@@ -308,7 +338,7 @@ class TestRangeValidation:
 class TestMissingStats:
     def test_missing_attack_stat_raises(self, make_session, make_character):
         """Character without the required attack stat → error."""
-        from _db import require_db, LoreKitError
+        from _db import LoreKitError, require_db
 
         db = require_db()
         try:
@@ -344,8 +374,7 @@ class TestContestedAction:
 
             # Verify combat_state row was created
             row = db.execute(
-                "SELECT source, target_stat, value FROM combat_state "
-                "WHERE character_id = ? AND source = 'grapple'",
+                "SELECT source, target_stat, value FROM combat_state WHERE character_id = ? AND source = 'grapple'",
                 (def_id,),
             ).fetchone()
             assert row is not None
@@ -416,12 +445,11 @@ class TestForcedMovement:
             sid, atk_id = _setup_fighter(db, make_session, make_character, set_attr, "Pusher")
             _, def_id = _setup_fighter(db, make_session, make_character, set_attr, "Target")
 
-            sess_id = db.execute(
-                "SELECT session_id FROM characters WHERE id = ?", (atk_id,)
-            ).fetchone()[0]
+            sess_id = db.execute("SELECT session_id FROM characters WHERE id = ?", (atk_id,)).fetchone()[0]
 
             start_encounter(
-                db, sess_id,
+                db,
+                sess_id,
                 [{"name": "Near"}, {"name": "Mid"}, {"name": "Far"}],
                 [{"character_id": atk_id, "roll": 20}, {"character_id": def_id, "roll": 10}],
                 placements=[
@@ -453,7 +481,7 @@ class TestForcedMovement:
 
     def test_shove_out_of_range_rejected(self, make_session, make_character):
         """Shove across zones is rejected — melee requires same zone."""
-        from _db import require_db, LoreKitError
+        from _db import LoreKitError, require_db
         from character import set_attr
         from encounter import start_encounter
 
@@ -462,12 +490,11 @@ class TestForcedMovement:
             sid, atk_id = _setup_fighter(db, make_session, make_character, set_attr, "Pusher")
             _, def_id = _setup_fighter(db, make_session, make_character, set_attr, "Target")
 
-            sess_id = db.execute(
-                "SELECT session_id FROM characters WHERE id = ?", (atk_id,)
-            ).fetchone()[0]
+            sess_id = db.execute("SELECT session_id FROM characters WHERE id = ?", (atk_id,)).fetchone()[0]
 
             start_encounter(
-                db, sess_id,
+                db,
+                sess_id,
                 [{"name": "Near"}, {"name": "Far"}],
                 [{"character_id": atk_id, "roll": 20}, {"character_id": def_id, "roll": 10}],
                 placements=[
@@ -496,12 +523,11 @@ class TestAreaEffect:
         set_attr(db, t1_id, "combat", "current_hp", "35")
         set_attr(db, t2_id, "combat", "current_hp", "35")
 
-        sess_id = db.execute(
-            "SELECT session_id FROM characters WHERE id = ?", (atk_id,)
-        ).fetchone()[0]
+        sess_id = db.execute("SELECT session_id FROM characters WHERE id = ?", (atk_id,)).fetchone()[0]
 
         start_encounter(
-            db, sess_id,
+            db,
+            sess_id,
             [{"name": "Near"}, {"name": "Mid"}, {"name": "Far"}],
             [
                 {"character_id": atk_id, "roll": 20},
@@ -526,15 +552,22 @@ class TestAreaEffect:
         db = require_db()
         try:
             sid, atk_id, t1_id, t2_id = self._setup_encounter(
-                db, make_session, make_character, set_attr,
+                db,
+                make_session,
+                make_character,
+                set_attr,
             )
 
             # Mock: attack roll + damage roll for one target
             roll_calls = iter([17, 5])  # hit, damage
             with patch("secrets.randbelow", side_effect=roll_calls):
                 output = resolve_area_action(
-                    db, atk_id, "fireball", TEST_SYSTEM,
-                    center_zone="Mid", radius=0,
+                    db,
+                    atk_id,
+                    "fireball",
+                    TEST_SYSTEM,
+                    center_zone="Mid",
+                    radius=0,
                 )
 
             assert "Target1" in output
@@ -552,15 +585,22 @@ class TestAreaEffect:
         db = require_db()
         try:
             sid, atk_id, t1_id, t2_id = self._setup_encounter(
-                db, make_session, make_character, set_attr,
+                db,
+                make_session,
+                make_character,
+                set_attr,
             )
 
             # Mock: 2 targets × (attack roll + damage roll)
             roll_calls = iter([17, 5, 17, 5])
             with patch("secrets.randbelow", side_effect=roll_calls):
                 output = resolve_area_action(
-                    db, atk_id, "fireball", TEST_SYSTEM,
-                    center_zone="Mid", radius=1,
+                    db,
+                    atk_id,
+                    "fireball",
+                    TEST_SYSTEM,
+                    center_zone="Mid",
+                    radius=1,
                 )
 
             # Both targets hit (attacker excluded by default)
@@ -580,15 +620,22 @@ class TestAreaEffect:
         db = require_db()
         try:
             sid, atk_id, t1_id, t2_id = self._setup_encounter(
-                db, make_session, make_character, set_attr,
+                db,
+                make_session,
+                make_character,
+                set_attr,
             )
 
             # Center on attacker's zone (Near), radius=0
             roll_calls = iter([])  # no targets expected
             with patch("secrets.randbelow", side_effect=roll_calls):
                 output = resolve_area_action(
-                    db, atk_id, "fireball", TEST_SYSTEM,
-                    center_zone="self", radius=0,
+                    db,
+                    atk_id,
+                    "fireball",
+                    TEST_SYSTEM,
+                    center_zone="self",
+                    radius=0,
                 )
 
             assert "no targets" in output
@@ -604,15 +651,22 @@ class TestAreaEffect:
         db = require_db()
         try:
             sid, atk_id, t1_id, t2_id = self._setup_encounter(
-                db, make_session, make_character, set_attr,
+                db,
+                make_session,
+                make_character,
+                set_attr,
             )
 
             # Center on self (Near), radius=1 reaches Mid (Target1)
             roll_calls = iter([17, 5])  # one target
             with patch("secrets.randbelow", side_effect=roll_calls):
                 output = resolve_area_action(
-                    db, atk_id, "fireball", TEST_SYSTEM,
-                    center_zone="self", radius=1,
+                    db,
+                    atk_id,
+                    "fireball",
+                    TEST_SYSTEM,
+                    center_zone="self",
+                    radius=1,
                 )
 
             assert "Target1" in output
@@ -622,7 +676,7 @@ class TestAreaEffect:
 
     def test_area_no_encounter_raises(self, make_session, make_character):
         """Area effect without an active encounter raises an error."""
-        from _db import require_db, LoreKitError
+        from _db import LoreKitError, require_db
         from character import set_attr
         from combat_engine import resolve_area_action
 
@@ -632,8 +686,12 @@ class TestAreaEffect:
 
             with pytest.raises(LoreKitError, match="No active encounter"):
                 resolve_area_action(
-                    db, atk_id, "fireball", TEST_SYSTEM,
-                    center_zone="Mid", radius=1,
+                    db,
+                    atk_id,
+                    "fireball",
+                    TEST_SYSTEM,
+                    center_zone="Mid",
+                    radius=1,
                 )
         finally:
             db.close()
@@ -649,12 +707,11 @@ class TestAreaEffect:
         try:
             sid, atk_id = _setup_fighter(db, make_session, make_character, set_attr, "Caster")
 
-            sess_id = db.execute(
-                "SELECT session_id FROM characters WHERE id = ?", (atk_id,)
-            ).fetchone()[0]
+            sess_id = db.execute("SELECT session_id FROM characters WHERE id = ?", (atk_id,)).fetchone()[0]
 
             start_encounter(
-                db, sess_id,
+                db,
+                sess_id,
                 [{"name": "Near"}, {"name": "Far"}],
                 [{"character_id": atk_id, "roll": 20}],
                 placements=[{"character_id": atk_id, "zone": "Near"}],
@@ -662,8 +719,12 @@ class TestAreaEffect:
             )
 
             output = resolve_area_action(
-                db, atk_id, "fireball", TEST_SYSTEM,
-                center_zone="Far", radius=0,
+                db,
+                atk_id,
+                "fireball",
+                TEST_SYSTEM,
+                center_zone="Far",
+                radius=0,
             )
             assert "no targets" in output
         finally:
@@ -683,16 +744,29 @@ class TestDegreeOnHit:
             def_id = make_character(sid, name="Villain", level=1)
 
             for key, val in [
-                ("fgt", "6"), ("agl", "2"), ("dex", "0"),
-                ("str", "6"), ("sta", "4"), ("int", "0"), ("awe", "2"), ("pre", "0"),
+                ("fgt", "6"),
+                ("agl", "2"),
+                ("dex", "0"),
+                ("str", "6"),
+                ("sta", "4"),
+                ("int", "0"),
+                ("awe", "2"),
+                ("pre", "0"),
             ]:
                 set_attr(db, atk_id, "stat", key, val)
             from rules_engine import rules_calc
+
             rules_calc(db, atk_id, MM3E_SYSTEM)
 
             for key, val in [
-                ("fgt", "4"), ("agl", "4"), ("dex", "0"),
-                ("str", "2"), ("sta", "4"), ("int", "0"), ("awe", "2"), ("pre", "0"),
+                ("fgt", "4"),
+                ("agl", "4"),
+                ("dex", "0"),
+                ("str", "2"),
+                ("sta", "4"),
+                ("int", "0"),
+                ("awe", "2"),
+                ("pre", "0"),
                 ("ranks_parry", "2"),
             ]:
                 set_attr(db, def_id, "stat", key, val)
@@ -710,8 +784,7 @@ class TestDegreeOnHit:
 
             # Verify combat_state modifiers applied
             rows = db.execute(
-                "SELECT source, target_stat, value FROM combat_state "
-                "WHERE character_id = ? AND source = 'grab'",
+                "SELECT source, target_stat, value FROM combat_state WHERE character_id = ? AND source = 'grab'",
                 (def_id,),
             ).fetchall()
             assert len(rows) == 2

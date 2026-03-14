@@ -5,8 +5,8 @@ import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _db import require_db, LoreKitError
 from _args import parse_args
+from _db import LoreKitError, require_db
 
 
 def usage():
@@ -40,7 +40,7 @@ def main():
 
 
 def search(db, session_id: int, query_text: str, source: str = "", n_results: int = 0) -> str:
-    from _vectordb import is_available, hybrid_search
+    from _vectordb import hybrid_search, is_available
 
     if not is_available():
         raise LoreKitError("sqlite-vec is not installed")
@@ -76,38 +76,33 @@ def search(db, session_id: int, query_text: str, source: str = "", n_results: in
 
 
 def cmd_search(db, args):
-    sid, p = parse_args(args, {
-        "--query": ("query_text", True, ""),
-        "--source": ("source", False, ""),
-        "--n": ("n_results", False, "0"),
-    }, positional="session_id")
+    sid, p = parse_args(
+        args,
+        {
+            "--query": ("query_text", True, ""),
+            "--source": ("source", False, ""),
+            "--n": ("n_results", False, "0"),
+        },
+        positional="session_id",
+    )
     return search(db, int(sid), p["query_text"], p["source"], int(p["n_results"]))
 
 
 def reindex(db, session_id: int) -> str:
-    from _vectordb import is_available, index_journal, index_timeline
+    from _vectordb import index_journal, index_timeline, is_available
 
     if not is_available():
         raise LoreKitError("sqlite-vec is not installed")
 
     # Delete existing embeddings for this session
-    emb_ids = [
-        row[0]
-        for row in db.execute(
-            "SELECT id FROM embeddings WHERE session_id = ?", (session_id,)
-        ).fetchall()
-    ]
+    emb_ids = [row[0] for row in db.execute("SELECT id FROM embeddings WHERE session_id = ?", (session_id,)).fetchall()]
     if emb_ids:
         placeholders = ",".join("?" * len(emb_ids))
         try:
-            db.execute(
-                f"DELETE FROM vec_embeddings WHERE rowid IN ({placeholders})", emb_ids
-            )
+            db.execute(f"DELETE FROM vec_embeddings WHERE rowid IN ({placeholders})", emb_ids)
         except Exception:
             pass
-        db.execute(
-            f"DELETE FROM embeddings WHERE id IN ({placeholders})", emb_ids
-        )
+        db.execute(f"DELETE FROM embeddings WHERE id IN ({placeholders})", emb_ids)
         db.commit()
 
     timeline_count = 0

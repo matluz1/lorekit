@@ -16,10 +16,10 @@ from rules_stacking import (
     resolve_stacking,
 )
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def M(stat, value, bonus_type=None, source=""):
     """Shorthand for ModifierEntry."""
@@ -29,7 +29,9 @@ def M(stat, value, bonus_type=None, source=""):
 # Reusable policies
 NO_GROUP = StackingPolicy()  # group_by=None → sum all
 GROUP_BY_TYPE = StackingPolicy(
-    group_by="bonus_type", positive="max", negative="sum",
+    group_by="bonus_type",
+    positive="max",
+    negative="sum",
     overrides={"untyped": {"positive": "sum"}, "_none": {"positive": "sum"}},
 )
 GROUP_BY_SOURCE = StackingPolicy(group_by="source", positive="max", negative="min")
@@ -39,6 +41,7 @@ GROUP_BY_SOURCE = StackingPolicy(group_by="source", positive="max", negative="mi
 # load_stacking_policy
 # ---------------------------------------------------------------------------
 
+
 class TestLoadStackingPolicy:
     def test_empty_config(self):
         p = load_stacking_policy({})
@@ -47,12 +50,14 @@ class TestLoadStackingPolicy:
         assert p.negative == "sum"
 
     def test_group_by_type_config(self):
-        p = load_stacking_policy({
-            "group_by": "bonus_type",
-            "positive": "max",
-            "negative": "sum",
-            "overrides": {"untyped": {"positive": "sum"}},
-        })
+        p = load_stacking_policy(
+            {
+                "group_by": "bonus_type",
+                "positive": "max",
+                "negative": "sum",
+                "overrides": {"untyped": {"positive": "sum"}},
+            }
+        )
         assert p.group_by == "bonus_type"
         assert p.positive == "max"
         assert p.overrides == {"untyped": {"positive": "sum"}}
@@ -66,6 +71,7 @@ class TestLoadStackingPolicy:
 # ---------------------------------------------------------------------------
 # No grouping (sum all)
 # ---------------------------------------------------------------------------
+
 
 class TestNoGrouping:
     def test_sums_everything(self):
@@ -87,6 +93,7 @@ class TestNoGrouping:
 # ---------------------------------------------------------------------------
 # Group by bonus_type (positive=max per group, negative=sum)
 # ---------------------------------------------------------------------------
+
 
 class TestGroupByType:
     def test_same_group_takes_highest(self):
@@ -161,6 +168,7 @@ class TestGroupByType:
 # Group by source (positive=max per source, negative=min)
 # ---------------------------------------------------------------------------
 
+
 class TestGroupBySource:
     def test_same_source_takes_highest(self):
         mods = [
@@ -199,6 +207,7 @@ class TestGroupBySource:
 # decompose_modifiers
 # ---------------------------------------------------------------------------
 
+
 class TestDecompose:
     def test_no_grouping_everything_active(self):
         mods = [M("bonus_ac", 2), M("bonus_ac", 3)]
@@ -209,13 +218,13 @@ class TestDecompose:
     def test_grouped_shows_suppressed(self):
         mods = [
             M("bonus_ac", 2, "circumstance", "flanking"),
-            M("bonus_ac", 1, "circumstance", "aid"),      # suppressed
-            M("bonus_ac", 3, "item", "plate"),             # different group
+            M("bonus_ac", 1, "circumstance", "aid"),  # suppressed
+            M("bonus_ac", 3, "item", "plate"),  # different group
         ]
         result = decompose_modifiers(mods, GROUP_BY_TYPE)
-        assert result[0].active is True   # +2 circumstance (highest)
+        assert result[0].active is True  # +2 circumstance (highest)
         assert result[1].active is False  # +1 circumstance (suppressed)
-        assert result[2].active is True   # +3 item
+        assert result[2].active is True  # +3 item
 
     def test_filter_by_stat(self):
         mods = [M("bonus_ac", 2), M("bonus_attack", 1)]
@@ -226,18 +235,19 @@ class TestDecompose:
     def test_source_grouping_decompose(self):
         mods = [
             M("bonus_ac", 2, source="shield"),
-            M("bonus_ac", 4, source="shield"),   # highest from same source
+            M("bonus_ac", 4, source="shield"),  # highest from same source
             M("bonus_ac", 1, source="dodge"),
         ]
         result = decompose_modifiers(mods, GROUP_BY_SOURCE)
         assert result[0].active is False  # +2 shield (suppressed by +4)
-        assert result[1].active is True   # +4 shield (highest)
-        assert result[2].active is True   # +1 dodge (different source)
+        assert result[1].active is True  # +4 shield (highest)
+        assert result[2].active is True  # +1 dodge (different source)
 
 
 # ---------------------------------------------------------------------------
 # Edge cases
 # ---------------------------------------------------------------------------
+
 
 class TestEdgeCases:
     def test_zero_value_modifier(self):

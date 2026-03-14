@@ -2,12 +2,11 @@
 
 import json
 
-
 # ---- turn_save -------------------------------------------------------------
 
 
 def test_turn_save_narration_only(make_session):
-    from mcp_server import turn_save, timeline_list, session_meta_get
+    from mcp_server import session_meta_get, timeline_list, turn_save
 
     sid = make_session()
     result = turn_save(session_id=sid, narration="The forest darkens.", summary="Forest gets dark")
@@ -22,7 +21,7 @@ def test_turn_save_narration_only(make_session):
 
 
 def test_turn_save_player_choice_only(make_session):
-    from mcp_server import turn_save, timeline_list
+    from mcp_server import timeline_list, turn_save
 
     sid = make_session()
     result = turn_save(session_id=sid, player_choice="I attack the goblin")
@@ -33,7 +32,7 @@ def test_turn_save_player_choice_only(make_session):
 
 
 def test_turn_save_both(make_session):
-    from mcp_server import turn_save, timeline_list, session_meta_get
+    from mcp_server import session_meta_get, timeline_list, turn_save
 
     sid = make_session()
     result = turn_save(
@@ -70,16 +69,22 @@ def test_character_build_full(make_session):
         session=sid,
         name="Aldric",
         level=3,
-        attrs=json.dumps([
-            {"category": "stat", "key": "strength", "value": "16"},
-            {"category": "stat", "key": "dexterity", "value": "14"},
-        ]),
-        items=json.dumps([
-            {"name": "Longsword", "desc": "A fine blade", "qty": 1, "equipped": 1},
-        ]),
-        abilities=json.dumps([
-            {"name": "Battle Surge", "desc": "Regain HP", "category": "feat", "uses": "1/rest"},
-        ]),
+        attrs=json.dumps(
+            [
+                {"category": "stat", "key": "strength", "value": "16"},
+                {"category": "stat", "key": "dexterity", "value": "14"},
+            ]
+        ),
+        items=json.dumps(
+            [
+                {"name": "Longsword", "desc": "A fine blade", "qty": 1, "equipped": 1},
+            ]
+        ),
+        abilities=json.dumps(
+            [
+                {"name": "Battle Surge", "desc": "Regain HP", "category": "feat", "uses": "1/rest"},
+            ]
+        ),
     )
     assert "CHARACTER_BUILT:" in result
     assert "attrs=2" in result
@@ -119,7 +124,7 @@ def test_character_build_npc_with_region(make_session, make_region):
 
 
 def test_character_build_invalid_json():
-    from mcp_server import session_create, character_build
+    from mcp_server import character_build, session_create
 
     session_create(name="Test", setting="Fantasy", system="d20")
     result = character_build(session=1, name="Bad", level=1, attrs="not json")
@@ -130,7 +135,7 @@ def test_character_build_invalid_json():
 
 
 def test_session_setup_full():
-    from mcp_server import session_setup, session_view, story_view, region_list, session_meta_get
+    from mcp_server import region_list, session_meta_get, session_setup, session_view, story_view
 
     result = session_setup(
         name="Dark Forest",
@@ -139,16 +144,24 @@ def test_session_setup_full():
         meta=json.dumps({"language": "English", "house_rule": "max crit dmg"}),
         story_size="short",
         story_premise="A cursed forest threatens the village",
-        acts=json.dumps([
-            {"title": "The Call", "goal": "Reach the temple", "event": "Temple collapses"},
-            {"title": "The Descent", "goal": "Find the cure", "event": "Boss fight"},
-        ]),
-        regions=json.dumps([
-            {"name": "Village", "desc": "A small village", "children": [
-                {"name": "Market Square", "desc": "The town center"},
-            ]},
-            {"name": "Dark Forest", "desc": "A cursed forest"},
-        ]),
+        acts=json.dumps(
+            [
+                {"title": "The Call", "goal": "Reach the temple", "event": "Temple collapses"},
+                {"title": "The Descent", "goal": "Find the cure", "event": "Boss fight"},
+            ]
+        ),
+        regions=json.dumps(
+            [
+                {
+                    "name": "Village",
+                    "desc": "A small village",
+                    "children": [
+                        {"name": "Market Square", "desc": "The town center"},
+                    ],
+                },
+                {"name": "Dark Forest", "desc": "A cursed forest"},
+            ]
+        ),
     )
     assert "SESSION_CREATED:" in result
     assert "META_SET: 2 keys" in result
@@ -195,8 +208,14 @@ def test_session_setup_invalid_json():
 
 def test_session_resume(make_session, make_character):
     from mcp_server import (
-        session_resume, story_set, story_add_act, story_update_act,
-        timeline_add, session_meta_set, journal_add, region_create,
+        journal_add,
+        region_create,
+        session_meta_set,
+        session_resume,
+        story_add_act,
+        story_set,
+        story_update_act,
+        timeline_add,
     )
 
     sid = make_session()
@@ -244,10 +263,12 @@ def test_character_sheet_update_attrs(make_session, make_character):
     cid = make_character(sid)
     result = character_sheet_update(
         character_id=cid,
-        attrs=json.dumps([
-            {"category": "combat", "key": "hp", "value": "25"},
-            {"category": "stat", "key": "str", "value": "18"},
-        ]),
+        attrs=json.dumps(
+            [
+                {"category": "combat", "key": "hp", "value": "25"},
+                {"category": "stat", "key": "str", "value": "18"},
+            ]
+        ),
     )
     assert "ATTRS_SET: 2" in result
 
@@ -275,7 +296,7 @@ def test_character_sheet_update_level_and_items(make_session, make_character):
 
 
 def test_character_sheet_update_remove_items_by_name(make_session, make_character):
-    from mcp_server import character_sheet_update, character_set_item, character_view
+    from mcp_server import character_set_item, character_sheet_update, character_view
 
     sid = make_session()
     cid = make_character(sid)
@@ -294,7 +315,7 @@ def test_character_sheet_update_remove_items_by_name(make_session, make_characte
 
 
 def test_character_sheet_update_remove_items_by_id(make_session, make_character):
-    from mcp_server import character_sheet_update, character_set_item, character_view
+    from mcp_server import character_set_item, character_sheet_update, character_view
 
     sid = make_session()
     cid = make_character(sid)
@@ -327,9 +348,11 @@ def test_character_sheet_update_abilities(make_session, make_character):
     cid = make_character(sid)
     result = character_sheet_update(
         character_id=cid,
-        abilities=json.dumps([
-            {"name": "Flame Bolt", "desc": "3d6 fire", "category": "spell", "uses": "3/day"},
-        ]),
+        abilities=json.dumps(
+            [
+                {"name": "Flame Bolt", "desc": "3d6 fire", "category": "spell", "uses": "3/day"},
+            ]
+        ),
     )
     assert "ABILITIES_SET: 1" in result
 

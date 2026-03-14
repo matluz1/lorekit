@@ -58,6 +58,7 @@ def is_available():
     """Return True if sqlite_vec is importable."""
     try:
         import sqlite_vec  # noqa: F401
+
         return True
     except ImportError:
         return False
@@ -65,9 +66,7 @@ def is_available():
 
 def _has_vec_table(db):
     """Check whether the vec_embeddings virtual table exists."""
-    row = db.execute(
-        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='vec_embeddings'"
-    ).fetchone()
+    row = db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='vec_embeddings'").fetchone()
     return row is not None
 
 
@@ -167,16 +166,18 @@ def search(query, session_id, db, collection_name=None, n_results=5):
     for source, source_id, content, sid, distance in rows:
         if len(results) >= n_results:
             break
-        results.append({
-            "source": source,
-            "id": f"{source}_{source_id}",
-            "content": content,
-            "distance": distance,
-            "metadata": {
-                "session_id": str(sid),
-                "sql_id": source_id,
-            },
-        })
+        results.append(
+            {
+                "source": source,
+                "id": f"{source}_{source_id}",
+                "content": content,
+                "distance": distance,
+                "metadata": {
+                    "session_id": str(sid),
+                    "sql_id": source_id,
+                },
+            }
+        )
 
     return results
 
@@ -201,17 +202,19 @@ def keyword_search(query, session_id, db, collection_name=None, n_results=5):
         )
         for row in cur.fetchall():
             sql_id, entry_type, content, created_at = row
-            results.append({
-                "source": table,
-                "id": f"{table}_{sql_id}",
-                "content": content,
-                "distance": 0.0,
-                "metadata": {
-                    "session_id": str(session_id),
-                    "entry_type": entry_type,
-                    "sql_id": sql_id,
-                },
-            })
+            results.append(
+                {
+                    "source": table,
+                    "id": f"{table}_{sql_id}",
+                    "content": content,
+                    "distance": 0.0,
+                    "metadata": {
+                        "session_id": str(session_id),
+                        "entry_type": entry_type,
+                        "sql_id": sql_id,
+                    },
+                }
+            )
 
     return results
 

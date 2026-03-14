@@ -6,8 +6,8 @@ import shutil
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _db import require_db, LoreKitError
 from _args import parse_args
+from _db import LoreKitError, require_db
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 EXPORT_DIR = os.path.join(PROJECT_ROOT, ".export")
@@ -45,8 +45,7 @@ def cmd_clean(db, args):
 def dump(db, session_id: int) -> str:
     # Validate session exists
     session = db.execute(
-        "SELECT id, name, setting, system_type, status, created_at, updated_at"
-        " FROM sessions WHERE id = ?",
+        "SELECT id, name, setting, system_type, status, created_at, updated_at FROM sessions WHERE id = ?",
         (session_id,),
     ).fetchone()
     if session is None:
@@ -121,8 +120,7 @@ def dump(db, session_id: int) -> str:
                 parts.append(f"Region: {char[5]}")
 
             attrs = db.execute(
-                "SELECT category, key, value FROM character_attributes"
-                " WHERE character_id = ? ORDER BY category, key",
+                "SELECT category, key, value FROM character_attributes WHERE character_id = ? ORDER BY category, key",
                 (char_id,),
             ).fetchall()
             if attrs:
@@ -162,8 +160,7 @@ def dump(db, session_id: int) -> str:
 
     # -- 4. Regions --
     regions = db.execute(
-        "SELECT id, name, description FROM regions"
-        " WHERE session_id = ? ORDER BY name",
+        "SELECT id, name, description FROM regions WHERE session_id = ? ORDER BY name",
         (session_id,),
     ).fetchall()
     if regions:
@@ -173,8 +170,7 @@ def dump(db, session_id: int) -> str:
             if reg[2]:
                 parts.append(reg[2])
             npcs = db.execute(
-                "SELECT name, status FROM characters"
-                " WHERE region_id = ? AND type = 'npc' ORDER BY name",
+                "SELECT name, status FROM characters WHERE region_id = ? AND type = 'npc' ORDER BY name",
                 (reg[0],),
             ).fetchall()
             if npcs:
@@ -183,8 +179,7 @@ def dump(db, session_id: int) -> str:
 
     # -- 5. Timeline --
     timeline = db.execute(
-        "SELECT entry_type, content, created_at FROM timeline"
-        " WHERE session_id = ? ORDER BY id",
+        "SELECT entry_type, content, created_at FROM timeline WHERE session_id = ? ORDER BY id",
         (session_id,),
     ).fetchall()
     if timeline:
@@ -197,8 +192,7 @@ def dump(db, session_id: int) -> str:
 
     # -- 6. Journal --
     journal = db.execute(
-        "SELECT entry_type, content, created_at FROM journal"
-        " WHERE session_id = ? ORDER BY id",
+        "SELECT entry_type, content, created_at FROM journal WHERE session_id = ? ORDER BY id",
         (session_id,),
     ).fetchall()
     if journal:

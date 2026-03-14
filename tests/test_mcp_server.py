@@ -2,7 +2,6 @@
 
 import sys
 
-
 # ---- helpers ---------------------------------------------------------------
 
 
@@ -19,8 +18,9 @@ def test_run_with_db():
 
 
 def test_run_with_db_catches_error():
-    from mcp_server import _run_with_db
     from _db import LoreKitError
+
+    from mcp_server import _run_with_db
 
     def _raise_error(db, args):
         raise LoreKitError("test error")
@@ -43,7 +43,7 @@ def test_init_db():
 
 
 def test_session_list():
-    from mcp_server import session_setup, session_list
+    from mcp_server import session_list, session_setup
 
     session_setup(name="Test", setting="Fantasy", system="d20")
     result = session_list()
@@ -59,7 +59,7 @@ def test_session_update():
 
 
 def test_session_meta():
-    from mcp_server import session_setup, session_meta_set, session_meta_get
+    from mcp_server import session_meta_get, session_meta_set, session_setup
 
     session_setup(name="Test", setting="Fantasy", system="d20")
     session_meta_set(session_id=1, key="lang", value="en")
@@ -81,7 +81,7 @@ def test_story_set_and_view():
 
 
 def test_story_view_act():
-    from mcp_server import session_setup, story_set, story_add_act, story_view
+    from mcp_server import session_setup, story_add_act, story_set, story_view
 
     session_setup(name="Test", setting="Fantasy", system="d20")
     story_set(session_id=1, size="short", premise="Test")
@@ -92,7 +92,7 @@ def test_story_view_act():
 
 
 def test_story_add_act_and_advance():
-    from mcp_server import session_setup, story_set, story_add_act, story_update_act, story_advance
+    from mcp_server import session_setup, story_add_act, story_advance, story_set, story_update_act
 
     session_setup(name="Test", setting="Fantasy", system="d20")
     story_set(session_id=1, size="short", premise="Test")
@@ -108,12 +108,15 @@ def test_story_add_act_and_advance():
 
 
 def test_character_build_and_view():
-    from mcp_server import session_setup, character_build, character_view
     import json
+
+    from mcp_server import character_build, character_view, session_setup
 
     session_setup(name="Test", setting="Fantasy", system="d20")
     result = character_build(
-        session=1, name="Aldric", level=3,
+        session=1,
+        name="Aldric",
+        level=3,
         attrs=json.dumps([{"category": "stat", "key": "strength", "value": "16"}]),
         items=json.dumps([{"name": "Sword", "desc": "Sharp"}]),
         abilities=json.dumps([{"name": "Flame Burst", "desc": "3d6 fire", "category": "spell"}]),
@@ -131,7 +134,7 @@ def test_character_build_and_view():
 
 
 def test_region_create_and_view():
-    from mcp_server import session_setup, region_create, region_view, region_list
+    from mcp_server import region_create, region_list, region_view, session_setup
 
     session_setup(name="Test", setting="Fantasy", system="d20")
     result = region_create(session_id=1, name="Ashar", desc="A village")
@@ -146,7 +149,7 @@ def test_region_create_and_view():
 
 
 def test_turn_save_and_list():
-    from mcp_server import session_setup, turn_save, timeline_list
+    from mcp_server import session_setup, timeline_list, turn_save
 
     session_setup(name="Test", setting="Fantasy", system="d20")
     result = turn_save(session_id=1, narration="The forest darkens.", summary="Forest darkens")
@@ -156,7 +159,7 @@ def test_turn_save_and_list():
 
 
 def test_recall_keyword_search():
-    from mcp_server import session_setup, turn_save, recall_search
+    from mcp_server import recall_search, session_setup, turn_save
 
     session_setup(name="Test", setting="Fantasy", system="d20")
     turn_save(session_id=1, narration="A dragon appears in the sky.", summary="Dragon appears")
@@ -168,7 +171,7 @@ def test_recall_keyword_search():
 
 
 def test_journal_add_and_list():
-    from mcp_server import session_setup, journal_add, journal_list
+    from mcp_server import journal_add, journal_list, session_setup
 
     session_setup(name="Test", setting="Fantasy", system="d20")
     result = journal_add(session_id=1, type="note", content="Player likes puzzles")
@@ -225,7 +228,7 @@ def test_roll_dice_invalid():
 
 
 def test_recall_search():
-    from mcp_server import session_setup, turn_save, recall_search
+    from mcp_server import recall_search, session_setup, turn_save
 
     session_setup(name="Test", setting="Fantasy", system="d20")
     turn_save(session_id=1, narration="The ancient temple crumbles.", summary="Temple crumbles")
@@ -235,7 +238,7 @@ def test_recall_search():
 
 
 def test_recall_reindex():
-    from mcp_server import session_setup, turn_save, recall_reindex
+    from mcp_server import recall_reindex, session_setup, turn_save
 
     session_setup(name="Test", setting="Fantasy", system="d20")
     turn_save(session_id=1, narration="Test entry for reindex.", summary="Test entry")
@@ -247,7 +250,7 @@ def test_recall_reindex():
 
 
 def test_export_dump_and_clean(tmp_path):
-    from mcp_server import session_setup, export_dump, export_clean
+    from mcp_server import export_clean, export_dump, session_setup
 
     session_setup(name="Test", setting="Fantasy", system="d20")
     result = export_dump(session_id=1)
@@ -262,7 +265,8 @@ def test_export_dump_and_clean(tmp_path):
 def test_ability_from_template_blast():
     """Template instantiation creates a power ability with merged overrides."""
     import json
-    from mcp_server import session_setup, session_meta_set, character_build, ability_from_template
+
+    from mcp_server import ability_from_template, character_build, session_meta_set, session_setup
 
     session_setup(name="MM3e Test", setting="Supers", system="mm3e")
     session_meta_set(session_id=1, key="rules_system", value="mm3e")
@@ -279,7 +283,7 @@ def test_ability_from_template_blast():
 
 def test_ability_from_template_unknown():
     """Unknown template returns an error with available keys."""
-    from mcp_server import session_setup, session_meta_set, character_build, ability_from_template
+    from mcp_server import ability_from_template, character_build, session_meta_set, session_setup
 
     session_setup(name="MM3e Test", setting="Supers", system="mm3e")
     session_meta_set(session_id=1, key="rules_system", value="mm3e")
@@ -293,7 +297,7 @@ def test_ability_from_template_unknown():
 
 def test_ability_from_template_no_system():
     """Template without rules_system set returns an error."""
-    from mcp_server import session_setup, character_build, ability_from_template
+    from mcp_server import ability_from_template, character_build, session_setup
 
     session_setup(name="NoRules", setting="Test", system="generic")
     character_build(session=1, name="Hero", level=1)

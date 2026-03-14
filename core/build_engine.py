@@ -30,6 +30,7 @@ from typing import Any
 @dataclass
 class BuildResult:
     """Result of processing build rules."""
+
     attributes: dict[str, Any] = field(default_factory=dict)  # key -> value
     costs: dict[str, float] = field(default_factory=dict)  # category -> cost
     warnings: list[str] = field(default_factory=list)
@@ -94,9 +95,14 @@ def _expand_template(pattern: str, char_attrs: dict[str, dict[str, str]]) -> str
 # Main entry point
 # ---------------------------------------------------------------------------
 
-def process_build(pack_dir: str, char_attrs: dict[str, dict[str, str]],
-                  char_abilities: list[dict[str, str]], level: int,
-                  char_items: list[dict[str, Any]] | None = None) -> BuildResult:
+
+def process_build(
+    pack_dir: str,
+    char_attrs: dict[str, dict[str, str]],
+    char_abilities: list[dict[str, str]],
+    level: int,
+    char_items: list[dict[str, Any]] | None = None,
+) -> BuildResult:
     """Process build rules and return computed attributes."""
     system_path = os.path.join(pack_dir, "system.json")
     if not os.path.isfile(system_path):
@@ -129,8 +135,13 @@ def process_build(pack_dir: str, char_attrs: dict[str, dict[str, str]],
             _process_pipeline(rules, pack_dir, char_abilities, system_data, result)
         elif "source" in rules:
             _process_source(
-                pack_dir, rules, category,
-                char_attrs, char_abilities, level, result,
+                pack_dir,
+                rules,
+                category,
+                char_attrs,
+                char_abilities,
+                level,
+                result,
                 char_items=char_items,
             )
 
@@ -155,8 +166,8 @@ def process_build(pack_dir: str, char_attrs: dict[str, dict[str, str]],
 # Budget
 # ---------------------------------------------------------------------------
 
-def _process_budget(rules: dict, char_attrs: dict[str, dict[str, str]],
-                    system_data: dict, result: BuildResult) -> None:
+
+def _process_budget(rules: dict, char_attrs: dict[str, dict[str, str]], system_data: dict, result: BuildResult) -> None:
     """Set up point budget by evaluating a formula from the config."""
     from rules_formulas import FormulaContext, calc
 
@@ -180,8 +191,10 @@ def _process_budget(rules: dict, char_attrs: dict[str, dict[str, str]],
 # Ranked purchase (generic: abilities, defenses, skills, etc.)
 # ---------------------------------------------------------------------------
 
-def _process_ranked_purchase(rules: dict, char_attrs: dict[str, dict[str, str]],
-                             category: str, result: BuildResult) -> None:
+
+def _process_ranked_purchase(
+    rules: dict, char_attrs: dict[str, dict[str, str]], category: str, result: BuildResult
+) -> None:
     """Sum values for listed keys × cost_per_rank, track as category cost."""
     keys = rules.get("keys", [])
     cost_per_rank = rules.get("cost_per_rank", 1)
@@ -210,9 +223,10 @@ def _process_ranked_purchase(rules: dict, char_attrs: dict[str, dict[str, str]],
 # Pipeline (structured ability costing)
 # ---------------------------------------------------------------------------
 
-def _process_pipeline(rules: dict, pack_dir: str,
-                      char_abilities: list[dict[str, str]],
-                      system_data: dict, result: BuildResult) -> None:
+
+def _process_pipeline(
+    rules: dict, pack_dir: str, char_abilities: list[dict[str, str]], system_data: dict, result: BuildResult
+) -> None:
     """Process structured abilities: compute costs via pipeline, apply feeds."""
     effect_source = rules.get("effect_source", "")
     modifier_source = rules.get("modifier_source", "")
@@ -271,8 +285,7 @@ def _parse_structured_ability(ability: dict[str, str]) -> dict | None:
     return data if data.get("effect") else None
 
 
-def _compute_pipeline_cost(data: dict, effects_data: dict,
-                           modifiers_data: dict, pipeline: list[dict]) -> float:
+def _compute_pipeline_cost(data: dict, effects_data: dict, modifiers_data: dict, pipeline: list[dict]) -> float:
     """Compute cost using pipeline stages."""
     if not pipeline:
         return 0
@@ -290,33 +303,34 @@ def _compute_pipeline_cost(data: dict, effects_data: dict,
     extras_data = modifiers_data.get("extras", {})
     flaws_data = modifiers_data.get("flaws", {})
 
-    sum_extras = sum(
-        extras_data.get(k, {}).get("cost", 1)
-        for k in data.get("extras", [])
-    )
-    sum_flaws = sum(
-        flaws_data.get(k, {}).get("cost", -1)
-        for k in data.get("flaws", [])
-    )
+    sum_extras = sum(extras_data.get(k, {}).get("cost", 1) for k in data.get("extras", []))
+    sum_flaws = sum(flaws_data.get(k, {}).get("cost", -1) for k in data.get("flaws", []))
 
     # Sum flat modifiers
-    sum_flat = sum(
-        extras_data.get(k, {}).get("cost", 1)
-        for k in data.get("flat_extras", [])
-    ) + sum(
-        flaws_data.get(k, {}).get("cost", -1)
-        for k in data.get("flat_flaws", [])
+    sum_flat = sum(extras_data.get(k, {}).get("cost", 1) for k in data.get("flat_extras", [])) + sum(
+        flaws_data.get(k, {}).get("cost", -1) for k in data.get("flat_flaws", [])
     )
 
     return _run_pipeline(
-        pipeline, base_cost, ranks, sum_extras, sum_flaws,
-        sum_flat, data.get("removable", 0),
+        pipeline,
+        base_cost,
+        ranks,
+        sum_extras,
+        sum_flaws,
+        sum_flat,
+        data.get("removable", 0),
     )
 
 
-def _run_pipeline(pipeline: list[dict], base_cost: float, ranks: int,
-                  sum_extras: float, sum_flaws: float, sum_flat: float,
-                  removable: int) -> float:
+def _run_pipeline(
+    pipeline: list[dict],
+    base_cost: float,
+    ranks: int,
+    sum_extras: float,
+    sum_flaws: float,
+    sum_flat: float,
+    removable: int,
+) -> float:
     """Run pipeline stages using the formula evaluator."""
     from rules_formulas import FormulaContext, calc
 
@@ -345,8 +359,8 @@ def _run_pipeline(pipeline: list[dict], base_cost: float, ranks: int,
 # Arrays
 # ---------------------------------------------------------------------------
 
-def _process_arrays(rules: dict, char_abilities: list[dict[str, str]],
-                    result: BuildResult) -> None:
+
+def _process_arrays(rules: dict, char_abilities: list[dict[str, str]], result: BuildResult) -> None:
     """Process arrays — alternates cost flat points on top of the primary."""
     alternate_cost = rules.get("alternate_cost", 1)
     dynamic_cost = rules.get("dynamic_cost", 2)
@@ -370,6 +384,7 @@ def _process_arrays(rules: dict, char_abilities: list[dict[str, str]],
 # Sub-budgets
 # ---------------------------------------------------------------------------
 
+
 def _process_sub_budgets(rules: dict, result: BuildResult) -> None:
     """Process sub-budgets (a computed attribute grants a secondary pool)."""
     for name, sub_rules in rules.items():
@@ -384,6 +399,7 @@ def _process_sub_budgets(rules: dict, result: BuildResult) -> None:
 # ---------------------------------------------------------------------------
 # Source-based operations (writes, effects, progressions)
 # ---------------------------------------------------------------------------
+
 
 def _flatten_catalog(data: Any) -> dict[str, dict]:
     """Flatten a JSON subtree into a name-keyed dict.
@@ -416,9 +432,12 @@ def _flatten_catalog(data: Any) -> dict[str, dict]:
 
 
 def _process_source(
-    pack_dir: str, rules: dict, category: str,
+    pack_dir: str,
+    rules: dict,
+    category: str,
     char_attrs: dict[str, dict[str, str]],
-    char_abilities: list[dict[str, str]], level: int,
+    char_abilities: list[dict[str, str]],
+    level: int,
     result: BuildResult,
     char_items: list[dict[str, Any]] | None = None,
 ) -> None:
@@ -493,8 +512,7 @@ def _process_source(
                 _apply_writes(rules["writes"], matched, result)
 
 
-def _apply_writes(write_map: dict[str, str], source_data: dict,
-                  result: BuildResult) -> None:
+def _apply_writes(write_map: dict[str, str], source_data: dict, result: BuildResult) -> None:
     """Copy fields from source data to result attributes."""
     for attr_name, source_field in write_map.items():
         value = _resolve_path(source_data, source_field)
@@ -502,8 +520,7 @@ def _apply_writes(write_map: dict[str, str], source_data: dict,
             result.attributes[attr_name] = value
 
 
-def _apply_progressions(progressions_path: str, source_data: dict,
-                        level: int, result: BuildResult) -> None:
+def _apply_progressions(progressions_path: str, source_data: dict, level: int, result: BuildResult) -> None:
     """Look up progression tables at the current level."""
     prog_map = _resolve_path(source_data, progressions_path)
     if not isinstance(prog_map, dict):
@@ -516,8 +533,9 @@ def _apply_progressions(progressions_path: str, source_data: dict,
             result.attributes[var_name] = table[level - 1]
 
 
-def _apply_effects(source_data: dict, char_abilities: list[dict[str, str]],
-                   result: BuildResult, cost_per_rank: float = 0) -> float:
+def _apply_effects(
+    source_data: dict, char_abilities: list[dict[str, str]], result: BuildResult, cost_per_rank: float = 0
+) -> float:
     """Aggregate effects from character abilities into result attributes.
 
     Effect keys from the data file are used as-is — the engine does not

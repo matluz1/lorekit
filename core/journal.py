@@ -5,8 +5,8 @@ import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _db import require_db, format_table, LoreKitError
 from _args import parse_args
+from _db import LoreKitError, format_table, require_db
 
 
 def usage():
@@ -64,6 +64,7 @@ def add(db, session_id: int, entry_type: str, content: str, narrative_time: str 
     sql_id = cur.lastrowid
     try:
         from _vectordb import index_journal
+
         index_journal(db, session_id, sql_id, entry_type, content)
     except Exception:
         pass
@@ -71,11 +72,15 @@ def add(db, session_id: int, entry_type: str, content: str, narrative_time: str 
 
 
 def cmd_add(db, args):
-    sid, p = parse_args(args, {
-        "--type": ("entry_type", True, ""),
-        "--content": ("content", True, ""),
-        "--time": ("narrative_time", False, ""),
-    }, positional="session_id")
+    sid, p = parse_args(
+        args,
+        {
+            "--type": ("entry_type", True, ""),
+            "--content": ("content", True, ""),
+            "--time": ("narrative_time", False, ""),
+        },
+        positional="session_id",
+    )
     return add(db, int(sid), p["entry_type"], p["content"], p["narrative_time"])
 
 
@@ -94,26 +99,33 @@ def list_entries(db, session_id: int, entry_type: str = "", last: int = 0) -> st
 
 
 def cmd_list(db, args):
-    sid, p = parse_args(args, {
-        "--type": ("entry_type", False, ""),
-        "--last": ("last", False, ""),
-    }, positional="session_id")
+    sid, p = parse_args(
+        args,
+        {
+            "--type": ("entry_type", False, ""),
+            "--last": ("last", False, ""),
+        },
+        positional="session_id",
+    )
     return list_entries(db, int(sid), p["entry_type"], int(p["last"]) if p["last"] else 0)
 
 
 def search(db, session_id: int, query_text: str) -> str:
     cur = db.execute(
-        "SELECT id, entry_type, content, created_at FROM journal "
-        "WHERE session_id = ? AND content LIKE ? ORDER BY id",
+        "SELECT id, entry_type, content, created_at FROM journal WHERE session_id = ? AND content LIKE ? ORDER BY id",
         (session_id, f"%{query_text}%"),
     )
     return format_table(cur)
 
 
 def cmd_search(db, args):
-    sid, p = parse_args(args, {
-        "--query": ("query_text", True, ""),
-    }, positional="session_id")
+    sid, p = parse_args(
+        args,
+        {
+            "--query": ("query_text", True, ""),
+        },
+        positional="session_id",
+    )
     return search(db, int(sid), p["query_text"])
 
 

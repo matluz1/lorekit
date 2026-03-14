@@ -221,6 +221,7 @@ DROP_COLUMN_MIGRATIONS = [
 
 class LoreKitError(Exception):
     """Raised when a command encounters an expected error condition."""
+
     pass
 
 
@@ -240,6 +241,7 @@ def get_db(db_path=None):
     conn.execute("PRAGMA foreign_keys = ON")
     try:
         import sqlite_vec
+
         conn.enable_load_extension(True)
         sqlite_vec.load(conn)
         conn.enable_load_extension(False)
@@ -447,25 +449,46 @@ _CASCADE_MIGRATIONS = {
             created_at     TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
             UNIQUE(character_id, source, target_stat)
         )""",
-        ["id", "character_id", "source", "target_stat", "modifier_type",
-         "value", "bonus_type", "duration_type", "duration", "save_stat",
-         "save_dc", "created_at"],
+        [
+            "id",
+            "character_id",
+            "source",
+            "target_stat",
+            "modifier_type",
+            "value",
+            "bonus_type",
+            "duration_type",
+            "duration",
+            "save_stat",
+            "save_dc",
+            "created_at",
+        ],
     ),
 }
 
 # Order matters: tables with no FK deps first, then dependents.
 _CASCADE_MIGRATION_ORDER = [
-    "session_meta", "regions", "journal", "timeline", "stories", "story_acts",
-    "characters", "character_attributes", "character_inventory", "character_abilities",
-    "combat_state", "encounter_state", "encounter_zones", "zone_adjacency", "character_zone",
+    "session_meta",
+    "regions",
+    "journal",
+    "timeline",
+    "stories",
+    "story_acts",
+    "characters",
+    "character_attributes",
+    "character_inventory",
+    "character_abilities",
+    "combat_state",
+    "encounter_state",
+    "encounter_zones",
+    "zone_adjacency",
+    "character_zone",
 ]
 
 
 def _needs_cascade_migration(conn):
     """Check if any table is missing ON DELETE CASCADE (proxy: check character_inventory for UNIQUE)."""
-    ddl = conn.execute(
-        "SELECT sql FROM sqlite_master WHERE type='table' AND name='character_inventory'"
-    ).fetchone()
+    ddl = conn.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name='character_inventory'").fetchone()
     if ddl is None:
         return False
     return "ON DELETE CASCADE" not in ddl[0]
@@ -483,9 +506,7 @@ def init_schema(db_path=None):
     conn.executescript(INDEXES_SQL)
     # Create vec0 virtual table if sqlite-vec is loaded
     try:
-        conn.execute(
-            "CREATE VIRTUAL TABLE IF NOT EXISTS vec_embeddings USING vec0(embedding float[384])"
-        )
+        conn.execute("CREATE VIRTUAL TABLE IF NOT EXISTS vec_embeddings USING vec0(embedding float[384])")
     except Exception:
         pass
     # Run column migrations

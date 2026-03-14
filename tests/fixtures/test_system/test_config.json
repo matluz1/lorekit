@@ -1,0 +1,21 @@
+{
+  "base_stats": {
+    "str": 18,
+    "dex": 14,
+    "con": 12,
+    "base_attack": 5,
+    "hit_die_avg": 6
+  },
+  "weapon_attrs": {
+    "weapon_damage_die": "1d6"
+  },
+  "resolution_type": "threshold",
+  "melee_action": "melee_attack",
+  "defense_stat": "defense",
+  "defense_bonus_key": "bonus_defense",
+  "attack_stat": "melee_attack",
+  "attack_bonus_key": "bonus_melee_attack",
+  "cover_zone_tag": "cover",
+  "vital_current": "current_hp",
+  "vital_max": "max_hp"
+}

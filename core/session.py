@@ -5,8 +5,8 @@ import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _db import require_db, format_table, error, LoreKitError
 from _args import parse_args
+from _db import LoreKitError, error, format_table, require_db
 
 
 def usage():
@@ -57,18 +57,20 @@ def create(db, name: str, setting: str, system: str) -> str:
 
 
 def cmd_create(db, args):
-    _, p = parse_args(args, {
-        "--name": ("name", True, ""),
-        "--setting": ("setting", True, ""),
-        "--system": ("system", True, ""),
-    })
+    _, p = parse_args(
+        args,
+        {
+            "--name": ("name", True, ""),
+            "--setting": ("setting", True, ""),
+            "--system": ("system", True, ""),
+        },
+    )
     return create(db, p["name"], p["setting"], p["system"])
 
 
 def view(db, session_id: int) -> str:
     row = db.execute(
-        "SELECT id, name, setting, system_type, status, created_at, updated_at "
-        "FROM sessions WHERE id = ?",
+        "SELECT id, name, setting, system_type, status, created_at, updated_at FROM sessions WHERE id = ?",
         (session_id,),
     ).fetchone()
     if row is None:
@@ -93,22 +95,21 @@ def cmd_view(db, args):
 def list_sessions(db, status: str = "") -> str:
     if status:
         cur = db.execute(
-            "SELECT id, name, setting, system_type, status, created_at "
-            "FROM sessions WHERE status = ? ORDER BY id",
+            "SELECT id, name, setting, system_type, status, created_at FROM sessions WHERE status = ? ORDER BY id",
             (status,),
         )
     else:
-        cur = db.execute(
-            "SELECT id, name, setting, system_type, status, created_at "
-            "FROM sessions ORDER BY id"
-        )
+        cur = db.execute("SELECT id, name, setting, system_type, status, created_at FROM sessions ORDER BY id")
     return format_table(cur)
 
 
 def cmd_list(db, args):
-    _, p = parse_args(args, {
-        "--status": ("status", False, ""),
-    })
+    _, p = parse_args(
+        args,
+        {
+            "--status": ("status", False, ""),
+        },
+    )
     return list_sessions(db, p["status"])
 
 
@@ -122,9 +123,13 @@ def update(db, session_id: int, status: str) -> str:
 
 
 def cmd_update(db, args):
-    sid, p = parse_args(args, {
-        "--status": ("status", True, ""),
-    }, positional="session_id")
+    sid, p = parse_args(
+        args,
+        {
+            "--status": ("status", True, ""),
+        },
+        positional="session_id",
+    )
     return update(db, int(sid), p["status"])
 
 
@@ -139,10 +144,14 @@ def meta_set(db, session_id: int, key: str, value: str) -> str:
 
 
 def cmd_meta_set(db, args):
-    sid, p = parse_args(args, {
-        "--key": ("key", True, ""),
-        "--value": ("value", True, ""),
-    }, positional="session_id")
+    sid, p = parse_args(
+        args,
+        {
+            "--key": ("key", True, ""),
+            "--value": ("value", True, ""),
+        },
+        positional="session_id",
+    )
     return meta_set(db, int(sid), p["key"], p["value"])
 
 
@@ -163,9 +172,13 @@ def meta_get(db, session_id: int, key: str = "") -> str:
 
 
 def cmd_meta_get(db, args):
-    sid, p = parse_args(args, {
-        "--key": ("key", False, ""),
-    }, positional="session_id")
+    sid, p = parse_args(
+        args,
+        {
+            "--key": ("key", False, ""),
+        },
+        positional="session_id",
+    )
     return meta_get(db, int(sid), p["key"])
 
 

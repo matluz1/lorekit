@@ -6,7 +6,6 @@ import secrets
 from unittest.mock import patch
 
 import pytest
-
 from rules_engine import (
     CalcResult,
     CharacterData,
@@ -26,6 +25,7 @@ TEST_SYSTEM = os.path.join(FIXTURES, "test_system")
 # ---------------------------------------------------------------------------
 # System pack loading
 # ---------------------------------------------------------------------------
+
 
 class TestLoadSystemPack:
     def test_loads_meta(self):
@@ -62,6 +62,7 @@ class TestLoadSystemPack:
 # ---------------------------------------------------------------------------
 # Recalculation (pure, no DB)
 # ---------------------------------------------------------------------------
+
 
 class TestRecalculate:
     def _make_char(self, **overrides) -> CharacterData:
@@ -176,9 +177,11 @@ class TestRecalculate:
 # DB integration
 # ---------------------------------------------------------------------------
 
+
 class TestDBIntegration:
     def test_write_derived(self, make_session, make_character):
         from _db import require_db
+
         sid = make_session()
         cid = make_character(sid, name="Warrior", level=5)
 
@@ -199,6 +202,7 @@ class TestDBIntegration:
 
     def test_write_derived_skips_errors(self, make_session, make_character):
         from _db import require_db
+
         sid = make_session()
         cid = make_character(sid)
 
@@ -211,6 +215,7 @@ class TestDBIntegration:
 
     def test_write_derived_upsert(self, make_session, make_character):
         from _db import require_db
+
         sid = make_session()
         cid = make_character(sid)
 
@@ -230,7 +235,7 @@ class TestDBIntegration:
 
     def test_load_character_data(self, make_session, make_character):
         from _db import require_db
-        from character import set_attr, set_ability
+        from character import set_ability, set_attr
 
         sid = make_session()
         cid = make_character(sid, name="Durão", level=5)
@@ -282,7 +287,7 @@ class TestDBIntegration:
             ).fetchall()
             derived = dict(rows)
             assert derived["melee_attack"] == "10"  # 5 + 4 + 1
-            assert derived["defense"] == "12"        # 10 + 2
+            assert derived["defense"] == "12"  # 10 + 2
         finally:
             db.close()
 
@@ -305,7 +310,7 @@ class TestDBIntegration:
     def test_build_engine_wired_pf2e(self, make_session, make_character):
         """Build engine runs automatically and feeds into derived formulas."""
         from _db import require_db
-        from character import set_attr, set_ability
+        from character import set_ability, set_attr
 
         pf2e = os.path.join(os.path.dirname(__file__), "..", "systems", "pf2e")
         sid = make_session()
@@ -340,7 +345,7 @@ class TestDBIntegration:
             assert build["bonus_hp"] == "1"
             # Progressions (fighter level 1)
             assert build["prof_perception"] == "4"  # expert
-            assert build["prof_fortitude"] == "4"    # expert
+            assert build["prof_fortitude"] == "4"  # expert
 
             # Derived formulas should use build attributes
             derived_rows = db.execute(
@@ -360,7 +365,7 @@ class TestDBIntegration:
     def test_build_engine_wired_mm3e(self, make_session, make_character):
         """Build engine runs for M&M3e: budget, abilities, powers."""
         from _db import require_db
-        from character import set_attr, set_ability
+        from character import set_ability, set_attr
 
         mm3e = os.path.join(os.path.dirname(__file__), "..", "systems", "mm3e")
         sid = make_session()
@@ -382,11 +387,13 @@ class TestDBIntegration:
             set_attr(db, cid, "stat", "ranks_will", "4")
             set_ability(db, cid, "Close Attack", "", "advantage")
             # Protection power with feeds
-            power_json = json.dumps({
-                "effect": "protection",
-                "ranks": 6,
-                "feeds": {"effect_protection": 6},
-            })
+            power_json = json.dumps(
+                {
+                    "effect": "protection",
+                    "ranks": 6,
+                    "feeds": {"effect_protection": 6},
+                }
+            )
             set_ability(db, cid, "Tough Skin", power_json, "power")
 
             output = rules_calc(db, cid, mm3e)
@@ -429,6 +436,7 @@ class TestDBIntegration:
 # ---------------------------------------------------------------------------
 # rules_check
 # ---------------------------------------------------------------------------
+
 
 class TestRulesCheck:
     def test_check_success(self, make_session, make_character):
@@ -491,7 +499,7 @@ class TestRulesCheck:
 
     def test_check_missing_stat(self, make_session, make_character):
         """Missing derived stat raises error."""
-        from _db import require_db, LoreKitError
+        from _db import LoreKitError, require_db
 
         sid = make_session()
         cid = make_character(sid, name="Durão", level=5)

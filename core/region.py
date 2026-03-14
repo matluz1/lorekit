@@ -5,8 +5,8 @@ import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _db import require_db, format_table, LoreKitError
 from _args import parse_args
+from _db import LoreKitError, format_table, require_db
 
 
 def usage():
@@ -54,11 +54,15 @@ def create(db, session_id: int, name: str, desc: str = "", parent_id: int = 0) -
 
 
 def cmd_create(db, args):
-    sid, p = parse_args(args, {
-        "--name": ("name", True, ""),
-        "--desc": ("desc", False, ""),
-        "--parent": ("parent_id", False, ""),
-    }, positional="session_id")
+    sid, p = parse_args(
+        args,
+        {
+            "--name": ("name", True, ""),
+            "--desc": ("desc", False, ""),
+            "--parent": ("parent_id", False, ""),
+        },
+        positional="session_id",
+    )
     return create(db, int(sid), p["name"], p["desc"], int(p["parent_id"]) if p["parent_id"] else 0)
 
 
@@ -79,8 +83,7 @@ def cmd_list(db, args):
 
 def view(db, region_id: int) -> str:
     row = db.execute(
-        "SELECT r.id, r.session_id, r.name, r.description, r.parent_id, r.created_at "
-        "FROM regions r WHERE r.id = ?",
+        "SELECT r.id, r.session_id, r.name, r.description, r.parent_id, r.created_at FROM regions r WHERE r.id = ?",
         (region_id,),
     ).fetchone()
     if row is None:
@@ -144,11 +147,15 @@ def update(db, region_id: int, name: str = "", desc: str = "", parent_id: int = 
 
 
 def cmd_update(db, args):
-    rid, p = parse_args(args, {
-        "--name": ("name", False, ""),
-        "--desc": ("desc", False, ""),
-        "--parent": ("parent_id", False, ""),
-    }, positional="region_id")
+    rid, p = parse_args(
+        args,
+        {
+            "--name": ("name", False, ""),
+            "--desc": ("desc", False, ""),
+            "--parent": ("parent_id", False, ""),
+        },
+        positional="region_id",
+    )
     return update(db, int(rid), p["name"], p["desc"], int(p["parent_id"]) if p["parent_id"] else 0)
 
 

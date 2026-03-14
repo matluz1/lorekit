@@ -13,7 +13,10 @@ from _db import LoreKitError
 
 
 def build_combat_context(
-    db, npc_id: int, session_id: int, combat_cfg: dict,
+    db,
+    npc_id: int,
+    session_id: int,
+    combat_cfg: dict,
 ) -> str:
     """Build a situation description for the NPC's combat decision.
 
@@ -102,6 +105,7 @@ def build_combat_context(
     system_path = _resolve_system_path_internal(db, session_id)
     if system_path:
         import os
+
         system_json = os.path.join(system_path, "system.json")
         if os.path.isfile(system_json):
             with open(system_json) as f:
@@ -129,7 +133,7 @@ Enemies:
 Allies:
 {chr(10).join(f"  {a}" for a in allies) if allies else "  (none)"}
 
-Zones: {', '.join(zone_list)}
+Zones: {", ".join(zone_list)}
 {actions_section}
 Decide what to do. Respond with a JSON block followed by optional in-character narration.
 
@@ -211,7 +215,7 @@ def parse_combat_intent(response: str) -> dict:
     action, target, move_to, narration — all nullable.
     """
     # Try to find JSON block (```json ... ``` or bare { ... })
-    json_match = re.search(r'```json\s*(\{.*?\})\s*```', response, re.DOTALL)
+    json_match = re.search(r"```json\s*(\{.*?\})\s*```", response, re.DOTALL)
     if not json_match:
         json_match = re.search(r'(\{[^{}]*"action"[^{}]*\})', response, re.DOTALL)
 
@@ -253,8 +257,12 @@ def _resolve_system_path_internal(db, session_id: int) -> str | None:
 
 
 def execute_combat_turn(
-    db, session_id: int, npc_id: int, intent: dict,
-    combat_cfg: dict, system_path: str,
+    db,
+    session_id: int,
+    npc_id: int,
+    intent: dict,
+    combat_cfg: dict,
+    system_path: str,
 ) -> list[str]:
     """Execute the mechanical part of an NPC combat turn.
 
@@ -280,14 +288,16 @@ def execute_combat_turn(
         try:
             # Get movement budget from derived stats
             mv_row = db.execute(
-                "SELECT value FROM character_attributes "
-                "WHERE character_id = ? AND key = 'movement_zones'",
+                "SELECT value FROM character_attributes WHERE character_id = ? AND key = 'movement_zones'",
                 (npc_id,),
             ).fetchone()
             movement_budget = int(mv_row[0]) if mv_row else None
 
             move_result = move_character(
-                db, enc_id, npc_id, move_to,
+                db,
+                enc_id,
+                npc_id,
+                move_to,
                 combat_cfg=combat_cfg,
                 movement_budget=movement_budget,
             )
@@ -308,7 +318,11 @@ def execute_combat_turn(
             target_id = target_row[0]
             try:
                 action_result = resolve_action(
-                    db, npc_id, target_id, action, system_path,
+                    db,
+                    npc_id,
+                    target_id,
+                    action,
+                    system_path,
                 )
                 lines.append(action_result)
             except LoreKitError as e:

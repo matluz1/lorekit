@@ -27,10 +27,7 @@ def roll_expr(expr: str) -> dict:
 
     m = re.fullmatch(r"([0-9]*)d([0-9]+)(kh([0-9]+))?([+-]([0-9]+))?", expr)
     if not m:
-        raise LoreKitError(
-            f"Invalid dice expression: {expr}\n"
-            "Expected format: [N]d<sides>[kh<keep>][+/-<modifier>]"
-        )
+        raise LoreKitError(f"Invalid dice expression: {expr}\nExpected format: [N]d<sides>[kh<keep>][+/-<modifier>]")
 
     num = int(m.group(1)) if m.group(1) else 1
     sides = int(m.group(2))

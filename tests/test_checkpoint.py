@@ -1,7 +1,7 @@
 """Tests for checkpoint/turn revert system."""
 
-import sqlite3
 import os
+import sqlite3
 
 import pytest
 
@@ -22,14 +22,13 @@ from mcp_server import (  # noqa: E402
 
 def _get_db():
     from _db import get_db
+
     return get_db(os.environ["LOREKIT_DB"])
 
 
 def _checkpoint_count(session_id):
     db = _get_db()
-    count = db.execute(
-        "SELECT COUNT(*) FROM checkpoints WHERE session_id = ?", (session_id,)
-    ).fetchone()[0]
+    count = db.execute("SELECT COUNT(*) FROM checkpoints WHERE session_id = ?", (session_id,)).fetchone()[0]
     db.close()
     return count
 
@@ -85,10 +84,7 @@ def test_revert_restores_character_attributes(make_session, make_character):
     cid = make_character(sid, name="Hero")
     turn_save(session_id=sid, narration="Start.", summary="Start")
     # Change attribute between turns
-    character_sheet_update(
-        character_id=cid,
-        attrs='[{"category":"combat","key":"hit_points","value":"50"}]'
-    )
+    character_sheet_update(character_id=cid, attrs='[{"category":"combat","key":"hit_points","value":"50"}]')
     turn_save(session_id=sid, narration="Took damage.", summary="Damage")
     # Revert -- attribute should be gone
     turn_revert(session_id=sid)
@@ -115,11 +111,13 @@ def test_revert_removes_journal_entries(make_session):
 
 def test_revert_restores_narrative_time(make_session):
     sid = make_session()
-    from mcp_server import time_set, time_get
+    from mcp_server import time_get, time_set
+
     time_set(session_id=sid, datetime="1347-03-15T08:00")
     turn_save(session_id=sid, narration="Morning.", summary="Morning")
     # Advance time between turns
     from mcp_server import time_advance
+
     time_advance(session_id=sid, amount=12, unit="hours")
     turn_save(session_id=sid, narration="Evening.", summary="Evening")
     # Revert -- time should go back to morning

@@ -19,12 +19,16 @@ def _setup_character(db, make_session, make_character, set_attr, name="Fighter")
     sid = make_session()
     cid = make_character(sid, name=name, level=5)
     for key, val in [
-        ("str", "18"), ("dex", "14"), ("con", "12"),
-        ("base_attack", "5"), ("hit_die_avg", "6"),
+        ("str", "18"),
+        ("dex", "14"),
+        ("con", "12"),
+        ("base_attack", "5"),
+        ("hit_die_avg", "6"),
     ]:
         set_attr(db, cid, "stat", key, val)
 
     from rules_engine import rules_calc
+
     rules_calc(db, cid, TEST_SYSTEM)
 
     return sid, cid
@@ -77,8 +81,7 @@ class TestDecrementBehavior:
                 "(character_id, source, target_stat, modifier_type, value, "
                 "bonus_type, duration_type, duration) "
                 "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-                (cid, "shield_of_faith", "bonus_defense", "buff", 2,
-                 None, "rounds", 1),
+                (cid, "shield_of_faith", "bonus_defense", "buff", 2, None, "rounds", 1),
             )
             db.commit()
 
@@ -196,8 +199,7 @@ class TestCheckBehavior:
                 "(character_id, source, target_stat, modifier_type, value, "
                 "duration_type, save_stat, save_dc) "
                 "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-                (cid, "paralysis", "bonus_melee_attack", "debuff", -4,
-                 "save_ends", "melee_attack", 15),
+                (cid, "paralysis", "bonus_melee_attack", "debuff", -4, "save_ends", "melee_attack", 15),
             )
             db.commit()
 
@@ -232,8 +234,7 @@ class TestCheckBehavior:
                 "(character_id, source, target_stat, modifier_type, value, "
                 "duration_type, save_stat, save_dc) "
                 "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-                (cid, "paralysis", "bonus_melee_attack", "debuff", -4,
-                 "save_ends", "melee_attack", 50),
+                (cid, "paralysis", "bonus_melee_attack", "debuff", -4, "save_ends", "melee_attack", 50),
             )
             db.commit()
 
@@ -302,6 +303,7 @@ class TestRecompute:
 
             # First, recompute with the buff active
             from rules_engine import rules_calc
+
             rules_calc(db, cid, TEST_SYSTEM)
 
             # Check defense with buff: 10 + dex_mod(2) + bonus_defense(4) = 16
@@ -356,6 +358,7 @@ class TestNoEndTurnConfig:
             # Use a temporary system pack without end_turn
             import json
             import tempfile
+
             with tempfile.TemporaryDirectory() as tmpdir:
                 system = {
                     "meta": {"name": "No End Turn", "dice": "d20"},

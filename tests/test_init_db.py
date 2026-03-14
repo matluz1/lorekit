@@ -26,11 +26,25 @@ def test_creates_all_tables():
     ]
     conn.close()
     expected = [
-        "character_abilities", "character_attributes", "character_inventory",
-        "character_zone", "characters", "checkpoints", "combat_state",
-        "embeddings", "encounter_state", "encounter_zones", "journal",
-        "regions", "session_meta", "sessions", "stories", "story_acts",
-        "timeline", "vec_embeddings", "zone_adjacency",
+        "character_abilities",
+        "character_attributes",
+        "character_inventory",
+        "character_zone",
+        "characters",
+        "checkpoints",
+        "combat_state",
+        "embeddings",
+        "encounter_state",
+        "encounter_zones",
+        "journal",
+        "regions",
+        "session_meta",
+        "sessions",
+        "stories",
+        "story_acts",
+        "timeline",
+        "vec_embeddings",
+        "zone_adjacency",
     ]
     assert sorted(tables) == expected
 

@@ -1,0 +1,23 @@
+{
+  "base_stats": {
+    "fgt": 8,
+    "agl": 4,
+    "str": 8,
+    "sta": 6,
+    "dex": 2,
+    "int": 1,
+    "awe": 2,
+    "pre": 2,
+    "power_level": 10
+  },
+  "weapon_attrs": {},
+  "resolution_type": "degree",
+  "melee_action": "close_attack",
+  "defense_stat": "dodge",
+  "defense_bonus_key": "bonus_dodge",
+  "attack_stat": "close_attack",
+  "attack_bonus_key": "bonus_close_attack",
+  "cover_zone_tag": "cover",
+  "vital_current": "damage_condition",
+  "vital_max": null
+}

@@ -11,7 +11,6 @@ from mcp_server import (
     story_view_act,
 )
 
-
 # -- Helpers --
 
 
@@ -54,8 +53,11 @@ def test_add_act(make_session):
     sid = make_session()
     _make_story(sid)
     result = story_add_act(
-        session_id=sid, title="The Call", desc="Heroes are summoned",
-        goal="Reach the temple", event="The temple collapses",
+        session_id=sid,
+        title="The Call",
+        desc="Heroes are summoned",
+        goal="Reach the temple",
+        event="The temple collapses",
     )
     assert re.search(r"ACT_ADDED: \d+", result)
 

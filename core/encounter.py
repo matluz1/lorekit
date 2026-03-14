@@ -43,13 +43,15 @@ def _resolve_system_path(db, session_id: int) -> str | None:
 # Zone graph — shortest path
 # ---------------------------------------------------------------------------
 
+
 def _build_adjacency(db, encounter_id: int) -> dict[int, list[tuple[int, int]]]:
     """Build adjacency list from zone_adjacency rows.
 
     Returns {zone_id: [(neighbor_id, weight), ...]} with bidirectional edges.
     """
     zone_ids = [
-        r[0] for r in db.execute(
+        r[0]
+        for r in db.execute(
             "SELECT id FROM encounter_zones WHERE encounter_id = ?",
             (encounter_id,),
         ).fetchall()
@@ -61,8 +63,7 @@ def _build_adjacency(db, encounter_id: int) -> dict[int, list[tuple[int, int]]]:
 
     ph = ",".join("?" * len(zone_ids))
     rows = db.execute(
-        f"SELECT zone_a, zone_b, weight FROM zone_adjacency "
-        f"WHERE zone_a IN ({ph})",
+        f"SELECT zone_a, zone_b, weight FROM zone_adjacency WHERE zone_a IN ({ph})",
         zone_ids,
     ).fetchall()
 
@@ -113,9 +114,7 @@ def _get_zone_tags(db, zone_id: int) -> list[str]:
     return json.loads(row[0])
 
 
-def _movement_cost(db, adj: dict[int, list[tuple[int, int]]],
-                   start: int, end: int,
-                   combat_cfg: dict) -> int | None:
+def _movement_cost(db, adj: dict[int, list[tuple[int, int]]], start: int, end: int, combat_cfg: dict) -> int | None:
     """Compute movement cost accounting for difficult terrain multipliers.
 
     Traverses the shortest path and applies zone_tags multipliers for
@@ -157,8 +156,8 @@ def _movement_cost(db, adj: dict[int, list[tuple[int, int]]],
 # Terrain modifier management
 # ---------------------------------------------------------------------------
 
-def _apply_zone_terrain(db, character_id: int, zone_id: int,
-                        zone_name: str, combat_cfg: dict) -> list[str]:
+
+def _apply_zone_terrain(db, character_id: int, zone_id: int, zone_name: str, combat_cfg: dict) -> list[str]:
     """Apply terrain modifiers from zone tags to a character via combat_state.
 
     Returns list of modifier descriptions applied.
@@ -202,6 +201,7 @@ def _remove_zone_terrain(db, character_id: int, zone_name: str) -> int:
 # ---------------------------------------------------------------------------
 # Encounter lifecycle
 # ---------------------------------------------------------------------------
+
 
 def _get_active_encounter(db, session_id: int):
     """Get the active encounter for a session, or None."""
@@ -248,8 +248,9 @@ def _get_character_zone(db, encounter_id: int, character_id: int):
     return row[0] if row else None
 
 
-def _load_encounter_template(session_id: int, template_name: str,
-                             pack_dir: str | None) -> tuple[list[dict], list[dict] | None]:
+def _load_encounter_template(
+    session_id: int, template_name: str, pack_dir: str | None
+) -> tuple[list[dict], list[dict] | None]:
     """Load zones and adjacency from a system pack encounter template.
 
     Returns (zones, adjacency) or raises LoreKitError if template not found.
@@ -273,9 +274,7 @@ def _load_encounter_template(session_id: int, template_name: str,
     tmpl = templates.get(template_name)
     if tmpl is None:
         available = ", ".join(templates.keys())
-        raise LoreKitError(
-            f"Unknown template '{template_name}'. Available: {available}"
-        )
+        raise LoreKitError(f"Unknown template '{template_name}'. Available: {available}")
 
     zones = tmpl.get("zones", [])
     if not zones:
@@ -285,16 +284,15 @@ def _load_encounter_template(session_id: int, template_name: str,
     raw_adj = tmpl.get("adjacency")
     adjacency = None
     if raw_adj:
-        adjacency = [
-            {"from": edge[0], "to": edge[1], "weight": edge[2] if len(edge) > 2 else 1}
-            for edge in raw_adj
-        ]
+        adjacency = [{"from": edge[0], "to": edge[1], "weight": edge[2] if len(edge) > 2 else 1} for edge in raw_adj]
 
     return zones, adjacency
 
 
 def start_encounter(
-    db, session_id: int, zones: list[dict] | None = None,
+    db,
+    session_id: int,
+    zones: list[dict] | None = None,
     initiative: list[dict] | str = "auto",
     adjacency: list[dict] | None = None,
     placements: list[dict] | None = None,
@@ -336,16 +334,13 @@ def start_encounter(
     # Auto-roll initiative if requested
     if initiative == "auto":
         if not placements:
-            raise LoreKitError(
-                "initiative='auto' requires placements to know which characters to roll for"
-            )
+            raise LoreKitError("initiative='auto' requires placements to know which characters to roll for")
         init_stat = cfg.get("initiative_stat")
         if not init_stat:
-            raise LoreKitError(
-                "initiative='auto' requires combat.initiative_stat in system pack"
-            )
+            raise LoreKitError("initiative='auto' requires combat.initiative_stat in system pack")
 
         from random import random
+
         from rolldice import roll_expr
 
         initiative = []
@@ -353,20 +348,21 @@ def start_encounter(
             cid = p["character_id"]
             # Read derived stat
             row = db.execute(
-                "SELECT value FROM character_attributes "
-                "WHERE character_id = ? AND category = 'derived' AND key = ?",
+                "SELECT value FROM character_attributes WHERE character_id = ? AND category = 'derived' AND key = ?",
                 (cid, init_stat),
             ).fetchone()
             bonus = int(row[0]) if row else 0
             roll_result = roll_expr("d20")
             roll_val = roll_result["total"]
             # Add tiny random tiebreaker (0-0.99) so ties resolve randomly
-            initiative.append({
-                "character_id": cid,
-                "roll": roll_val + bonus,
-                "_tiebreak": random(),
-                "_detail": f"d20({roll_val}) + {bonus}",
-            })
+            initiative.append(
+                {
+                    "character_id": cid,
+                    "roll": roll_val + bonus,
+                    "_tiebreak": random(),
+                    "_detail": f"d20({roll_val}) + {bonus}",
+                }
+            )
 
     # Sort initiative descending (with tiebreaker if present)
     sorted_init = sorted(
@@ -400,9 +396,7 @@ def start_encounter(
             a_id = zone_id_map.get(edge["from"])
             b_id = zone_id_map.get(edge["to"])
             if a_id is None or b_id is None:
-                raise LoreKitError(
-                    f"Adjacency references unknown zone: {edge['from']} or {edge['to']}"
-                )
+                raise LoreKitError(f"Adjacency references unknown zone: {edge['from']} or {edge['to']}")
             weight = edge.get("weight", 1)
             db.execute(
                 "INSERT INTO zone_adjacency (zone_a, zone_b, weight) VALUES (?, ?, ?)",
@@ -429,8 +423,7 @@ def start_encounter(
             if zid is None:
                 raise LoreKitError(f"Placement references unknown zone: {zone_name}")
             db.execute(
-                "INSERT INTO character_zone (encounter_id, character_id, zone_id) "
-                "VALUES (?, ?, ?)",
+                "INSERT INTO character_zone (encounter_id, character_id, zone_id) VALUES (?, ?, ?)",
                 (enc_id, cid, zid),
             )
             # Apply terrain modifiers
@@ -443,6 +436,7 @@ def start_encounter(
     # Auto-recalc derived stats for placed characters with terrain modifiers
     if placements:
         from rules_engine import try_rules_calc
+
         for p in placements:
             recalc = try_rules_calc(db, p["character_id"])
             if recalc:
@@ -450,7 +444,7 @@ def start_encounter(
 
     # Format output
     lines = [f"ENCOUNTER STARTED (session {session_id})"]
-    lines.append(f"Round: 1")
+    lines.append("Round: 1")
 
     # Initiative display
     init_names = []
@@ -609,7 +603,8 @@ def get_status(db, session_id: int, combat_cfg: dict | None = None) -> str:
                 cname = _char_name(db, cid)
                 # Get character type
                 type_row = db.execute(
-                    "SELECT type FROM characters WHERE id = ?", (cid,),
+                    "SELECT type FROM characters WHERE id = ?",
+                    (cid,),
                 ).fetchone()
                 ctype = f" ({type_row[0].upper()})" if type_row else ""
 
@@ -635,7 +630,10 @@ def get_status(db, session_id: int, combat_cfg: dict | None = None) -> str:
 
 
 def move_character(
-    db, encounter_id: int, character_id: int, target_zone: str,
+    db,
+    encounter_id: int,
+    character_id: int,
+    target_zone: str,
     combat_cfg: dict | None = None,
     movement_budget: int | None = None,
 ) -> str:
@@ -656,9 +654,7 @@ def move_character(
     # Get current zone
     current_zid = _get_character_zone(db, encounter_id, character_id)
     if current_zid is None:
-        raise LoreKitError(
-            f"Character {_char_name(db, character_id)} is not placed in the encounter"
-        )
+        raise LoreKitError(f"Character {_char_name(db, character_id)} is not placed in the encounter")
 
     if current_zid == target_zid:
         return f"{_char_name(db, character_id)} is already in {target_zone}"
@@ -670,9 +666,7 @@ def move_character(
     cost = _movement_cost(db, adj, current_zid, target_zid, cfg)
 
     if cost is None:
-        raise LoreKitError(
-            f"Cannot reach {target_zone} from {current_zone_name} — no path exists"
-        )
+        raise LoreKitError(f"Cannot reach {target_zone} from {current_zone_name} — no path exists")
 
     if movement_budget is not None and cost > movement_budget:
         if zone_scale > 1:
@@ -711,6 +705,7 @@ def move_character(
 
     # Auto-recalc derived stats after terrain modifier change
     from rules_engine import try_rules_calc
+
     recalc = try_rules_calc(db, character_id)
     if recalc:
         lines.append(recalc)
@@ -740,6 +735,7 @@ def advance_turn(db, session_id: int, combat_cfg: dict | None = None) -> str:
     system_path = _resolve_system_path(db, session_id)
     if system_path:
         from combat_engine import end_turn as _end_turn
+
         end_result = _end_turn(db, ending_char_id, system_path)
         lines.append(end_result)
         lines.append("")
@@ -808,9 +804,7 @@ def advance_turn(db, session_id: int, combat_cfg: dict | None = None) -> str:
                     f"({nearest_dist * zone_scale}{movement_unit}) in {nearest_zone}"
                 )
             else:
-                lines.append(
-                    f"Nearest other: {nearest_name}, {nearest_dist} zone(s) in {nearest_zone}"
-                )
+                lines.append(f"Nearest other: {nearest_name}, {nearest_dist} zone(s) in {nearest_zone}")
 
     return "\n".join(lines)
 
@@ -827,7 +821,8 @@ def end_encounter(db, session_id: int, combat_cfg: dict | None = None) -> str:
 
     # Get all characters in the encounter for modifier cleanup
     char_ids = [
-        r[0] for r in db.execute(
+        r[0]
+        for r in db.execute(
             "SELECT character_id FROM character_zone WHERE encounter_id = ?",
             (enc_id,),
         ).fetchall()
@@ -839,7 +834,8 @@ def end_encounter(db, session_id: int, combat_cfg: dict | None = None) -> str:
     vital_lines = []
     for cid in char_ids:
         row = db.execute(
-            "SELECT name, type, status FROM characters WHERE id = ?", (cid,),
+            "SELECT name, type, status FROM characters WHERE id = ?",
+            (cid,),
         ).fetchone()
         if not row:
             continue
@@ -894,6 +890,7 @@ def end_encounter(db, session_id: int, combat_cfg: dict | None = None) -> str:
     # Auto-recalc derived stats for all participants after modifier cleanup
     if terrain_removed or encounter_removed:
         from rules_engine import try_rules_calc
+
         for cid in char_ids:
             try_rules_calc(db, cid)
 
@@ -917,6 +914,7 @@ def end_encounter(db, session_id: int, combat_cfg: dict | None = None) -> str:
     summary_text = "\n".join(lines)
     try:
         from journal import add as journal_add
+
         journal_result = journal_add(db, session_id, "combat", summary_text)
         lines.append(f"Journal saved: {journal_result}")
     except Exception:
@@ -926,7 +924,10 @@ def end_encounter(db, session_id: int, combat_cfg: dict | None = None) -> str:
 
 
 def update_zone_tags(
-    db, encounter_id: int, zone_name: str, tags: list[str],
+    db,
+    encounter_id: int,
+    zone_name: str,
+    tags: list[str],
     combat_cfg: dict | None = None,
 ) -> str:
     """Modify zone tags mid-combat and update terrain modifiers for characters in the zone."""
@@ -964,6 +965,7 @@ def update_zone_tags(
 
     # Auto-recalc derived stats for all characters in the zone
     from rules_engine import try_rules_calc
+
     for (cid,) in chars_in_zone:
         recalc = try_rules_calc(db, cid)
         if recalc:
@@ -976,8 +978,10 @@ def update_zone_tags(
 # Range validation (for rules_resolve integration)
 # ---------------------------------------------------------------------------
 
-def get_area_targets(db, encounter_id: int, center_zone_id: int,
-                     radius: int, exclude_ids: set[int] | None = None) -> list[int]:
+
+def get_area_targets(
+    db, encounter_id: int, center_zone_id: int, radius: int, exclude_ids: set[int] | None = None
+) -> list[int]:
     """Return character_ids in all zones within `radius` hops of center.
 
     Uses BFS on the zone adjacency graph to collect zones, then queries
@@ -1002,8 +1006,7 @@ def get_area_targets(db, encounter_id: int, center_zone_id: int,
     # Query characters in those zones
     ph = ",".join("?" * len(visited))
     rows = db.execute(
-        f"SELECT character_id FROM character_zone "
-        f"WHERE encounter_id = ? AND zone_id IN ({ph})",
+        f"SELECT character_id FROM character_zone WHERE encounter_id = ? AND zone_id IN ({ph})",
         [encounter_id, *visited],
     ).fetchall()
 
@@ -1012,8 +1015,13 @@ def get_area_targets(db, encounter_id: int, center_zone_id: int,
 
 
 def check_range(
-    db, encounter_id: int, attacker_id: int, defender_id: int,
-    action_type: str, weapon_range: int | None, combat_cfg: dict,
+    db,
+    encounter_id: int,
+    attacker_id: int,
+    defender_id: int,
+    action_type: str,
+    weapon_range: int | None,
+    combat_cfg: dict,
 ) -> str | None:
     """Check if attacker can reach defender for the given action type.
 
@@ -1033,8 +1041,7 @@ def check_range(
     dist = _zone_distance(db, encounter_id, atk_zid, def_zid)
     if dist is None:
         return (
-            f"Target out of range. {_char_name(db, defender_id)} is unreachable "
-            f"from {_zone_id_to_name(db, atk_zid)}."
+            f"Target out of range. {_char_name(db, defender_id)} is unreachable from {_zone_id_to_name(db, atk_zid)}."
         )
 
     if action_type == "melee":
@@ -1066,8 +1073,12 @@ def check_range(
 
 
 def force_move(
-    db, encounter_id: int, attacker_id: int, target_id: int,
-    push_zones: int, combat_cfg: dict,
+    db,
+    encounter_id: int,
+    attacker_id: int,
+    target_id: int,
+    push_zones: int,
+    combat_cfg: dict,
 ) -> str | None:
     """Force-move a target away from the attacker by push_zones hops.
 

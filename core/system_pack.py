@@ -19,10 +19,10 @@ import os
 from dataclasses import dataclass, field
 from typing import Any
 
-
 # ---------------------------------------------------------------------------
 # System pack model
 # ---------------------------------------------------------------------------
+
 
 @dataclass
 class SystemPack:
@@ -62,6 +62,7 @@ class SystemPack:
 # ---------------------------------------------------------------------------
 # JSON loader
 # ---------------------------------------------------------------------------
+
 
 def _load_json(path: str) -> dict:
     with open(path) as f:
@@ -116,9 +117,11 @@ def load_system_pack(pack_dir: str) -> SystemPack:
 # Character data extraction (from DB rows)
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class CharacterData:
     """Raw character data extracted from the database."""
+
     character_id: int = 0
     session_id: int = 0
     name: str = ""
@@ -139,8 +142,8 @@ class CharacterData:
 # System info — human-readable summary of what a pack provides
 # ---------------------------------------------------------------------------
 
-def _group_by_prefix(names: dict | list, min_group: int = 2
-                     ) -> list[tuple[str, list[str]]]:
+
+def _group_by_prefix(names: dict | list, min_group: int = 2) -> list[tuple[str, list[str]]]:
     """Group variable names by detected prefix for readable display.
 
     Discovers prefixes from the data itself — no hardcoded system knowledge.
@@ -153,7 +156,7 @@ def _group_by_prefix(names: dict | list, min_group: int = 2
     groups: dict[str, list[str]] = {}
     for key in keys:
         if "_" in key:
-            prefix = key[:key.index("_")]
+            prefix = key[: key.index("_")]
         else:
             prefix = ""
         groups.setdefault(prefix, []).append(key)
@@ -203,8 +206,7 @@ def system_info(pack_dir: str, section: str = "all") -> str:
     pack_name = meta.get("name", os.path.basename(pack_dir))
     dice = meta.get("dice", "")
 
-    valid_sections = {"actions", "defaults", "derived", "build",
-                      "constraints", "resolution", "combat", "all"}
+    valid_sections = {"actions", "defaults", "derived", "build", "constraints", "resolution", "combat", "all"}
     if section not in valid_sections:
         return f"ERROR: Unknown section '{section}'. Valid: {', '.join(sorted(valid_sections))}"
 
@@ -329,14 +331,10 @@ def system_info(pack_dir: str, section: str = "all") -> str:
                     inc = effect.get("increment", {})
                     desc_parts = []
                     if inc:
-                        desc_parts.append(
-                            "+".join(f"{k}={v}" for k, v in inc.items())
-                        )
+                        desc_parts.append("+".join(f"{k}={v}" for k, v in inc.items()))
                     if label:
                         desc_parts.append(label)
-                    lines.append(
-                        f"  degree {degree}: {', '.join(desc_parts)}"
-                    )
+                    lines.append(f"  degree {degree}: {', '.join(desc_parts)}")
             sections.append("\n".join(lines))
 
     # Combat positioning
@@ -355,17 +353,11 @@ def system_info(pack_dir: str, section: str = "all") -> str:
                 for tag, cfg in zone_tags.items():
                     parts = []
                     if "target_stat" in cfg:
-                        parts.append(
-                            f"{cfg['target_stat']} {cfg.get('value', 0):+d}"
-                        )
+                        parts.append(f"{cfg['target_stat']} {cfg.get('value', 0):+d}")
                     if "movement_multiplier" in cfg:
-                        parts.append(
-                            f"movement x{cfg['movement_multiplier']}"
-                        )
+                        parts.append(f"movement x{cfg['movement_multiplier']}")
                     if "miss_chance" in cfg:
-                        parts.append(
-                            f"miss {int(cfg['miss_chance']*100)}%"
-                        )
+                        parts.append(f"miss {int(cfg['miss_chance'] * 100)}%")
                     lines.append(f"    {tag}: {', '.join(parts)}")
             sections.append("\n".join(lines))
 
@@ -376,6 +368,7 @@ def system_info(pack_dir: str, section: str = "all") -> str:
 # Character data extraction (from DB rows)
 # ---------------------------------------------------------------------------
 
+
 def load_character_data(db, character_id: int) -> CharacterData:
     """Load character data from the database."""
     row = db.execute(
@@ -384,6 +377,7 @@ def load_character_data(db, character_id: int) -> CharacterData:
     ).fetchone()
     if row is None:
         from _db import LoreKitError
+
         raise LoreKitError(f"Character {character_id} not found")
 
     char = CharacterData(
@@ -396,24 +390,21 @@ def load_character_data(db, character_id: int) -> CharacterData:
 
     # Load attributes grouped by category
     for cat, key, val in db.execute(
-        "SELECT category, key, value FROM character_attributes "
-        "WHERE character_id = ? ORDER BY category, key",
+        "SELECT category, key, value FROM character_attributes WHERE character_id = ? ORDER BY category, key",
         (character_id,),
     ):
         char.attributes.setdefault(cat, {})[key] = val
 
     # Load abilities
     for name, desc, category, uses in db.execute(
-        "SELECT name, description, category, uses FROM character_abilities "
-        "WHERE character_id = ?",
+        "SELECT name, description, category, uses FROM character_abilities WHERE character_id = ?",
         (character_id,),
     ):
         char.abilities.append({"name": name, "description": desc, "category": category, "uses": uses})
 
     # Load equipped items
     for name, desc, qty, equipped in db.execute(
-        "SELECT name, description, quantity, equipped FROM character_inventory "
-        "WHERE character_id = ? AND equipped = 1",
+        "SELECT name, description, quantity, equipped FROM character_inventory WHERE character_id = ? AND equipped = 1",
         (character_id,),
     ):
         char.items.append({"name": name, "description": desc, "quantity": qty})

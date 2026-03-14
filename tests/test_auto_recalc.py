@@ -92,12 +92,20 @@ def _get_derived(db, cid, stat):
 
 def _setup_character(db, cid):
     """Set up base stats so derived formulas can compute."""
-    _set_attrs(db, cid, {
-        "str": 18, "dex": 14, "con": 12,
-        "base_attack": 5, "hit_die_avg": 6,
-    })
+    _set_attrs(
+        db,
+        cid,
+        {
+            "str": 18,
+            "dex": 14,
+            "con": 12,
+            "base_attack": 5,
+            "hit_die_avg": 6,
+        },
+    )
     # Run initial rules_calc to populate derived stats
     from rules_engine import rules_calc
+
     rules_calc(db, cid, TEST_SYSTEM)
 
 
@@ -106,6 +114,7 @@ class TestCombatModifierAutoRecalc:
 
     def test_add_recalcs(self, rules_session, make_character):
         from _db import require_db
+
         from mcp_server import combat_modifier
 
         db = require_db()
@@ -117,8 +126,11 @@ class TestCombatModifierAutoRecalc:
 
         # Add +2 bonus_defense via combat_modifier
         result = combat_modifier(
-            character_id=cid, action="add",
-            source="shield_spell", target_stat="bonus_defense", value=2,
+            character_id=cid,
+            action="add",
+            source="shield_spell",
+            target_stat="bonus_defense",
+            value=2,
         )
         assert "MODIFIER ADDED" in result
         assert "RULES_CALC" in result
@@ -132,6 +144,7 @@ class TestCombatModifierAutoRecalc:
 
     def test_remove_recalcs(self, rules_session, make_character):
         from _db import require_db
+
         from mcp_server import combat_modifier
 
         db = require_db()
@@ -142,11 +155,16 @@ class TestCombatModifierAutoRecalc:
 
         # Add then remove
         combat_modifier(
-            character_id=cid, action="add",
-            source="shield_spell", target_stat="bonus_defense", value=2,
+            character_id=cid,
+            action="add",
+            source="shield_spell",
+            target_stat="bonus_defense",
+            value=2,
         )
         result = combat_modifier(
-            character_id=cid, action="remove", source="shield_spell",
+            character_id=cid,
+            action="remove",
+            source="shield_spell",
         )
         assert "REMOVED" in result
         assert "RULES_CALC" in result
@@ -159,6 +177,7 @@ class TestCombatModifierAutoRecalc:
 
     def test_clear_recalcs(self, rules_session, make_character):
         from _db import require_db
+
         from mcp_server import combat_modifier
 
         db = require_db()
@@ -168,8 +187,11 @@ class TestCombatModifierAutoRecalc:
         defense_before = _get_derived(db, cid, "defense")
 
         combat_modifier(
-            character_id=cid, action="add",
-            source="buff1", target_stat="bonus_defense", value=3,
+            character_id=cid,
+            action="add",
+            source="buff1",
+            target_stat="bonus_defense",
+            value=3,
             duration_type="encounter",
         )
 
@@ -328,6 +350,7 @@ class TestApplyOnHitAutoRecalc:
         _setup_character(db, attacker)
         _setup_character(db, defender)
         from rules_engine import rules_calc
+
         rules_calc(db, attacker, TEST_SYSTEM)
         rules_calc(db, defender, TEST_SYSTEM)
 
@@ -371,12 +394,14 @@ class TestCharacterViewAfterModifier:
 
     def test_view_reflects_modifier(self, rules_session, make_character):
         from _db import require_db
+
         from mcp_server import character_view, combat_modifier
 
         db = require_db()
         cid = make_character(rules_session, name="Fighter")
         _setup_character(db, cid)
         from rules_engine import rules_calc
+
         rules_calc(db, cid, TEST_SYSTEM)
 
         defense_before = _get_derived(db, cid, "defense")
@@ -384,8 +409,11 @@ class TestCharacterViewAfterModifier:
 
         # Add modifier
         combat_modifier(
-            character_id=cid, action="add",
-            source="shield_spell", target_stat="bonus_defense", value=3,
+            character_id=cid,
+            action="add",
+            source="shield_spell",
+            target_stat="bonus_defense",
+            value=3,
         )
 
         # character_view should show the updated derived defense
@@ -400,6 +428,7 @@ class TestFullCombatIntegration:
 
     def test_full_combat_flow(self, rules_session, make_character):
         from _db import require_db
+
         from mcp_server import (
             combat_modifier,
             encounter_advance_turn,
@@ -416,6 +445,7 @@ class TestFullCombatIntegration:
         _set_attrs(db, pc, {"weapon_damage_die": "1d6", "current_hp": 20})
         _set_attrs(db, npc, {"weapon_damage_die": "1d4", "current_hp": 15})
         from rules_engine import rules_calc
+
         rules_calc(db, pc, TEST_SYSTEM)
         rules_calc(db, npc, TEST_SYSTEM)
 
@@ -425,17 +455,23 @@ class TestFullCombatIntegration:
 
         # 1. encounter_start — auto-recalc on placement
         zones = '[{"name":"North","tags":["cover"]},{"name":"South"}]'
-        initiative = json.dumps([
-            {"character_id": pc, "roll": 20},
-            {"character_id": npc, "roll": 10},
-        ])
-        placements = json.dumps([
-            {"character_id": pc, "zone": "North"},
-            {"character_id": npc, "zone": "North"},
-        ])
+        initiative = json.dumps(
+            [
+                {"character_id": pc, "roll": 20},
+                {"character_id": npc, "roll": 10},
+            ]
+        )
+        placements = json.dumps(
+            [
+                {"character_id": pc, "zone": "North"},
+                {"character_id": npc, "zone": "North"},
+            ]
+        )
         result = encounter_start(
-            session_id=rules_session, zones=zones,
-            initiative=initiative, placements=placements,
+            session_id=rules_session,
+            zones=zones,
+            initiative=initiative,
+            placements=placements,
         )
         assert "ENCOUNTER STARTED" in result
 
@@ -446,9 +482,13 @@ class TestFullCombatIntegration:
 
         # 2. combat_modifier — auto-recalc
         result = combat_modifier(
-            character_id=npc, action="add",
-            source="rage", target_stat="bonus_melee_attack", value=2,
-            duration_type="rounds", duration=3,
+            character_id=npc,
+            action="add",
+            source="rage",
+            target_stat="bonus_melee_attack",
+            value=2,
+            duration_type="rounds",
+            duration=3,
         )
         assert "MODIFIER ADDED" in result
         assert "RULES_CALC" in result
@@ -459,7 +499,9 @@ class TestFullCombatIntegration:
 
         # 3. rules_resolve — attack
         result = rules_resolve(
-            attacker_id=pc, defender_id=npc, action="melee_attack",
+            attacker_id=pc,
+            defender_id=npc,
+            action="melee_attack",
         )
         assert "ACTION" in result
 
@@ -507,8 +549,14 @@ class TestFullCombatIntegrationMM3e:
         """Set M&M3e base stats and compute derived."""
         mm3e_path = os.path.join(os.path.dirname(__file__), "..", "systems", "mm3e")
         for key, val in {
-            "fgt": str(fgt), "agl": str(agl), "str": str(str_), "sta": str(sta),
-            "dex": "0", "int": "0", "awe": "2", "pre": "0",
+            "fgt": str(fgt),
+            "agl": str(agl),
+            "str": str(str_),
+            "sta": str(sta),
+            "dex": "0",
+            "int": "0",
+            "awe": "2",
+            "pre": "0",
             "power_level": "10",
         }.items():
             db.execute(
@@ -519,10 +567,12 @@ class TestFullCombatIntegrationMM3e:
             )
         db.commit()
         from rules_engine import rules_calc
+
         rules_calc(db, cid, mm3e_path)
 
     def test_mm3e_degree_combat_flow(self, mm3e_session, make_character):
         from _db import require_db
+
         from mcp_server import (
             combat_modifier,
             encounter_advance_turn,
@@ -543,17 +593,23 @@ class TestFullCombatIntegrationMM3e:
 
         # 1. encounter_start with cover zone
         zones = '[{"name":"Rooftop","tags":["cover"]},{"name":"Street"}]'
-        initiative = json.dumps([
-            {"character_id": hero, "roll": 20},
-            {"character_id": villain, "roll": 10},
-        ])
-        placements = json.dumps([
-            {"character_id": hero, "zone": "Rooftop"},
-            {"character_id": villain, "zone": "Rooftop"},
-        ])
+        initiative = json.dumps(
+            [
+                {"character_id": hero, "roll": 20},
+                {"character_id": villain, "roll": 10},
+            ]
+        )
+        placements = json.dumps(
+            [
+                {"character_id": hero, "zone": "Rooftop"},
+                {"character_id": villain, "zone": "Rooftop"},
+            ]
+        )
         result = encounter_start(
-            session_id=mm3e_session, zones=zones,
-            initiative=initiative, placements=placements,
+            session_id=mm3e_session,
+            zones=zones,
+            initiative=initiative,
+            placements=placements,
         )
         assert "ENCOUNTER STARTED" in result
 
@@ -564,16 +620,22 @@ class TestFullCombatIntegrationMM3e:
 
         # 2. combat_modifier — buff villain
         result = combat_modifier(
-            character_id=villain, action="add",
-            source="power_boost", target_stat="bonus_close_attack", value=2,
-            duration_type="rounds", duration=3,
+            character_id=villain,
+            action="add",
+            source="power_boost",
+            target_stat="bonus_close_attack",
+            value=2,
+            duration_type="rounds",
+            duration=3,
         )
         assert "MODIFIER ADDED" in result
         assert "RULES_CALC" in result
 
         # 3. rules_resolve — degree resolution (close_attack)
         result = rules_resolve(
-            attacker_id=hero, defender_id=villain, action="close_attack",
+            attacker_id=hero,
+            defender_id=villain,
+            action="close_attack",
         )
         assert "ACTION" in result
         # Degree resolution shows resistance check
@@ -607,6 +669,7 @@ class TestAdvanceTurnAutoEndTurn:
     def test_modifiers_tick_on_advance(self, rules_session, make_character):
         from _db import require_db
         from encounter import advance_turn, start_encounter
+
         from mcp_server import combat_modifier
 
         db = require_db()
@@ -628,9 +691,13 @@ class TestAdvanceTurnAutoEndTurn:
 
         # Add a 2-round modifier to Fighter (whose turn is current)
         combat_modifier(
-            character_id=c1, action="add",
-            source="rage", target_stat="bonus_melee_attack", value=2,
-            duration_type="rounds", duration=2,
+            character_id=c1,
+            action="add",
+            source="rage",
+            target_stat="bonus_melee_attack",
+            value=2,
+            duration_type="rounds",
+            duration=2,
         )
 
         # Advance: should end Fighter's turn (tick rage to 1 round), start Goblin's
@@ -697,8 +764,12 @@ class TestInitiativeAutoRoll:
         ]
 
         result = start_encounter(
-            db, rules_session, zones, "auto",
-            placements=placements, combat_cfg=COMBAT_CFG,
+            db,
+            rules_session,
+            zones,
+            "auto",
+            placements=placements,
+            combat_cfg=COMBAT_CFG,
         )
         assert "ENCOUNTER STARTED" in result
         assert "d20(" in result  # auto-roll detail shown
@@ -711,6 +782,7 @@ class TestInitiativeAutoRoll:
             (rules_session,),
         ).fetchone()
         import json
+
         order = json.loads(enc[0])
         assert len(order) == 2
         assert set(order) == {c1, c2}
@@ -746,8 +818,12 @@ class TestInitiativeAutoRoll:
         ]
 
         result = start_encounter(
-            db, rules_session, zones, initiative,
-            placements=placements, combat_cfg=COMBAT_CFG,
+            db,
+            rules_session,
+            zones,
+            initiative,
+            placements=placements,
+            combat_cfg=COMBAT_CFG,
         )
         assert "Rogue (20)" in result
         assert "Fighter (5)" in result
@@ -770,6 +846,7 @@ class TestCombatHUD:
         # Set current_hp to 5 (wounded)
         _set_attrs(db, cid, {"current_hp": 5})
         from rules_engine import rules_calc
+
         rules_calc(db, cid, TEST_SYSTEM)
 
         zones = [{"name": "Hall"}]
@@ -786,6 +863,7 @@ class TestCombatHUD:
     def test_hud_shows_modifiers(self, rules_session, make_character):
         from _db import require_db
         from encounter import get_status, start_encounter
+
         from mcp_server import combat_modifier
 
         db = require_db()
@@ -798,9 +876,13 @@ class TestCombatHUD:
         start_encounter(db, rules_session, zones, initiative, placements=placements, combat_cfg=COMBAT_CFG)
 
         combat_modifier(
-            character_id=cid, action="add",
-            source="Blessed", target_stat="bonus_melee_attack", value=1,
-            duration_type="rounds", duration=3,
+            character_id=cid,
+            action="add",
+            source="Blessed",
+            target_stat="bonus_melee_attack",
+            value=1,
+            duration_type="rounds",
+            duration=3,
         )
 
         result = get_status(db, rules_session, combat_cfg=COMBAT_CFG)
@@ -861,10 +943,10 @@ class TestNpcCombatTurn:
     def test_parse_intent_json_block(self):
         from npc_combat import parse_combat_intent
 
-        response = '''The orc snarls!
+        response = """The orc snarls!
 ```json
 {"action": "melee_attack", "target": "Fighter", "move_to": "Center", "narration": "Charges forward!"}
-```'''
+```"""
         intent = parse_combat_intent(response)
         assert intent["action"] == "melee_attack"
         assert intent["target"] == "Fighter"
@@ -874,9 +956,9 @@ class TestNpcCombatTurn:
     def test_parse_intent_null_fields(self):
         from npc_combat import parse_combat_intent
 
-        response = '''```json
+        response = """```json
 {"action": null, "target": null, "move_to": null, "narration": "The priest prays silently."}
-```'''
+```"""
         intent = parse_combat_intent(response)
         assert intent["action"] is None
         assert intent["target"] is None
@@ -971,6 +1053,7 @@ class TestNpcCombatTurn:
         _set_attrs(db, pc, {"weapon_damage_die": "1d6"})
         _set_attrs(db, npc, {"weapon_damage_die": "1d4"})
         from rules_engine import rules_calc
+
         rules_calc(db, pc, TEST_SYSTEM)
         rules_calc(db, npc, TEST_SYSTEM)
 
@@ -1011,9 +1094,13 @@ class TestEncounterTemplates:
         initiative = [{"character_id": c1, "roll": 15}]
 
         result = start_encounter(
-            db, rules_session, initiative=initiative,
-            placements=placements, combat_cfg=COMBAT_CFG,
-            template="arena", pack_dir=TEST_SYSTEM,
+            db,
+            rules_session,
+            initiative=initiative,
+            placements=placements,
+            combat_cfg=COMBAT_CFG,
+            template="arena",
+            pack_dir=TEST_SYSTEM,
         )
         assert "ENCOUNTER STARTED" in result
         assert "North" in result
@@ -1045,9 +1132,14 @@ class TestEncounterTemplates:
         initiative = [{"character_id": c1, "roll": 15}]
 
         result = start_encounter(
-            db, rules_session, zones=custom_zones, initiative=initiative,
-            placements=placements, combat_cfg=COMBAT_CFG,
-            template="arena", pack_dir=TEST_SYSTEM,
+            db,
+            rules_session,
+            zones=custom_zones,
+            initiative=initiative,
+            placements=placements,
+            combat_cfg=COMBAT_CFG,
+            template="arena",
+            pack_dir=TEST_SYSTEM,
         )
         assert "Custom1" in result
         assert "Custom2" in result
@@ -1064,9 +1156,12 @@ class TestEncounterTemplates:
 
         try:
             start_encounter(
-                db, rules_session, initiative=[{"character_id": c1, "roll": 15}],
+                db,
+                rules_session,
+                initiative=[{"character_id": c1, "roll": 15}],
                 combat_cfg=COMBAT_CFG,
-                template="nonexistent", pack_dir=TEST_SYSTEM,
+                template="nonexistent",
+                pack_dir=TEST_SYSTEM,
             )
             assert False, "Should have raised"
         except Exception as e:
@@ -1088,6 +1183,7 @@ class TestRest:
         # short rest restores floor(max_hp / 2) = floor(3.5) = 3
         _set_attrs(db, cid, {"current_hp": 1})
         from rules_engine import rules_calc
+
         rules_calc(db, cid, TEST_SYSTEM)
 
         result = rest(db, rules_session, "short", TEST_SYSTEM)
@@ -1114,6 +1210,7 @@ class TestRest:
         _setup_character(db, cid)
         _set_attrs(db, cid, {"current_hp": 1})
         from rules_engine import rules_calc
+
         rules_calc(db, cid, TEST_SYSTEM)
 
         result = rest(db, rules_session, "long", TEST_SYSTEM)
@@ -1123,16 +1220,20 @@ class TestRest:
 
     def test_clears_modifiers(self, rules_session, make_character):
         from _db import require_db
-        from mcp_server import combat_modifier
         from rest import rest
+
+        from mcp_server import combat_modifier
 
         db = require_db()
         cid = make_character(rules_session, name="Fighter")
         _setup_character(db, cid)
 
         combat_modifier(
-            character_id=cid, action="add",
-            source="bless", target_stat="bonus_melee_attack", value=1,
+            character_id=cid,
+            action="add",
+            source="bless",
+            target_stat="bonus_melee_attack",
+            value=1,
             duration_type="encounter",
         )
 
@@ -1141,7 +1242,8 @@ class TestRest:
 
         # Verify modifier is gone
         count = db.execute(
-            "SELECT COUNT(*) FROM combat_state WHERE character_id = ?", (cid,),
+            "SELECT COUNT(*) FROM combat_state WHERE character_id = ?",
+            (cid,),
         ).fetchone()[0]
         assert count == 0
         db.close()
@@ -1158,6 +1260,7 @@ class TestRest:
         _set_attrs(db, pc, {"current_hp": 1})
         _set_attrs(db, npc, {"current_hp": 1})
         from rules_engine import rules_calc
+
         rules_calc(db, pc, TEST_SYSTEM)
         rules_calc(db, npc, TEST_SYSTEM)
 
@@ -1234,6 +1337,7 @@ class TestCombatSummary:
         _setup_character(db, cid)
         _set_attrs(db, cid, {"current_hp": 3})
         from rules_engine import rules_calc
+
         rules_calc(db, cid, TEST_SYSTEM)
 
         zones = [{"name": "Arena"}]
@@ -1334,8 +1438,11 @@ class TestCharacterLookupByName:
         make_character(sid, name="Fighter")
 
         result = combat_modifier(
-            character_id="Fighter", action="add",
-            source="bless", target_stat="bonus_attack", value=1,
+            character_id="Fighter",
+            action="add",
+            source="bless",
+            target_stat="bonus_attack",
+            value=1,
         )
         assert "MODIFIER ADDED" in result
 
@@ -1362,8 +1469,11 @@ class TestNoRecalcWithoutSystem:
         cid = make_character(sid)
 
         result = combat_modifier(
-            character_id=cid, action="add",
-            source="buff", target_stat="bonus_defense", value=2,
+            character_id=cid,
+            action="add",
+            source="buff",
+            target_stat="bonus_defense",
+            value=2,
         )
         assert "MODIFIER ADDED" in result
         assert "RULES_CALC" not in result

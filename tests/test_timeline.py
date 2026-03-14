@@ -8,8 +8,8 @@ pytest.importorskip("sqlite_vec")
 
 from mcp_server import (  # noqa: E402
     recall_search,
-    session_meta_set,
     session_meta_get,
+    session_meta_set,
     timeline_add,
     timeline_list,
     timeline_search,
@@ -17,7 +17,6 @@ from mcp_server import (  # noqa: E402
     turn_revert,
     turn_save,
 )
-
 
 # -- Happy Path --
 
@@ -31,7 +30,8 @@ def test_add_narration(make_session):
 def test_add_narration_with_summary(make_session):
     sid = make_session()
     result = timeline_add(
-        session_id=sid, type="narration",
+        session_id=sid,
+        type="narration",
         content="The forest grew dark.",
         summary="The forest darkens.",
     )
@@ -128,7 +128,8 @@ def test_search_case_insensitive(make_session):
 def test_narration_with_summary_auto_indexes(make_session):
     sid = make_session()
     timeline_add(
-        session_id=sid, type="narration",
+        session_id=sid,
+        type="narration",
         content="The dragon attacked the village, burning houses and scattering the townsfolk.",
         summary="Dragon attacks the village",
     )
@@ -193,8 +194,7 @@ def test_revert_removes_last_turn(make_session):
 def test_revert_removes_narration_and_player_choice(make_session):
     sid = make_session()
     turn_save(session_id=sid, narration="Scene one.", summary="Scene one")
-    turn_save(session_id=sid, narration="Scene two.", summary="Scene two",
-              player_choice="I run away.")
+    turn_save(session_id=sid, narration="Scene two.", summary="Scene two", player_choice="I run away.")
     result = turn_revert(session_id=sid)
     assert "TURN_REVERTED" in result
     listing = timeline_list(session_id=sid)
@@ -229,9 +229,7 @@ def test_revert_single_turn_returns_error_after_first_revert(make_session):
 
 def test_revert_cleans_vector_index(make_session):
     sid = make_session()
-    turn_save(session_id=sid,
-              narration="The ancient temple crumbles.",
-              summary="The temple crumbles to ruins.")
+    turn_save(session_id=sid, narration="The ancient temple crumbles.", summary="The temple crumbles to ruins.")
     # Verify it's indexed
     result = recall_search(session_id=sid, query="temple crumbles", source="timeline")
     assert "temple" in result.lower()

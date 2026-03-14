@@ -1,0 +1,34 @@
+{
+  "base_stats": {
+    "str": 18,
+    "dex": 14,
+    "con": 12,
+    "int": 10,
+    "wis": 12,
+    "cha": 10,
+    "level": 1,
+    "proficiency_trained": 1,
+    "proficiency_expert": 0,
+    "proficiency_master": 0,
+    "proficiency_legendary": 0,
+    "base_hp": 10,
+    "class_hp_per_level": 10,
+    "armor_bonus": 2,
+    "armor_dex_cap": 5,
+    "weapon_die_avg": 4,
+    "weapon_bonus": 0,
+    "prof_simple_weapons": 2
+  },
+  "weapon_attrs": {
+    "weapon_damage_die": "1d8"
+  },
+  "resolution_type": "threshold",
+  "melee_action": "melee_attack",
+  "defense_stat": "armor_class",
+  "defense_bonus_key": "bonus_ac",
+  "attack_stat": "melee_attack",
+  "attack_bonus_key": "bonus_melee_attack",
+  "cover_zone_tag": "cover",
+  "vital_current": "current_hp",
+  "vital_max": "max_hp"
+}

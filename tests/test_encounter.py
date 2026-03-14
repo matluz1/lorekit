@@ -37,6 +37,7 @@ COMBAT_CFG = {
 
 def _db():
     from _db import require_db
+
     return require_db()
 
 
@@ -111,9 +112,7 @@ class TestStartEncounter:
             result = start_encounter(db, sid, zones, initiative, adjacency=adjacency)
             assert "ENCOUNTER STARTED" in result
 
-            enc_id = db.execute(
-                "SELECT id FROM encounter_state WHERE session_id = ?", (sid,)
-            ).fetchone()[0]
+            enc_id = db.execute("SELECT id FROM encounter_state WHERE session_id = ?", (sid,)).fetchone()[0]
 
             adj_count = db.execute(
                 "SELECT COUNT(*) FROM zone_adjacency za "
@@ -136,6 +135,7 @@ class TestStartEncounter:
             start_encounter(db, sid, zones, initiative)
 
             from _db import LoreKitError
+
             with pytest.raises(LoreKitError, match="already active"):
                 start_encounter(db, sid, zones, initiative)
         finally:
@@ -152,16 +152,19 @@ class TestStartEncounter:
             placements = [{"character_id": c1, "zone": "Tower"}]
 
             result = start_encounter(
-                db, sid, zones, initiative,
-                placements=placements, combat_cfg=COMBAT_CFG,
+                db,
+                sid,
+                zones,
+                initiative,
+                placements=placements,
+                combat_cfg=COMBAT_CFG,
             )
 
             assert "Terrain" in result
 
             # Check combat_state has terrain modifiers
             mods = db.execute(
-                "SELECT source, target_stat, value FROM combat_state "
-                "WHERE character_id = ? ORDER BY source",
+                "SELECT source, target_stat, value FROM combat_state WHERE character_id = ? ORDER BY source",
                 (c1,),
             ).fetchall()
             sources = {m[0] for m in mods}
@@ -181,9 +184,7 @@ class TestZoneGraph:
             init = [{"character_id": c1, "roll": 10}]
 
             start_encounter(db, sid, zones, init)
-            enc_id = db.execute(
-                "SELECT id FROM encounter_state WHERE session_id = ?", (sid,)
-            ).fetchone()[0]
+            enc_id = db.execute("SELECT id FROM encounter_state WHERE session_id = ?", (sid,)).fetchone()[0]
 
             adj = _build_adjacency(db, enc_id)
             zone_a = db.execute(
@@ -215,9 +216,7 @@ class TestZoneGraph:
             ]
 
             start_encounter(db, sid, zones, init, adjacency=adjacency)
-            enc_id = db.execute(
-                "SELECT id FROM encounter_state WHERE session_id = ?", (sid,)
-            ).fetchone()[0]
+            enc_id = db.execute("SELECT id FROM encounter_state WHERE session_id = ?", (sid,)).fetchone()[0]
 
             adj = _build_adjacency(db, enc_id)
             zone_a = db.execute(
@@ -242,9 +241,7 @@ class TestZoneGraph:
             init = [{"character_id": c1, "roll": 10}]
 
             start_encounter(db, sid, zones, init)
-            enc_id = db.execute(
-                "SELECT id FROM encounter_state WHERE session_id = ?", (sid,)
-            ).fetchone()[0]
+            enc_id = db.execute("SELECT id FROM encounter_state WHERE session_id = ?", (sid,)).fetchone()[0]
 
             adj = _build_adjacency(db, enc_id)
             zone_id = db.execute(
@@ -269,9 +266,7 @@ class TestMovement:
             placements = [{"character_id": c1, "zone": "A"}]
 
             start_encounter(db, sid, zones, init, placements=placements)
-            enc_id = db.execute(
-                "SELECT id FROM encounter_state WHERE session_id = ?", (sid,)
-            ).fetchone()[0]
+            enc_id = db.execute("SELECT id FROM encounter_state WHERE session_id = ?", (sid,)).fetchone()[0]
 
             result = move_character(db, enc_id, c1, "B")
             assert "MOVED" in result
@@ -301,11 +296,10 @@ class TestMovement:
             placements = [{"character_id": c1, "zone": "A"}]
 
             start_encounter(db, sid, zones, init, placements=placements)
-            enc_id = db.execute(
-                "SELECT id FROM encounter_state WHERE session_id = ?", (sid,)
-            ).fetchone()[0]
+            enc_id = db.execute("SELECT id FROM encounter_state WHERE session_id = ?", (sid,)).fetchone()[0]
 
             from _db import LoreKitError
+
             with pytest.raises(LoreKitError, match="Cannot reach"):
                 move_character(db, enc_id, c1, "C", movement_budget=1)
         finally:
@@ -325,25 +319,36 @@ class TestMovement:
             placements = [{"character_id": c1, "zone": "Clear"}]
 
             start_encounter(
-                db, sid, zones, init,
-                placements=placements, combat_cfg=COMBAT_CFG,
+                db,
+                sid,
+                zones,
+                init,
+                placements=placements,
+                combat_cfg=COMBAT_CFG,
             )
-            enc_id = db.execute(
-                "SELECT id FROM encounter_state WHERE session_id = ?", (sid,)
-            ).fetchone()[0]
+            enc_id = db.execute("SELECT id FROM encounter_state WHERE session_id = ?", (sid,)).fetchone()[0]
 
             # Difficult terrain doubles cost: 1 zone * 2 = 2
             from _db import LoreKitError
+
             with pytest.raises(LoreKitError, match="Cannot reach"):
                 move_character(
-                    db, enc_id, c1, "Swamp",
-                    combat_cfg=COMBAT_CFG, movement_budget=1,
+                    db,
+                    enc_id,
+                    c1,
+                    "Swamp",
+                    combat_cfg=COMBAT_CFG,
+                    movement_budget=1,
                 )
 
             # Budget 2 should work
             result = move_character(
-                db, enc_id, c1, "Swamp",
-                combat_cfg=COMBAT_CFG, movement_budget=2,
+                db,
+                enc_id,
+                c1,
+                "Swamp",
+                combat_cfg=COMBAT_CFG,
+                movement_budget=2,
             )
             assert "MOVED" in result
         finally:
@@ -363,17 +368,17 @@ class TestMovement:
             placements = [{"character_id": c1, "zone": "Open"}]
 
             start_encounter(
-                db, sid, zones, init,
-                placements=placements, combat_cfg=COMBAT_CFG,
+                db,
+                sid,
+                zones,
+                init,
+                placements=placements,
+                combat_cfg=COMBAT_CFG,
             )
-            enc_id = db.execute(
-                "SELECT id FROM encounter_state WHERE session_id = ?", (sid,)
-            ).fetchone()[0]
+            enc_id = db.execute("SELECT id FROM encounter_state WHERE session_id = ?", (sid,)).fetchone()[0]
 
             # No terrain mods in Open
-            mods = db.execute(
-                "SELECT COUNT(*) FROM combat_state WHERE character_id = ?", (c1,)
-            ).fetchone()[0]
+            mods = db.execute("SELECT COUNT(*) FROM combat_state WHERE character_id = ?", (c1,)).fetchone()[0]
             assert mods == 0
 
             # Move to Pillars → gain cover
@@ -391,9 +396,7 @@ class TestMovement:
             # Move back to Open → lose cover
             move_character(db, enc_id, c1, "Open", combat_cfg=COMBAT_CFG)
 
-            mods = db.execute(
-                "SELECT COUNT(*) FROM combat_state WHERE character_id = ?", (c1,)
-            ).fetchone()[0]
+            mods = db.execute("SELECT COUNT(*) FROM combat_state WHERE character_id = ?", (c1,)).fetchone()[0]
             assert mods == 0
         finally:
             db.close()
@@ -451,7 +454,12 @@ class TestEncounterStatus:
             ]
 
             start_encounter(
-                db, sid, zones, init, placements=placements, combat_cfg=COMBAT_CFG,
+                db,
+                sid,
+                zones,
+                init,
+                placements=placements,
+                combat_cfg=COMBAT_CFG,
             )
 
             result = get_status(db, sid, combat_cfg=COMBAT_CFG)
@@ -479,8 +487,12 @@ class TestEndEncounter:
             placements = [{"character_id": c1, "zone": "Room"}]
 
             start_encounter(
-                db, sid, zones, init,
-                placements=placements, combat_cfg=COMBAT_CFG,
+                db,
+                sid,
+                zones,
+                init,
+                placements=placements,
+                combat_cfg=COMBAT_CFG,
             )
 
             # Add a non-terrain encounter modifier too
@@ -496,9 +508,7 @@ class TestEndEncounter:
             assert "COMBAT ENDED" in result
 
             # Verify cleanup
-            enc = db.execute(
-                "SELECT status FROM encounter_state WHERE session_id = ?", (sid,)
-            ).fetchone()
+            enc = db.execute("SELECT status FROM encounter_state WHERE session_id = ?", (sid,)).fetchone()
             assert enc[0] == "ended"
 
             zones_left = db.execute(
@@ -517,9 +527,7 @@ class TestEndEncounter:
             ).fetchone()[0]
             assert char_zones == 0
 
-            mods = db.execute(
-                "SELECT COUNT(*) FROM combat_state WHERE character_id = ?", (c1,)
-            ).fetchone()[0]
+            mods = db.execute("SELECT COUNT(*) FROM combat_state WHERE character_id = ?", (c1,)).fetchone()[0]
             assert mods == 0
         finally:
             db.close()
@@ -537,34 +545,30 @@ class TestZoneUpdate:
             placements = [{"character_id": c1, "zone": "Room"}]
 
             start_encounter(
-                db, sid, zones, init,
-                placements=placements, combat_cfg=COMBAT_CFG,
+                db,
+                sid,
+                zones,
+                init,
+                placements=placements,
+                combat_cfg=COMBAT_CFG,
             )
-            enc_id = db.execute(
-                "SELECT id FROM encounter_state WHERE session_id = ?", (sid,)
-            ).fetchone()[0]
+            enc_id = db.execute("SELECT id FROM encounter_state WHERE session_id = ?", (sid,)).fetchone()[0]
 
             # No modifiers initially
-            mods = db.execute(
-                "SELECT COUNT(*) FROM combat_state WHERE character_id = ?", (c1,)
-            ).fetchone()[0]
+            mods = db.execute("SELECT COUNT(*) FROM combat_state WHERE character_id = ?", (c1,)).fetchone()[0]
             assert mods == 0
 
             # Add cover tag
             result = update_zone_tags(db, enc_id, "Room", ["cover"], combat_cfg=COMBAT_CFG)
             assert "ZONE UPDATED" in result
 
-            mods = db.execute(
-                "SELECT source FROM combat_state WHERE character_id = ?", (c1,)
-            ).fetchall()
+            mods = db.execute("SELECT source FROM combat_state WHERE character_id = ?", (c1,)).fetchall()
             assert len(mods) == 1
             assert mods[0][0] == "zone:Room:cover"
 
             # Remove all tags
             update_zone_tags(db, enc_id, "Room", [], combat_cfg=COMBAT_CFG)
-            mods = db.execute(
-                "SELECT COUNT(*) FROM combat_state WHERE character_id = ?", (c1,)
-            ).fetchone()[0]
+            mods = db.execute("SELECT COUNT(*) FROM combat_state WHERE character_id = ?", (c1,)).fetchone()[0]
             assert mods == 0
         finally:
             db.close()
@@ -589,9 +593,7 @@ class TestRangeCheck:
             ]
 
             start_encounter(db, sid, zones, init, placements=placements)
-            enc_id = db.execute(
-                "SELECT id FROM encounter_state WHERE session_id = ?", (sid,)
-            ).fetchone()[0]
+            enc_id = db.execute("SELECT id FROM encounter_state WHERE session_id = ?", (sid,)).fetchone()[0]
 
             err = check_range(db, enc_id, c1, c2, "melee", None, COMBAT_CFG)
             assert err is None
@@ -616,9 +618,7 @@ class TestRangeCheck:
             ]
 
             start_encounter(db, sid, zones, init, placements=placements)
-            enc_id = db.execute(
-                "SELECT id FROM encounter_state WHERE session_id = ?", (sid,)
-            ).fetchone()[0]
+            enc_id = db.execute("SELECT id FROM encounter_state WHERE session_id = ?", (sid,)).fetchone()[0]
 
             err = check_range(db, enc_id, c1, c2, "melee", None, COMBAT_CFG)
             assert err is not None
@@ -644,9 +644,7 @@ class TestRangeCheck:
             ]
 
             start_encounter(db, sid, zones, init, placements=placements)
-            enc_id = db.execute(
-                "SELECT id FROM encounter_state WHERE session_id = ?", (sid,)
-            ).fetchone()[0]
+            enc_id = db.execute("SELECT id FROM encounter_state WHERE session_id = ?", (sid,)).fetchone()[0]
 
             # 1 zone * 30ft = 30ft, weapon range 60ft → ok
             err = check_range(db, enc_id, c1, c2, "ranged", 60, COMBAT_CFG)
@@ -672,9 +670,7 @@ class TestRangeCheck:
             ]
 
             start_encounter(db, sid, zones, init, placements=placements)
-            enc_id = db.execute(
-                "SELECT id FROM encounter_state WHERE session_id = ?", (sid,)
-            ).fetchone()[0]
+            enc_id = db.execute("SELECT id FROM encounter_state WHERE session_id = ?", (sid,)).fetchone()[0]
 
             # 2 zones * 30ft = 60ft, weapon range 30ft → out of range
             err = check_range(db, enc_id, c1, c2, "ranged", 30, COMBAT_CFG)

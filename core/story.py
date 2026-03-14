@@ -5,8 +5,8 @@ import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _db import require_db, format_table, LoreKitError
 from _args import parse_args
+from _db import LoreKitError, format_table, require_db
 
 
 def usage():
@@ -59,10 +59,14 @@ def set_story(db, session_id: int, size: str, premise: str) -> str:
 
 
 def cmd_set(db, args):
-    sid, p = parse_args(args, {
-        "--size": ("size", True, ""),
-        "--premise": ("premise", True, ""),
-    }, positional="session_id")
+    sid, p = parse_args(
+        args,
+        {
+            "--size": ("size", True, ""),
+            "--premise": ("premise", True, ""),
+        },
+        positional="session_id",
+    )
     return set_story(db, int(sid), p["size"], p["premise"])
 
 
@@ -102,8 +106,7 @@ def add_act(db, session_id: int, title: str, desc: str = "", goal: str = "", eve
     ).fetchone()
     next_order = row[0] + 1
     cur = db.execute(
-        "INSERT INTO story_acts (session_id, act_order, title, description, goal, event)"
-        " VALUES (?, ?, ?, ?, ?, ?)",
+        "INSERT INTO story_acts (session_id, act_order, title, description, goal, event) VALUES (?, ?, ?, ?, ?, ?)",
         (session_id, next_order, title, desc, goal, event),
     )
     db.commit()
@@ -111,12 +114,16 @@ def add_act(db, session_id: int, title: str, desc: str = "", goal: str = "", eve
 
 
 def cmd_add_act(db, args):
-    sid, p = parse_args(args, {
-        "--title": ("title", True, ""),
-        "--desc": ("desc", False, ""),
-        "--goal": ("goal", False, ""),
-        "--event": ("event", False, ""),
-    }, positional="session_id")
+    sid, p = parse_args(
+        args,
+        {
+            "--title": ("title", True, ""),
+            "--desc": ("desc", False, ""),
+            "--goal": ("goal", False, ""),
+            "--event": ("event", False, ""),
+        },
+        positional="session_id",
+    )
     return add_act(db, int(sid), p["title"], p["desc"], p["goal"], p["event"])
 
 
@@ -147,7 +154,9 @@ def cmd_view_act(db, args):
     return view_act(db, int(aid))
 
 
-def update_act(db, act_id: int, title: str = "", desc: str = "", goal: str = "", event: str = "", status: str = "") -> str:
+def update_act(
+    db, act_id: int, title: str = "", desc: str = "", goal: str = "", event: str = "", status: str = ""
+) -> str:
     _COLUMN_MAP = {"title": "title", "desc": "description", "goal": "goal", "event": "event", "status": "status"}
     values = {"title": title, "desc": desc, "goal": goal, "event": event, "status": status}
     sets = []
@@ -165,20 +174,23 @@ def update_act(db, act_id: int, title: str = "", desc: str = "", goal: str = "",
 
 
 def cmd_update_act(db, args):
-    aid, p = parse_args(args, {
-        "--title": ("title", False, ""),
-        "--desc": ("desc", False, ""),
-        "--goal": ("goal", False, ""),
-        "--event": ("event", False, ""),
-        "--status": ("status", False, ""),
-    }, positional="act_id")
+    aid, p = parse_args(
+        args,
+        {
+            "--title": ("title", False, ""),
+            "--desc": ("desc", False, ""),
+            "--goal": ("goal", False, ""),
+            "--event": ("event", False, ""),
+            "--status": ("status", False, ""),
+        },
+        positional="act_id",
+    )
     return update_act(db, int(aid), p["title"], p["desc"], p["goal"], p["event"], p["status"])
 
 
 def advance(db, session_id: int) -> str:
     active = db.execute(
-        "SELECT id, act_order FROM story_acts WHERE session_id = ? AND status = 'active'"
-        " ORDER BY act_order LIMIT 1",
+        "SELECT id, act_order FROM story_acts WHERE session_id = ? AND status = 'active' ORDER BY act_order LIMIT 1",
         (session_id,),
     ).fetchone()
     if active is None:

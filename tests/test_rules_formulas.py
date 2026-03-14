@@ -1,8 +1,8 @@
 """Tests for the Crunch formula evaluator."""
 
 import math
-import pytest
 
+import pytest
 from rules_formulas import (
     FormulaContext,
     FormulaError,
@@ -11,10 +11,10 @@ from rules_formulas import (
     parse,
 )
 
-
 # ---------------------------------------------------------------------------
 # Basic arithmetic
 # ---------------------------------------------------------------------------
+
 
 class TestArithmetic:
     def test_integer(self):
@@ -64,6 +64,7 @@ class TestArithmetic:
 # Variables
 # ---------------------------------------------------------------------------
 
+
 class TestVariables:
     def test_simple_var(self):
         ctx = FormulaContext(values={"bab": 10})
@@ -85,6 +86,7 @@ class TestVariables:
 # ---------------------------------------------------------------------------
 # Comparisons
 # ---------------------------------------------------------------------------
+
 
 class TestComparisons:
     def test_equal(self):
@@ -113,6 +115,7 @@ class TestComparisons:
 # ---------------------------------------------------------------------------
 # Built-in functions
 # ---------------------------------------------------------------------------
+
 
 class TestFunctions:
     def test_floor(self):
@@ -160,6 +163,7 @@ class TestFunctions:
 # if()
 # ---------------------------------------------------------------------------
 
+
 class TestIf:
     def test_true_branch(self):
         assert calc("if(true, 10, 20)") == 10
@@ -179,6 +183,7 @@ class TestIf:
 # ---------------------------------------------------------------------------
 # table()
 # ---------------------------------------------------------------------------
+
 
 class TestTable:
     def test_basic_lookup(self):
@@ -213,6 +218,7 @@ class TestTable:
 # Dependency extraction
 # ---------------------------------------------------------------------------
 
+
 class TestDeps:
     def test_simple_var(self):
         ast = parse("bab + level")
@@ -238,6 +244,7 @@ class TestDeps:
 # ---------------------------------------------------------------------------
 # Composite formulas (from the spec)
 # ---------------------------------------------------------------------------
+
 
 class TestSpecFormulas:
     def test_d20_ability_mod(self):

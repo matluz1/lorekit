@@ -21,9 +21,9 @@ def _set_attr(db, cid, category, key, value):
     db.commit()
 
 
-def _add_combat_modifier(db, cid, source, target_stat, value,
-                         modifier_type="buff", bonus_type=None,
-                         duration_type="encounter"):
+def _add_combat_modifier(
+    db, cid, source, target_stat, value, modifier_type="buff", bonus_type=None, duration_type="encounter"
+):
     db.execute(
         "INSERT INTO combat_state "
         "(character_id, source, target_stat, modifier_type, value, bonus_type, duration_type) "
@@ -45,8 +45,7 @@ class TestCombatStateLoading:
         cid = make_character(sid, level=5)
 
         # Set base stats
-        for key, val in {"str": "18", "dex": "14", "con": "12",
-                         "base_attack": "5", "hit_die_avg": "6"}.items():
+        for key, val in {"str": "18", "dex": "14", "con": "12", "base_attack": "5", "hit_die_avg": "6"}.items():
             _set_attr(db, cid, "stat", key, val)
 
         pack = load_system_pack(TEST_SYSTEM)
@@ -74,8 +73,7 @@ class TestCombatStateLoading:
         sid = make_session()
         cid = make_character(sid, level=5)
 
-        for key, val in {"str": "18", "dex": "14", "con": "12",
-                         "base_attack": "5", "hit_die_avg": "6"}.items():
+        for key, val in {"str": "18", "dex": "14", "con": "12", "base_attack": "5", "hit_die_avg": "6"}.items():
             _set_attr(db, cid, "stat", key, val)
 
         pack = load_system_pack(TEST_SYSTEM)
@@ -105,8 +103,7 @@ class TestTypedStackingIntegration:
         sid = make_session()
         cid = make_character(sid, level=5)
 
-        for key, val in {"str": "18", "dex": "14", "con": "12",
-                         "base_attack": "5", "hit_die_avg": "6"}.items():
+        for key, val in {"str": "18", "dex": "14", "con": "12", "base_attack": "5", "hit_die_avg": "6"}.items():
             _set_attr(db, cid, "stat", key, val)
 
         # Use a system pack with grouped stacking (group by bonus_type)
@@ -122,10 +119,8 @@ class TestTypedStackingIntegration:
         defense_base = result_base.derived["defense"]
 
         # Add two circumstance bonuses — only +3 should apply
-        _add_combat_modifier(db, cid, "cover", "bonus_defense", 2,
-                             bonus_type="circumstance")
-        _add_combat_modifier(db, cid, "shield", "bonus_defense", 3,
-                             bonus_type="circumstance")
+        _add_combat_modifier(db, cid, "cover", "bonus_defense", 2, bonus_type="circumstance")
+        _add_combat_modifier(db, cid, "shield", "bonus_defense", 3, bonus_type="circumstance")
 
         result = recalculate(pack, char, db=db)
         assert result.derived["defense"] == defense_base + 3  # not +5
@@ -141,8 +136,7 @@ class TestTypedStackingIntegration:
         sid = make_session()
         cid = make_character(sid, level=5)
 
-        for key, val in {"str": "18", "dex": "14", "con": "12",
-                         "base_attack": "5", "hit_die_avg": "6"}.items():
+        for key, val in {"str": "18", "dex": "14", "con": "12", "base_attack": "5", "hit_die_avg": "6"}.items():
             _set_attr(db, cid, "stat", key, val)
 
         pack = load_system_pack(TEST_SYSTEM)
@@ -156,10 +150,8 @@ class TestTypedStackingIntegration:
         result_base = recalculate(pack, char, db=db)
         defense_base = result_base.derived["defense"]
 
-        _add_combat_modifier(db, cid, "cover", "bonus_defense", 2,
-                             bonus_type="circumstance")
-        _add_combat_modifier(db, cid, "bless", "bonus_defense", 1,
-                             bonus_type="status")
+        _add_combat_modifier(db, cid, "cover", "bonus_defense", 2, bonus_type="circumstance")
+        _add_combat_modifier(db, cid, "bless", "bonus_defense", 1, bonus_type="status")
 
         result = recalculate(pack, char, db=db)
         assert result.derived["defense"] == defense_base + 3  # +2 circ + +1 status
@@ -177,8 +169,11 @@ class TestMCPCombatModifier:
         cid = make_character(sid)
 
         result = combat_modifier(
-            character_id=cid, action="add",
-            source="bless", target_stat="bonus_attack", value=1,
+            character_id=cid,
+            action="add",
+            source="bless",
+            target_stat="bonus_attack",
+            value=1,
             bonus_type="status",
         )
         assert "MODIFIER ADDED" in result
@@ -194,8 +189,7 @@ class TestMCPCombatModifier:
         sid = make_session()
         cid = make_character(sid)
 
-        combat_modifier(character_id=cid, action="add",
-                        source="bless", target_stat="bonus_attack", value=1)
+        combat_modifier(character_id=cid, action="add", source="bless", target_stat="bonus_attack", value=1)
         result = combat_modifier(character_id=cid, action="remove", source="bless")
         assert "REMOVED" in result
 
@@ -208,12 +202,17 @@ class TestMCPCombatModifier:
         sid = make_session()
         cid = make_character(sid)
 
-        combat_modifier(character_id=cid, action="add",
-                        source="buff1", target_stat="bonus_ac", value=2,
-                        duration_type="encounter")
-        combat_modifier(character_id=cid, action="add",
-                        source="curse", target_stat="bonus_will", value=-2,
-                        duration_type="permanent")
+        combat_modifier(
+            character_id=cid, action="add", source="buff1", target_stat="bonus_ac", value=2, duration_type="encounter"
+        )
+        combat_modifier(
+            character_id=cid,
+            action="add",
+            source="curse",
+            target_stat="bonus_will",
+            value=-2,
+            duration_type="permanent",
+        )
 
         result = combat_modifier(character_id=cid, action="clear")
         assert "CLEARED: 1" in result  # only encounter, not permanent
