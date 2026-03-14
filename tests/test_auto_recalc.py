@@ -466,6 +466,92 @@ class TestInitiativeAutoRoll:
         db.close()
 
 
+class TestCharacterLookupByName:
+    """Tools accept character name instead of numeric ID."""
+
+    def test_character_view_by_name(self, make_session, make_character):
+        from mcp_server import character_view
+
+        sid = make_session()
+        cid = make_character(sid, name="Valeria")
+
+        result = character_view(character_id="Valeria")
+        assert "Valeria" in result
+        assert f"ID: {cid}" in result
+
+    def test_case_insensitive(self, make_session, make_character):
+        from mcp_server import character_view
+
+        sid = make_session()
+        make_character(sid, name="Valeria")
+
+        result = character_view(character_id="valeria")
+        assert "Valeria" in result
+
+    def test_numeric_passthrough(self, make_session, make_character):
+        from mcp_server import character_view
+
+        sid = make_session()
+        cid = make_character(sid, name="Valeria")
+
+        result = character_view(character_id=cid)
+        assert "Valeria" in result
+
+    def test_numeric_string_passthrough(self, make_session, make_character):
+        from mcp_server import character_view
+
+        sid = make_session()
+        cid = make_character(sid, name="Valeria")
+
+        result = character_view(character_id=str(cid))
+        assert "Valeria" in result
+
+    def test_not_found(self, make_session, make_character):
+        from mcp_server import character_view
+
+        sid = make_session()
+        make_character(sid, name="Valeria")
+
+        result = character_view(character_id="Nobody")
+        assert "ERROR" in result
+        assert "not found" in result
+
+    def test_ambiguous(self, make_session, make_character):
+        from mcp_server import character_view
+
+        sid = make_session()
+        make_character(sid, name="Goblin")
+        make_character(sid, name="Goblin")
+
+        result = character_view(character_id="Goblin")
+        assert "ERROR" in result
+        assert "Ambiguous" in result
+
+    def test_combat_modifier_by_name(self, make_session, make_character):
+        from mcp_server import combat_modifier
+
+        sid = make_session()
+        make_character(sid, name="Fighter")
+
+        result = combat_modifier(
+            character_id="Fighter", action="add",
+            source="bless", target_stat="bonus_attack", value=1,
+        )
+        assert "MODIFIER ADDED" in result
+
+    def test_npc_interact_by_name(self, make_session, make_character):
+        """Verify resolve happens (NPC spawn may fail but ID resolves)."""
+        from mcp_server import npc_interact
+
+        sid = make_session()
+        make_character(sid, name="Bartender", char_type="npc")
+
+        # The NPC subprocess will likely fail in test env, but we verify
+        # the name resolves (no "not found" error about the name)
+        result = npc_interact(session_id=sid, npc_id="Bartender", message="Hello")
+        assert "not found" not in result or "Bartender" not in result
+
+
 class TestNoRecalcWithoutSystem:
     """Sessions without rules_system skip recalc silently."""
 

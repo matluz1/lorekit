@@ -20,6 +20,44 @@ mcp = FastMCP("lorekit", host="127.0.0.1", port=NPC_MCP_PORT)
 # ---------------------------------------------------------------------------
 
 
+def _resolve_character(db, identifier, session_id: int | None = None) -> int:
+    """Resolve a character by ID or name.
+
+    - int or numeric string → used as ID directly
+    - string → case-insensitive name search, scoped to session_id if given
+    - Raises LoreKitError on not found or ambiguous match
+    """
+    from _db import LoreKitError
+
+    # Numeric passthrough
+    if isinstance(identifier, int):
+        return identifier
+    if isinstance(identifier, str) and identifier.strip().isdigit():
+        return int(identifier.strip())
+
+    # Name search
+    name = identifier.strip()
+    if session_id is not None:
+        rows = db.execute(
+            "SELECT id, name FROM characters "
+            "WHERE session_id = ? AND LOWER(name) = LOWER(?)",
+            (session_id, name),
+        ).fetchall()
+    else:
+        rows = db.execute(
+            "SELECT id, name FROM characters WHERE LOWER(name) = LOWER(?)",
+            (name,),
+        ).fetchall()
+
+    if len(rows) == 1:
+        return rows[0][0]
+    if len(rows) == 0:
+        raise LoreKitError(f"Character '{name}' not found")
+    # Ambiguous
+    options = ", ".join(f"{r[1]} (id={r[0]})" for r in rows)
+    raise LoreKitError(f"Ambiguous name '{name}' — matches: {options}")
+
+
 def _run_with_db(fn, *args, **kwargs):
     """Get a DB connection, call fn(db, ...), close DB."""
     from _db import require_db, LoreKitError
@@ -166,11 +204,22 @@ def character_create(session: int, name: str, level: int, type: str = "pc", regi
 
 
 @mcp.tool()
-def character_view(character_id: int) -> str:
-    """View full character sheet: identity, attributes, inventory, abilities."""
+def character_view(character_id: int | str) -> str:
+    """View full character sheet: identity, attributes, inventory, abilities.
+
+    character_id: numeric ID or character name (case-insensitive).
+    """
+    from _db import LoreKitError, require_db
     from character import view
 
-    return _run_with_db(view, character_id)
+    db = require_db()
+    try:
+        cid = _resolve_character(db, character_id)
+        return view(db, cid)
+    except LoreKitError as e:
+        return f"ERROR: {e}"
+    finally:
+        db.close()
 
 
 @mcp.tool()
@@ -874,7 +923,7 @@ def session_resume(session_id: int) -> str:
 
 @mcp.tool()
 def character_sheet_update(
-    character_id: int,
+    character_id: int | str,
     level: int = 0,
     status: str = "",
     region: int = 0,
@@ -905,6 +954,7 @@ def character_sheet_update(
 
     db = require_db()
     try:
+        character_id = _resolve_character(db, character_id)
         results = []
 
         if level or status or region:
@@ -1203,12 +1253,14 @@ def _is_npc_http_server_running() -> bool:
 
 
 @mcp.tool()
-def npc_interact(session_id: int, npc_id: int, message: str) -> str:
+def npc_interact(session_id: int, npc_id: int | str, message: str) -> str:
     """Make an NPC speak in character. Spawns an ephemeral AI process for the NPC.
 
     The GM should call this whenever the player wants to talk to an NPC.
     The message param should describe the situation and what the PC said.
     Returns the NPC's in-character response.
+
+    npc_id: numeric ID or NPC name (case-insensitive).
     """
     import subprocess
 
@@ -1216,6 +1268,7 @@ def npc_interact(session_id: int, npc_id: int, message: str) -> str:
 
     db = require_db()
     try:
+        npc_id = _resolve_character(db, npc_id, session_id)
         result = _build_npc_prompt(db, npc_id, session_id)
         if not result:
             return f"ERROR: NPC #{npc_id} not found in session #{session_id}"
@@ -1326,11 +1379,12 @@ def system_info(system: str = "", session_id: int = 0, section: str = "all") -> 
 
 
 @mcp.tool()
-def rules_check(character_id: int, check: str, dc: int, system_path: str = "") -> str:
+def rules_check(character_id: int | str, check: str, dc: int, system_path: str = "") -> str:
     """Roll a derived stat against a DC. Reads pre-computed values (run rules_calc first).
 
     Returns the roll result with success/failure and margin.
 
+    character_id: numeric ID or character name (case-insensitive).
     If system_path is empty, reads the session's 'rules_system' metadata
     and looks for the pack under systems/<rules_system>/ in the project root.
     """
@@ -1340,6 +1394,7 @@ def rules_check(character_id: int, check: str, dc: int, system_path: str = "") -
 
     db = require_db()
     try:
+        character_id = _resolve_character(db, character_id)
         if not system_path:
             row = db.execute(
                 "SELECT session_id FROM characters WHERE id = ?",
@@ -1368,7 +1423,7 @@ def rules_check(character_id: int, check: str, dc: int, system_path: str = "") -
 
 
 @mcp.tool()
-def rules_resolve(attacker_id: int, defender_id: int, action: str,
+def rules_resolve(attacker_id: int | str, defender_id: int | str, action: str,
                   options: str = "{}", system_path: str = "") -> str:
     """Resolve a combat action between two characters.
 
@@ -1377,6 +1432,7 @@ def rules_resolve(attacker_id: int, defender_id: int, action: str,
 
     Both characters must have derived stats computed (run rules_calc first).
 
+    attacker_id/defender_id: numeric ID or character name (case-insensitive).
     If system_path is empty, reads the session's 'rules_system' metadata
     and looks for the pack under systems/<rules_system>/ in the project root.
     """
@@ -1387,6 +1443,8 @@ def rules_resolve(attacker_id: int, defender_id: int, action: str,
 
     db = require_db()
     try:
+        attacker_id = _resolve_character(db, attacker_id)
+        defender_id = _resolve_character(db, defender_id)
         if not system_path:
             row = db.execute(
                 "SELECT session_id FROM characters WHERE id = ?",
@@ -1453,13 +1511,14 @@ def rules_resolve(attacker_id: int, defender_id: int, action: str,
 
 
 @mcp.tool()
-def rules_calc(character_id: int, system_path: str = "") -> str:
+def rules_calc(character_id: int | str, system_path: str = "") -> str:
     """Recompute all derived stats for a character using the rules engine.
 
     Loads the system pack, reads the character's base attributes, resolves
     the dependency graph, writes derived stats back to the sheet, and
     returns a summary of what changed.
 
+    character_id: numeric ID or character name (case-insensitive).
     If system_path is empty, reads the session's 'rules_system' metadata
     and looks for the pack under systems/<rules_system>/ in the project root.
     """
@@ -1469,6 +1528,7 @@ def rules_calc(character_id: int, system_path: str = "") -> str:
 
     db = require_db()
     try:
+        character_id = _resolve_character(db, character_id)
         if not system_path:
             # Look up character's session, then session's rules_system meta
             row = db.execute(
@@ -1498,7 +1558,7 @@ def rules_calc(character_id: int, system_path: str = "") -> str:
 
 
 @mcp.tool()
-def end_turn(character_id: int, system_path: str = "") -> str:
+def end_turn(character_id: int | str, system_path: str = "") -> str:
     """Tick durations on a character's combat modifiers at end of turn.
 
     Processes each modifier according to the system pack's end_turn config:
@@ -1507,6 +1567,7 @@ def end_turn(character_id: int, system_path: str = "") -> str:
 
     Automatically recomputes derived stats when modifiers expire.
 
+    character_id: numeric ID or character name (case-insensitive).
     If system_path is empty, reads the session's 'rules_system' metadata.
     """
     import os
@@ -1515,6 +1576,7 @@ def end_turn(character_id: int, system_path: str = "") -> str:
 
     db = require_db()
     try:
+        character_id = _resolve_character(db, character_id)
         if not system_path:
             row = db.execute(
                 "SELECT session_id FROM characters WHERE id = ?",
@@ -1544,7 +1606,7 @@ def end_turn(character_id: int, system_path: str = "") -> str:
 
 @mcp.tool()
 def combat_modifier(
-    character_id: int, action: str, source: str = "",
+    character_id: int | str, action: str, source: str = "",
     target_stat: str = "", value: int = 0,
     modifier_type: str = "buff", bonus_type: str = "",
     duration_type: str = "encounter", duration: int = 0,
@@ -1552,6 +1614,7 @@ def combat_modifier(
 ) -> str:
     """Manage transient combat modifiers on a character.
 
+    character_id: numeric ID or character name (case-insensitive).
     action: "add", "list", "remove", or "clear".
 
     add — apply a transient modifier (pre-combat buffs, environmental effects,
@@ -1565,6 +1628,7 @@ def combat_modifier(
 
     db = require_db()
     try:
+        character_id = _resolve_character(db, character_id)
         if action == "add":
             if not source or not target_stat:
                 return "ERROR: 'add' requires source and target_stat"
@@ -1647,13 +1711,14 @@ def combat_modifier(
 
 
 @mcp.tool()
-def rules_modifiers(character_id: int, stat: str = "", system_path: str = "") -> str:
+def rules_modifiers(character_id: int | str, stat: str = "", system_path: str = "") -> str:
     """Show modifier decomposition for a character's stats.
 
     Displays all active modifiers with their types, sources, and which
     ones survived stacking. If stat is specified, shows only that stat;
     otherwise shows all stats with active modifiers.
 
+    character_id: numeric ID or character name (case-insensitive).
     If system_path is empty, reads the session's 'rules_system' metadata.
     """
     import os
@@ -1662,6 +1727,7 @@ def rules_modifiers(character_id: int, stat: str = "", system_path: str = "") ->
 
     db = require_db()
     try:
+        character_id = _resolve_character(db, character_id)
         if not system_path:
             row = db.execute(
                 "SELECT session_id FROM characters WHERE id = ?",
@@ -1837,17 +1903,20 @@ def encounter_status(session_id: int) -> str:
 
 
 @mcp.tool()
-def encounter_move(character_id: int, target_zone: str) -> str:
+def encounter_move(character_id: int | str, target_zone: str) -> str:
     """Move a character to a different zone during an encounter.
 
     Validates movement cost against the character's movement budget
     (derived stat 'movement_zones' or system default). Applies/removes
     terrain modifiers automatically.
+
+    character_id: numeric ID or character name (case-insensitive).
     """
     from _db import LoreKitError, require_db
 
     db = require_db()
     try:
+        character_id = _resolve_character(db, character_id)
         # Find the character's session and active encounter
         row = db.execute(
             "SELECT session_id FROM characters WHERE id = ?",
