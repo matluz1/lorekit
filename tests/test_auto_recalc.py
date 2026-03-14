@@ -485,6 +485,122 @@ class TestFullCombatIntegration:
         db4.close()
 
 
+class TestFullCombatIntegrationMM3e:
+    """Full GM combat flow with M&M3e degree resolution + auto-recalc."""
+
+    @pytest.fixture
+    def mm3e_session(self, make_session, tmp_path):
+        """Create a session with rules_system=mm3e."""
+        sid = make_session()
+        from _db import require_db
+
+        db = require_db()
+        db.execute(
+            "INSERT INTO session_meta (session_id, key, value) VALUES (?, 'rules_system', 'mm3e')",
+            (sid,),
+        )
+        db.commit()
+        db.close()
+        return sid
+
+    def _setup_mm3e_char(self, db, cid, fgt=4, agl=2, str_=4, sta=4):
+        """Set M&M3e base stats and compute derived."""
+        mm3e_path = os.path.join(os.path.dirname(__file__), "..", "systems", "mm3e")
+        for key, val in {
+            "fgt": str(fgt), "agl": str(agl), "str": str(str_), "sta": str(sta),
+            "dex": "0", "int": "0", "awe": "2", "pre": "0",
+            "power_level": "10",
+        }.items():
+            db.execute(
+                "INSERT INTO character_attributes (character_id, category, key, value) "
+                "VALUES (?, 'stat', ?, ?) "
+                "ON CONFLICT(character_id, category, key) DO UPDATE SET value = excluded.value",
+                (cid, key, val),
+            )
+        db.commit()
+        from rules_engine import rules_calc
+        rules_calc(db, cid, mm3e_path)
+
+    def test_mm3e_degree_combat_flow(self, mm3e_session, make_character):
+        from _db import require_db
+        from mcp_server import (
+            combat_modifier,
+            encounter_advance_turn,
+            encounter_end,
+            encounter_start,
+            rules_resolve,
+        )
+
+        db = require_db()
+        hero = make_character(mm3e_session, name="Paragon", char_type="pc")
+        villain = make_character(mm3e_session, name="Brute", char_type="npc")
+        self._setup_mm3e_char(db, hero, fgt=8, agl=4, str_=8, sta=6)
+        self._setup_mm3e_char(db, villain, fgt=6, agl=2, str_=6, sta=4)
+
+        hero_dodge_base = _get_derived(db, hero, "dodge")
+        villain_parry_base = _get_derived(db, villain, "parry")
+        db.close()
+
+        # 1. encounter_start with cover zone
+        zones = '[{"name":"Rooftop","tags":["cover"]},{"name":"Street"}]'
+        initiative = json.dumps([
+            {"character_id": hero, "roll": 20},
+            {"character_id": villain, "roll": 10},
+        ])
+        placements = json.dumps([
+            {"character_id": hero, "zone": "Rooftop"},
+            {"character_id": villain, "zone": "Rooftop"},
+        ])
+        result = encounter_start(
+            session_id=mm3e_session, zones=zones,
+            initiative=initiative, placements=placements,
+        )
+        assert "ENCOUNTER STARTED" in result
+
+        # Hero in cover should have +2 dodge
+        db2 = require_db()
+        assert _get_derived(db2, hero, "dodge") == hero_dodge_base + 2
+        db2.close()
+
+        # 2. combat_modifier — buff villain
+        result = combat_modifier(
+            character_id=villain, action="add",
+            source="power_boost", target_stat="bonus_close_attack", value=2,
+            duration_type="rounds", duration=3,
+        )
+        assert "MODIFIER ADDED" in result
+        assert "RULES_CALC" in result
+
+        # 3. rules_resolve — degree resolution (close_attack)
+        result = rules_resolve(
+            attacker_id=hero, defender_id=villain, action="close_attack",
+        )
+        assert "ACTION" in result
+        # Degree resolution shows resistance check
+        assert "RESIST" in result or "MISS" in result
+
+        # 4. advance turn — auto end_turn on hero
+        result = encounter_advance_turn(session_id=mm3e_session)
+        assert "END TURN" in result
+        assert "Brute" in result
+
+        # 5. advance again — auto end_turn on villain (power_boost ticks)
+        result = encounter_advance_turn(session_id=mm3e_session)
+        assert "TICKED: power_boost" in result
+        assert "Paragon" in result
+
+        # 6. encounter_end
+        result = encounter_end(session_id=mm3e_session)
+        assert "COMBAT ENDED" in result
+        assert "Paragon (pc)" in result
+        assert "Brute (npc)" in result
+
+        # Cover modifier gone after encounter
+        db3 = require_db()
+        assert _get_derived(db3, hero, "dodge") == hero_dodge_base
+        db3.close()
+
+
 class TestAdvanceTurnAutoEndTurn:
     """advance_turn automatically calls end_turn on the previous character."""
 
