@@ -1447,15 +1447,20 @@ class TestCharacterLookupByName:
         assert "MODIFIER ADDED" in result
 
     def test_npc_interact_by_name(self, make_session, make_character):
-        """Verify resolve happens (NPC spawn may fail but ID resolves)."""
+        """Verify name resolution works (mock subprocess to avoid LLM call)."""
+        from unittest.mock import patch
+
         from mcp_server import npc_interact
 
         sid = make_session()
         make_character(sid, name="Bartender", char_type="npc")
 
-        # The NPC subprocess will likely fail in test env, but we verify
-        # the name resolves (no "not found" error about the name)
-        result = npc_interact(session_id=sid, npc_id="Bartender", message="Hello")
+        # Mock subprocess to return a valid stream-json response
+        mock_stdout = '{"type":"result","subtype":"success","result":"Hello traveler!"}\n'
+        mock_proc = type("Proc", (), {"returncode": 0, "stdout": mock_stdout, "stderr": ""})()
+
+        with patch("subprocess.run", return_value=mock_proc):
+            result = npc_interact(session_id=sid, npc_id="Bartender", message="Hello")
         assert "not found" not in result or "Bartender" not in result
 
 
