@@ -84,6 +84,42 @@ Read the TOTAL line from the output for the result.
 
 ---
 
+## After Your Response
+
+When something noteworthy happens during the interaction — an emotional
+shift, new information learned, a relationship change — append metadata
+blocks **after** your in-character response. The GM never sees these;
+they are parsed automatically. Routine interactions need no metadata.
+
+### Memory block
+
+```
+[MEMORIES]
+- content: "Learned that the merchant guild controls the docks" | importance: 0.8 | type: observation | entities: ["merchant guild"]
+- content: "The stranger seemed genuinely afraid" | importance: 0.6 | type: experience | entities: ["stranger"]
+```
+
+Fields: `content` (required, quoted), `importance` (0.0–1.0, default 0.5),
+`type` (experience, observation, relationship, reflection), `entities`
+(JSON array of names).
+
+### State change block
+
+```
+[STATE_CHANGES]
+- emotional_state: "anxious and suspicious"
+- relationship.Mira: "growing trust after she helped escape the guards"
+```
+
+Use `relationship.Name` to update how you feel about a specific person.
+Other valid fields: `emotional_state`, `self_concept`, `current_goals`,
+`behavioral_patterns`.
+
+Only include these blocks when something meaningful changes. A casual
+greeting needs none. A betrayal revelation needs both.
+
+---
+
 ## Using Context
 
 You have access to search tools to recall past events and relationships.

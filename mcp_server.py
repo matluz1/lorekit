@@ -1420,7 +1420,25 @@ def npc_interact(session_id: int, npc_id: int | str, message: str) -> str:
 
         response_text, tool_names = _parse_npc_stream(proc.stdout, npc_name)
 
-        result = response_text.strip() or f"{npc_name} says nothing."
+        # Post-process: extract memories/state from NPC response
+        from core.npc_postprocess import process_npc_response
+
+        db2 = require_db()
+        try:
+            # Get narrative time from session meta
+            meta_row = db2.execute(
+                "SELECT value FROM session_meta WHERE session_id = ? AND key = 'narrative_time'",
+                (session_id,),
+            ).fetchone()
+            narrative_time = meta_row[0] if meta_row else ""
+
+            clean_text = process_npc_response(db2, session_id, npc_id, response_text, npc_name, narrative_time)
+        except Exception:
+            clean_text = response_text  # fallback: return raw text
+        finally:
+            db2.close()
+
+        result = clean_text.strip() or f"{npc_name} says nothing."
         if tool_names:
             marker = f"[NPC_TOOLS:{npc_name}:{','.join(tool_names)}]"
             result = f"{marker}\n{result}"
