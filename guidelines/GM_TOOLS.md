@@ -209,7 +209,8 @@ Set the initial time via `session_setup(narrative_time="...")`.
 
 ## time_advance
 
-Advance the in-game clock by a given amount.
+Advance the in-game clock by a given amount. Automatically triggers NPC
+reflection when the timeskip is >= 7 days.
 
 ```
 time_advance(session_id=1, amount=3, unit="hours")
@@ -225,6 +226,12 @@ time_advance(session_id=1, amount=7, unit="days")
 **Output:**
 ```
 TIME_ADVANCED: 1347-03-15T14:00 → 1347-03-15T17:00 (+3 hours)
+```
+
+**Output (large timeskip with reflections):**
+```
+TIME_ADVANCED: 1347-03-15T14:00 → 1347-03-22T14:00 (+7 days)
+REFLECTIONS: Reflected on 2 NPCs (Roderick: 3 insights, Mira: 2 insights). Skipped 1 NPCs below threshold.
 ```
 
 Narrative time must be set first (via `time_set` or `session_setup`).
@@ -316,7 +323,8 @@ session_list(status="finished")
 
 ## session_update
 
-Update session status.
+Update session status. When status is set to `"finished"`, automatically
+triggers NPC reflection on all NPCs regardless of threshold.
 
 ```
 session_update(session_id=1, status="finished")
@@ -330,6 +338,12 @@ session_update(session_id=1, status="finished")
 **Output:**
 ```
 SESSION_UPDATED: 1
+```
+
+**Output (finishing session with reflections):**
+```
+SESSION_UPDATED: 1
+REFLECTIONS: Reflected on 3 NPCs (Roderick: 2 insights, Mira: 3 insights, Elder: 1 insights).
 ```
 
 ## session_meta_set
@@ -659,6 +673,38 @@ The tool:
 3. Executes: move → resolve action → advance turn (auto end_turn)
 
 Supports narrative-only turns when the NPC chooses no mechanical action.
+
+## npc_reflect
+
+Trigger reflection for a single NPC. Synthesizes accumulated memories into
+higher-order insights, behavioral rules, and identity updates.
+
+Reflection is also triggered automatically by:
+- `time_advance` when the timeskip is >= 7 days
+- `session_update` when status is set to `"finished"` (reflects all NPCs)
+
+```
+npc_reflect(session_id=1, npc_id=3)
+npc_reflect(session_id=1, npc_id="Roderick")
+```
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| session_id | int | yes | Session ID |
+| npc_id | int/str | yes | NPC character ID or name |
+
+**Output:**
+```
+NPC_REFLECTED: Roderick — 3 reflections, 1 behavioral rules
+```
+
+The tool:
+1. Gathers unprocessed memories (since the NPC's last reflection)
+2. Sends them to an LLM along with the NPC's identity
+3. Stores resulting insights as `reflection` type memories
+4. Merges new behavioral rules into `npc_core.behavioral_patterns`
+5. Applies identity updates (self_concept, goals, emotional_state) if warranted
+6. Prunes very old, unimportant, never-accessed memories (> 38 days, importance < 0.3)
 
 ---
 

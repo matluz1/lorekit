@@ -219,6 +219,26 @@ around it but MUST NOT alter the NPC's actual words.
 - Brief combat taunts during active rounds, for pacing
 - NPCs that cannot be interacted with (unconscious, too far)
 
+### NPC Reflection
+
+NPCs automatically synthesize their accumulated memories into higher-order
+insights through reflection. This happens transparently in two cases:
+
+- **Large timeskips** (>= 7 days via `time_advance`): NPCs whose unprocessed
+  memories exceed the importance threshold reflect on recent events.
+- **Session end** (`session_update(status="finished")`): All NPCs reflect
+  regardless of threshold.
+
+You can also trigger reflection manually with `npc_reflect(session_id, npc_id)`
+for a specific NPC. This is useful after pivotal story events.
+
+Reflection produces insights stored as `reflection` memories, new behavioral
+rules, and potential identity updates. These feed back into future NPC
+interactions automatically — no GM action needed beyond the trigger.
+
+Old, unimportant, never-accessed memories (> 38 days, importance < 0.3) are
+pruned during reflection to keep memory manageable.
+
 ---
 
 ## 7. Combat Flow

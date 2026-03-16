@@ -86,6 +86,19 @@ def _run_with_db(fn, *args, **kwargs):
         db.close()
 
 
+def _timeskip_hours(amount, unit):
+    """Convert a time amount+unit to approximate hours."""
+    multipliers = {
+        "minutes": 1 / 60,
+        "hours": 1,
+        "days": 24,
+        "weeks": 168,
+        "months": 720,
+        "years": 8760,
+    }
+    return amount * multipliers.get(unit, 0)
+
+
 # ---------------------------------------------------------------------------
 # init_db
 # ---------------------------------------------------------------------------
@@ -128,10 +141,26 @@ def session_list(status: str = "") -> str:
 
 @mcp.tool()
 def session_update(session_id: int, status: str) -> str:
-    """Update session status."""
-    from session import update
+    """Update session status. Auto-triggers NPC reflection when session is finished."""
+    from _db import LoreKitError, require_db
 
-    return _run_with_db(update, session_id, status)
+    db = require_db()
+    try:
+        from session import update
+
+        result = update(db, session_id, status)
+
+        if status == "finished":
+            from npc_reflect import reflect_all
+
+            ref_result = reflect_all(db, session_id, threshold=0.0, context_hint="Session ended")
+            result += f"\n{ref_result}"
+
+        return result
+    except LoreKitError as e:
+        return f"ERROR: {e}"
+    finally:
+        db.close()
 
 
 @mcp.tool()
@@ -496,10 +525,29 @@ def time_set(session_id: int, datetime: str) -> str:
 
 @mcp.tool()
 def time_advance(session_id: int, amount: int, unit: str) -> str:
-    """Advance the in-game clock. Units: minutes, hours, days, weeks, months, years."""
-    from narrative_time import advance
+    """Advance the in-game clock. Units: minutes, hours, days, weeks, months, years.
+    Auto-triggers NPC reflection on large timeskips (>= 7 days)."""
+    from _db import LoreKitError, require_db
 
-    return _run_with_db(advance, session_id, amount, unit)
+    db = require_db()
+    try:
+        from narrative_time import advance
+
+        result = advance(db, session_id, amount, unit)
+
+        # Check for large timeskip → auto-reflect
+        hours = _timeskip_hours(amount, unit)
+        if hours >= 168:  # 7 days
+            from npc_reflect import reflect_all
+
+            ref_result = reflect_all(db, session_id, context_hint=f"{amount} {unit} have passed in-game")
+            result += f"\n{ref_result}"
+
+        return result
+    except LoreKitError as e:
+        return f"ERROR: {e}"
+    finally:
+        db.close()
 
 
 # ---------------------------------------------------------------------------
@@ -1561,6 +1609,28 @@ def npc_memory_add(
         )
         return f"NPC_MEMORY_ADDED: {memory_id}"
     except LoreKitError as e:
+        return f"ERROR: {e}"
+    finally:
+        db.close()
+
+
+@mcp.tool()
+def npc_reflect(session_id: int, npc_id: int | str) -> str:
+    """Trigger reflection for a single NPC. Generates insights from accumulated memories."""
+    from _db import require_db
+
+    db = require_db()
+    try:
+        npc_id = _resolve_character(db, npc_id, session_id)
+        # Verify it's an NPC
+        char = db.execute("SELECT type FROM characters WHERE id = ?", (npc_id,)).fetchone()
+        if not char or char[0] != "npc":
+            return f"ERROR: Character #{npc_id} is not an NPC"
+        from npc_reflect import generate_reflection
+
+        result = generate_reflection(db, session_id, npc_id)
+        return f"NPC_REFLECTED: {result['npc_name']} — {result['reflections_stored']} reflections, {result['rules_added']} behavioral rules"
+    except Exception as e:
         return f"ERROR: {e}"
     finally:
         db.close()
