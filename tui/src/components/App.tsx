@@ -5,6 +5,7 @@ import { Input } from "./Input.js";
 import { Sidebar } from "./Sidebar.js";
 import type { AgentProcess, Provider, ProviderOptions } from "../provider.js";
 import { getSidebarData, getActiveSessions, type SidebarData } from "../db.js";
+import { clearLog } from "../logger.js";
 
 /** A tool call logged during the current GM turn. */
 export interface ToolCallEntry {
@@ -130,6 +131,15 @@ export function App({
       if (text.toLowerCase() === "/quit") {
         agentRef.current.stop();
         exit();
+        return;
+      }
+
+      if (text.toLowerCase() === "/clearlog") {
+        clearLog();
+        setMessages((prev) => [
+          ...prev,
+          { role: "system", content: "Log cleared." },
+        ]);
         return;
       }
 
@@ -276,7 +286,7 @@ export function App({
 
       {/* Footer */}
       <Box paddingX={1}>
-        <Text dimColor>/quit to exit</Text>
+        <Text dimColor>/quit to exit · /clearlog to clear log</Text>
       </Box>
     </Box>
   );

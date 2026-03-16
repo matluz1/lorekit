@@ -1,9 +1,11 @@
 /**
  * Simple file logger for GM/NPC streams.
- * Usage: tail -f data/gm.log  or  tail -f data/npc.log
+ * Usage: tail -f data/lorekit.log
  */
 import { appendFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
+
+const LOG_FILE = "lorekit.log";
 
 let logDir: string = ".";
 
@@ -15,21 +17,21 @@ function ts(): string {
   return new Date().toISOString().slice(11, 23); // HH:MM:SS.mmm
 }
 
-function write(file: string, tag: string, text: string) {
-  const line = `${ts()} [${tag}] ${text}\n`;
-  appendFileSync(resolve(logDir, file), line);
+function write(source: string, tag: string, text: string) {
+  const line = `${ts()} ${source} [${tag}] ${text}\n`;
+  appendFileSync(resolve(logDir, LOG_FILE), line);
 }
 
-export function clearLog(file: string) {
+export function clearLog() {
   try {
-    writeFileSync(resolve(logDir, file), "");
+    writeFileSync(resolve(logDir, LOG_FILE), "");
   } catch {}
 }
 
 export function gmLog(tag: string, text: string) {
-  write("gm.log", tag, text);
+  write("GM", tag, text);
 }
 
 export function npcLog(tag: string, text: string) {
-  write("npc.log", tag, text);
+  write("NPC", tag, text);
 }

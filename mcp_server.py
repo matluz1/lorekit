@@ -1400,10 +1400,10 @@ def _npc_log(msg: str):
     from datetime import datetime
 
     project_root = os.path.dirname(os.path.abspath(__file__))
-    log_path = os.path.join(project_root, "data", "npc.log")
+    log_path = os.path.join(project_root, "data", "lorekit.log")
     ts = datetime.now().strftime("%H:%M:%S.%f")[:12]
     with open(log_path, "a") as f:
-        f.write(f"{ts} {msg}\n")
+        f.write(f"{ts} NPC {msg}\n")
 
 
 def _parse_npc_stream(stdout: str, npc_name: str = "NPC") -> tuple[str, list[str]]:

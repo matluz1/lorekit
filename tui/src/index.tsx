@@ -6,7 +6,7 @@ import { spawn, type ChildProcess } from "node:child_process";
 import { App } from "./components/App.js";
 import { ClaudeProvider } from "./providers/claude.js";
 import { openDb, closeDb, getActiveSessions } from "./db.js";
-import { initLogger, clearLog } from "./logger.js";
+import { initLogger } from "./logger.js";
 
 // Resolve paths relative to project root (one level up from tui/)
 const projectRoot = resolve(import.meta.dirname, "../..");
@@ -31,10 +31,8 @@ if (!model) {
   process.exit(1);
 }
 
-// Initialize logger and clear previous logs
+// Initialize logger
 initLogger(projectRoot);
-clearLog("gm.log");
-clearLog("npc.log");
 
 // Open read-only DB for sidebar, auto-detect active LoreKit session
 openDb(projectRoot);
