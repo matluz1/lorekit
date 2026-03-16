@@ -70,16 +70,16 @@ def _has_vec_table(db):
     return row is not None
 
 
-def _upsert_embedding(db, source, source_id, session_id, content, created_at=None):
+def _upsert_embedding(db, source, source_id, session_id, content, created_at=None, npc_id=None):
     """Insert or update an embedding row and its vec0 entry."""
     embeddings = _embed_passages([content])
 
     # Upsert metadata row
     db.execute(
-        "INSERT INTO embeddings (source, source_id, session_id, content, created_at) "
-        "VALUES (?, ?, ?, ?, ?) "
-        "ON CONFLICT(source, source_id) DO UPDATE SET content = excluded.content",
-        (source, source_id, session_id, content, created_at or ""),
+        "INSERT INTO embeddings (source, source_id, session_id, npc_id, content, created_at) "
+        "VALUES (?, ?, ?, ?, ?, ?) "
+        "ON CONFLICT(source, source_id) DO UPDATE SET content = excluded.content, npc_id = excluded.npc_id",
+        (source, source_id, session_id, npc_id, content, created_at or ""),
     )
 
     row = db.execute(
@@ -108,6 +108,16 @@ def index_journal(db, session_id, sql_id, entry_type, content, created_at=None):
 def index_timeline(db, session_id, sql_id, entry_type, summary, created_at=None):
     """Upsert a timeline entry into the embeddings table (indexes the summary)."""
     _upsert_embedding(db, "timeline", sql_id, session_id, summary, created_at)
+
+
+def index_npc_memory(db, session_id, npc_id, memory_id, content):
+    """Upsert an NPC memory into the embeddings table."""
+    _upsert_embedding(db, "npc_memory", memory_id, session_id, content, npc_id=npc_id)
+
+
+def delete_npc_memories(db, memory_ids):
+    """Delete NPC memory embeddings."""
+    delete_embeddings(db, "npc_memory", memory_ids)
 
 
 def delete_embeddings(db, source, sql_ids):

@@ -162,6 +162,47 @@ def snapshot_session(db, session_id):
         ).fetchall()
     ]
 
+    # NPC memories
+    snap["npc_memories"] = [
+        {
+            "id": r[0],
+            "npc_id": r[1],
+            "content": r[2],
+            "importance": r[3],
+            "memory_type": r[4],
+            "entities": r[5],
+            "narrative_time": r[6],
+            "access_count": r[7],
+            "last_accessed": r[8],
+            "source_ids": r[9],
+            "created_at": r[10],
+        }
+        for r in db.execute(
+            "SELECT id, npc_id, content, importance, memory_type, entities, narrative_time, "
+            "access_count, last_accessed, source_ids, created_at FROM npc_memories WHERE session_id = ?",
+            (session_id,),
+        ).fetchall()
+    ]
+
+    # NPC core identity
+    snap["npc_core"] = [
+        {
+            "id": r[0],
+            "npc_id": r[1],
+            "self_concept": r[2],
+            "current_goals": r[3],
+            "emotional_state": r[4],
+            "relationships": r[5],
+            "behavioral_patterns": r[6],
+            "updated_at": r[7],
+        }
+        for r in db.execute(
+            "SELECT id, npc_id, self_concept, current_goals, emotional_state, relationships, "
+            "behavioral_patterns, updated_at FROM npc_core WHERE session_id = ?",
+            (session_id,),
+        ).fetchall()
+    ]
+
     return snap
 
 
@@ -209,6 +250,8 @@ def restore_snapshot(db, session_id, snapshot):
         db.execute("DELETE FROM story_acts WHERE session_id = ?", (session_id,))
         db.execute("DELETE FROM stories WHERE session_id = ?", (session_id,))
         db.execute("DELETE FROM regions WHERE session_id = ?", (session_id,))
+        db.execute("DELETE FROM npc_memories WHERE session_id = ?", (session_id,))
+        db.execute("DELETE FROM npc_core WHERE session_id = ?", (session_id,))
 
         # --- Restore from snapshot ---
 
@@ -327,6 +370,47 @@ def restore_snapshot(db, session_id, snapshot):
                     r["save_stat"],
                     r["save_dc"],
                     r["created_at"],
+                ),
+            )
+
+        # NPC memories
+        for r in snapshot.get("npc_memories", []):
+            db.execute(
+                "INSERT INTO npc_memories (id, session_id, npc_id, content, importance, memory_type, "
+                "entities, narrative_time, access_count, last_accessed, source_ids, created_at) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (
+                    r["id"],
+                    session_id,
+                    r["npc_id"],
+                    r["content"],
+                    r["importance"],
+                    r["memory_type"],
+                    r["entities"],
+                    r["narrative_time"],
+                    r["access_count"],
+                    r["last_accessed"],
+                    r["source_ids"],
+                    r["created_at"],
+                ),
+            )
+
+        # NPC core identity
+        for r in snapshot.get("npc_core", []):
+            db.execute(
+                "INSERT INTO npc_core (id, session_id, npc_id, self_concept, current_goals, "
+                "emotional_state, relationships, behavioral_patterns, updated_at) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (
+                    r["id"],
+                    session_id,
+                    r["npc_id"],
+                    r["self_concept"],
+                    r["current_goals"],
+                    r["emotional_state"],
+                    r["relationships"],
+                    r["behavioral_patterns"],
+                    r["updated_at"],
                 ),
             )
 

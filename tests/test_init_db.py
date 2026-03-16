@@ -37,6 +37,8 @@ def test_creates_all_tables():
         "encounter_state",
         "encounter_zones",
         "journal",
+        "npc_core",
+        "npc_memories",
         "regions",
         "session_meta",
         "sessions",

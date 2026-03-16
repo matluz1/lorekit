@@ -661,12 +661,15 @@ def character_build(
     attrs: str = "[]",
     items: str = "[]",
     abilities: str = "[]",
+    core: str = "{}",
 ) -> str:
     """Create a full character in one call: identity + attributes + items + abilities.
 
     attrs: JSON array of {"category":"stat","key":"str","value":"16"} objects.
     items: JSON array of {"name":"Sword","desc":"...","qty":1,"equipped":1} objects.
     abilities: JSON array of {"name":"Flame Burst","desc":"...","category":"spell","uses":"1/day"} objects.
+    core: JSON object of NPC core identity fields (only for type=npc).
+      Keys: self_concept, current_goals, emotional_state, relationships, behavioral_patterns.
     """
     import json as _json
 
@@ -678,6 +681,7 @@ def character_build(
         attrs_list = _json.loads(attrs)
         items_list = _json.loads(items)
         abilities_list = _json.loads(abilities)
+        core_dict = _json.loads(core)
     except _json.JSONDecodeError as e:
         return f"ERROR: Invalid JSON: {e}"
 
@@ -701,7 +705,17 @@ def character_build(
             set_ability(db, char_id, ab["name"], ab["desc"], ab["category"], ab.get("uses", "at_will"))
             ability_count += 1
 
-        summary = f"CHARACTER_BUILT: {char_id} (attrs={attr_count}, items={item_count}, abilities={ability_count})"
+        core_set = False
+        if core_dict and type == "npc":
+            from npc_memory import set_core
+
+            set_core(db, session, char_id, **core_dict)
+            core_set = True
+
+        summary = f"CHARACTER_BUILT: {char_id} (attrs={attr_count}, items={item_count}, abilities={ability_count}"
+        if core_set:
+            summary += ", core_set=True"
+        summary += ")"
 
         # Auto-run rules_calc if session has a rules_system configured
         rules_summary = try_rules_calc(db, char_id)
@@ -1003,6 +1017,7 @@ def character_sheet_update(
     items: str = "[]",
     abilities: str = "[]",
     remove_items: str = "[]",
+    core: str = "{}",
 ) -> str:
     """Batch update a character: level/status/region + attributes + items + abilities + remove items.
 
@@ -1010,6 +1025,8 @@ def character_sheet_update(
     items: JSON array of {"name":"Potion","desc":"...","qty":2,"equipped":0} objects.
     abilities: JSON array of {"name":"Shield","desc":"...","category":"spell","uses":"1/day"} objects.
     remove_items: JSON array of item names (strings) or item IDs (integers).
+    core: JSON object of NPC core identity fields (only for NPCs).
+      Keys: self_concept, current_goals, emotional_state, relationships, behavioral_patterns.
     """
     import json as _json
 
@@ -1022,6 +1039,7 @@ def character_sheet_update(
         items_list = _json.loads(items)
         abilities_list = _json.loads(abilities)
         remove_list = _json.loads(remove_items)
+        core_dict = _json.loads(core)
     except _json.JSONDecodeError as e:
         return f"ERROR: Invalid JSON: {e}"
 
@@ -1070,6 +1088,15 @@ def character_sheet_update(
             ability_count += 1
         if ability_count:
             results.append(f"ABILITIES_SET: {ability_count}")
+
+        if core_dict:
+            # Verify character is an NPC
+            char_row = db.execute("SELECT type, session_id FROM characters WHERE id = ?", (character_id,)).fetchone()
+            if char_row and char_row[0] == "npc":
+                from npc_memory import set_core
+
+                set_core(db, char_row[1], character_id, **core_dict)
+                results.append("NPC_CORE_SET")
 
         if not results:
             return "NO_CHANGES: no fields provided"
@@ -1402,6 +1429,46 @@ def npc_interact(session_id: int, npc_id: int | str, message: str) -> str:
         return "ERROR: NPC response timed out"
     except FileNotFoundError:
         return "ERROR: 'claude' CLI not found. Ensure it is installed and on PATH."
+
+
+@mcp.tool()
+def npc_memory_add(
+    session_id: int,
+    npc_id: int | str,
+    content: str,
+    importance: float = 0.5,
+    memory_type: str = "experience",
+    entities: str = "[]",
+    narrative_time: str = "",
+) -> str:
+    """Add a memory to an NPC. Memories persist and influence future NPC behavior.
+
+    memory_type: experience, observation, relationship, or reflection.
+    importance: 0.0 to 1.0 (higher = more likely to be recalled).
+    entities: JSON array of entity names referenced in this memory.
+    narrative_time: in-game timestamp for the memory.
+    """
+    from _db import LoreKitError, require_db
+
+    db = require_db()
+    try:
+        resolved_npc_id = _resolve_character(db, npc_id, session_id)
+
+        # Verify it's an NPC
+        row = db.execute("SELECT type FROM characters WHERE id = ?", (resolved_npc_id,)).fetchone()
+        if not row or row[0] != "npc":
+            return f"ERROR: Character {resolved_npc_id} is not an NPC"
+
+        from npc_memory import add_memory
+
+        memory_id = add_memory(
+            db, session_id, resolved_npc_id, content, importance, memory_type, entities, narrative_time
+        )
+        return f"NPC_MEMORY_ADDED: {memory_id}"
+    except LoreKitError as e:
+        return f"ERROR: {e}"
+    finally:
+        db.close()
 
 
 @mcp.tool()

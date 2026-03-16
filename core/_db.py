@@ -181,6 +181,34 @@ CREATE TABLE IF NOT EXISTS checkpoints (
     created_at      TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
 );
 
+CREATE TABLE IF NOT EXISTS npc_memories (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id      INTEGER NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+    npc_id          INTEGER NOT NULL REFERENCES characters(id) ON DELETE CASCADE,
+    content         TEXT NOT NULL,
+    importance      REAL NOT NULL DEFAULT 0.5,
+    memory_type     TEXT NOT NULL,
+    entities        TEXT,
+    narrative_time  TEXT NOT NULL,
+    access_count    INTEGER NOT NULL DEFAULT 0,
+    last_accessed   TEXT,
+    source_ids      TEXT,
+    created_at      TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
+);
+
+CREATE TABLE IF NOT EXISTS npc_core (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id      INTEGER NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+    npc_id          INTEGER NOT NULL REFERENCES characters(id) ON DELETE CASCADE,
+    self_concept    TEXT,
+    current_goals   TEXT,
+    emotional_state TEXT,
+    relationships   TEXT,
+    behavioral_patterns TEXT,
+    updated_at      TEXT,
+    UNIQUE(session_id, npc_id)
+);
+
 """
 
 INDEXES_SQL = """\
@@ -199,6 +227,9 @@ CREATE INDEX IF NOT EXISTS idx_checkpoints_session ON checkpoints(session_id);
 CREATE INDEX IF NOT EXISTS idx_encounter_state_session ON encounter_state(session_id);
 CREATE INDEX IF NOT EXISTS idx_encounter_zones ON encounter_zones(encounter_id);
 CREATE INDEX IF NOT EXISTS idx_character_zone ON character_zone(encounter_id);
+CREATE INDEX IF NOT EXISTS idx_npc_memories_npc ON npc_memories(npc_id, session_id);
+CREATE INDEX IF NOT EXISTS idx_npc_memories_importance ON npc_memories(importance);
+CREATE INDEX IF NOT EXISTS idx_npc_core_npc ON npc_core(session_id, npc_id);
 """
 
 # Migrations: add or drop columns on older databases

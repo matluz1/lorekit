@@ -128,6 +128,40 @@ def view(db, character_id: int) -> str:
         (character_id,),
     )
     lines.append(format_table(cur))
+
+    # NPC-specific sections
+    if row[5] == "npc":
+        session_id = row[1]
+
+        # NPC core identity
+        core_row = db.execute(
+            "SELECT self_concept, current_goals, emotional_state, relationships, behavioral_patterns "
+            "FROM npc_core WHERE session_id = ? AND npc_id = ?",
+            (session_id, character_id),
+        ).fetchone()
+        if core_row:
+            lines.append("")
+            lines.append("--- NPC CORE ---")
+            labels = ["SELF_CONCEPT", "CURRENT_GOALS", "EMOTIONAL_STATE", "RELATIONSHIPS", "BEHAVIORAL_PATTERNS"]
+            for label, val in zip(labels, core_row):
+                if val:
+                    lines.append(f"{label}: {val}")
+
+        # Top 5 NPC memories by importance
+        mem_rows = db.execute(
+            "SELECT content, importance, memory_type, narrative_time "
+            "FROM npc_memories WHERE npc_id = ? AND session_id = ? "
+            "ORDER BY importance DESC LIMIT 5",
+            (character_id, session_id),
+        ).fetchall()
+        if mem_rows:
+            lines.append("")
+            lines.append("--- NPC MEMORIES ---")
+            for m in mem_rows:
+                lines.append(f"[{m[2]}] (importance={m[1]}) {m[0]}")
+                if m[3]:
+                    lines.append(f"  narrative_time: {m[3]}")
+
     return "\n".join(lines)
 
 
