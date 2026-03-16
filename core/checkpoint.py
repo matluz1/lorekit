@@ -86,11 +86,19 @@ def snapshot_session(db, session_id):
                 char_ids,
             ).fetchall()
         ]
+        snap["character_aliases"] = [
+            {"id": r[0], "character_id": r[1], "alias": r[2]}
+            for r in db.execute(
+                f"SELECT id, character_id, alias FROM character_aliases WHERE character_id IN ({ph})",
+                char_ids,
+            ).fetchall()
+        ]
     else:
         snap["character_attributes"] = []
         snap["character_inventory"] = []
         snap["character_abilities"] = []
         snap["combat_state"] = []
+        snap["character_aliases"] = []
 
     # Stories
     snap["stories"] = [
@@ -162,6 +170,18 @@ def snapshot_session(db, session_id):
         ).fetchall()
     ]
 
+    # Entry entities (tags on timeline/journal entries for this session)
+    snap["entry_entities"] = [
+        {"id": r[0], "source": r[1], "source_id": r[2], "entity_type": r[3], "entity_id": r[4]}
+        for r in db.execute(
+            """SELECT ee.id, ee.source, ee.source_id, ee.entity_type, ee.entity_id
+               FROM entry_entities ee
+               WHERE (ee.source = 'timeline' AND ee.source_id IN (SELECT id FROM timeline WHERE session_id = ?))
+                  OR (ee.source = 'journal' AND ee.source_id IN (SELECT id FROM journal WHERE session_id = ?))""",
+            (session_id, session_id),
+        ).fetchall()
+    ]
+
     # NPC memories
     snap["npc_memories"] = [
         {
@@ -224,6 +244,15 @@ def restore_snapshot(db, session_id, snapshot):
             db.execute(f"DELETE FROM character_inventory WHERE character_id IN ({ph})", cur_char_ids)
             db.execute(f"DELETE FROM character_abilities WHERE character_id IN ({ph})", cur_char_ids)
             db.execute(f"DELETE FROM combat_state WHERE character_id IN ({ph})", cur_char_ids)
+            db.execute(f"DELETE FROM character_aliases WHERE character_id IN ({ph})", cur_char_ids)
+
+        # Clean up entry_entities for this session's timeline/journal
+        db.execute(
+            """DELETE FROM entry_entities WHERE
+               (source = 'timeline' AND source_id IN (SELECT id FROM timeline WHERE session_id = ?))
+            OR (source = 'journal' AND source_id IN (SELECT id FROM journal WHERE session_id = ?))""",
+            (session_id, session_id),
+        )
 
         # Clean up encounter tables
         cur_enc_ids = [
@@ -371,6 +400,20 @@ def restore_snapshot(db, session_id, snapshot):
                     r["save_dc"],
                     r["created_at"],
                 ),
+            )
+
+        # Character aliases
+        for r in snapshot.get("character_aliases", []):
+            db.execute(
+                "INSERT INTO character_aliases (id, character_id, alias) VALUES (?, ?, ?)",
+                (r["id"], r["character_id"], r["alias"]),
+            )
+
+        # Entry entities
+        for r in snapshot.get("entry_entities", []):
+            db.execute(
+                "INSERT INTO entry_entities (id, source, source_id, entity_type, entity_id) VALUES (?, ?, ?, ?, ?)",
+                (r["id"], r["source"], r["source_id"], r["entity_type"], r["entity_id"]),
             )
 
         # NPC memories

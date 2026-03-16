@@ -196,6 +196,22 @@ CREATE TABLE IF NOT EXISTS npc_memories (
     created_at      TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
 );
 
+CREATE TABLE IF NOT EXISTS character_aliases (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    character_id INTEGER NOT NULL REFERENCES characters(id) ON DELETE CASCADE,
+    alias        TEXT NOT NULL,
+    UNIQUE(character_id, alias)
+);
+
+CREATE TABLE IF NOT EXISTS entry_entities (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    source      TEXT NOT NULL,
+    source_id   INTEGER NOT NULL,
+    entity_type TEXT NOT NULL,
+    entity_id   INTEGER NOT NULL,
+    UNIQUE(source, source_id, entity_type, entity_id)
+);
+
 CREATE TABLE IF NOT EXISTS npc_core (
     id              INTEGER PRIMARY KEY AUTOINCREMENT,
     session_id      INTEGER NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
@@ -230,6 +246,9 @@ CREATE INDEX IF NOT EXISTS idx_character_zone ON character_zone(encounter_id);
 CREATE INDEX IF NOT EXISTS idx_npc_memories_npc ON npc_memories(npc_id, session_id);
 CREATE INDEX IF NOT EXISTS idx_npc_memories_importance ON npc_memories(importance);
 CREATE INDEX IF NOT EXISTS idx_npc_core_npc ON npc_core(session_id, npc_id);
+CREATE INDEX IF NOT EXISTS idx_character_aliases ON character_aliases(character_id);
+CREATE INDEX IF NOT EXISTS idx_entry_entities_entity ON entry_entities(entity_type, entity_id);
+CREATE INDEX IF NOT EXISTS idx_entry_entities_source ON entry_entities(source, source_id);
 """
 
 # Migrations: add or drop columns on older databases

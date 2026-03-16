@@ -50,6 +50,23 @@ def _resolve_character(db, identifier, session_id: int | None = None) -> int:
     if len(rows) == 1:
         return rows[0][0]
     if len(rows) == 0:
+        # Fallback: check aliases
+        if session_id is not None:
+            alias_rows = db.execute(
+                "SELECT ca.character_id FROM character_aliases ca "
+                "JOIN characters c ON c.id = ca.character_id "
+                "WHERE c.session_id = ? AND LOWER(ca.alias) = LOWER(?)",
+                (session_id, name),
+            ).fetchall()
+        else:
+            alias_rows = db.execute(
+                "SELECT character_id FROM character_aliases WHERE LOWER(alias) = LOWER(?)",
+                (name,),
+            ).fetchall()
+        if len(alias_rows) == 1:
+            return alias_rows[0][0]
+        if len(alias_rows) > 1:
+            raise LoreKitError(f"Ambiguous alias '{name}'")
         raise LoreKitError(f"Character '{name}' not found")
     # Ambiguous
     options = ", ".join(f"{r[1]} (id={r[0]})" for r in rows)
@@ -630,16 +647,44 @@ def turn_save(
             create_checkpoint(db, session_id)
 
         results = []
+        saved_entries = []  # (source, source_id, text) for entity auto-tagging
 
         if narration:
             r = tl_add(db, session_id, "narration", narration, summary, narrative_time)
             results.append(r)
+            # Extract timeline ID for auto-tagging
+            try:
+                tl_id = int(r.split(": ")[1])
+                saved_entries.append(("timeline", tl_id, narration))
+            except (IndexError, ValueError):
+                pass
             r = meta_set(db, session_id, "last_gm_message", narration)
             results.append(r)
 
         if player_choice:
             r = tl_add(db, session_id, "player_choice", player_choice, narrative_time=narrative_time)
             results.append(r)
+            try:
+                tl_id = int(r.split(": ")[1])
+                saved_entries.append(("timeline", tl_id, player_choice))
+            except (IndexError, ValueError):
+                pass
+
+        # Auto-tag entities in saved entries
+        try:
+            from prefetch import extract_entities
+
+            for source, source_id, text in saved_entries:
+                entities = extract_entities(db, session_id, text)
+                for _name, entity_type, entity_id in entities["matched_names"]:
+                    db.execute(
+                        "INSERT OR IGNORE INTO entry_entities (source, source_id, entity_type, entity_id) "
+                        "VALUES (?, ?, ?, ?)",
+                        (source, source_id, entity_type, entity_id),
+                    )
+            db.commit()
+        except Exception:
+            pass  # tagging is best-effort
 
         # Checkpoint after writing (the "approved" state after this turn)
         create_checkpoint(db, session_id)
@@ -662,6 +707,7 @@ def character_build(
     items: str = "[]",
     abilities: str = "[]",
     core: str = "{}",
+    aliases: str = "[]",
 ) -> str:
     """Create a full character in one call: identity + attributes + items + abilities.
 
@@ -670,6 +716,7 @@ def character_build(
     abilities: JSON array of {"name":"Flame Burst","desc":"...","category":"spell","uses":"1/day"} objects.
     core: JSON object of NPC core identity fields (only for type=npc).
       Keys: self_concept, current_goals, emotional_state, relationships, behavioral_patterns.
+    aliases: JSON array of alternative names for this character (e.g. ["Bob", "the bartender"]).
     """
     import json as _json
 
@@ -682,6 +729,7 @@ def character_build(
         items_list = _json.loads(items)
         abilities_list = _json.loads(abilities)
         core_dict = _json.loads(core)
+        aliases_list = _json.loads(aliases)
     except _json.JSONDecodeError as e:
         return f"ERROR: Invalid JSON: {e}"
 
@@ -712,9 +760,23 @@ def character_build(
             set_core(db, session, char_id, **core_dict)
             core_set = True
 
+        # Set aliases
+        alias_count = 0
+        for alias in aliases_list:
+            if isinstance(alias, str) and alias.strip():
+                db.execute(
+                    "INSERT OR IGNORE INTO character_aliases (character_id, alias) VALUES (?, ?)",
+                    (char_id, alias.strip()),
+                )
+                alias_count += 1
+        if alias_count:
+            db.commit()
+
         summary = f"CHARACTER_BUILT: {char_id} (attrs={attr_count}, items={item_count}, abilities={ability_count}"
         if core_set:
             summary += ", core_set=True"
+        if alias_count:
+            summary += f", aliases={alias_count}"
         summary += ")"
 
         # Auto-run rules_calc if session has a rules_system configured
@@ -1018,6 +1080,7 @@ def character_sheet_update(
     abilities: str = "[]",
     remove_items: str = "[]",
     core: str = "{}",
+    aliases: str = "[]",
 ) -> str:
     """Batch update a character: level/status/region + attributes + items + abilities + remove items.
 
@@ -1027,6 +1090,8 @@ def character_sheet_update(
     remove_items: JSON array of item names (strings) or item IDs (integers).
     core: JSON object of NPC core identity fields (only for NPCs).
       Keys: self_concept, current_goals, emotional_state, relationships, behavioral_patterns.
+    aliases: JSON array of alternative names for this character (e.g. ["Bob", "the bartender"]).
+      Replaces existing aliases entirely.
     """
     import json as _json
 
@@ -1040,6 +1105,7 @@ def character_sheet_update(
         abilities_list = _json.loads(abilities)
         remove_list = _json.loads(remove_items)
         core_dict = _json.loads(core)
+        aliases_list = _json.loads(aliases)
     except _json.JSONDecodeError as e:
         return f"ERROR: Invalid JSON: {e}"
 
@@ -1089,6 +1155,21 @@ def character_sheet_update(
         if ability_count:
             results.append(f"ABILITIES_SET: {ability_count}")
 
+        if aliases_list:
+            # Replace all aliases for this character
+            db.execute("DELETE FROM character_aliases WHERE character_id = ?", (character_id,))
+            alias_count = 0
+            for alias in aliases_list:
+                if isinstance(alias, str) and alias.strip():
+                    db.execute(
+                        "INSERT OR IGNORE INTO character_aliases (character_id, alias) VALUES (?, ?)",
+                        (character_id, alias.strip()),
+                    )
+                    alias_count += 1
+            db.commit()
+            if alias_count:
+                results.append(f"ALIASES_SET: {alias_count}")
+
         if core_dict:
             # Verify character is an NPC
             char_row = db.execute("SELECT type, session_id FROM characters WHERE id = ?", (character_id,)).fetchone()
@@ -1119,29 +1200,16 @@ def character_sheet_update(
 # ---------------------------------------------------------------------------
 
 
-# Read-only MCP tools NPCs are allowed to use.
-_NPC_ALLOWED_TOOLS = [
-    "mcp__lorekit__character_view",
-    "mcp__lorekit__character_list",
-    "mcp__lorekit__roll_dice",
-    "mcp__lorekit__timeline_list",
-    "mcp__lorekit__journal_list",
-    "mcp__lorekit__recall_search",
-    "mcp__lorekit__region",
-    "mcp__lorekit__time_get",
-]
+# NPCs are pure narrative agents — no tools. Context is pre-loaded by prefetch.
+_NPC_ALLOWED_TOOLS: list[str] = []
 
 _MCP_PREFIX = "mcp__lorekit__"
 _NPC_ALLOWED_SET = set(_NPC_ALLOWED_TOOLS)
 
 
 def _get_npc_disallowed_tools() -> list[str]:
-    """Compute disallowed tools dynamically: all registered tools minus allowed ones.
-
-    New tools are automatically blocked for the NPC without manual updates.
-    """
-    all_tools = [f"{_MCP_PREFIX}{name}" for name in mcp._tool_manager._tools]
-    return [t for t in all_tools if t not in _NPC_ALLOWED_SET]
+    """All tools are disallowed for NPCs — context is pre-fetched."""
+    return [f"{_MCP_PREFIX}{name}" for name in mcp._tool_manager._tools]
 
 
 _DEFAULT_NPC_MODEL = "opus"
@@ -1162,12 +1230,14 @@ def _load_npc_guides() -> str:
     return "\n\n".join(parts)
 
 
-def _build_npc_prompt(db, npc_id: int, session_id: int) -> tuple[str, str, str] | None:
-    """Build NPC system prompt, model, and name from DB data.
+def _build_npc_prompt(db, npc_id: int, session_id: int, gm_message: str = "") -> tuple[str, str, str] | None:
+    """Build NPC system prompt with pre-fetched context.
 
     Returns (system_prompt, model, npc_name) or None if NPC/session not found.
     """
     import sqlite3
+
+    from prefetch import assemble_context
 
     db.row_factory = sqlite3.Row
 
@@ -1221,17 +1291,38 @@ def _build_npc_prompt(db, npc_id: int, session_id: int) -> tuple[str, str, str] 
     ).fetchall()
     ability_lines = [f"  {ab['name']} ({ab['uses']}): {ab['description']}" for ab in abilities]
 
-    # Recent timeline for context
-    timeline = db.execute(
-        "SELECT entry_type, content, summary FROM timeline WHERE session_id = ? ORDER BY id DESC LIMIT 10",
-        (session_id,),
+    # Combat modifiers (active conditions/buffs)
+    combat_lines = []
+    combat_rows = db.execute(
+        "SELECT source, target_stat, modifier_type, value, bonus_type, duration_type, duration "
+        "FROM combat_state WHERE character_id = ?",
+        (npc_id,),
     ).fetchall()
-    timeline_section = ""
-    if timeline:
-        entries = []
-        for e in reversed(timeline):
-            entries.append(f"- {e['summary'] or e['content'][:150]}")
-        timeline_section = "Recent events:\n" + "\n".join(entries) + "\n\n"
+    for cr in combat_rows:
+        line = f"  {cr['source']}: {cr['modifier_type']} {cr['value']:+d} to {cr['target_stat']}"
+        if cr["bonus_type"]:
+            line += f" ({cr['bonus_type']})"
+        if cr["duration_type"] == "rounds" and cr["duration"]:
+            line += f" [{cr['duration']}r left]"
+        combat_lines.append(line)
+
+    # Get narrative time
+    meta_row = db.execute(
+        "SELECT value FROM session_meta WHERE session_id = ? AND key = 'narrative_time'",
+        (session_id,),
+    ).fetchone()
+    narrative_time = meta_row["value"] if meta_row else ""
+
+    # Pre-fetch: core identity + memories + timeline
+    prefetch_result = assemble_context(
+        db,
+        session_id,
+        npc_id,
+        gm_message,
+        narrative_time=narrative_time,
+    )
+
+    _npc_log(f"[PREFETCH] {npc_name}: {prefetch_result.debug}")
 
     guides = _load_npc_guides()
 
@@ -1249,7 +1340,9 @@ Your inventory:
 Your abilities:
 {chr(10).join(ability_lines) if ability_lines else "  (none)"}
 
-{timeline_section}{guides}"""
+{"Active conditions:" + chr(10) + chr(10).join(combat_lines) + chr(10) if combat_lines else ""}{prefetch_result.context}
+
+{guides}"""
 
     return system_prompt, model, npc_name
 
@@ -1363,7 +1456,7 @@ def npc_interact(session_id: int, npc_id: int | str, message: str) -> str:
     db = require_db()
     try:
         npc_id = _resolve_character(db, npc_id, session_id)
-        result = _build_npc_prompt(db, npc_id, session_id)
+        result = _build_npc_prompt(db, npc_id, session_id, gm_message=message)
         if not result:
             return f"ERROR: NPC #{npc_id} not found in session #{session_id}"
         system_prompt, model, npc_name = result
@@ -1372,12 +1465,7 @@ def npc_interact(session_id: int, npc_id: int | str, message: str) -> str:
 
     project_root = os.path.dirname(os.path.abspath(__file__))
 
-    # Use shared HTTP server if running, otherwise fall back to stdio
-    if _is_npc_http_server_running():
-        mcp_config = os.path.join(project_root, ".npc_mcp.json")
-    else:
-        mcp_config = os.path.join(project_root, ".mcp.json")
-
+    # NPC is a pure narrative agent — no MCP tools needed
     cmd = [
         "claude",
         "-p",
@@ -1390,13 +1478,6 @@ def npc_interact(session_id: int, npc_id: int | str, message: str) -> str:
         "--tools",
         "",
         "--disable-slash-commands",
-        "--mcp-config",
-        mcp_config,
-        "--strict-mcp-config",
-        "--allowed-tools",
-        *_NPC_ALLOWED_TOOLS,
-        "--disallowed-tools",
-        *_get_npc_disallowed_tools(),
         "--model",
         model,
         "--system-prompt",
@@ -1418,7 +1499,7 @@ def npc_interact(session_id: int, npc_id: int | str, message: str) -> str:
             stderr = proc.stderr.strip()
             return f"ERROR: NPC process failed: {stderr or 'unknown error'}"
 
-        response_text, tool_names = _parse_npc_stream(proc.stdout, npc_name)
+        response_text, _tool_names = _parse_npc_stream(proc.stdout, npc_name)
 
         # Post-process: extract memories/state from NPC response
         from core.npc_postprocess import process_npc_response
@@ -1438,11 +1519,7 @@ def npc_interact(session_id: int, npc_id: int | str, message: str) -> str:
         finally:
             db2.close()
 
-        result = clean_text.strip() or f"{npc_name} says nothing."
-        if tool_names:
-            marker = f"[NPC_TOOLS:{npc_name}:{','.join(tool_names)}]"
-            result = f"{marker}\n{result}"
-        return result
+        return clean_text.strip() or f"{npc_name} says nothing."
     except subprocess.TimeoutExpired:
         return "ERROR: NPC response timed out"
     except FileNotFoundError:
@@ -1490,6 +1567,37 @@ def npc_memory_add(
 
 
 @mcp.tool()
+def entry_untag(source: str, source_id: int, entity_type: str, entity_id: int) -> str:
+    """Remove an entity tag from a timeline or journal entry.
+
+    Use this to correct auto-tagging errors (e.g. a character was falsely
+    matched in text).
+
+    source: 'timeline' or 'journal'.
+    entity_type: 'character' or 'region'.
+    """
+    from _db import require_db
+
+    if source not in ("timeline", "journal"):
+        return "ERROR: source must be 'timeline' or 'journal'"
+    if entity_type not in ("character", "region"):
+        return "ERROR: entity_type must be 'character' or 'region'"
+
+    db = require_db()
+    try:
+        cur = db.execute(
+            "DELETE FROM entry_entities WHERE source = ? AND source_id = ? AND entity_type = ? AND entity_id = ?",
+            (source, source_id, entity_type, entity_id),
+        )
+        db.commit()
+        if cur.rowcount == 0:
+            return "NO_CHANGE: tag not found"
+        return "ENTRY_UNTAGGED"
+    finally:
+        db.close()
+
+
+@mcp.tool()
 def npc_combat_turn(session_id: int, npc_id: int | str) -> str:
     """Execute a full NPC combat turn: decision + movement + action + advance.
 
@@ -1517,26 +1625,22 @@ def npc_combat_turn(session_id: int, npc_id: int | str) -> str:
         if not system_path:
             return "ERROR: No rules_system set for this session."
 
-        # Build NPC prompt + combat context
-        result = _build_npc_prompt(db, npc_id, session_id)
-        if not result:
-            return f"ERROR: NPC #{npc_id} not found in session #{session_id}"
-        system_prompt, model, npc_name = result
-
         from npc_combat import build_combat_context
 
         combat_context = build_combat_context(db, npc_id, session_id, combat_cfg)
+
+        # Build NPC prompt with combat context as invocation message
+        result = _build_npc_prompt(db, npc_id, session_id, gm_message=combat_context)
+        if not result:
+            return f"ERROR: NPC #{npc_id} not found in session #{session_id}"
+        system_prompt, model, npc_name = result
     except LoreKitError as e:
         return f"ERROR: {e}"
     finally:
         db.close()
 
-    # Call NPC subprocess for combat decision
+    # Call NPC subprocess for combat decision — no MCP tools
     project_root = os.path.dirname(os.path.abspath(__file__))
-    if _is_npc_http_server_running():
-        mcp_config = os.path.join(project_root, ".npc_mcp.json")
-    else:
-        mcp_config = os.path.join(project_root, ".mcp.json")
 
     cmd = [
         "claude",
@@ -1550,13 +1654,6 @@ def npc_combat_turn(session_id: int, npc_id: int | str) -> str:
         "--tools",
         "",
         "--disable-slash-commands",
-        "--mcp-config",
-        mcp_config,
-        "--strict-mcp-config",
-        "--allowed-tools",
-        *_NPC_ALLOWED_TOOLS,
-        "--disallowed-tools",
-        *_get_npc_disallowed_tools(),
         "--model",
         model,
         "--system-prompt",

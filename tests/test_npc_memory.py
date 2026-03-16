@@ -1,4 +1,4 @@
-"""Tests for Phase 3: NPC Memory Architecture."""
+"""Tests for NPC Memory Architecture."""
 
 import json
 import os

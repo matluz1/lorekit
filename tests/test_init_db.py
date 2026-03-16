@@ -27,6 +27,7 @@ def test_creates_all_tables():
     conn.close()
     expected = [
         "character_abilities",
+        "character_aliases",
         "character_attributes",
         "character_inventory",
         "character_zone",
@@ -36,6 +37,7 @@ def test_creates_all_tables():
         "embeddings",
         "encounter_state",
         "encounter_zones",
+        "entry_entities",
         "journal",
         "npc_core",
         "npc_memories",
