@@ -793,3 +793,205 @@ class TestDegreeOnHit:
             assert "bonus_speed" in stats
         finally:
             db.close()
+
+
+# ---------------------------------------------------------------------------
+# Critical hit tests
+# ---------------------------------------------------------------------------
+
+
+class TestThresholdCriticalHit:
+    def test_natural_20_doubles_damage(self, make_session, make_character):
+        """Threshold: natural 20 hit → CRITICAL HIT with damage multiplier."""
+        from _db import require_db
+        from character import set_attr
+
+        db = require_db()
+        try:
+            sid, atk_id = _setup_fighter(db, make_session, make_character, set_attr, "Attacker")
+            _, def_id = _setup_fighter(db, make_session, make_character, set_attr, "Defender")
+            set_attr(db, def_id, "combat", "current_hp", "40")
+
+            # Natural 20 attack (hit), damage d8=4
+            roll_calls = iter([19, 3])  # 19+1=20 (nat20), 3+1=4
+            with patch("secrets.randbelow", side_effect=roll_calls):
+                output = resolve_action(db, atk_id, def_id, "melee_attack", TEST_SYSTEM)
+
+            assert "CRITICAL HIT!" in output
+            assert "Damage x2" in output
+            # damage: (d8(4) + str_mod(4)) * 2 = 16 → HP 40 → 24
+            assert "current_hp: 40 → 24" in output
+        finally:
+            db.close()
+
+    def test_natural_20_miss_upgraded_to_hit(self, make_session, make_character):
+        """Threshold: natural 20 that would miss → upgraded to regular hit."""
+        from _db import require_db
+        from character import set_attr
+
+        db = require_db()
+        try:
+            sid, atk_id = _setup_fighter(db, make_session, make_character, set_attr, "Attacker")
+            _, def_id = _setup_fighter(
+                db,
+                make_session,
+                make_character,
+                set_attr,
+                "Defender",
+                dex="30",  # very high AC so normal roll would miss
+            )
+            set_attr(db, def_id, "combat", "current_hp", "40")
+
+            # Natural 20 attack, damage d8=4
+            # attack: d20(20) + 9 = 29 vs AC = 10 + 10 + 0 + 0 = 20
+            # This would normally hit, so let's use low str to ensure miss without nat20
+            # Actually with dex=30, AC = 10 + 10 = 20. attack=29 hits anyway.
+            # Let's set armor bonus high instead.
+            set_attr(db, def_id, "stat", "item_bonus_ac", "30")
+            from rules_engine import rules_calc
+
+            rules_calc(db, def_id, TEST_SYSTEM)
+            # Now AC = 10 + 10 + 30 = 50. attack d20(20)+9=29 < 50 → miss normally.
+            # But nat 20 degree_shift upgrades miss → hit (not crit since it wasn't a hit)
+
+            roll_calls = iter([19, 3])  # nat20, damage d8=4
+            with patch("secrets.randbelow", side_effect=roll_calls):
+                output = resolve_action(db, atk_id, def_id, "melee_attack", TEST_SYSTEM)
+
+            assert "HIT!" in output
+            assert "CRITICAL" not in output  # miss→hit, not crit
+        finally:
+            db.close()
+
+    def test_no_crit_without_natural_20(self, make_session, make_character):
+        """Threshold: regular hit (not nat 20) → no critical."""
+        from _db import require_db
+        from character import set_attr
+
+        db = require_db()
+        try:
+            sid, atk_id = _setup_fighter(db, make_session, make_character, set_attr, "Attacker")
+            _, def_id = _setup_fighter(db, make_session, make_character, set_attr, "Defender")
+            set_attr(db, def_id, "combat", "current_hp", "40")
+
+            # d20=18 (not nat 20), damage d8=6
+            roll_calls = iter([17, 5])  # 17+1=18, 5+1=6
+            with patch("secrets.randbelow", side_effect=roll_calls):
+                output = resolve_action(db, atk_id, def_id, "melee_attack", TEST_SYSTEM)
+
+            assert "HIT!" in output
+            assert "CRITICAL" not in output
+            # damage: d8(6) + 4 = 10 (no multiplier)
+            assert "current_hp: 40 → 30" in output
+        finally:
+            db.close()
+
+
+class TestDegreeCriticalHit:
+    def test_mm3e_natural_20_adds_effect_rank(self, make_session, make_character):
+        """M&M3e degree: natural 20 → +5 effect rank on resistance DC."""
+        from _db import require_db
+        from character import set_attr
+
+        db = require_db()
+        try:
+            sid = make_session()
+            atk_id = make_character(sid, name="Hero", level=1)
+            def_id = make_character(sid, name="Villain", level=1)
+
+            for key, val in [
+                ("fgt", "6"),
+                ("agl", "2"),
+                ("dex", "0"),
+                ("str", "6"),
+                ("sta", "4"),
+                ("int", "0"),
+                ("awe", "2"),
+                ("pre", "0"),
+            ]:
+                set_attr(db, atk_id, "stat", key, val)
+            from rules_engine import rules_calc
+
+            rules_calc(db, atk_id, MM3E_SYSTEM)
+
+            for key, val in [
+                ("fgt", "4"),
+                ("agl", "4"),
+                ("dex", "0"),
+                ("str", "2"),
+                ("sta", "4"),
+                ("int", "0"),
+                ("awe", "2"),
+                ("pre", "0"),
+                ("ranks_parry", "2"),
+            ]:
+                set_attr(db, def_id, "stat", key, val)
+            rules_calc(db, def_id, MM3E_SYSTEM)
+
+            # Attack d20=20 (nat20, hit): 20 + 6 = 26 vs DC 10+6=16 → HIT
+            # Crit: effect rank bonus +5 → damage_rank = 6+5 = 11
+            # Resistance d20=10: 10 + 4 = 14 vs DC 15+11=26
+            # Degree = floor((26-14)/5) = floor(12/5) = 2
+            roll_calls = iter([19, 9])  # 20, 10
+            with patch("secrets.randbelow", side_effect=roll_calls):
+                output = resolve_action(db, atk_id, def_id, "close_attack", MM3E_SYSTEM)
+
+            assert "HIT!" in output
+            assert "CRITICAL! Effect rank +5" in output
+            assert "vs DC 26" in output  # 15 + 6 + 5 = 26
+            assert "DEGREE OF FAILURE:" in output
+        finally:
+            db.close()
+
+    def test_mm3e_no_crit_without_natural_20(self, make_session, make_character):
+        """M&M3e degree: regular hit → no effect rank bonus."""
+        from _db import require_db
+        from character import set_attr
+
+        db = require_db()
+        try:
+            sid = make_session()
+            atk_id = make_character(sid, name="Hero", level=1)
+            def_id = make_character(sid, name="Villain", level=1)
+
+            for key, val in [
+                ("fgt", "6"),
+                ("agl", "2"),
+                ("dex", "0"),
+                ("str", "6"),
+                ("sta", "4"),
+                ("int", "0"),
+                ("awe", "2"),
+                ("pre", "0"),
+            ]:
+                set_attr(db, atk_id, "stat", key, val)
+            from rules_engine import rules_calc
+
+            rules_calc(db, atk_id, MM3E_SYSTEM)
+
+            for key, val in [
+                ("fgt", "4"),
+                ("agl", "4"),
+                ("dex", "0"),
+                ("str", "2"),
+                ("sta", "4"),
+                ("int", "0"),
+                ("awe", "2"),
+                ("pre", "0"),
+                ("ranks_parry", "2"),
+            ]:
+                set_attr(db, def_id, "stat", key, val)
+            rules_calc(db, def_id, MM3E_SYSTEM)
+
+            # Attack d20=15 (not nat20): 15 + 6 = 21 vs DC 16 → HIT
+            # No crit → damage_rank = 6 (no bonus)
+            # Resistance d20=3: 3 + 4 = 7 vs DC 15+6=21
+            roll_calls = iter([14, 2])  # 15, 3
+            with patch("secrets.randbelow", side_effect=roll_calls):
+                output = resolve_action(db, atk_id, def_id, "close_attack", MM3E_SYSTEM)
+
+            assert "HIT!" in output
+            assert "CRITICAL" not in output
+            assert "vs DC 21" in output  # 15 + 6, no crit bonus
+        finally:
+            db.close()

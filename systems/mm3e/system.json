@@ -197,6 +197,10 @@
     "defense_dc_offset": 10,
     "resistance_stat": "toughness",
     "dc_base": 15,
+    "critical": {
+      "natural": 20,
+      "effect_rank_bonus": 5
+    },
     "on_failure": {
       "1": {"increment": {"damage_penalty": 1}},
       "2": {"increment": {"damage_penalty": 1}, "label": "dazed"},

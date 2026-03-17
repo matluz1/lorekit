@@ -510,3 +510,54 @@ class TestRulesCheck:
                 rules_check(db, cid, "nonexistent_stat", 10, TEST_SYSTEM)
         finally:
             db.close()
+
+
+class TestBonusAttrMultiCategory:
+    """Bonus attributes in multiple categories must consolidate to one source."""
+
+    def test_bonus_in_two_categories_not_double_counted(self, make_session, make_character):
+        """bonus_melee_attack in both 'stat' and 'combat' should not be summed
+        as two separate stacking sources — they represent one base value."""
+        from _db import require_db
+        from character import set_attr
+
+        MM3E_SYSTEM = os.path.join(os.path.dirname(__file__), "..", "systems", "mm3e")
+
+        db = require_db()
+        try:
+            sid = make_session()
+            cid = make_character(sid, name="Fighter", level=1)
+
+            # Set ability scores
+            for key, val in [
+                ("fgt", "6"),
+                ("agl", "2"),
+                ("dex", "0"),
+                ("str", "6"),
+                ("sta", "4"),
+                ("int", "0"),
+                ("awe", "2"),
+                ("pre", "0"),
+            ]:
+                set_attr(db, cid, "stat", key, val)
+
+            # Put bonus_close_damage in TWO categories (simulating duplicate writes)
+            set_attr(db, cid, "stat", "bonus_close_damage", "3")
+            set_attr(db, cid, "combat", "bonus_close_damage", "3")
+
+            result = rules_calc(db, cid, MM3E_SYSTEM)
+
+            # With the fix, both entries have source="_attr", so grouped stacking
+            # (group_by=source, positive=max) takes max(3, 3) = 3, not 3+3=6.
+            derived = dict(
+                db.execute(
+                    "SELECT key, value FROM character_attributes WHERE character_id = ? AND category = 'derived'",
+                    (cid,),
+                ).fetchall()
+            )
+            # close_damage = max(unarmed_damage, ...) and unarmed_damage = effective_str + bonus_close_damage
+            # effective_str = str(6) → unarmed_damage = 6 + 3 = 9
+            assert int(derived["unarmed_damage"]) == 9
+            assert int(derived["close_damage"]) == 9
+        finally:
+            db.close()

@@ -134,9 +134,10 @@ def _build_context(
             ctx.values[f"{cat}.{key}"] = parsed
             ctx.values[key] = parsed
 
-            # Collect bonus_* attributes as modifiers (source = category)
+            # Collect bonus_* attributes as modifiers (single source so
+            # stacking treats all base attributes as one group)
             if key.startswith("bonus_") and isinstance(parsed, (int, float)):
-                bonus_modifiers.append(ModifierEntry(target_stat=key, value=parsed, source=cat))
+                bonus_modifiers.append(ModifierEntry(target_stat=key, value=parsed, source="_attr"))
 
     # Load combat_state modifiers when db is available
     if db is not None:

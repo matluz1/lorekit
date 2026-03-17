@@ -108,6 +108,7 @@ def _apply_on_hit(
     defender: CharacterData,
     on_hit: dict,
     lines: list[str],
+    is_crit: bool = False,
 ) -> None:
     """Apply all declared on_hit effects from an action definition.
 
@@ -115,6 +116,9 @@ def _apply_on_hit(
     - damage_roll + subtract_from: roll damage dice, subtract from a stat
     - apply_modifiers: insert combat_state rows on the defender
     - push + push_direction: force-move defender via zone graph
+
+    When is_crit is True and the system pack declares on_critical.damage_multiplier,
+    total damage is multiplied accordingly.
     """
     # --- Damage ---
     damage_info = on_hit.get("damage_roll")
@@ -130,6 +134,14 @@ def _apply_on_hit(
         damage_result = roll_expr(dice_expr)
         damage_roll = damage_result["total"]
         total_damage = damage_roll + damage_bonus
+
+        # Apply critical damage multiplier from system pack
+        if is_crit:
+            on_critical = pack.resolution.get("on_critical", {})
+            multiplier = on_critical.get("damage_multiplier")
+            if multiplier and multiplier != 1:
+                total_damage = total_damage * multiplier
+                lines.append(f"CRITICAL! Damage x{multiplier}")
 
         lines.append(f"DAMAGE: {dice_expr}({damage_roll}) + {damage_bonus} = {total_damage}")
 
@@ -221,10 +233,11 @@ def _contested_roll(
     attacker: CharacterData,
     defender: CharacterData,
     action_def: dict,
-) -> tuple[int, int, int, int | None, int]:
-    """Roll a contested check. Returns (atk_roll, atk_total, def_total, def_roll, def_bonus).
+) -> tuple[int, int, int, int | None, int, int | None]:
+    """Roll a contested check. Returns (atk_roll, atk_total, def_total, def_roll, def_bonus, atk_natural).
 
     def_roll is None when the defender uses a static DC.
+    atk_natural is the raw die face (for crit detection), None for multi-die.
     """
     attack_stat = action_def["attack_stat"]
     defense_stat = action_def["defense_stat"]
@@ -234,6 +247,7 @@ def _contested_roll(
 
     atk_result = roll_expr(pack.dice)
     atk_roll = atk_result["total"]
+    atk_natural = atk_result["natural"]
     atk_total = atk_roll + atk_bonus
 
     if action_def.get("contested"):
@@ -244,7 +258,7 @@ def _contested_roll(
         def_roll = None
         def_total = def_bonus
 
-    return atk_roll, atk_total, def_total, def_roll, def_bonus
+    return atk_roll, atk_total, def_total, def_roll, def_bonus, atk_natural
 
 
 # ---------------------------------------------------------------------------
@@ -268,8 +282,10 @@ def _resolve_threshold(
     attack_stat = action_def["attack_stat"]
     defense_stat = action_def["defense_stat"]
 
+    crit_cfg = pack.resolution.get("critical")
+
     if action_def.get("contested"):
-        atk_roll, atk_total, def_total, def_roll, def_bonus = _contested_roll(
+        atk_roll, atk_total, def_total, def_roll, def_bonus, atk_natural = _contested_roll(
             pack,
             attacker,
             defender,
@@ -281,11 +297,23 @@ def _resolve_threshold(
         lines.append(f"ATTACKER: {pack.dice}({atk_roll}) + {atk_bonus} ({attack_stat}) = {atk_total}")
         lines.append(f"DEFENDER: {pack.dice}({def_roll}) + {def_bonus} ({defense_stat}) = {def_total}")
 
-        if atk_total >= def_total:
+        is_natural_crit = crit_cfg and atk_natural is not None and atk_natural == crit_cfg.get("natural")
+        hit = atk_total >= def_total
+        is_crit = False
+        if is_natural_crit and crit_cfg.get("degree_shift", 0) > 0:
+            if hit:
+                is_crit = True
+            else:
+                hit = True  # miss upgraded to hit
+
+        if hit:
             margin = atk_total - def_total
-            lines.append(f"HIT! (wins by {margin})")
+            if is_crit:
+                lines.append(f"CRITICAL HIT! (wins by {margin})")
+            else:
+                lines.append(f"HIT! (wins by {margin})")
             on_hit = action_def.get("on_hit", {})
-            _apply_on_hit(db, pack, attacker, defender, on_hit, lines)
+            _apply_on_hit(db, pack, attacker, defender, on_hit, lines, is_crit=is_crit)
         else:
             margin = def_total - atk_total
             lines.append(f"MISS! ({defender.name} resists by {margin})")
@@ -295,6 +323,7 @@ def _resolve_threshold(
 
         roll_result = roll_expr(pack.dice)
         roll_val = roll_result["total"]
+        natural = roll_result["natural"]
         attack_total = roll_val + attack_bonus
 
         lines = [
@@ -302,10 +331,22 @@ def _resolve_threshold(
             f"ATTACK: {pack.dice}({roll_val}) + {attack_bonus} = {attack_total} vs {defense_stat} {defense_value}",
         ]
 
-        if attack_total >= defense_value:
-            lines.append("HIT!")
+        is_natural_crit = crit_cfg and natural is not None and natural == crit_cfg.get("natural")
+        hit = attack_total >= defense_value
+        is_crit = False
+        if is_natural_crit and crit_cfg.get("degree_shift", 0) > 0:
+            if hit:
+                is_crit = True
+            else:
+                hit = True  # miss upgraded to hit
+
+        if hit:
+            if is_crit:
+                lines.append("CRITICAL HIT!")
+            else:
+                lines.append("HIT!")
             on_hit = action_def.get("on_hit", {})
-            _apply_on_hit(db, pack, attacker, defender, on_hit, lines)
+            _apply_on_hit(db, pack, attacker, defender, on_hit, lines, is_crit=is_crit)
         else:
             lines.append("MISS!")
             margin = defense_value - attack_total
@@ -337,9 +378,10 @@ def _resolve_degree(
     attack_stat = action_def["attack_stat"]
     defense_stat = action_def["defense_stat"]
     dc_offset = resolution.get("defense_dc_offset", 10)
+    crit_cfg = resolution.get("critical")
 
     if action_def.get("contested"):
-        atk_roll, atk_total, def_total, def_roll, def_bonus = _contested_roll(
+        atk_roll, atk_total, def_total, def_roll, def_bonus, atk_natural = _contested_roll(
             pack,
             attacker,
             defender,
@@ -351,12 +393,14 @@ def _resolve_degree(
         lines.append(f"ATTACKER: {pack.dice}({atk_roll}) + {atk_bonus} ({attack_stat}) = {atk_total}")
         lines.append(f"DEFENDER: {pack.dice}({def_roll}) + {def_bonus} ({defense_stat}) = {def_total}")
         hit = atk_total >= def_total
+        is_natural_crit = crit_cfg and atk_natural is not None and atk_natural == crit_cfg.get("natural")
     else:
         attack_bonus = _get_derived(attacker, attack_stat)
         defense_value = _get_derived(defender, defense_stat)
 
         roll_result = roll_expr(pack.dice)
         roll_val = roll_result["total"]
+        natural = roll_result["natural"]
         attack_total = roll_val + attack_bonus
         defense_dc = dc_offset + defense_value
 
@@ -365,6 +409,11 @@ def _resolve_degree(
             f"ATTACK: {pack.dice}({roll_val}) + {attack_bonus} = {attack_total} vs DC {defense_dc}",
         ]
         hit = attack_total >= defense_dc
+        is_natural_crit = crit_cfg and natural is not None and natural == crit_cfg.get("natural")
+
+    # Apply degree_shift from crit config (miss upgraded to hit)
+    if is_natural_crit and crit_cfg.get("degree_shift", 0) > 0 and not hit:
+        hit = True
 
     if hit:
         lines.append("HIT!")
@@ -375,6 +424,13 @@ def _resolve_degree(
             resistance_stat = resolution.get("resistance_stat", "toughness")
             dc_base = resolution.get("dc_base", 15)
             damage_rank = _get_derived(attacker, damage_rank_stat)
+
+            # Apply critical effect_rank_bonus (e.g. M&M3e nat 20 → +5 effect rank)
+            if is_natural_crit:
+                effect_rank_bonus = crit_cfg.get("effect_rank_bonus", 0)
+                if effect_rank_bonus:
+                    damage_rank += effect_rank_bonus
+                    lines.append(f"CRITICAL! Effect rank +{effect_rank_bonus} (rank {damage_rank})")
 
             resistance_bonus = _get_derived(defender, resistance_stat)
             resist_result = roll_expr(pack.dice)

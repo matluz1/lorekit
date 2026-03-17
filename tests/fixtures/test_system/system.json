@@ -54,7 +54,16 @@
       "elevated": {"target_stat": "bonus_ranged_attack", "value": 1, "modifier_type": "environment"}
     }
   },
-  "resolution": {"type": "threshold"},
+  "resolution": {
+    "type": "threshold",
+    "critical": {
+      "natural": 20,
+      "degree_shift": 1
+    },
+    "on_critical": {
+      "damage_multiplier": 2
+    }
+  },
   "actions": {
     "melee_attack": {
       "attack_stat": "melee_attack",

@@ -122,3 +122,60 @@ def test_keep_one():
         if line.startswith("KEPT:"):
             kept = line.split(":")[1].strip()
             assert kept.count(",") == 0, "kh1 keeps 1"
+
+
+# -- Natural die value (for crit detection) --
+
+
+def test_natural_value_single_die():
+    """Single die roll returns the natural value."""
+    import os
+    import sys
+    from unittest.mock import patch
+
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "core"))
+    from rolldice import roll_expr
+
+    with patch("secrets.randbelow", return_value=19):  # 19+1=20
+        result = roll_expr("d20")
+    assert result["natural"] == 20
+    assert result["total"] == 20
+
+
+def test_natural_value_with_modifier():
+    """Natural value is unaffected by modifier."""
+    import os
+    import sys
+    from unittest.mock import patch
+
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "core"))
+    from rolldice import roll_expr
+
+    with patch("secrets.randbelow", return_value=19):
+        result = roll_expr("d20+5")
+    assert result["natural"] == 20
+    assert result["total"] == 25
+
+
+def test_natural_value_multi_die_is_none():
+    """Multi-die roll returns natural=None."""
+    import os
+    import sys
+
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "core"))
+    from rolldice import roll_expr
+
+    result = roll_expr("3d6")
+    assert result["natural"] is None
+
+
+def test_natural_value_keep_highest_is_none():
+    """Keep-highest roll returns natural=None."""
+    import os
+    import sys
+
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "core"))
+    from rolldice import roll_expr
+
+    result = roll_expr("4d6kh3")
+    assert result["natural"] is None

@@ -63,11 +63,16 @@ def roll_expr(expr: str) -> dict:
             modifier = f"+{mod_val}"
             total += mod_val
 
+    # For single-die rolls (no keep filter), expose the raw die result
+    # so callers can detect natural 20s, natural 1s, etc.
+    natural = rolls[0] if num == 1 and keep is None else None
+
     return {
         "rolls": ",".join(str(r) for r in rolls),
         "kept": ",".join(str(k) for k in kept),
         "modifier": modifier,
         "total": total,
+        "natural": natural,
     }
 
 
