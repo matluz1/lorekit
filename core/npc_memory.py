@@ -125,13 +125,43 @@ def set_core(db, session_id, npc_id, **fields):
     db.commit()
 
 
+def _parse_time(dt_str):
+    """Parse an ISO 8601 datetime string. Returns datetime or None."""
+    from datetime import datetime, timezone
+
+    if not dt_str:
+        return None
+    try:
+        # Handle both "2026-04-07T08:25" and "2026-04-07T08:25:00Z" formats
+        return datetime.fromisoformat(dt_str.replace("Z", "+00:00"))
+    except (ValueError, TypeError):
+        return None
+
+
+def _narrative_hours_since(dt_str, now_dt):
+    """Calculate hours between a timestamp and a reference datetime.
+
+    Returns 0.0 if either value is missing or unparseable.
+    """
+    ts = _parse_time(dt_str)
+    if ts is None or now_dt is None:
+        return 0.0
+    # Strip timezone info for comparison if mixed (narrative times may lack tz)
+    if ts.tzinfo is not None and now_dt.tzinfo is None:
+        ts = ts.replace(tzinfo=None)
+    elif ts.tzinfo is None and now_dt.tzinfo is not None:
+        now_dt = now_dt.replace(tzinfo=None)
+    delta = (now_dt - ts).total_seconds() / 3600.0
+    return max(delta, 0.0)
+
+
 def score_memories(memories, query_embedding, narrative_now, noise=0.0):
     """Score memories using Park+ACT-R formula.
 
-    Each memory dict must have: importance, last_accessed (ISO timestamp or None), created_at.
+    Each memory dict must have: importance, narrative_time, last_accessed.
     query_embedding: list of floats (the query vector).
-    narrative_now: unused placeholder for future narrative-time scoring;
-        currently uses created_at/last_accessed wall-clock times.
+    narrative_now: current in-game time (ISO 8601). Used for recency decay.
+        Falls back to wall-clock if empty or unparseable.
     noise: scale parameter for logistic noise (0 = deterministic).
 
     Returns list of (memory, score) tuples sorted by score DESC.
@@ -139,20 +169,18 @@ def score_memories(memories, query_embedding, narrative_now, noise=0.0):
     import random
     from datetime import datetime, timezone
 
-    now = datetime.now(timezone.utc)
+    # Parse narrative_now; fall back to wall-clock if unavailable
+    now_dt = _parse_time(narrative_now)
+    if now_dt is None:
+        now_dt = datetime.now(timezone.utc)
 
     raw_scores = []
     for m in memories:
-        # Recency: 0.995 ^ hours since last access
-        last = m.get("last_accessed") or m.get("created_at") or ""
-        if last:
-            try:
-                ts = datetime.fromisoformat(last.replace("Z", "+00:00"))
-                hours = max((now - ts).total_seconds() / 3600.0, 0.0)
-            except (ValueError, TypeError):
-                hours = 0.0
-        else:
-            hours = 0.0
+        # Recency: 0.995 ^ narrative_hours since last access
+        # Prefer last_accessed (narrative time of last retrieval),
+        # then narrative_time (when the memory was formed)
+        last = m.get("last_accessed") or m.get("narrative_time") or ""
+        hours = _narrative_hours_since(last, now_dt)
         recency = 0.995**hours
 
         importance = float(m.get("importance", 0.5))

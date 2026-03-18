@@ -69,11 +69,22 @@ def get_unprocessed_memories(db, session_id, npc_id):
     ]
 
 
-def generate_reflection(db, session_id, npc_id, context_hint=""):
+def generate_reflection(db, session_id, npc_id, context_hint="", narrative_time=""):
     """Generate reflections from accumulated memories via LLM.
+
+    narrative_time: current in-game time, stored on reflection memories and
+    used for pruning recency. If empty, looks up session_meta.
 
     Returns {"reflections_stored": N, "rules_added": M, "npc_name": name, "pruned": P}.
     """
+    # Resolve narrative_time from session_meta if not provided
+    if not narrative_time:
+        meta_row = db.execute(
+            "SELECT value FROM session_meta WHERE session_id = ? AND key = 'narrative_time'",
+            (session_id,),
+        ).fetchone()
+        narrative_time = meta_row[0] if meta_row else ""
+
     # 1. Load NPC core identity
     core = npc_memory.get_core(db, session_id, npc_id)
 
@@ -115,7 +126,7 @@ def generate_reflection(db, session_id, npc_id, context_hint=""):
                 importance=ref["importance"],
                 memory_type="reflection",
                 entities=[],
-                narrative_time="",
+                narrative_time=narrative_time,
                 source_ids=ref.get("source_ids", source_memory_ids),
             )
             reflections_stored += 1
@@ -150,7 +161,7 @@ def generate_reflection(db, session_id, npc_id, context_hint=""):
             npc_memory.set_core(db, session_id, npc_id, **update_fields)
 
     # 12. Prune old memories
-    pruned = prune_memories(db, session_id, npc_id)
+    pruned = prune_memories(db, session_id, npc_id, narrative_now=narrative_time)
 
     return {
         "reflections_stored": reflections_stored,
@@ -192,34 +203,37 @@ def reflect_all(db, session_id, threshold=15.0, context_hint=""):
     return "REFLECTIONS: " + " ".join(parts)
 
 
-def prune_memories(db, session_id, npc_id):
+def prune_memories(db, session_id, npc_id, narrative_now=""):
     """Remove very old, unimportant, never-accessed memories.
 
     Criteria: recency_score < 0.01 AND importance < 0.3 AND access_count == 0.
-    recency_score = 0.995 ^ hours_since_created.
-    0.995^h < 0.01 → h > ~920 hours (~38 days).
+    recency_score = 0.995 ^ narrative_hours_since_created.
+    0.995^h < 0.01 → h > ~920 narrative hours (~38 in-game days).
+
+    Uses narrative_now for recency calculation. Falls back to wall-clock
+    if narrative_now is empty or unparseable.
 
     Returns count of pruned memories.
     """
-    now = datetime.now(timezone.utc)
+    from npc_memory import _narrative_hours_since, _parse_time
+
+    now_dt = _parse_time(narrative_now)
+    if now_dt is None:
+        now_dt = datetime.now(timezone.utc)
 
     candidates = db.execute(
-        "SELECT id, importance, access_count, created_at FROM npc_memories "
+        "SELECT id, importance, access_count, narrative_time FROM npc_memories "
         "WHERE npc_id = ? AND session_id = ? AND importance < 0.3 AND access_count = 0",
         (npc_id, session_id),
     ).fetchall()
 
     to_prune = []
     for row in candidates:
-        mem_id, importance, access_count, created_at = row
-        if not created_at:
-            continue
-        try:
-            ts = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
-            hours = max((now - ts).total_seconds() / 3600.0, 0.0)
-        except (ValueError, TypeError):
+        mem_id, importance, access_count, nar_time = row
+        if not nar_time:
             continue
 
+        hours = _narrative_hours_since(nar_time, now_dt)
         recency = 0.995**hours
         if recency < 0.01:
             to_prune.append(mem_id)

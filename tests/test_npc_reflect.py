@@ -343,17 +343,17 @@ class TestPruneMemories:
 
         db = require_db()
         try:
-            # Insert a memory with very old created_at (> 38 days ago)
-            old_time = (datetime.now(timezone.utc) - timedelta(days=45)).strftime("%Y-%m-%dT%H:%M:%SZ")
+            # Insert a memory with narrative_time > 38 in-game days before "now"
             db.execute(
                 "INSERT INTO npc_memories (session_id, npc_id, content, importance, memory_type, "
-                "entities, narrative_time, access_count, created_at) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                (session_id, npc_id, "Forgettable thing", 0.1, "observation", "[]", "", 0, old_time),
+                "entities, narrative_time, access_count) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                (session_id, npc_id, "Forgettable thing", 0.1, "observation", "[]", "1347-01-01T10:00", 0),
             )
             db.commit()
 
-            count = prune_memories(db, session_id, npc_id)
+            # Prune with narrative_now 45 days later
+            count = prune_memories(db, session_id, npc_id, narrative_now="1347-02-15T10:00")
             assert count == 1
 
             # Verify it's gone
@@ -372,16 +372,15 @@ class TestPruneMemories:
 
         db = require_db()
         try:
-            old_time = (datetime.now(timezone.utc) - timedelta(days=45)).strftime("%Y-%m-%dT%H:%M:%SZ")
             db.execute(
                 "INSERT INTO npc_memories (session_id, npc_id, content, importance, memory_type, "
-                "entities, narrative_time, access_count, created_at) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                (session_id, npc_id, "Important old memory", 0.8, "experience", "[]", "", 0, old_time),
+                "entities, narrative_time, access_count) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                (session_id, npc_id, "Important old memory", 0.8, "experience", "[]", "1347-01-01T10:00", 0),
             )
             db.commit()
 
-            count = prune_memories(db, session_id, npc_id)
+            count = prune_memories(db, session_id, npc_id, narrative_now="1347-02-15T10:00")
             assert count == 0
         finally:
             db.close()
@@ -393,16 +392,15 @@ class TestPruneMemories:
 
         db = require_db()
         try:
-            old_time = (datetime.now(timezone.utc) - timedelta(days=45)).strftime("%Y-%m-%dT%H:%M:%SZ")
             db.execute(
                 "INSERT INTO npc_memories (session_id, npc_id, content, importance, memory_type, "
-                "entities, narrative_time, access_count, created_at) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                (session_id, npc_id, "Accessed memory", 0.1, "observation", "[]", "", 3, old_time),
+                "entities, narrative_time, access_count) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                (session_id, npc_id, "Accessed memory", 0.1, "observation", "[]", "1347-01-01T10:00", 3),
             )
             db.commit()
 
-            count = prune_memories(db, session_id, npc_id)
+            count = prune_memories(db, session_id, npc_id, narrative_now="1347-02-15T10:00")
             assert count == 0
         finally:
             db.close()

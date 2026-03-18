@@ -461,3 +461,66 @@ class TestCheckpointNpcMemory:
         ).fetchone()
         assert core[0] == "A tavern keeper"
         db.close()
+
+
+# ---------------------------------------------------------------------------
+# Narrative-time scoring tests
+# ---------------------------------------------------------------------------
+
+
+def test_score_memories_uses_narrative_time():
+    """Recency decays based on narrative hours, not wall-clock."""
+    from npc_memory import score_memories
+
+    # Two memories: one from 1 narrative hour ago, one from 500 hours ago
+    memories = [
+        {"importance": 0.5, "narrative_time": "1347-03-15T09:00", "last_accessed": ""},
+        {"importance": 0.5, "narrative_time": "1347-02-22T10:00", "last_accessed": ""},
+    ]
+
+    scored = score_memories(memories, query_embedding=None, narrative_now="1347-03-15T10:00")
+
+    # The recent memory (1 hour ago) should score higher than the old one (500+ hours)
+    recent_mem = scored[0][0]
+    assert recent_mem["narrative_time"] == "1347-03-15T09:00"
+
+
+def test_score_memories_last_accessed_resets_recency():
+    """Accessing a memory resets its recency clock (Park's approach)."""
+    from npc_memory import score_memories
+
+    # Old memory that was recently accessed vs old memory never accessed
+    memories = [
+        {
+            "importance": 0.5,
+            "narrative_time": "1347-01-01T10:00",
+            "last_accessed": "1347-03-15T09:00",  # accessed 1 hour ago
+        },
+        {
+            "importance": 0.5,
+            "narrative_time": "1347-01-01T10:00",
+            "last_accessed": "",  # never accessed → falls back to narrative_time (old)
+        },
+    ]
+
+    scored = score_memories(memories, query_embedding=None, narrative_now="1347-03-15T10:00")
+
+    # The recently-accessed memory should rank higher
+    top = scored[0][0]
+    assert top["last_accessed"] == "1347-03-15T09:00"
+
+
+def test_score_memories_falls_back_to_wallclock_without_narrative_now():
+    """When narrative_now is empty, falls back to wall-clock (backward compat)."""
+    from datetime import datetime, timezone
+
+    from npc_memory import score_memories
+
+    now_str = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    memories = [
+        {"importance": 0.5, "narrative_time": now_str, "last_accessed": ""},
+    ]
+
+    # Should not crash with empty narrative_now
+    scored = score_memories(memories, query_embedding=None, narrative_now="")
+    assert len(scored) == 1
