@@ -272,6 +272,9 @@ def _run_build(db, character_id: int, pack_dir: str, char: CharacterData):
     """
     from build_engine import process_build
 
+    # Capture old cost values for diff reporting
+    old_build = char.attributes.get("build", {})
+
     build_result = process_build(
         pack_dir,
         char.attributes,
@@ -282,6 +285,13 @@ def _run_build(db, character_id: int, pack_dir: str, char: CharacterData):
 
     if not build_result.attributes and not build_result.costs:
         return None
+
+    # Compute cost diffs
+    for cost_cat, cost_val in build_result.costs.items():
+        cost_key = f"cost_{cost_cat}"
+        old_val = float(old_build.get(cost_key, "0"))
+        if cost_val != old_val:
+            build_result.cost_changes[cost_cat] = (old_val, cost_val)
 
     # Write build attributes to DB and merge into character data
     count = 0
@@ -439,5 +449,14 @@ def rules_calc(db, character_id: int, pack_dir: str) -> str:
             for cat, cost in sorted(build_result.costs.items()):
                 if cost:
                     lines.append(f"  {cat}: {cost}")
+        if build_result.cost_changes:
+            lines.append("COST CHANGES:")
+            for cat, (old, new) in sorted(build_result.cost_changes.items()):
+                delta = new - old
+                sign = "+" if delta > 0 else ""
+                lines.append(f"  {cat}: {int(old)} → {int(new)} ({sign}{int(delta)})")
+        if build_result.budget_spent > build_result.budget_total:
+            over = build_result.budget_spent - build_result.budget_total
+            lines.append(f"WARNING: Over budget by {int(over)} points!")
 
     return "\n".join(lines)

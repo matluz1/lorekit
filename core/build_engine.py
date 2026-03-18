@@ -36,6 +36,7 @@ class BuildResult:
     warnings: list[str] = field(default_factory=list)
     budget_total: float = 0
     budget_spent: float = 0
+    cost_changes: dict[str, tuple[float, float]] = field(default_factory=dict)  # cat -> (old, new)
 
 
 def _load_json(path: str) -> dict:

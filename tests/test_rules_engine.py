@@ -561,3 +561,107 @@ class TestBonusAttrMultiCategory:
             assert int(derived["close_damage"]) == 9
         finally:
             db.close()
+
+
+class TestBudgetReporting:
+    """Budget cost-change diffs and over-budget warnings."""
+
+    MM3E = os.path.join(os.path.dirname(__file__), "..", "systems", "mm3e")
+
+    def test_cost_changes_on_first_build(self, make_session, make_character):
+        """First rules_calc shows cost changes from 0."""
+        from _db import require_db
+        from character import set_attr
+
+        db = require_db()
+        try:
+            sid = make_session()
+            cid = make_character(sid, name="Hero", level=1)
+
+            set_attr(db, cid, "stat", "str", "4")
+            set_attr(db, cid, "stat", "sta", "2")
+
+            output = rules_calc(db, cid, self.MM3E)
+
+            assert "BUDGET:" in output
+            assert "COST CHANGES:" in output
+            assert "ability:" in output
+            # str=4 + sta=2 = 6 ranks × 2 pts = 12
+            assert "ability: 0 → 12 (+12)" in output
+        finally:
+            db.close()
+
+    def test_cost_changes_on_update(self, make_session, make_character):
+        """Second rules_calc shows incremental cost change."""
+        from _db import require_db
+        from character import set_attr
+
+        db = require_db()
+        try:
+            sid = make_session()
+            cid = make_character(sid, name="Hero", level=1)
+
+            set_attr(db, cid, "stat", "str", "4")
+            rules_calc(db, cid, self.MM3E)
+
+            # Add defense ranks
+            set_attr(db, cid, "stat", "ranks_dodge", "6")
+            output = rules_calc(db, cid, self.MM3E)
+
+            assert "COST CHANGES:" in output
+            assert "defense: 0 → 6 (+6)" in output
+            # ability should NOT appear in cost changes (unchanged)
+            assert (
+                "ability:" not in output.split("COST CHANGES:")[1].split("WARNING")[0]
+                if "WARNING" in output
+                else "ability:" not in output.split("COST CHANGES:")[1]
+            )
+        finally:
+            db.close()
+
+    def test_over_budget_warning(self, make_session, make_character):
+        """Over-budget build shows WARNING."""
+        from _db import require_db
+        from character import set_attr
+
+        db = require_db()
+        try:
+            sid = make_session()
+            cid = make_character(sid, name="Hero", level=1)
+
+            # PL 10 = 150 budget. 80 ranks of abilities × 2 = 160 > 150
+            for key, val in [
+                ("str", "10"),
+                ("sta", "10"),
+                ("dex", "10"),
+                ("agl", "10"),
+                ("fgt", "10"),
+                ("int", "10"),
+                ("awe", "10"),
+                ("pre", "10"),
+            ]:
+                set_attr(db, cid, "stat", key, val)
+
+            output = rules_calc(db, cid, self.MM3E)
+
+            assert "WARNING: Over budget by 10 points!" in output
+        finally:
+            db.close()
+
+    def test_no_warning_when_under_budget(self, make_session, make_character):
+        """Under-budget build has no WARNING."""
+        from _db import require_db
+        from character import set_attr
+
+        db = require_db()
+        try:
+            sid = make_session()
+            cid = make_character(sid, name="Hero", level=1)
+
+            set_attr(db, cid, "stat", "str", "2")
+
+            output = rules_calc(db, cid, self.MM3E)
+
+            assert "WARNING" not in output
+        finally:
+            db.close()
