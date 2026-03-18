@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef, useEffect, useMemo } from "react";
-import { Box, Text, useApp, useStdout } from "ink";
+import { Box, Text, useApp } from "ink";
 import { Chat, type ChatMessage } from "./Chat.js";
 import { Input } from "./Input.js";
 import { Sidebar } from "./Sidebar.js";
@@ -29,29 +29,6 @@ interface AppProps {
   lkSessionId?: number;
 }
 
-function useTerminalSize() {
-  const { stdout } = useStdout();
-  const [size, setSize] = useState({
-    rows: stdout.rows ?? 24,
-    columns: stdout.columns ?? 80,
-  });
-
-  useEffect(() => {
-    const handler = () =>
-      setSize({ rows: stdout.rows ?? 24, columns: stdout.columns ?? 80 });
-    stdout.on("resize", handler);
-    return () => {
-      stdout.off("resize", handler);
-    };
-  }, [stdout]);
-
-  return size;
-}
-
-// Header: 3 rows (border top + content + border bottom)
-// Input:  3 rows (border top + content + border bottom)
-// Footer: 1 row
-const CHROME_ROWS = 7;
 const SIDEBAR_WIDTH = 36;
 
 export function App({
@@ -62,7 +39,6 @@ export function App({
   lkSessionId,
 }: AppProps) {
   const { exit } = useApp();
-  const { rows, columns } = useTerminalSize();
 
   // ── GM state ──────────────────────────────────────────
   const [messages, setMessages] = useState<ChatMessage[]>([
@@ -230,14 +206,10 @@ export function App({
     [isStreaming, exit]
   );
 
-  const contentHeight = Math.max(4, rows - 1 - CHROME_ROWS);
   const hasSidebar = sidebarData != null;
-  const chatWidth = hasSidebar
-    ? Math.max(20, columns - SIDEBAR_WIDTH - 3) // -3 for sidebar border + padding
-    : columns - 2; // -2 for chat padding
 
   return (
-    <Box flexDirection="column" width={columns} height={rows - 1}>
+    <Box flexDirection="column">
       {/* Header */}
       <Box borderStyle="single" borderColor="green" paddingX={1}>
         <Text color="green" bold>
@@ -252,15 +224,13 @@ export function App({
       </Box>
 
       {/* Main content: chat + sidebar */}
-      <Box flexDirection="row" flexGrow={1} height={contentHeight}>
+      <Box flexDirection="row">
         {/* Chat area */}
         <Box flexDirection="column" flexGrow={1} paddingX={1}>
           <Chat
             messages={messages}
             streamingText={streamingText}
             isStreaming={isStreaming}
-            height={contentHeight}
-            width={chatWidth}
           />
         </Box>
 
@@ -269,7 +239,6 @@ export function App({
           <Box width={SIDEBAR_WIDTH}>
             <Sidebar
               data={sidebarData}
-              height={contentHeight}
               toolCalls={toolCalls}
               npcToolCalls={npcToolCalls}
               isStreaming={isStreaming}

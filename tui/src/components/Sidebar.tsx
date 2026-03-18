@@ -6,7 +6,6 @@ import type { ToolCallEntry, NpcToolCallEntry } from "./App.js";
 
 interface SidebarProps {
   data: SidebarData | null;
-  height: number;
   toolCalls: ToolCallEntry[];
   npcToolCalls: NpcToolCallEntry[];
   isStreaming: boolean;
@@ -17,15 +16,13 @@ function shortToolName(name: string): string {
   return name.replace(/^mcp__lorekit__/, "");
 }
 
-export function Sidebar({ data, height, toolCalls, npcToolCalls, isStreaming }: SidebarProps) {
+export function Sidebar({ data, toolCalls, npcToolCalls, isStreaming }: SidebarProps) {
   if (!data) {
     return (
       <Box
         flexDirection="column"
         borderStyle="single"
         borderColor="gray"
-        height={height}
-        overflow="hidden"
       >
         <Text dimColor italic>
           No session data
@@ -34,20 +31,13 @@ export function Sidebar({ data, height, toolCalls, npcToolCalls, isStreaming }: 
     );
   }
 
-  // Divide height: PC ~4, GM tools ~20%, NPC tools ~15%, region ~15%, timeline rest
-  const pcH = 4;
-  const toolH = Math.max(4, Math.floor(height * 0.2));
-  const npcH = Math.max(3, Math.floor(height * 0.15));
-  const regionH = Math.max(3, Math.floor(height * 0.15));
-  const timelineH = Math.max(3, height - pcH - toolH - npcH - regionH);
-
   return (
-    <Box flexDirection="column" height={height} overflow="hidden">
-      <CompactPC data={data} height={pcH} />
-      <ToolActivity toolCalls={toolCalls} isStreaming={isStreaming} height={toolH} />
-      <NPCToolsPanel npcToolCalls={npcToolCalls} height={npcH} />
-      <RegionPanel data={data} height={regionH} />
-      <TimelinePanel data={data} height={timelineH} />
+    <Box flexDirection="column">
+      <CompactPC data={data} />
+      <ToolActivity toolCalls={toolCalls} isStreaming={isStreaming} />
+      <NPCToolsPanel npcToolCalls={npcToolCalls} />
+      <RegionPanel data={data} />
+      <TimelinePanel data={data} />
     </Box>
   );
 }
@@ -56,10 +46,8 @@ export function Sidebar({ data, height, toolCalls, npcToolCalls, isStreaming }: 
 
 function CompactPC({
   data,
-  height,
 }: {
   data: SidebarData;
-  height: number;
 }) {
   const { pc, attrs } = data;
 
@@ -74,8 +62,6 @@ function CompactPC({
       borderStyle="single"
       borderColor="yellow"
       paddingX={1}
-      height={height}
-      overflow="hidden"
     >
       <Text color="yellow" bold>
         {pc.name}
@@ -93,40 +79,32 @@ function CompactPC({
 function ToolActivity({
   toolCalls,
   isStreaming,
-  height,
 }: {
   toolCalls: ToolCallEntry[];
   isStreaming: boolean;
-  height: number;
 }) {
-  // Show most recent calls that fit, newest last
-  const maxEntries = Math.max(1, height - 3); // -3 for border + header
-  const visible = toolCalls.slice(-maxEntries);
-
   return (
     <Box
       flexDirection="column"
       borderStyle="single"
       borderColor="cyan"
       paddingX={1}
-      height={height}
-      overflow="hidden"
     >
       <Text color="cyan" bold>
         GM Tools
       </Text>
-      {visible.length === 0 && !isStreaming ? (
+      {toolCalls.length === 0 && !isStreaming ? (
         <Text dimColor italic>
           Waiting for turn
         </Text>
-      ) : visible.length === 0 && isStreaming ? (
+      ) : toolCalls.length === 0 && isStreaming ? (
         <Text dimColor italic>
           <Spinner type="dots" />{" "}Thinking…
         </Text>
       ) : (
-        visible.map((tc, i) => {
+        toolCalls.map((tc, i) => {
           const name = shortToolName(tc.name);
-          const isLast = i === visible.length - 1 && isStreaming;
+          const isLast = i === toolCalls.length - 1 && isStreaming;
           const isFailed = tc.error === true;
           return (
             <Box key={`${tc.ts}-${i}`}>
@@ -155,32 +133,25 @@ function ToolActivity({
 
 function NPCToolsPanel({
   npcToolCalls,
-  height,
 }: {
   npcToolCalls: NpcToolCallEntry[];
-  height: number;
 }) {
-  const maxEntries = Math.max(1, height - 3);
-  const visible = npcToolCalls.slice(-maxEntries);
-
   return (
     <Box
       flexDirection="column"
       borderStyle="single"
       borderColor="red"
       paddingX={1}
-      height={height}
-      overflow="hidden"
     >
       <Text color="red" bold>
         NPC Tools
       </Text>
-      {visible.length === 0 ? (
+      {npcToolCalls.length === 0 ? (
         <Text dimColor italic>
           No NPC interactions
         </Text>
       ) : (
-        visible.map((entry, i) => {
+        npcToolCalls.map((entry, i) => {
           const name = shortToolName(entry.toolName);
           return (
             <Box key={`${entry.ts}-${i}`}>
@@ -202,10 +173,8 @@ function NPCToolsPanel({
 
 function RegionPanel({
   data,
-  height,
 }: {
   data: SidebarData;
-  height: number;
 }) {
   const { region, regionNPCs } = data;
 
@@ -215,8 +184,6 @@ function RegionPanel({
       borderStyle="single"
       borderColor="blue"
       paddingX={1}
-      height={height}
-      overflow="hidden"
     >
       <Text color="blue" bold>
         {region ? region.name : "No region"}
@@ -244,10 +211,8 @@ function RegionPanel({
 
 function TimelinePanel({
   data,
-  height,
 }: {
   data: SidebarData;
-  height: number;
 }) {
   const { timeline } = data;
 
@@ -257,8 +222,6 @@ function TimelinePanel({
       borderStyle="single"
       borderColor="magenta"
       paddingX={1}
-      height={height}
-      overflow="hidden"
     >
       <Text color="magenta" bold>
         Timeline

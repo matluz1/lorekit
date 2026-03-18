@@ -71,8 +71,8 @@ const app = render(
   />,
   {
     exitOnCtrlC: true,
-    incrementalRendering: false,
-    maxFps: 60,
+    incrementalRendering: true,
+    maxFps: 30,
   }
 );
 
