@@ -449,6 +449,9 @@ def rules_calc(db, character_id: int, pack_dir: str) -> str:
             for cat, cost in sorted(build_result.costs.items()):
                 if cost:
                     lines.append(f"  {cat}: {cost}")
+                    cat_breakdown = build_result.ability_costs.get(cat, {})
+                    for ab_name, ab_cost in sorted(cat_breakdown.items()):
+                        lines.append(f"    {ab_name}: {ab_cost}")
         if build_result.cost_changes:
             lines.append("COST CHANGES:")
             for cat, (old, new) in sorted(build_result.cost_changes.items()):

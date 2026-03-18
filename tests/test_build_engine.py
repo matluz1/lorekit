@@ -702,6 +702,86 @@ class TestEquipment:
         result = process_build(MM3E_SYSTEM, {}, [], level=1, char_items=char_items)
         assert "weapon_close_damage" not in result.attributes
 
+
+class TestMM3eExplicitCost:
+    """Test explicit cost fallback for unstructured powers."""
+
+    def test_explicit_cost_tracked(self):
+        """Power with {"cost": 20} is tracked without needing effect/pipeline."""
+        char_attrs = {"stat": {"power_level": "10"}}
+        abilities = [_power_ability("Gadget", {"cost": 20})]
+        result = process_build(MM3E_SYSTEM, char_attrs, abilities, level=1)
+        assert result.costs["powers"] == 20
+        assert result.ability_costs["powers"]["Gadget"] == 20
+
+    def test_effect_takes_precedence(self):
+        """When both effect and cost are present, pipeline cost is used."""
+        char_attrs = {"stat": {"power_level": "10"}}
+        abilities = [_power_ability("Blast", {"effect": "damage", "ranks": 10, "cost": 999})]
+        result = process_build(MM3E_SYSTEM, char_attrs, abilities, level=1)
+        # Pipeline computes 10, not the explicit 999
+        assert result.costs["powers"] == 10
+
+    def test_mixed_pipeline_and_explicit(self):
+        """Pipeline power + explicit cost power sum correctly."""
+        char_attrs = {"stat": {"power_level": "10"}}
+        abilities = [
+            _power_ability("Blast", {"effect": "damage", "ranks": 10}),
+            _power_ability("Gadget", {"cost": 5}),
+        ]
+        result = process_build(MM3E_SYSTEM, char_attrs, abilities, level=1)
+        assert result.costs["powers"] == 15
+        assert result.ability_costs["powers"]["Blast"] == 10
+        assert result.ability_costs["powers"]["Gadget"] == 5
+
+    def test_plain_text_still_ignored(self):
+        """Plain text description (not JSON) is still ignored."""
+        char_attrs = {"stat": {"power_level": "10"}}
+        abilities = [
+            {"name": "Narration Power", "description": "A cool power that does stuff", "category": "power", "uses": ""},
+        ]
+        result = process_build(MM3E_SYSTEM, char_attrs, abilities, level=1)
+        assert "powers" not in result.costs
+
+
+class TestMM3eAbilityCosts:
+    """Test per-ability cost tracking in ability_costs dict."""
+
+    def test_per_ability_costs_populated(self):
+        """ability_costs tracks individual power costs."""
+        char_attrs = {"stat": {"power_level": "10"}}
+        abilities = [
+            _power_ability("Blast", {"effect": "damage", "ranks": 10, "extras": ["increased_range"]}),
+            _power_ability("Force Field", {"effect": "protection", "ranks": 8}),
+        ]
+        result = process_build(MM3E_SYSTEM, char_attrs, abilities, level=1)
+        assert result.ability_costs["powers"]["Blast"] == 20
+        assert result.ability_costs["powers"]["Force Field"] == 8
+        assert result.costs["powers"] == 28
+
+    def test_array_costs_tracked_separately(self):
+        """Array alternates tracked under 'arrays' category."""
+        char_attrs = {"stat": {"power_level": "10"}}
+        abilities = [
+            _power_ability("Blast", {"effect": "damage", "ranks": 10, "extras": ["increased_range"]}),
+            _power_ability("Strike", {"effect": "damage", "ranks": 10, "array_of": "Blast"}),
+            _power_ability("Snare", {"effect": "affliction", "ranks": 10, "array_of": "Blast", "dynamic": True}),
+        ]
+        result = process_build(MM3E_SYSTEM, char_attrs, abilities, level=1)
+        assert result.ability_costs["powers"]["Blast"] == 20
+        assert result.ability_costs["arrays"]["Strike"] == 1
+        assert result.ability_costs["arrays"]["Snare"] == 2
+
+    def test_no_abilities_no_ability_costs(self):
+        """No powers → empty ability_costs."""
+        char_attrs = {"stat": {"power_level": "10"}}
+        result = process_build(MM3E_SYSTEM, char_attrs, [], level=1)
+        assert result.ability_costs == {}
+
+
+class TestEquipmentPf2e:
+    """PF2e equipment tests (split from TestEquipment for clarity)."""
+
     def test_equipment_pf2e_armor(self):
         """PF2e system: chain mail equipped writes correct stats."""
         char_items = [{"name": "Chain mail", "description": "", "quantity": 1}]

@@ -33,6 +33,7 @@ class BuildResult:
 
     attributes: dict[str, Any] = field(default_factory=dict)  # key -> value
     costs: dict[str, float] = field(default_factory=dict)  # category -> cost
+    ability_costs: dict[str, dict[str, float]] = field(default_factory=dict)  # category -> {name -> cost}
     warnings: list[str] = field(default_factory=list)
     budget_total: float = 0
     budget_spent: float = 0
@@ -261,8 +262,19 @@ def _process_pipeline(
         if power_data.get("array_of"):
             continue
 
-        cost = _compute_pipeline_cost(power_data, effects_data, modifiers_data, pipeline)
+        ability_name = ability.get("name", "")
+
+        if power_data.get("effect"):
+            cost = _compute_pipeline_cost(power_data, effects_data, modifiers_data, pipeline)
+        elif "cost" in power_data:
+            cost = power_data["cost"]
+        else:
+            cost = 0
+
         total_cost += cost
+        if cost and ability_name:
+            powers_map = result.ability_costs.setdefault("powers", {})
+            powers_map[ability_name] = powers_map.get(ability_name, 0) + cost
 
         # Apply feeds (stat contributions)
         if rules.get("feeds"):
@@ -283,7 +295,7 @@ def _parse_structured_ability(ability: dict[str, str]) -> dict | None:
         data = json.loads(desc)
     except json.JSONDecodeError:
         return None
-    return data if data.get("effect") else None
+    return data if (data.get("effect") or "cost" in data) else None
 
 
 def _compute_pipeline_cost(data: dict, effects_data: dict, modifiers_data: dict, pipeline: list[dict]) -> float:
@@ -372,10 +384,15 @@ def _process_arrays(rules: dict, char_abilities: list[dict[str, str]], result: B
         if not data or not data.get("array_of"):
             continue
 
+        ability_name = ability.get("name", "")
         if data.get("dynamic"):
-            total_cost += dynamic_cost
+            cost = dynamic_cost
         else:
-            total_cost += alternate_cost
+            cost = alternate_cost
+        total_cost += cost
+        if cost and ability_name:
+            arrays_map = result.ability_costs.setdefault("arrays", {})
+            arrays_map[ability_name] = arrays_map.get(ability_name, 0) + cost
 
     if total_cost > 0:
         result.costs["arrays"] = total_cost
