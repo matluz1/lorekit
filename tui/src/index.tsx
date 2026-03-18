@@ -5,7 +5,6 @@ import { resolve } from "node:path";
 import { spawn, type ChildProcess } from "node:child_process";
 import { App } from "./components/App.js";
 import { ClaudeProvider } from "./providers/claude.js";
-import { openDb, closeDb, getActiveSessions } from "./db.js";
 import { initLogger } from "./logger.js";
 
 // Resolve paths relative to project root (one level up from tui/)
@@ -33,11 +32,6 @@ if (!model) {
 
 // Initialize logger
 initLogger(projectRoot);
-
-// Open read-only DB for sidebar, auto-detect active LoreKit session
-openDb(projectRoot);
-const activeSessions = getActiveSessions();
-const lkSessionId = activeSessions.length > 0 ? activeSessions[0]!.id : undefined;
 
 // Start shared MCP HTTP server for NPC subprocess connections
 const mcpHttpServer: ChildProcess = spawn(
@@ -67,17 +61,14 @@ const app = render(
     }}
     model={model}
     sessionId={claudeSessionId}
-    lkSessionId={lkSessionId}
   />,
   {
     exitOnCtrlC: true,
-    incrementalRendering: true,
-    maxFps: 30,
+    maxFps: 60,
   }
 );
 
 await app.waitUntilExit();
-closeDb();
 
 // Kill the shared MCP HTTP server
 if (mcpHttpServer.pid) {

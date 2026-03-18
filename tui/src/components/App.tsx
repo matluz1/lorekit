@@ -1,10 +1,9 @@
-import React, { useState, useCallback, useRef, useEffect, useMemo } from "react";
+import React, { useState, useCallback, useRef, useEffect } from "react";
 import { Box, Text, useApp } from "ink";
+import Spinner from "ink-spinner";
 import { Chat, type ChatMessage } from "./Chat.js";
 import { Input } from "./Input.js";
-import { Sidebar } from "./Sidebar.js";
 import type { AgentProcess, Provider, ProviderOptions } from "../provider.js";
-import { getSidebarData, getActiveSessions, type SidebarData } from "../db.js";
 import { clearLog } from "../logger.js";
 
 /** A tool call logged during the current GM turn. */
@@ -29,14 +28,16 @@ interface AppProps {
   lkSessionId?: number;
 }
 
-const SIDEBAR_WIDTH = 36;
+/** Strip the "mcp__lorekit__" prefix for display. */
+function shortToolName(name: string): string {
+  return name.replace(/^mcp__lorekit__/, "");
+}
 
 export function App({
   provider,
   providerOpts,
   model,
   sessionId,
-  lkSessionId,
 }: AppProps) {
   const { exit } = useApp();
 
@@ -46,30 +47,11 @@ export function App({
   ]);
   const [streamingText, setStreamingText] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
-  const [refreshTick, setRefreshTick] = useState(0);
-  const [detectedSessionId, setDetectedSessionId] = useState(lkSessionId);
   const agentRef = useRef<AgentProcess | null>(null);
 
   // ── Tool call tracking ────────────────────────────────
   const [toolCalls, setToolCalls] = useState<ToolCallEntry[]>([]);
   const [npcToolCalls, setNpcToolCalls] = useState<NpcToolCallEntry[]>([]);
-
-  // Sidebar data — re-read from DB each time refreshTick changes.
-  // If no session was provided, auto-detect after the GM creates one.
-  const sidebarData = useMemo<SidebarData | null>(() => {
-    let sid = detectedSessionId;
-    if (!sid) {
-      const sessions = getActiveSessions();
-      if (sessions.length > 0) {
-        sid = sessions[0]!.id;
-        // Can't setState inside useMemo, defer it
-        queueMicrotask(() => setDetectedSessionId(sid));
-      }
-    }
-    if (!sid) return null;
-    return getSidebarData(sid);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [detectedSessionId, refreshTick]);
 
   // Spawn the persistent GM process on mount
   useEffect(() => {
@@ -199,14 +181,24 @@ export function App({
       } finally {
         setStreamingText("");
         setIsStreaming(false);
-        // Refresh sidebar after each turn
-        setRefreshTick((t) => t + 1);
       }
     },
     [isStreaming, exit]
   );
 
-  const hasSidebar = sidebarData != null;
+  // Build toast line from current tool calls
+  const toastParts: string[] = [];
+  for (const tc of toolCalls) {
+    const name = shortToolName(tc.name);
+    toastParts.push(tc.error ? `✗ ${name}` : `✓ ${name}`);
+  }
+  for (const ntc of npcToolCalls) {
+    toastParts.push(`${ntc.npcName} → ${shortToolName(ntc.toolName)}`);
+  }
+
+  const showToast = isStreaming && (toolCalls.length > 0 || npcToolCalls.length > 0);
+  const lastTool = toolCalls[toolCalls.length - 1];
+  const lastToolActive = lastTool && !lastTool.error && isStreaming;
 
   return (
     <Box flexDirection="column">
@@ -219,33 +211,29 @@ export function App({
         <Text dimColor>
           {model}
           {sessionId ? ` · ${sessionId.slice(0, 8)}` : ""}
-          {detectedSessionId ? ` · session #${detectedSessionId}` : ""}
         </Text>
       </Box>
 
-      {/* Main content: chat + sidebar */}
-      <Box flexDirection="row">
-        {/* Chat area */}
-        <Box flexDirection="column" flexGrow={1} paddingX={1}>
-          <Chat
-            messages={messages}
-            streamingText={streamingText}
-            isStreaming={isStreaming}
-          />
-        </Box>
-
-        {/* Sidebar */}
-        {hasSidebar && (
-          <Box width={SIDEBAR_WIDTH}>
-            <Sidebar
-              data={sidebarData}
-              toolCalls={toolCalls}
-              npcToolCalls={npcToolCalls}
-              isStreaming={isStreaming}
-            />
-          </Box>
-        )}
+      {/* Chat area */}
+      <Box flexDirection="column" flexGrow={1} paddingX={1}>
+        <Chat
+          messages={messages}
+          streamingText={streamingText}
+          isStreaming={isStreaming}
+        />
       </Box>
+
+      {/* Tool toast */}
+      {showToast && (
+        <Box paddingX={1}>
+          <Text dimColor>
+            {lastToolActive && (
+              <><Spinner type="dots" />{" "}</>
+            )}
+            {toastParts.join(" · ")}
+          </Text>
+        </Box>
+      )}
 
       {/* Input */}
       <Input
