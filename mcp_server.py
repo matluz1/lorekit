@@ -1767,7 +1767,7 @@ def npc_combat_turn(session_id: int, npc_id: int | str) -> str:
     if intent.get("narration"):
         lines.append(f'DECISION: "{intent["narration"]}"')
 
-    if not intent["action"] and not intent["move_to"]:
+    if not intent["action"] and not intent["move_to"] and not intent.get("move_others"):
         lines.append("ACTION: None (narrative only)")
 
     # Execute mechanical part

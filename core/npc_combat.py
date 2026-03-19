@@ -159,6 +159,7 @@ Decide what to do. Respond with a JSON block followed by optional in-character n
   "action": "action_name or null",
   "target": "character name or null",
   "move_to": "zone name or null",
+  "move_others": [{{"character": "name", "zone": "zone name"}}],
   "narration": "Brief in-character line (optional)"
 }}
 ```
@@ -167,6 +168,7 @@ Rules:
 - action/target/move_to can all be null (narrative-only turn)
 - target must be a character name from the lists above
 - move_to must be a zone name from the list above
+- move_others is optional — use it when an ability moves allies or enemies (e.g. mass teleport, push)
 - You can move AND act, or just one, or neither
 - Keep narration brief (1-2 sentences)"""
 
@@ -229,12 +231,15 @@ def parse_combat_intent(response: str) -> dict:
     """Extract structured combat intent from NPC response.
 
     Looks for a JSON block in the response. Returns dict with
-    action, target, move_to, narration — all nullable.
+    action, target, move_to, move_others, narration — all nullable.
     """
     # Try to find JSON block (```json ... ``` or bare { ... })
     json_match = re.search(r"```json\s*(\{.*?\})\s*```", response, re.DOTALL)
     if not json_match:
-        json_match = re.search(r'(\{[^{}]*"action"[^{}]*\})', response, re.DOTALL)
+        # Fallback: find outermost { ... } containing "action"
+        json_match = re.search(r"(\{(?:[^{}]|\{[^{}]*\}|\[.*?\])*\})", response, re.DOTALL)
+        if json_match and '"action"' not in json_match.group(1):
+            json_match = None
 
     if json_match:
         try:
@@ -243,6 +248,7 @@ def parse_combat_intent(response: str) -> dict:
                 "action": intent.get("action") or None,
                 "target": intent.get("target") or None,
                 "move_to": intent.get("move_to") or None,
+                "move_others": intent.get("move_others") or None,
                 "narration": intent.get("narration") or None,
             }
         except json.JSONDecodeError:
@@ -253,6 +259,7 @@ def parse_combat_intent(response: str) -> dict:
         "action": None,
         "target": None,
         "move_to": None,
+        "move_others": None,
         "narration": response.strip() or None,
     }
 
@@ -321,6 +328,29 @@ def execute_combat_turn(
             lines.append(move_result)
         except LoreKitError as e:
             lines.append(f"MOVEMENT FAILED: {e}")
+
+    # --- Move others (mass teleport, repositioning abilities) ---
+    move_others = intent.get("move_others")
+    if move_others:
+        from encounter import _char_name
+
+        for entry in move_others:
+            char_name = entry.get("character")
+            target_zone = entry.get("zone")
+            if not char_name or not target_zone:
+                continue
+            char_row = db.execute(
+                "SELECT id FROM characters WHERE session_id = ? AND LOWER(name) = LOWER(?)",
+                (session_id, char_name.strip()),
+            ).fetchone()
+            if not char_row:
+                lines.append(f"MOVE_OTHERS FAILED: '{char_name}' not found")
+                continue
+            try:
+                result = move_character(db, enc_id, char_row[0], target_zone, combat_cfg=combat_cfg)
+                lines.append(result)
+            except LoreKitError as e:
+                lines.append(f"MOVE_OTHERS FAILED ({char_name}): {e}")
 
     # --- Action resolution ---
     action = intent.get("action")
