@@ -1777,8 +1777,16 @@ def npc_combat_turn(session_id: int, npc_id: int | str) -> str:
 
     # Parse structured intent from NPC response
     from npc_combat import execute_combat_turn, parse_combat_intent
+    from system_pack import load_system_pack
 
-    intent = parse_combat_intent(response_text)
+    db3 = require_db()
+    try:
+        pack = load_system_pack(system_path)
+        intent_schema = pack.intent or None
+    finally:
+        db3.close()
+
+    intent = parse_combat_intent(response_text, schema=intent_schema)
 
     import json
 
@@ -1790,7 +1798,7 @@ def npc_combat_turn(session_id: int, npc_id: int | str) -> str:
     if intent.get("narration"):
         lines.append(f'DECISION: "{intent["narration"]}"')
 
-    if not intent["action"] and not intent["move_to"] and not intent.get("move_others"):
+    if not intent["action"] and not intent["move_to"]:
         lines.append("ACTION: None (narrative only)")
 
     # Execute mechanical part

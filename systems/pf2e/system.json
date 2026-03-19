@@ -290,6 +290,38 @@
     }
   },
 
+  "intent": {
+    "steps": {
+      "move": {
+        "field": "move_to",
+        "field_type": "zone",
+        "multi": true,
+        "executor": "movement"
+      },
+      "action": {
+        "executor": "resolve_action",
+        "fields": {
+          "action": { "type": "action_name", "nullable": true },
+          "targets": { "type": "characters", "nullable": true }
+        }
+      }
+    },
+    "default_sequence": ["move", "action"],
+    "sequence_rules": {
+      "max_per_step": { "move": 1, "action": 1 },
+      "max_total": 2
+    },
+    "extra_fields": {
+      "narration": { "type": "text", "nullable": true }
+    },
+    "rules": [
+      "sequence defines execution order — reorder steps as tactics demand",
+      "Most turns use at most one move and one action",
+      "action MUST be one of the available actions — NOT an ability name",
+      "action/targets/move_to can all be null (narrative-only turn)"
+    ]
+  },
+
   "encounter_templates": {
     "tavern_brawl": {
       "zones": [

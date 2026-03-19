@@ -58,6 +58,9 @@ class SystemPack:
     # Combat positioning config: {"zone_scale": 30, "melee_range": 0, "zone_tags": {...}, ...}
     combat: dict[str, Any] = field(default_factory=dict)
 
+    # NPC combat intent schema: {"steps": {...}, "default_sequence": [...], "sequence_rules": {...}, ...}
+    intent: dict[str, Any] = field(default_factory=dict)
+
 
 # ---------------------------------------------------------------------------
 # JSON loader
@@ -109,6 +112,9 @@ def load_system_pack(pack_dir: str) -> SystemPack:
 
     # Combat positioning config
     pack.combat = dict(data.get("combat", {}))
+
+    # NPC combat intent schema
+    pack.intent = dict(data.get("intent", {}))
 
     return pack
 

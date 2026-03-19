@@ -2,7 +2,7 @@
 
 System-agnostic tests using fixtures/test_system. Validates the
 orchestration wiring: parse_combat_intent, build_combat_context,
-execute_combat_turn (move/action/move_others sequencing, error handling).
+execute_combat_turn (schema-driven sequencing, error handling).
 """
 
 import json
@@ -28,6 +28,15 @@ COMBAT_CFG = {
         "cover": {"target_stat": "bonus_defense", "value": 2, "modifier_type": "environment"},
     },
 }
+
+
+def _load_intent_schema():
+    """Load the intent schema from the test system pack."""
+    with open(os.path.join(TEST_SYSTEM, "system.json")) as f:
+        return json.load(f).get("intent")
+
+
+INTENT_SCHEMA = _load_intent_schema()
 
 
 # ---------------------------------------------------------------------------
@@ -116,14 +125,14 @@ class TestParseCombatIntent:
 {
   "sequence": ["move", "action"],
   "action": "close_attack",
-  "target": "Hero",
+  "targets": ["Hero"],
   "move_to": "Street",
   "narration": "I charge forward!"
 }
 ```"""
-        intent = parse_combat_intent(response)
+        intent = parse_combat_intent(response, schema=INTENT_SCHEMA)
         assert intent["action"] == "close_attack"
-        assert intent["target"] == "Hero"
+        assert intent["targets"] == ["Hero"]
         assert intent["move_to"] == "Street"
         assert intent["sequence"] == ["move", "action"]
         assert intent["narration"] == "I charge forward!"
@@ -131,67 +140,72 @@ class TestParseCombatIntent:
     def test_parses_bare_json(self):
         from npc_combat import parse_combat_intent
 
-        response = '{"action": "ranged_attack", "target": "Villain", "move_to": null}'
-        intent = parse_combat_intent(response)
+        response = '{"action": "ranged_attack", "targets": ["Villain"], "move_to": null}'
+        intent = parse_combat_intent(response, schema=INTENT_SCHEMA)
         assert intent["action"] == "ranged_attack"
-        assert intent["target"] == "Villain"
+        assert intent["targets"] == ["Villain"]
         assert intent["move_to"] is None
+
+    def test_normalizes_target_string_to_list(self):
+        """Old-style 'target' string is normalized to 'targets' list."""
+        from npc_combat import parse_combat_intent
+
+        response = '{"action": "close_attack", "target": "Hero"}'
+        intent = parse_combat_intent(response, schema=INTENT_SCHEMA)
+        assert intent["targets"] == ["Hero"]
 
     def test_filters_invalid_sequence_steps(self):
         from npc_combat import parse_combat_intent
 
-        response = '{"sequence": ["move", "attack_power", "action", "dance"], "action": "melee_attack", "target": "X"}'
-        intent = parse_combat_intent(response)
+        response = (
+            '{"sequence": ["move", "attack_power", "action", "dance"], "action": "melee_attack", "targets": ["X"]}'
+        )
+        intent = parse_combat_intent(response, schema=INTENT_SCHEMA)
         assert intent["sequence"] == ["move", "action"]
 
     def test_fallback_narrative_only(self):
         from npc_combat import parse_combat_intent
 
         response = "I look around warily, assessing the situation."
-        intent = parse_combat_intent(response)
+        intent = parse_combat_intent(response, schema=INTENT_SCHEMA)
         assert intent["action"] is None
-        assert intent["target"] is None
+        assert intent["targets"] is None
         assert intent["move_to"] is None
         assert intent["narration"] == response
 
     def test_null_action_treated_as_none(self):
         from npc_combat import parse_combat_intent
 
-        response = '{"action": null, "target": null, "move_to": "Alley"}'
-        intent = parse_combat_intent(response)
+        response = '{"action": null, "targets": null, "move_to": "Alley"}'
+        intent = parse_combat_intent(response, schema=INTENT_SCHEMA)
         assert intent["action"] is None
         assert intent["move_to"] == "Alley"
 
     def test_empty_string_action_treated_as_none(self):
         from npc_combat import parse_combat_intent
 
-        response = '{"action": "", "target": "", "move_to": ""}'
-        intent = parse_combat_intent(response)
+        response = '{"action": "", "targets": [], "move_to": ""}'
+        intent = parse_combat_intent(response, schema=INTENT_SCHEMA)
         assert intent["action"] is None
-        assert intent["target"] is None
+        assert intent["targets"] is None
         assert intent["move_to"] is None
 
     def test_multi_move_list(self):
         from npc_combat import parse_combat_intent
 
-        response = '{"sequence": ["move", "action", "move"], "action": "melee_attack", "target": "X", "move_to": ["Near", "Far"]}'
-        intent = parse_combat_intent(response)
+        response = '{"sequence": ["move", "action", "move"], "action": "melee_attack", "targets": ["X"], "move_to": ["Near", "Far"]}'
+        intent = parse_combat_intent(response, schema=INTENT_SCHEMA)
         assert intent["move_to"] == ["Near", "Far"]
-        assert intent["sequence"] == ["move", "action", "move"]
+        # Note: sequence validation trims extra move via _validate_sequence, not parse
 
-    def test_move_others(self):
+    def test_without_schema_uses_defaults(self):
+        """Without schema, default valid steps are move and action."""
         from npc_combat import parse_combat_intent
 
-        response = '{"action": null, "move_others": [{"character": "Ally", "zone": "Rooftop"}]}'
+        response = '{"sequence": ["move", "action"], "action": "strike", "targets": ["Hero"]}'
         intent = parse_combat_intent(response)
-        assert intent["move_others"] == [{"character": "Ally", "zone": "Rooftop"}]
-
-    def test_ally_field(self):
-        from npc_combat import parse_combat_intent
-
-        response = '{"action": "grapple", "target": "Enemy", "ally": "Friend"}'
-        intent = parse_combat_intent(response)
-        assert intent["ally"] == "Friend"
+        assert intent["sequence"] == ["move", "action"]
+        assert intent["targets"] == ["Hero"]
 
 
 # ===========================================================================
@@ -379,7 +393,7 @@ class TestExecuteAction:
                 [(npc, "Arena"), (hero, "Arena")],
             )
 
-            intent = {"sequence": ["action"], "action": "melee_attack", "target": "Hero"}
+            intent = {"sequence": ["action"], "action": "melee_attack", "targets": ["Hero"]}
 
             roll_calls = iter([17, 5])  # d20=18 (hit), d8=6
             with patch("secrets.randbelow", side_effect=roll_calls):
@@ -411,7 +425,7 @@ class TestExecuteAction:
                 [(npc, "Arena"), (hero, "Arena")],
             )
 
-            intent = {"sequence": ["action"], "action": "melee_attack", "target": "Hero"}
+            intent = {"sequence": ["action"], "action": "melee_attack", "targets": ["Hero"]}
 
             roll_calls = iter([0])  # d20=1
             with patch("secrets.randbelow", side_effect=roll_calls):
@@ -441,7 +455,7 @@ class TestExecuteAction:
                 [(npc, "Arena"), (hero, "Arena")],
             )
 
-            intent = {"sequence": ["action"], "action": "grapple", "target": "Hero"}
+            intent = {"sequence": ["action"], "action": "grapple", "targets": ["Hero"]}
 
             roll_calls = iter([17, 4])  # attacker 18, defender 5
             with patch("secrets.randbelow", side_effect=roll_calls):
@@ -477,7 +491,7 @@ class TestExecuteAction:
                 [(npc, "Arena"), (hero, "Arena")],
             )
 
-            intent = {"sequence": ["action"], "action": "grapple", "target": "Hero"}
+            intent = {"sequence": ["action"], "action": "grapple", "targets": ["Hero"]}
 
             roll_calls = iter([2, 17])  # attacker 3, defender 18
             with patch("secrets.randbelow", side_effect=roll_calls):
@@ -525,7 +539,7 @@ class TestExecuteMovement:
             intent = {
                 "sequence": ["move", "action"],
                 "action": "melee_attack",
-                "target": "Hero",
+                "targets": ["Hero"],
                 "move_to": "Far",
             }
 
@@ -563,7 +577,7 @@ class TestExecuteMovement:
             intent = {
                 "sequence": ["action", "move"],
                 "action": "melee_attack",
-                "target": "Hero",
+                "targets": ["Hero"],
                 "move_to": "Far",
             }
 
@@ -578,7 +592,7 @@ class TestExecuteMovement:
             db.close()
 
     def test_multi_move(self, make_session, make_character):
-        """NPC moves through multiple zones in sequence."""
+        """NPC with max_move_steps=2 moves through multiple zones in sequence."""
         from _db import require_db
         from character import set_attr
         from npc_combat import execute_combat_turn
@@ -589,6 +603,8 @@ class TestExecuteMovement:
             npc = _make_fighter(db, sid, make_character, "Orc")
             hero = _make_fighter(db, sid, make_character, "Hero", char_type="pc")
             set_attr(db, hero, "combat", "current_hp", "35")
+            # Give NPC Move-by Action (allows 2 move steps)
+            set_attr(db, npc, "build", "max_move_steps", "2")
 
             _start_encounter(
                 db,
@@ -601,7 +617,7 @@ class TestExecuteMovement:
             intent = {
                 "sequence": ["move", "action", "move"],
                 "action": "melee_attack",
-                "target": "Hero",
+                "targets": ["Hero"],
                 "move_to": ["South", "Center"],
             }
 
@@ -639,7 +655,7 @@ class TestExecuteErrorHandling:
                 [(npc, "Arena"), (hero, "Arena")],
             )
 
-            intent = {"sequence": ["action"], "action": "dragon_breath", "target": "Hero"}
+            intent = {"sequence": ["action"], "action": "dragon_breath", "targets": ["Hero"]}
 
             lines = execute_combat_turn(db, npc, sid, intent, COMBAT_CFG, TEST_SYSTEM)
             output = "\n".join(lines)
@@ -666,7 +682,7 @@ class TestExecuteErrorHandling:
                 [(npc, "Arena"), (hero, "Arena")],
             )
 
-            intent = {"sequence": ["action"], "action": "melee_attack", "target": "Ghost"}
+            intent = {"sequence": ["action"], "action": "melee_attack", "targets": ["Ghost"]}
 
             lines = execute_combat_turn(db, npc, sid, intent, COMBAT_CFG, TEST_SYSTEM)
             output = "\n".join(lines)
@@ -693,7 +709,7 @@ class TestExecuteErrorHandling:
                 [(npc, "Arena"), (hero, "Arena")],
             )
 
-            intent = {"sequence": ["action"], "action": "melee_attack", "target": None}
+            intent = {"sequence": ["action"], "action": "melee_attack", "targets": None}
 
             lines = execute_combat_turn(db, npc, sid, intent, COMBAT_CFG, TEST_SYSTEM)
             output = "\n".join(lines)
@@ -753,7 +769,7 @@ class TestExecuteErrorHandling:
                 [(npc, "North"), (hero, "South")],
             )
 
-            intent = {"sequence": ["action"], "action": "melee_attack", "target": "Hero"}
+            intent = {"sequence": ["action"], "action": "melee_attack", "targets": ["Hero"]}
 
             lines = execute_combat_turn(db, npc, sid, intent, COMBAT_CFG, TEST_SYSTEM)
             output = "\n".join(lines)
@@ -764,39 +780,92 @@ class TestExecuteErrorHandling:
 
 
 # ===========================================================================
-# execute_combat_turn — move_others
+# Sequence validation
 # ===========================================================================
 
 
-class TestExecuteMoveOthers:
-    def test_move_others(self, make_session, make_character):
-        """NPC can move other characters via move_others intent."""
+class TestSequenceValidation:
+    def test_excess_move_dropped(self, make_session, make_character):
+        """Normal NPC: max_move=1, extra move step dropped."""
         from _db import require_db
-        from npc_combat import execute_combat_turn
+        from npc_combat import _validate_sequence
 
         db = require_db()
         try:
             sid = make_session()
-            npc = _make_fighter(db, sid, make_character, "Caster")
-            ally = _make_fighter(db, sid, make_character, "Ally")
-            hero = _make_fighter(db, sid, make_character, "Hero", char_type="pc")
+            npc = _make_fighter(db, sid, make_character, "Orc")
 
-            _start_encounter(
+            result = _validate_sequence(
+                ["move", "action", "move"],
+                INTENT_SCHEMA,
                 db,
-                sid,
-                [npc, ally, hero],
-                [{"name": "North"}, {"name": "South"}],
-                [(npc, "North"), (ally, "North"), (hero, "South")],
+                npc,
             )
+            assert result == ["move", "action"]
+        finally:
+            db.close()
 
-            intent = {
-                "sequence": ["move_others"],
-                "action": None,
-                "target": None,
-                "move_others": [{"character": "Ally", "zone": "South"}],
-            }
+    def test_character_override_allows_extra_move(self, make_session, make_character):
+        """NPC with max_move_steps=2 can double-move."""
+        from _db import require_db
+        from character import set_attr
+        from npc_combat import _validate_sequence
 
-            lines = execute_combat_turn(db, npc, sid, intent, COMBAT_CFG, TEST_SYSTEM)
-            assert _get_zone(db, sid, ally) == "South"
+        db = require_db()
+        try:
+            sid = make_session()
+            npc = _make_fighter(db, sid, make_character, "Scout")
+            set_attr(db, npc, "build", "max_move_steps", "2")
+
+            result = _validate_sequence(
+                ["move", "action", "move"],
+                INTENT_SCHEMA,
+                db,
+                npc,
+            )
+            assert result == ["move", "action", "move"]
+        finally:
+            db.close()
+
+    def test_max_total_enforced(self, make_session, make_character):
+        """Sequence truncated to max_total (expanded by character overrides)."""
+        from _db import require_db
+        from character import set_attr
+        from npc_combat import _validate_sequence
+
+        db = require_db()
+        try:
+            sid = make_session()
+            npc = _make_fighter(db, sid, make_character, "Scout")
+            # max_move_steps=3 (override from 1) → max_total expands from 2 to 4
+            set_attr(db, npc, "build", "max_move_steps", "3")
+
+            # 3 moves + 1 action = 4, fits expanded max_total of 4
+            result = _validate_sequence(
+                ["move", "move", "move", "action"],
+                INTENT_SCHEMA,
+                db,
+                npc,
+            )
+            assert result == ["move", "move", "move", "action"]
+
+            # 4 moves + 1 action = 5, but max_move_steps=3 drops 4th move → 4 steps
+            result2 = _validate_sequence(
+                ["move", "move", "move", "move", "action"],
+                INTENT_SCHEMA,
+                db,
+                npc,
+            )
+            assert result2 == ["move", "move", "move", "action"]
+
+            # Without override, max_total=2 enforced
+            npc2 = _make_fighter(db, sid, make_character, "Normal")
+            result3 = _validate_sequence(
+                ["move", "action", "move"],
+                INTENT_SCHEMA,
+                db,
+                npc2,
+            )
+            assert len(result3) == 2  # extra move dropped by max_per_step, fits max_total
         finally:
             db.close()

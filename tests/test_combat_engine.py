@@ -995,3 +995,61 @@ class TestDegreeCriticalHit:
             assert "vs DC 21" in output  # 15 + 6, no crit bonus
         finally:
             db.close()
+
+
+class TestRelocateOnHit:
+    def test_relocate_moves_target_on_hit(self, make_session, make_character):
+        """on_hit relocate moves the target to a named zone."""
+        from _db import require_db
+        from character import set_attr
+        from combat_engine import _apply_on_hit
+        from encounter import (
+            _get_character_zone,
+            _zone_id_to_name,
+            start_encounter,
+        )
+        from system_pack import CharacterData, SystemPack, load_character_data, load_system_pack
+
+        db = require_db()
+        try:
+            sid, atk_id = _setup_fighter(db, make_session, make_character, set_attr, "Caster")
+            _, def_id = _setup_fighter(db, make_session, make_character, set_attr, "Target")
+
+            sess_id = db.execute("SELECT session_id FROM characters WHERE id = ?", (atk_id,)).fetchone()[0]
+
+            start_encounter(
+                db,
+                sess_id,
+                [{"name": "Near"}, {"name": "Far"}],
+                [{"character_id": atk_id, "roll": 20}, {"character_id": def_id, "roll": 10}],
+                placements=[
+                    {"character_id": atk_id, "zone": "Near"},
+                    {"character_id": def_id, "zone": "Near"},
+                ],
+                combat_cfg={"zone_scale": 30, "movement_unit": "ft", "melee_range": 0, "zone_tags": {}},
+            )
+
+            pack = load_system_pack(TEST_SYSTEM)
+            attacker = load_character_data(db, atk_id)
+            defender = load_character_data(db, def_id)
+
+            on_hit = {"relocate": {"who": "primary", "zone_field": "relocate_zone"}}
+            options = {"relocate_zone": "Far"}
+            lines = []
+
+            _apply_on_hit(db, pack, attacker, defender, on_hit, lines, options=options)
+
+            output = "\n".join(lines)
+            assert "MOVED" in output
+            assert "Far" in output
+
+            # Verify target is now in Far zone
+            enc_id = db.execute(
+                "SELECT id FROM encounter_state WHERE session_id = ? AND status = 'active'",
+                (sess_id,),
+            ).fetchone()[0]
+            zone_id = _get_character_zone(db, enc_id, def_id)
+            zone_name = _zone_id_to_name(db, zone_id)
+            assert zone_name == "Far"
+        finally:
+            db.close()

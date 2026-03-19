@@ -945,11 +945,11 @@ class TestNpcCombatTurn:
 
         response = """The orc snarls!
 ```json
-{"action": "melee_attack", "target": "Fighter", "move_to": "Center", "narration": "Charges forward!"}
+{"action": "melee_attack", "targets": ["Fighter"], "move_to": "Center", "narration": "Charges forward!"}
 ```"""
         intent = parse_combat_intent(response)
         assert intent["action"] == "melee_attack"
-        assert intent["target"] == "Fighter"
+        assert intent["targets"] == ["Fighter"]
         assert intent["move_to"] == "Center"
         assert intent["narration"] == "Charges forward!"
 
@@ -957,11 +957,11 @@ class TestNpcCombatTurn:
         from npc_combat import parse_combat_intent
 
         response = """```json
-{"action": null, "target": null, "move_to": null, "narration": "The priest prays silently."}
+{"action": null, "targets": null, "move_to": null, "narration": "The priest prays silently."}
 ```"""
         intent = parse_combat_intent(response)
         assert intent["action"] is None
-        assert intent["target"] is None
+        assert intent["targets"] is None
         assert intent["move_to"] is None
         assert intent["narration"] == "The priest prays silently."
 
@@ -971,63 +971,9 @@ class TestNpcCombatTurn:
         response = "The goblin shrieks and runs away!"
         intent = parse_combat_intent(response)
         assert intent["action"] is None
-        assert intent["target"] is None
+        assert intent["targets"] is None
         assert intent["move_to"] is None
         assert intent["narration"] == "The goblin shrieks and runs away!"
-
-    def test_parse_intent_move_others(self):
-        from npc_combat import parse_combat_intent
-
-        response = """```json
-{"action": null, "target": null, "move_to": "North", "move_others": [{"character": "Ban", "zone": "North"}], "narration": "Mass teleport!"}
-```"""
-        intent = parse_combat_intent(response)
-        assert intent["move_to"] == "North"
-        assert intent["move_others"] == [{"character": "Ban", "zone": "North"}]
-        assert intent["narration"] == "Mass teleport!"
-
-    def test_execute_move_others(self, rules_session, make_character):
-        """move_others in intent moves other characters."""
-        from _db import require_db
-        from encounter import _get_character_zone, _require_active_encounter, _zone_id_to_name, start_encounter
-        from npc_combat import execute_combat_turn
-
-        db = require_db()
-        pc = make_character(rules_session, name="Fighter", char_type="pc")
-        npc = make_character(rules_session, name="Mage", char_type="npc")
-        _setup_character(db, pc)
-        _setup_character(db, npc)
-
-        zones = [{"name": "North"}, {"name": "South"}]
-        initiative = [
-            {"character_id": npc, "roll": 20},
-            {"character_id": pc, "roll": 10},
-        ]
-        placements = [
-            {"character_id": pc, "zone": "North"},
-            {"character_id": npc, "zone": "North"},
-        ]
-        start_encounter(db, rules_session, zones, initiative, placements=placements, combat_cfg=COMBAT_CFG)
-
-        intent = {
-            "action": None,
-            "target": None,
-            "move_to": "South",
-            "move_others": [{"character": "Fighter", "zone": "South"}],
-            "narration": "Teleport us both!",
-        }
-        lines = execute_combat_turn(db, rules_session, npc, intent, COMBAT_CFG, TEST_SYSTEM)
-        result = "\n".join(lines)
-        assert "Mage → South" in result
-        assert "Fighter → South" in result
-
-        # Verify both are in South
-        enc_id = _require_active_encounter(db, rules_session)[0]
-        npc_zone = _zone_id_to_name(db, _get_character_zone(db, enc_id, npc))
-        pc_zone = _zone_id_to_name(db, _get_character_zone(db, enc_id, pc))
-        assert npc_zone == "South"
-        assert pc_zone == "South"
-        db.close()
 
     def test_sequence_action_before_move(self, rules_session, make_character):
         """sequence ["action", "move"] attacks from current zone, then repositions."""
@@ -1055,7 +1001,7 @@ class TestNpcCombatTurn:
         intent = {
             "sequence": ["action", "move"],
             "action": "melee_strike",
-            "target": "Fighter",
+            "targets": ["Fighter"],
             "move_to": "South",
             "narration": "Strike and retreat",
         }
@@ -1071,7 +1017,7 @@ class TestNpcCombatTurn:
         db.close()
 
     def test_multi_move_sequence(self, rules_session, make_character):
-        """sequence ["move", "action", "move"] with move_to as list."""
+        """sequence ["move", "action", "move"] with move_to as list requires max_move_steps=2."""
         from _db import require_db
         from encounter import (
             _get_character_zone,
@@ -1086,6 +1032,8 @@ class TestNpcCombatTurn:
         npc = make_character(rules_session, name="Rogue", char_type="npc")
         _setup_character(db, pc)
         _setup_character(db, npc)
+        # Give NPC Move-by Action (allows 2 move steps)
+        _set_attrs(db, npc, {"max_move_steps": 2})
 
         zones = [{"name": "A"}, {"name": "B"}, {"name": "C"}]
         initiative = [
@@ -1102,7 +1050,7 @@ class TestNpcCombatTurn:
         intent = {
             "sequence": ["move", "action", "move"],
             "action": "melee_strike",
-            "target": "Fighter",
+            "targets": ["Fighter"],
             "move_to": ["B", "C"],
             "narration": "Advance, strike, retreat",
         }
@@ -1282,7 +1230,7 @@ class TestNpcCombatTurn:
         ]
         start_encounter(db, rules_session, zones, initiative, placements=placements, combat_cfg=COMBAT_CFG)
 
-        intent = {"action": None, "target": None, "move_to": None, "narration": "Hesitates."}
+        intent = {"action": None, "targets": None, "move_to": None, "narration": "Hesitates."}
         lines = execute_combat_turn(db, rules_session, npc, intent, COMBAT_CFG, TEST_SYSTEM)
         result = "\n".join(lines)
 
@@ -1321,7 +1269,7 @@ class TestNpcCombatTurn:
         ]
         start_encounter(db, rules_session, zones, initiative, placements=placements, combat_cfg=COMBAT_CFG)
 
-        intent = {"action": "melee_attack", "target": "Fighter", "move_to": "North", "narration": None}
+        intent = {"action": "melee_attack", "targets": ["Fighter"], "move_to": "North", "narration": None}
         lines = execute_combat_turn(db, rules_session, npc, intent, COMBAT_CFG, TEST_SYSTEM)
         result = "\n".join(lines)
 

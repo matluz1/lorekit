@@ -191,19 +191,17 @@ def _apply_on_hit(
             if mod.get("value_min_margin") and margin > value:
                 value = margin
 
-            # apply_to: who receives the modifier
+            # apply_to: who receives the modifier (role name or "defender")
             apply_to = mod.get("apply_to", "defender")
-            if apply_to == "intent_ally":
-                ally_id = options.get("ally_id")
-                if not ally_id:
-                    lines.append(f"MODIFIER SKIPPED: {source} — no ally specified")
-                    continue
-                char_id = ally_id
-                ally_name = _char_name_from_id(db, ally_id)
-                label = f"{source} → {ally_name}"
-            else:
+            target_roles = options.get("target_roles", {})
+            if apply_to == "defender" or apply_to not in target_roles:
                 char_id = defender.character_id
                 label = source
+            else:
+                role_id = target_roles[apply_to]
+                char_id = role_id
+                role_name = _char_name_from_id(db, role_id)
+                label = f"{source} → {role_name}"
 
             db.execute(
                 "INSERT INTO combat_state "
@@ -264,6 +262,38 @@ def _apply_on_hit(
                 lines.append(result)
             else:
                 lines.append(f"PUSH: {defender.name} — no movement (boundary)")
+
+    # --- Relocate (willed move to a named zone) ---
+    relocate = on_hit.get("relocate")
+    if relocate:
+        from encounter import _get_active_encounter, move_character
+
+        who = relocate.get("who", "primary")
+        zone_field = relocate.get("zone_field")
+        target_roles = options.get("target_roles", {})
+
+        # Determine who to relocate
+        if who in target_roles:
+            relocate_id = target_roles[who]
+        elif who == "primary":
+            relocate_id = defender.character_id
+        else:
+            relocate_id = defender.character_id
+
+        # Get zone name from options (passed from intent fields)
+        zone_name = options.get(zone_field) if zone_field else None
+        if zone_name:
+            enc = _get_active_encounter(db, attacker.session_id)
+            if enc is not None:
+                enc_id = enc[0]
+                try:
+                    result = move_character(db, enc_id, relocate_id, zone_name, combat_cfg=pack.combat)
+                    lines.append(result)
+                except LoreKitError as e:
+                    lines.append(f"RELOCATE FAILED: {e}")
+        else:
+            if zone_field:
+                lines.append(f"RELOCATE SKIPPED: no zone specified in '{zone_field}'")
 
 
 # ---------------------------------------------------------------------------

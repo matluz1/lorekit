@@ -173,7 +173,7 @@
     "category": "combat",
     "ranked": false,
     "cost": 1,
-    "effects": {},
+    "effects": {"max_move_steps": 2},
     "note": "Move before and after standard action within total speed"
   },
   "power_attack": {

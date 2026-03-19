@@ -1,7 +1,12 @@
 """npc_combat.py — NPC combat turn orchestration.
 
 Builds combat context for the NPC agent, parses structured intent
-from the response, and orchestrates move → resolve → advance_turn.
+from the response, and orchestrates the sequence of steps declared
+in the system pack's ``intent`` schema.
+
+The orchestration layer is zero-knowledge: step types, field schemas,
+and sequence rules all come from system.json. A system with no
+``intent`` section cannot run NPC combat turns.
 """
 
 from __future__ import annotations
@@ -24,6 +29,10 @@ def build_combat_context(
     Lists available actions, zone names, and character positions.
     Uses the ``team`` column in character_zone for ally/enemy classification.
     Same team = ally, different team = enemy, no team = everyone is enemy.
+
+    The JSON template and rules are generated from the system pack's
+    ``intent`` schema. If no schema is present, falls back to a minimal
+    default.
     """
     from encounter import (
         _build_adjacency,
@@ -138,6 +147,19 @@ def build_combat_context(
     if npc_ztags:
         npc_zone_str += f" [{', '.join(npc_ztags)}]"
 
+    # Load intent schema for JSON template and rules
+    intent_schema = None
+    if system_path:
+        import os
+
+        system_json = os.path.join(system_path, "system.json")
+        if os.path.isfile(system_json):
+            with open(system_json) as f:
+                sdata = json.load(f)
+            intent_schema = sdata.get("intent")
+
+    json_block, rules_block = _build_intent_prompt(intent_schema)
+
     context = f"""COMBAT — Round {rnd}
 It is your turn ({npc_name}).
 
@@ -155,31 +177,92 @@ Zones: {", ".join(zone_list)}
 Decide what to do. Respond with a JSON block followed by optional in-character narration.
 
 ```json
-{{
-  "sequence": ["move", "action"],
-  "action": "action_name or null",
-  "target": "character name or null",
-  "ally": "ally name (for actions that grant a bonus to an ally)",
-  "move_to": "zone name, or [\"zone1\", \"zone2\"] for multi-move, or null",
-  "move_others": [{{"character": "name", "zone": "zone name"}}],
-  "narration": "Brief in-character line (optional)"
-}}
+{json_block}
 ```
 
 Rules:
-- sequence defines execution order. Valid steps: "move", "action", "move_others". Default: ["move", "action"]
-  Examples: ["action", "move"] to attack then reposition (Move-by Action), ["move", "action"] to advance then attack
-  Most turns use at most one "move" and one "action". Only use multiple "move" steps if the system rules allow it.
-- action MUST be one of the available actions listed above — NOT an ability name. Your abilities describe what you
-  can do narratively, but the engine resolves them through system actions (e.g. use close_attack for a melee power,
-  ranged_attack for a ranged power, setup_deception for a feint). Use move_others for abilities that move other characters.
-- action/target/move_to can all be null (narrative-only turn)
-- target must be a character name from the lists above
-- move_to must be a zone name from the list above
-- move_others is optional — use it when an ability moves allies or enemies (e.g. mass teleport, teleport attack)
-- Keep narration brief (1-2 sentences)"""
+{rules_block}"""
 
     return context
+
+
+def _build_intent_prompt(schema: dict | None) -> tuple[str, str]:
+    """Generate JSON example and rules text from intent schema.
+
+    Returns (json_block, rules_block) strings for the NPC prompt.
+    """
+    if not schema:
+        # Minimal fallback for systems without intent schema
+        json_block = """{
+  "sequence": ["move", "action"],
+  "action": "action_name or null",
+  "targets": ["character name or null"],
+  "move_to": "zone name or null",
+  "narration": "Brief in-character line (optional)"
+}"""
+        rules_block = """- sequence defines execution order — reorder steps as tactics demand
+- Most turns use at most one move and one action
+- action MUST be one of the available actions listed above — NOT an ability name
+- action/targets/move_to can all be null (narrative-only turn)
+- Keep narration brief (1-2 sentences)"""
+        return json_block, rules_block
+
+    steps = schema.get("steps", {})
+    default_seq = schema.get("default_sequence", list(steps.keys()))
+    extra_fields = schema.get("extra_fields", {})
+    rules = schema.get("rules", [])
+
+    # Build JSON example
+    example = {}
+    example["sequence"] = default_seq
+
+    for step_name, step_def in steps.items():
+        if "fields" in step_def:
+            for fname, fdef in step_def["fields"].items():
+                ftype = fdef.get("type", "text")
+                if ftype == "characters":
+                    example[fname] = ["character name or null"]
+                elif ftype == "action_name":
+                    example[fname] = "action_name or null"
+                else:
+                    example[fname] = f"{ftype} or null"
+        elif "field" in step_def:
+            field_name = step_def["field"]
+            ftype = step_def.get("field_type", "text")
+            if step_def.get("multi"):
+                example[field_name] = 'zone name, or ["zone1", "zone2"] for multi-move, or null'
+            elif ftype == "zone":
+                example[field_name] = "zone name or null"
+            else:
+                example[field_name] = f"{ftype} or null"
+
+    for fname, fdef in extra_fields.items():
+        ftype = fdef.get("type", "text")
+        example[fname] = f"{ftype} (optional)" if fdef.get("nullable") else ftype
+
+    json_block = json.dumps(example, indent=2)
+
+    # Build rules block
+    rules_lines = []
+    for rule in rules:
+        rules_lines.append(f"- {rule}")
+
+    # Add step-specific context
+    seq_rules = schema.get("sequence_rules", {})
+    max_per_step = seq_rules.get("max_per_step", {})
+    max_total = seq_rules.get("max_total")
+    if max_per_step or max_total:
+        limits = []
+        for step, max_count in max_per_step.items():
+            limits.append(f"{step}: max {max_count}")
+        if max_total:
+            limits.append(f"total: max {max_total}")
+        rules_lines.append(f"- Step limits: {', '.join(limits)}")
+
+    rules_lines.append("- Keep narration brief (1-2 sentences)")
+
+    rules_block = "\n".join(rules_lines)
+    return json_block, rules_block
 
 
 def _get_relative_health(db, cid: int, hud_cfg: dict) -> str:
@@ -234,12 +317,23 @@ def _get_relative_health(db, cid: int, hud_cfg: dict) -> str:
         return "down"
 
 
-def parse_combat_intent(response: str) -> dict:
+def parse_combat_intent(response: str, schema: dict | None = None) -> dict:
     """Extract structured combat intent from NPC response.
 
     Looks for a JSON block in the response. Returns dict with
-    action, target, move_to, move_others, narration — all nullable.
+    schema-declared fields. ``target`` is normalized to ``targets`` (list).
+
+    When schema is provided, only schema-declared step names are valid
+    in the sequence. Otherwise falls back to a default set.
     """
+    # Determine valid step names from schema
+    if schema:
+        valid_steps = set(schema.get("steps", {}).keys())
+        default_sequence = schema.get("default_sequence", list(valid_steps))
+    else:
+        valid_steps = {"move", "action"}
+        default_sequence = ["move", "action"]
+
     # Try to find JSON block (```json ... ``` or bare { ... })
     json_match = re.search(r"```json\s*(\{.*?\})\s*```", response, re.DOTALL)
     if not json_match:
@@ -252,28 +346,37 @@ def parse_combat_intent(response: str) -> dict:
         try:
             intent = json.loads(json_match.group(1))
             raw_seq = intent.get("sequence")
-            valid_steps = {"move", "action", "move_others"}
             sequence = [s for s in raw_seq if s in valid_steps] if isinstance(raw_seq, list) else None
-            return {
-                "sequence": sequence or ["move", "action", "move_others"],
+
+            # Normalize target → targets (always a list)
+            targets = intent.get("targets") or intent.get("target") or None
+            if targets is not None and isinstance(targets, str):
+                targets = [targets]
+
+            result = {
+                "sequence": sequence or list(default_sequence),
                 "action": intent.get("action") or None,
-                "target": intent.get("target") or None,
-                "ally": intent.get("ally") or None,
+                "targets": targets,
                 "move_to": intent.get("move_to") or None,
-                "move_others": intent.get("move_others") or None,
                 "narration": intent.get("narration") or None,
             }
+
+            # Copy extra fields from schema
+            if schema:
+                for fname in schema.get("extra_fields", {}):
+                    if fname not in result:
+                        result[fname] = intent.get(fname) or None
+
+            return result
         except json.JSONDecodeError:
             pass
 
     # Fallback: narrative-only turn (couldn't parse intent)
     return {
-        "sequence": ["move", "action", "move_others"],
+        "sequence": list(default_sequence),
         "action": None,
-        "target": None,
-        "ally": None,
+        "targets": None,
         "move_to": None,
-        "move_others": None,
         "narration": response.strip() or None,
     }
 
@@ -294,6 +397,55 @@ def _resolve_system_path_internal(db, session_id: int) -> str | None:
     return system_path if os.path.isdir(system_path) else None
 
 
+def _validate_sequence(
+    sequence: list[str],
+    schema: dict | None,
+    db,
+    npc_id: int,
+) -> list[str]:
+    """Validate and trim sequence against system + character limits.
+
+    Returns the validated sequence (excess steps dropped with warning logged).
+    """
+    if not schema:
+        return sequence
+
+    seq_rules = schema.get("sequence_rules", {})
+    max_per_step = dict(seq_rules.get("max_per_step", {}))
+    max_total = seq_rules.get("max_total")
+
+    # Character-level overrides: max_{step}_steps attribute
+    # When a per-step limit increases, expand max_total by the same delta
+    for step_name in max_per_step:
+        override_key = f"max_{step_name}_steps"
+        row = db.execute(
+            "SELECT value FROM character_attributes WHERE character_id = ? AND key = ?",
+            (npc_id, override_key),
+        ).fetchone()
+        if row:
+            new_val = int(row[0])
+            old_val = max_per_step[step_name]
+            if max_total is not None and new_val > old_val:
+                max_total += new_val - old_val
+            max_per_step[step_name] = new_val
+
+    # Validate per-step counts
+    step_counts: dict[str, int] = {}
+    validated = []
+    for step in sequence:
+        step_counts[step] = step_counts.get(step, 0) + 1
+        max_for_step = max_per_step.get(step)
+        if max_for_step is not None and step_counts[step] > max_for_step:
+            continue  # drop excess step
+        validated.append(step)
+
+    # Validate max_total
+    if max_total is not None and len(validated) > max_total:
+        validated = validated[:max_total]
+
+    return validated
+
+
 def execute_combat_turn(
     db,
     session_id: int,
@@ -304,7 +456,7 @@ def execute_combat_turn(
 ) -> list[str]:
     """Execute the mechanical part of an NPC combat turn.
 
-    Orchestrates: move (if move_to) → resolve (if action) → advance_turn.
+    Dispatches steps by executor type from the intent schema.
     advance_turn auto-calls end_turn on the NPC.
 
     Returns list of result lines.
@@ -316,11 +468,20 @@ def execute_combat_turn(
         advance_turn,
         move_character,
     )
+    from system_pack import load_system_pack
 
     lines = []
     enc_id = _require_active_encounter(db, session_id)[0]
 
-    sequence = intent.get("sequence", ["move", "action", "move_others"])
+    # Load intent schema
+    pack = load_system_pack(system_path)
+    schema = pack.intent or None
+    steps_def = schema.get("steps", {}) if schema else {}
+
+    sequence = intent.get("sequence", ["move", "action"])
+
+    # Validate sequence against schema + character overrides
+    sequence = _validate_sequence(sequence, schema, db, npc_id)
 
     # Normalize move_to into a queue (supports string or list for multi-move)
     raw_move_to = intent.get("move_to")
@@ -332,25 +493,47 @@ def execute_combat_turn(
         move_queue = []
 
     for step in sequence:
-        if step == "action":
+        step_def = steps_def.get(step, {})
+        executor = step_def.get("executor", step)
+
+        if executor == "resolve_action":
             action = intent.get("action")
-            target_name = intent.get("target")
+            # Get targets — normalized to list
+            targets = intent.get("targets")
+            target_name = targets[0] if targets else None
+
             if action and target_name:
                 target_row = db.execute(
                     "SELECT id FROM characters WHERE session_id = ? AND LOWER(name) = LOWER(?)",
                     (session_id, target_name.strip()),
                 ).fetchone()
                 if target_row:
-                    # Build options (e.g. ally_id for setup actions)
+                    # Build target_roles from action definition targets map
                     action_opts = {}
-                    ally_name = intent.get("ally")
-                    if ally_name:
-                        ally_row = db.execute(
-                            "SELECT id FROM characters WHERE session_id = ? AND LOWER(name) = LOWER(?)",
-                            (session_id, ally_name.strip()),
-                        ).fetchone()
-                        if ally_row:
-                            action_opts["ally_id"] = ally_row[0]
+                    action_def = pack.actions.get(action, {})
+                    targets_map = action_def.get("targets")
+                    if targets_map and targets:
+                        target_roles = {}
+                        role_names = list(targets_map.keys())
+                        for i, role_name in enumerate(role_names):
+                            if i < len(targets):
+                                t_name = targets[i]
+                                t_row = db.execute(
+                                    "SELECT id FROM characters WHERE session_id = ? AND LOWER(name) = LOWER(?)",
+                                    (session_id, t_name.strip()),
+                                ).fetchone()
+                                if t_row:
+                                    target_roles[role_name] = t_row[0]
+                        if target_roles:
+                            action_opts["target_roles"] = target_roles
+
+                    # Pass intent fields declared on the action
+                    intent_fields = action_def.get("intent_fields", {})
+                    for field_name in intent_fields:
+                        val = intent.get(field_name)
+                        if val is not None:
+                            action_opts[field_name] = val
+
                     try:
                         lines.append(
                             resolve_action(
@@ -387,7 +570,7 @@ def execute_combat_turn(
             elif action and not target_name:
                 lines.append(f"ACTION SKIPPED: {action} — no target specified")
 
-        elif step == "move":
+        elif executor == "movement":
             move_to = move_queue.pop(0) if move_queue else None
             if move_to:
                 try:
@@ -409,25 +592,7 @@ def execute_combat_turn(
                 except LoreKitError as e:
                     lines.append(f"MOVEMENT FAILED: {e}")
 
-        elif step == "move_others":
-            move_others = intent.get("move_others")
-            if move_others:
-                for entry in move_others:
-                    char_name = entry.get("character")
-                    target_zone = entry.get("zone")
-                    if not char_name or not target_zone:
-                        continue
-                    char_row = db.execute(
-                        "SELECT id FROM characters WHERE session_id = ? AND LOWER(name) = LOWER(?)",
-                        (session_id, char_name.strip()),
-                    ).fetchone()
-                    if not char_row:
-                        lines.append(f"MOVE_OTHERS FAILED: '{char_name}' not found")
-                        continue
-                    try:
-                        lines.append(move_character(db, enc_id, char_row[0], target_zone, combat_cfg=combat_cfg))
-                    except LoreKitError as e:
-                        lines.append(f"MOVE_OTHERS FAILED ({char_name}): {e}")
+        # Unknown executor: skip silently (schema may define future executors)
 
     # --- Advance turn (auto-calls end_turn on NPC) ---
     try:

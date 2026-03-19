@@ -91,7 +91,7 @@ class TestCloseAttack:
                 [(npc, "Arena"), (hero, "Arena")],
             )
 
-            intent = {"sequence": ["action"], "action": "close_attack", "target": "Hero"}
+            intent = {"sequence": ["action"], "action": "close_attack", "targets": ["Hero"]}
 
             # Attack d20=15 → hit, Resistance d20=5 → fail
             roll_calls = iter([14, 4])
@@ -131,7 +131,7 @@ class TestCloseAttack:
                 [(npc, "Arena"), (hero, "Arena")],
             )
 
-            intent = {"sequence": ["action"], "action": "close_attack", "target": "Hero"}
+            intent = {"sequence": ["action"], "action": "close_attack", "targets": ["Hero"]}
 
             # d20=3 → 3 + 2 = 5 vs DC 10+12 = 22
             roll_calls = iter([2])
@@ -170,7 +170,7 @@ class TestSetupActions:
                 [(npc, "Arena"), (hero, "Arena")],
             )
 
-            intent = {"sequence": ["action"], "action": "setup_deception", "target": "Hero"}
+            intent = {"sequence": ["action"], "action": "setup_deception", "targets": ["Hero"]}
 
             # NPC 15 + skill_deception(14) = 29, Hero 5 + skill_insight(2) = 7
             roll_calls = iter([14, 4])
@@ -208,7 +208,7 @@ class TestSetupActions:
                 [(npc, "Arena"), (hero, "Arena")],
             )
 
-            intent = {"sequence": ["action"], "action": "setup_intimidation", "target": "Hero"}
+            intent = {"sequence": ["action"], "action": "setup_intimidation", "targets": ["Hero"]}
 
             roll_calls = iter([14, 4])
             with patch("secrets.randbelow", side_effect=roll_calls):
@@ -246,7 +246,7 @@ class TestSetupActions:
                 [(npc, "Arena"), (hero, "Arena")],
             )
 
-            intent = {"sequence": ["action"], "action": "setup_deception", "target": "Hero"}
+            intent = {"sequence": ["action"], "action": "setup_deception", "targets": ["Hero"]}
 
             # NPC 5 + 2 = 7, Hero 15 + 14 = 29
             roll_calls = iter([4, 14])
@@ -286,7 +286,7 @@ class TestSetupActions:
                 [(trickster, "Arena"), (hero, "Arena")],
             )
 
-            intent = {"sequence": ["action"], "action": "setup_deception", "target": "Hero"}
+            intent = {"sequence": ["action"], "action": "setup_deception", "targets": ["Hero"]}
 
             roll_calls = iter([17, 2])  # 18 vs 3, easy win
             with patch("secrets.randbelow", side_effect=roll_calls):
@@ -331,7 +331,7 @@ class TestGrab:
                 [(npc, "Arena"), (hero, "Arena")],
             )
 
-            intent = {"sequence": ["action"], "action": "grab", "target": "Hero"}
+            intent = {"sequence": ["action"], "action": "grab", "targets": ["Hero"]}
 
             roll_calls = iter([14])  # d20=15 → hit
             with patch("secrets.randbelow", side_effect=roll_calls):
