@@ -1070,6 +1070,53 @@ class TestNpcCombatTurn:
         assert npc_zone == "South"
         db.close()
 
+    def test_multi_move_sequence(self, rules_session, make_character):
+        """sequence ["move", "action", "move"] with move_to as list."""
+        from _db import require_db
+        from encounter import (
+            _get_character_zone,
+            _require_active_encounter,
+            _zone_id_to_name,
+            start_encounter,
+        )
+        from npc_combat import execute_combat_turn
+
+        db = require_db()
+        pc = make_character(rules_session, name="Fighter", char_type="pc")
+        npc = make_character(rules_session, name="Rogue", char_type="npc")
+        _setup_character(db, pc)
+        _setup_character(db, npc)
+
+        zones = [{"name": "A"}, {"name": "B"}, {"name": "C"}]
+        initiative = [
+            {"character_id": npc, "roll": 20},
+            {"character_id": pc, "roll": 10},
+        ]
+        placements = [
+            {"character_id": pc, "zone": "B"},
+            {"character_id": npc, "zone": "A"},
+        ]
+        start_encounter(db, rules_session, zones, initiative, placements=placements, combat_cfg=COMBAT_CFG)
+
+        # Move to B (where Fighter is), attack, then move to C
+        intent = {
+            "sequence": ["move", "action", "move"],
+            "action": "melee_strike",
+            "target": "Fighter",
+            "move_to": ["B", "C"],
+            "narration": "Advance, strike, retreat",
+        }
+        lines = execute_combat_turn(db, rules_session, npc, intent, COMBAT_CFG, TEST_SYSTEM)
+        result = "\n".join(lines)
+
+        # Attack should work (NPC moved to B first, Fighter is in B)
+        assert "ACTION FAILED" not in result or "Target out of range" not in result
+        # NPC should end up in C
+        enc_id = _require_active_encounter(db, rules_session)[0]
+        npc_zone = _zone_id_to_name(db, _get_character_zone(db, enc_id, npc))
+        assert npc_zone == "C"
+        db.close()
+
     def test_build_combat_context(self, rules_session, make_character):
         from _db import require_db
         from encounter import start_encounter

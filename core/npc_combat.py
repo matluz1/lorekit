@@ -160,7 +160,7 @@ Decide what to do. Respond with a JSON block followed by optional in-character n
   "action": "action_name or null",
   "target": "character name or null",
   "ally": "ally name (for actions that grant a bonus to an ally)",
-  "move_to": "zone name or null",
+  "move_to": "zone name, or [\"zone1\", \"zone2\"] for multi-move, or null",
   "move_others": [{{"character": "name", "zone": "zone name"}}],
   "narration": "Brief in-character line (optional)"
 }}
@@ -168,7 +168,8 @@ Decide what to do. Respond with a JSON block followed by optional in-character n
 
 Rules:
 - sequence defines execution order. Valid steps: "move", "action", "move_others". Default: ["move", "action"]
-  Examples: ["action", "move"] to attack then reposition, ["move_others", "action"] to teleport allies then act
+  Examples: ["action", "move"] to attack then reposition, ["move", "action", "move"] to advance, attack, then retreat
+  When sequence has multiple "move" steps, move_to can be a list — each "move" consumes the next destination
 - action MUST be one of the available actions listed above — NOT an ability name. Your abilities describe what you
   can do narratively, but the engine resolves them through system actions (e.g. use close_attack for a melee power,
   ranged_attack for a ranged power, setup_deception for a feint). Use move_others for abilities that move other characters.
@@ -321,6 +322,15 @@ def execute_combat_turn(
 
     sequence = intent.get("sequence", ["move", "action", "move_others"])
 
+    # Normalize move_to into a queue (supports string or list for multi-move)
+    raw_move_to = intent.get("move_to")
+    if isinstance(raw_move_to, list):
+        move_queue = list(raw_move_to)
+    elif raw_move_to:
+        move_queue = [raw_move_to]
+    else:
+        move_queue = []
+
     for step in sequence:
         if step == "action":
             action = intent.get("action")
@@ -378,7 +388,7 @@ def execute_combat_turn(
                 lines.append(f"ACTION SKIPPED: {action} — no target specified")
 
         elif step == "move":
-            move_to = intent.get("move_to")
+            move_to = move_queue.pop(0) if move_queue else None
             if move_to:
                 try:
                     mv_row = db.execute(
