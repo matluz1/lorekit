@@ -580,7 +580,7 @@ def _apply_effects(
         if category and ability.get("category") != category:
             continue
 
-        ability_key = ability["name"].lower().replace(" ", "_")
+        ability_key = ability["name"].lower().replace(" ", "_").replace("-", "_")
         item_def = source_data.get(ability_key)
 
         # Try stripping trailing number for ranked advantages (e.g. "Close Attack 6" → "close_attack")
@@ -596,21 +596,23 @@ def _apply_effects(
                     total_cost += explicit_cost
             continue
 
+        # Extract rank from ability name suffix (e.g. "Close Attack 6" → 6)
+        rank = 1
+        if item_def.get("ranked", False):
+            rank_match = re.search(r"\s(\d+)$", ability["name"])
+            if rank_match:
+                rank = int(rank_match.group(1))
+
         effects = item_def.get("effects", {})
         if not effects:
             # No effects to apply (includes combat options with empty effects)
             if cost_per_rank > 0:
                 item_cost = item_def.get("cost", cost_per_rank)
-                total_cost += item_cost
+                total_cost += item_cost * rank
             continue
 
-        rank = 1
         if item_def.get("ranked", False):
             effects = item_def.get("effects_per_rank", effects)
-            # Extract rank from ability name suffix (e.g. "Close Attack 6" → 6)
-            rank_match = re.search(r"\s(\d+)$", ability["name"])
-            if rank_match:
-                rank = int(rank_match.group(1))
 
         for stat, effect_val in effects.items():
             if isinstance(effect_val, dict):
