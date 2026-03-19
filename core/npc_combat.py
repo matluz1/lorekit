@@ -122,6 +122,16 @@ def build_combat_context(
                 action_names = list(actions.keys())
                 actions_section = f"Available actions: {', '.join(action_names)}\n"
 
+    # NPC's own abilities (powers, feats, advantages)
+    abilities_section = ""
+    ability_rows = db.execute(
+        "SELECT name, uses, description FROM character_abilities WHERE character_id = ?",
+        (npc_id,),
+    ).fetchall()
+    if ability_rows:
+        lines = [f"  {ab[0]} ({ab[1]}): {ab[2]}" for ab in ability_rows]
+        abilities_section = "Your abilities:\n" + "\n".join(lines) + "\n"
+
     # NPC's own zone tags
     npc_ztags = _get_zone_tags(db, npc_zid) if npc_zid else []
     npc_zone_str = npc_zone
@@ -141,7 +151,7 @@ Allies:
 {chr(10).join(f"  {a}" for a in allies) if allies else "  (none)"}
 
 Zones: {", ".join(zone_list)}
-{actions_section}
+{actions_section}{abilities_section}
 Decide what to do. Respond with a JSON block followed by optional in-character narration.
 
 ```json

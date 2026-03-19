@@ -1006,6 +1006,42 @@ class TestNpcCombatTurn:
         assert "json" in ctx  # JSON template
         db.close()
 
+    def test_build_combat_context_includes_abilities(self, rules_session, make_character):
+        """Combat context includes the NPC's own abilities."""
+        from _db import require_db
+        from encounter import start_encounter
+        from npc_combat import build_combat_context
+
+        db = require_db()
+        pc = make_character(rules_session, name="Fighter", char_type="pc")
+        npc = make_character(rules_session, name="Goblin", char_type="npc")
+        _setup_character(db, pc)
+        _setup_character(db, npc)
+
+        # Add an ability to the NPC
+        db.execute(
+            "INSERT INTO character_abilities (character_id, name, uses, description, category) VALUES (?, ?, ?, ?, ?)",
+            (npc, "Fireball", "at-will", "Hurls a ball of fire at a target", "power"),
+        )
+        db.commit()
+
+        zones = [{"name": "North"}, {"name": "South"}]
+        initiative = [
+            {"character_id": npc, "roll": 20},
+            {"character_id": pc, "roll": 10},
+        ]
+        placements = [
+            {"character_id": pc, "zone": "North"},
+            {"character_id": npc, "zone": "South"},
+        ]
+        start_encounter(db, rules_session, zones, initiative, placements=placements, combat_cfg=COMBAT_CFG)
+
+        ctx = build_combat_context(db, npc, rules_session, COMBAT_CFG)
+        assert "Your abilities:" in ctx
+        assert "Fireball" in ctx
+        assert "Hurls a ball of fire" in ctx
+        db.close()
+
     def test_build_combat_context_with_teams(self, rules_session, make_character):
         """Team labels in placements classify allies vs enemies correctly."""
         from _db import require_db
