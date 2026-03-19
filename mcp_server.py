@@ -1096,6 +1096,18 @@ def session_resume(session_id: int) -> str:
         parts.append("=== REGIONS ===")
         parts.append(region_list_fn(db, session_id))
 
+        # Active encounter (if any)
+        enc_row = db.execute(
+            "SELECT id FROM encounter_state WHERE session_id = ? AND status = 'active'",
+            (session_id,),
+        ).fetchone()
+        if enc_row:
+            from encounter import get_status
+
+            combat_cfg = _load_combat_cfg(db, session_id)
+            parts.append("\n=== ACTIVE ENCOUNTER ===")
+            parts.append(get_status(db, session_id, combat_cfg=combat_cfg))
+
         parts.append("\n=== RECENT TIMELINE (last 20) ===")
         parts.append(timeline_list_fn(db, session_id, last=20))
 
