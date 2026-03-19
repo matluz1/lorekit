@@ -534,7 +534,9 @@ def _resolve_degree(
             if resistance_total >= resist_dc:
                 lines.append("RESULT: No effect")
             else:
-                degree = math.floor((resist_dc - resistance_total) / 5)
+                margin_fail = resist_dc - resistance_total
+                degree_step = resolution.get("degree_step", 5)
+                degree = 1 + math.floor(margin_fail / degree_step)
                 degree = max(1, min(degree, 4))
 
                 on_failure = resolution.get("on_failure", {})

@@ -190,8 +190,8 @@ class TestDegreeHitResistanceFail:
 
             assert "HIT!" in output
             assert "RESISTANCE:" in output
-            assert "DEGREE OF FAILURE: 2" in output
-            assert "CONDITION: dazed" in output
+            assert "DEGREE OF FAILURE: 3" in output
+            assert "CONDITION: staggered" in output
             assert "damage_penalty:" in output
         finally:
             db.close()
