@@ -396,11 +396,11 @@ def load_character_data(db, character_id: int) -> CharacterData:
         char.attributes.setdefault(cat, {})[key] = val
 
     # Load abilities
-    for name, desc, category, uses in db.execute(
-        "SELECT name, description, category, uses FROM character_abilities WHERE character_id = ?",
+    for name, desc, category, uses, cost in db.execute(
+        "SELECT name, description, category, uses, cost FROM character_abilities WHERE character_id = ?",
         (character_id,),
     ):
-        char.abilities.append({"name": name, "description": desc, "category": category, "uses": uses})
+        char.abilities.append({"name": name, "description": desc, "category": category, "uses": uses, "cost": cost})
 
     # Load equipped items
     for name, desc, qty, equipped in db.execute(

@@ -338,13 +338,15 @@ def cmd_remove_item(db, args):
     return remove_item(db, int(iid))
 
 
-def set_ability(db, character_id: int, name: str, desc: str, category: str, uses: str = "at_will") -> str:
+def set_ability(
+    db, character_id: int, name: str, desc: str, category: str, uses: str = "at_will", cost: float = 0
+) -> str:
     cur = db.execute(
-        "INSERT INTO character_abilities (character_id, name, description, category, uses) "
-        "VALUES (?, ?, ?, ?, ?) "
+        "INSERT INTO character_abilities (character_id, name, description, category, uses, cost) "
+        "VALUES (?, ?, ?, ?, ?, ?) "
         "ON CONFLICT(character_id, name) DO UPDATE SET "
-        "description = excluded.description, category = excluded.category, uses = excluded.uses",
-        (character_id, name, desc, category, uses),
+        "description = excluded.description, category = excluded.category, uses = excluded.uses, cost = excluded.cost",
+        (character_id, name, desc, category, uses, cost),
     )
     db.commit()
     return f"ABILITY_SET: {cur.lastrowid}"

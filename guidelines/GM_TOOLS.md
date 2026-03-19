@@ -70,7 +70,7 @@ character_build(session=1, name="Aldric", level=3, type="pc", attrs='[{"category
 | region | int | no | 0 | Region ID (0 = none) |
 | attrs | str | no | "[]" | JSON array of {category, key, value} objects |
 | items | str | no | "[]" | JSON array of {name, desc?, qty?, equipped?} objects |
-| abilities | str | no | "[]" | JSON array of {name, desc, category, uses?} objects |
+| abilities | str | no | "[]" | JSON array of {name, desc, category, uses?, cost?} objects. `cost` is the point cost for budget tracking (used when the build engine can't compute cost automatically). |
 
 **Output:**
 ```
@@ -171,7 +171,7 @@ character_sheet_update(character_id=1, level=4, attrs='[{"category":"combat","ke
 | region | int | no | 0 | New region ID (0 = unchanged) |
 | attrs | str | no | "[]" | JSON array of {category, key, value} objects |
 | items | str | no | "[]" | JSON array of {name, desc?, qty?, equipped?} objects |
-| abilities | str | no | "[]" | JSON array of {name, desc, category, uses?} objects |
+| abilities | str | no | "[]" | JSON array of {name, desc, category, uses?, cost?} objects. `cost` is the point cost for budget tracking (used when the build engine can't compute cost automatically). |
 | remove_items | str | no | "[]" | JSON array of item names (strings) or item IDs (integers) |
 
 **Output:**

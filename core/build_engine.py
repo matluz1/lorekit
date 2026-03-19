@@ -254,15 +254,21 @@ def _process_pipeline(
         if ability.get("category") != ability_category:
             continue
 
+        ability_name = ability.get("name", "")
+
         power_data = _parse_structured_ability(ability)
         if not power_data:
+            # No structured data — use explicit cost field from the ability
+            explicit_cost = float(ability.get("cost", 0) or 0)
+            if explicit_cost:
+                total_cost += explicit_cost
+                powers_map = result.ability_costs.setdefault("powers", {})
+                powers_map[ability_name] = powers_map.get(ability_name, 0) + explicit_cost
             continue
 
         # Skip alternates — their cost is handled by _process_arrays
         if power_data.get("array_of"):
             continue
-
-        ability_name = ability.get("name", "")
 
         if power_data.get("effect"):
             cost = _compute_pipeline_cost(power_data, effects_data, modifiers_data, pipeline)
@@ -504,7 +510,8 @@ def _process_source(
 
     elif select_mode == "multiple":
         if has_effects:
-            effect_cost = _apply_effects(source_data, char_abilities, result, cost_per_rank)
+            ability_category = rules.get("ability_category", "")
+            effect_cost = _apply_effects(source_data, char_abilities, result, cost_per_rank, category=ability_category)
             if effect_cost > 0:
                 result.costs[category] = result.costs.get(category, 0) + effect_cost
 
@@ -552,7 +559,11 @@ def _apply_progressions(progressions_path: str, source_data: dict, level: int, r
 
 
 def _apply_effects(
-    source_data: dict, char_abilities: list[dict[str, str]], result: BuildResult, cost_per_rank: float = 0
+    source_data: dict,
+    char_abilities: list[dict[str, str]],
+    result: BuildResult,
+    cost_per_rank: float = 0,
+    category: str = "",
 ) -> float:
     """Aggregate effects from character abilities into result attributes.
 
@@ -565,9 +576,24 @@ def _apply_effects(
     total_cost = 0.0
 
     for ability in char_abilities:
+        # Filter by category if specified
+        if category and ability.get("category") != category:
+            continue
+
         ability_key = ability["name"].lower().replace(" ", "_")
         item_def = source_data.get(ability_key)
+
+        # Try stripping trailing number for ranked advantages (e.g. "Close Attack 6" → "close_attack")
+        if (not item_def or not isinstance(item_def, dict)) and ability_key[-1:].isdigit():
+            base_key = ability_key.rstrip("0123456789").rstrip("_")
+            item_def = source_data.get(base_key)
+
         if not item_def or not isinstance(item_def, dict):
+            # Not in source data — use explicit cost field from the ability
+            if cost_per_rank > 0:
+                explicit_cost = float(ability.get("cost", 0) or 0)
+                if explicit_cost:
+                    total_cost += explicit_cost
             continue
 
         effects = item_def.get("effects", {})
@@ -581,6 +607,10 @@ def _apply_effects(
         rank = 1
         if item_def.get("ranked", False):
             effects = item_def.get("effects_per_rank", effects)
+            # Extract rank from ability name suffix (e.g. "Close Attack 6" → 6)
+            rank_match = re.search(r"\s(\d+)$", ability["name"])
+            if rank_match:
+                rank = int(rank_match.group(1))
 
         for stat, effect_val in effects.items():
             if isinstance(effect_val, dict):

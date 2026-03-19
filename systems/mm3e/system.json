@@ -305,7 +305,8 @@
       "source": "advantages.json",
       "select": "multiple",
       "cost_per_rank": 1,
-      "effects": true
+      "effects": true,
+      "ability_category": "advantage"
     },
     "power": {
       "effect_source": "effects.json",

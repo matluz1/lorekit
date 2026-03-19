@@ -57,9 +57,17 @@ def snapshot_session(db, session_id):
             ).fetchall()
         ]
         snap["character_abilities"] = [
-            {"id": r[0], "character_id": r[1], "name": r[2], "description": r[3], "category": r[4], "uses": r[5]}
+            {
+                "id": r[0],
+                "character_id": r[1],
+                "name": r[2],
+                "description": r[3],
+                "category": r[4],
+                "uses": r[5],
+                "cost": r[6],
+            }
             for r in db.execute(
-                f"SELECT id, character_id, name, description, category, uses "
+                f"SELECT id, character_id, name, description, category, uses, cost "
                 f"FROM character_abilities WHERE character_id IN ({ph})",
                 char_ids,
             ).fetchall()
@@ -377,9 +385,9 @@ def restore_snapshot(db, session_id, snapshot):
         # Character abilities
         for r in snapshot.get("character_abilities", []):
             db.execute(
-                "INSERT INTO character_abilities (id, character_id, name, description, category, uses) "
-                "VALUES (?, ?, ?, ?, ?, ?)",
-                (r["id"], r["character_id"], r["name"], r["description"], r["category"], r["uses"]),
+                "INSERT INTO character_abilities (id, character_id, name, description, category, uses, cost) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (r["id"], r["character_id"], r["name"], r["description"], r["category"], r["uses"], r.get("cost", 0)),
             )
 
         # Combat state modifiers

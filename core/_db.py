@@ -60,6 +60,7 @@ CREATE TABLE IF NOT EXISTS character_abilities (
     description  TEXT    NOT NULL DEFAULT '',
     category     TEXT    NOT NULL,
     uses         TEXT    NOT NULL DEFAULT 'at_will',
+    cost         REAL    NOT NULL DEFAULT 0,
     UNIQUE(character_id, name)
 );
 
@@ -263,6 +264,7 @@ ADD_COLUMN_MIGRATIONS = [
     ("combat_state", "save_stat", "ALTER TABLE combat_state ADD COLUMN save_stat TEXT"),
     ("combat_state", "save_dc", "ALTER TABLE combat_state ADD COLUMN save_dc INTEGER"),
     ("character_zone", "team", "ALTER TABLE character_zone ADD COLUMN team TEXT NOT NULL DEFAULT ''"),
+    ("character_abilities", "cost", "ALTER TABLE character_abilities ADD COLUMN cost REAL NOT NULL DEFAULT 0"),
 ]
 
 DROP_COLUMN_MIGRATIONS = [
@@ -387,9 +389,10 @@ _CASCADE_MIGRATIONS = {
             description  TEXT    NOT NULL DEFAULT '',
             category     TEXT    NOT NULL,
             uses         TEXT    NOT NULL DEFAULT 'at_will',
+            cost         REAL    NOT NULL DEFAULT 0,
             UNIQUE(character_id, name)
         )""",
-        ["id", "character_id", "name", "description", "category", "uses"],
+        ["id", "character_id", "name", "description", "category", "uses", "cost"],
     ),
     "regions": (
         """CREATE TABLE regions (

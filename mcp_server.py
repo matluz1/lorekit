@@ -350,11 +350,13 @@ def character_remove_item(item_id: int) -> str:
     return _run_with_db(remove_item, item_id)
 
 
-def character_set_ability(character_id: int, name: str, desc: str, category: str, uses: str = "at_will") -> str:
-    """Add an ability to a character."""
+def character_set_ability(
+    character_id: int, name: str, desc: str, category: str, uses: str = "at_will", cost: float = 0
+) -> str:
+    """Add an ability to a character. cost: point cost for budget tracking."""
     from character import set_ability
 
-    return _run_with_db(set_ability, character_id, name, desc, category, uses)
+    return _run_with_db(set_ability, character_id, name, desc, category, uses, cost)
 
 
 def character_get_abilities(character_id: int) -> str:
@@ -802,7 +804,9 @@ def character_build(
 
         ability_count = 0
         for ab in abilities_list:
-            set_ability(db, char_id, ab["name"], ab["desc"], ab["category"], ab.get("uses", "at_will"))
+            set_ability(
+                db, char_id, ab["name"], ab["desc"], ab["category"], ab.get("uses", "at_will"), ab.get("cost", 0)
+            )
             ability_count += 1
 
         core_set = False
@@ -1215,7 +1219,9 @@ def character_sheet_update(
 
         ability_count = 0
         for ab in abilities_list:
-            set_ability(db, character_id, ab["name"], ab["desc"], ab["category"], ab.get("uses", "at_will"))
+            set_ability(
+                db, character_id, ab["name"], ab["desc"], ab["category"], ab.get("uses", "at_will"), ab.get("cost", 0)
+            )
             ability_count += 1
         if ability_count:
             results.append(f"ABILITIES_SET: {ability_count}")
