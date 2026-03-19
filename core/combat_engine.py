@@ -165,16 +165,18 @@ def _apply_on_hit(
             dur_type = mod.get("duration_type", "encounter")
             bonus_type = mod.get("bonus_type")
 
+            duration = mod.get("duration")
             db.execute(
                 "INSERT INTO combat_state "
                 "(character_id, source, target_stat, modifier_type, value, "
-                "bonus_type, duration_type) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?) "
+                "bonus_type, duration_type, duration) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?) "
                 "ON CONFLICT(character_id, source, target_stat) DO UPDATE SET "
-                "value = excluded.value",
-                (defender.character_id, source, target_stat, mod_type, value, bonus_type, dur_type),
+                "value = excluded.value, duration = excluded.duration",
+                (defender.character_id, source, target_stat, mod_type, value, bonus_type, dur_type, duration),
             )
-            lines.append(f"MODIFIER: {source} → {target_stat} {value:+d} ({dur_type})")
+            dur_info = f"{dur_type}, {duration} rounds" if duration else dur_type
+            lines.append(f"MODIFIER: {source} → {target_stat} {value:+d} ({dur_info})")
         db.commit()
 
         # Auto-recalc defender after on_hit modifiers
