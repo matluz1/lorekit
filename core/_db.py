@@ -302,11 +302,17 @@ def get_db(db_path=None):
     return conn
 
 
+_migrated_dbs: set[str] = set()
+
+
 def require_db():
-    """Return a connection to the database, auto-creating if needed."""
+    """Return a connection to the database, auto-creating and migrating if needed."""
     db_path, _ = resolve_db_path()
     if not os.path.isfile(db_path):
         init_schema(db_path)
+    elif db_path not in _migrated_dbs:
+        _run_migrations(db_path)
+        _migrated_dbs.add(db_path)
     return get_db(db_path)
 
 
@@ -545,6 +551,25 @@ def _needs_cascade_migration(conn):
     if ddl is None:
         return False
     return "ON DELETE CASCADE" not in ddl[0]
+
+
+def _run_migrations(db_path):
+    """Run column migrations on an existing database (fast, idempotent)."""
+    conn = get_db(db_path)
+    changed = False
+    for table, column, sql in ADD_COLUMN_MIGRATIONS:
+        cols = [row[1] for row in conn.execute(f"PRAGMA table_info({table})").fetchall()]
+        if column not in cols:
+            conn.execute(sql)
+            changed = True
+    for table, column, sql in DROP_COLUMN_MIGRATIONS:
+        cols = [row[1] for row in conn.execute(f"PRAGMA table_info({table})").fetchall()]
+        if column in cols:
+            conn.execute(sql)
+            changed = True
+    if changed:
+        conn.commit()
+    conn.close()
 
 
 def init_schema(db_path=None):
