@@ -169,11 +169,23 @@ def _apply_on_hit(
         for mod in modifiers:
             source = mod["source"]
             target_stat = mod["target_stat"]
-            value = mod["value"]
             mod_type = mod.get("modifier_type", "condition")
             dur_type = mod.get("duration_type", "encounter")
             bonus_type = mod.get("bonus_type")
             duration = mod.get("duration")
+
+            # halve: compute penalty = -floor(derived_stat / 2)
+            # e.g. bonus_parry with halve reads "parry" and applies -parry//2
+            if mod.get("halve"):
+                # Derive the base stat name from the bonus stat (bonus_parry → parry)
+                base_stat = target_stat.replace("bonus_", "") if target_stat.startswith("bonus_") else target_stat
+                try:
+                    current_val = _get_derived(defender, base_stat)
+                    value = -(current_val // 2)
+                except LoreKitError:
+                    value = 0
+            else:
+                value = mod.get("value", 0)
 
             # value_min_margin: use max(declared value, margin of success)
             if mod.get("value_min_margin") and margin > value:

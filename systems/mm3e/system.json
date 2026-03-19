@@ -244,23 +244,25 @@
     },
     "setup_deception": {
       "attack_stat": "skill_deception",
-      "defense_stat": "will",
+      "defense_stat": "skill_insight",
       "range": "melee",
       "contested": true,
       "on_hit": {
         "apply_modifiers": [
-          {"source": "setup", "target_stat": "bonus_close_attack", "value": 2, "value_min_margin": true, "modifier_type": "buff", "bonus_type": "circumstance", "duration_type": "next_attack", "apply_to": "intent_ally"}
+          {"source": "vulnerable", "target_stat": "bonus_parry", "halve": true, "modifier_type": "condition", "duration_type": "rounds", "duration": 1},
+          {"source": "vulnerable", "target_stat": "bonus_dodge", "halve": true, "modifier_type": "condition", "duration_type": "rounds", "duration": 1}
         ]
       }
     },
     "setup_intimidation": {
       "attack_stat": "skill_intimidation",
-      "defense_stat": "will",
+      "defense_stat": "skill_insight",
       "range": "melee",
       "contested": true,
       "on_hit": {
         "apply_modifiers": [
-          {"source": "setup", "target_stat": "bonus_close_attack", "value": 2, "value_min_margin": true, "modifier_type": "buff", "bonus_type": "circumstance", "duration_type": "next_attack", "apply_to": "intent_ally"}
+          {"source": "vulnerable", "target_stat": "bonus_parry", "halve": true, "modifier_type": "condition", "duration_type": "rounds", "duration": 1},
+          {"source": "vulnerable", "target_stat": "bonus_dodge", "halve": true, "modifier_type": "condition", "duration_type": "rounds", "duration": 1}
         ]
       }
     }
