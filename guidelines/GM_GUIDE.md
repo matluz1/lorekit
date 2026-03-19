@@ -266,6 +266,24 @@ Use `npc_combat_turn` for a full NPC turn in one call. It builds combat
 context, asks the NPC agent for a decision, then executes movement, action
 resolution, and initiative advancement automatically.
 
+**Read the full output before narrating.** The result may contain
+`ACTION FAILED`, `MOVE FAILED`, or `ERROR` lines — the engine rejected the
+NPC's chosen action (invalid action name, target out of range, bad sequence).
+When this happens:
+
+1. **Stop and tell the player.** Show a brief OOC note with what failed
+   and why. Do not continue resolving other turns — pause combat at that
+   point. The player must always know the true game state; hiding a
+   mechanical failure behind narrative flavor means the player makes
+   decisions based on false information.
+2. **Wait for the player to decide how to proceed.** The player may ask
+   you to rerun the NPC turn, skip it, revert, or handle it another way.
+   Do not choose for them.
+3. **Never narrate a failed action as if it happened.** No rolls were made,
+   no effects were applied, no movement occurred. Do not describe the NPC
+   "trying but failing" or "hesitating" — that invents fictional events
+   that contradict the actual game state.
+
 For non-combat NPC interaction, use `npc_interact` as before.
 
 ### Advancing turns
