@@ -160,7 +160,7 @@
 
     "equipment_points": "adv_equipment * 5",
 
-    "damage_resistance": "toughness + damage_penalty",
+    "damage_resistance": "toughness - damage_penalty",
 
     "pl_attack_dodge": "close_attack + dodge",
     "pl_attack_parry": "close_attack + parry",

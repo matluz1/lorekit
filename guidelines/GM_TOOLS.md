@@ -921,6 +921,14 @@ rules_resolve(attacker_id=1, defender_id=3, action="fireball", options='{"area":
 | radius | int | 0 | Zone hops from center to include |
 | exclude_self | bool | true | Exclude attacker from targets |
 
+**Stat trades:** Pass a `trade` array inside `options` to shift points
+between stats for one attack (e.g. Power Attack, Accurate Attack):
+```
+rules_resolve(attacker_id=1, defender_id=2, action="close_attack", options='{"trade": [{"from": "close_attack", "to": "close_damage", "value": 5}]}')
+```
+Each trade subtracts `value` from `from` and adds `value` to `to` for
+this resolution only. Multiple trades can be combined.
+
 **Output (single target, threshold):**
 ```
 ACTION: Aldric → Goblin

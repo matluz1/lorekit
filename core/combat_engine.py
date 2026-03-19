@@ -315,6 +315,13 @@ def _resolve_threshold(
 
     crit_cfg = pack.resolution.get("critical")
 
+    # Apply trade options
+    trade_adj: dict[str, int] = {}
+    for trade in options.get("trade", []):
+        trade_val = trade["value"]
+        trade_adj[trade["from"]] = trade_adj.get(trade["from"], 0) - trade_val
+        trade_adj[trade["to"]] = trade_adj.get(trade["to"], 0) + trade_val
+
     if action_def.get("contested"):
         atk_roll, atk_total, def_total, def_roll, def_bonus, atk_natural = _contested_roll(
             pack,
@@ -323,6 +330,9 @@ def _resolve_threshold(
             action_def,
         )
         atk_bonus = _get_derived(attacker, attack_stat)
+        if attack_stat in trade_adj:
+            atk_total += trade_adj[attack_stat]
+            atk_bonus += trade_adj[attack_stat]
 
         lines = [f"ACTION: {attacker.name} → {defender.name}"]
         lines.append(f"ATTACKER: {pack.dice}({atk_roll}) + {atk_bonus} ({attack_stat}) = {atk_total}")
@@ -351,6 +361,8 @@ def _resolve_threshold(
     else:
         attack_bonus = _get_derived(attacker, attack_stat)
         defense_value = _get_derived(defender, defense_stat)
+        if attack_stat in trade_adj:
+            attack_bonus += trade_adj[attack_stat]
 
         roll_result = roll_expr(pack.dice)
         roll_val = roll_result["total"]
@@ -412,6 +424,13 @@ def _resolve_degree(
     dc_offset = resolution.get("defense_dc_offset", 10)
     crit_cfg = resolution.get("critical")
 
+    # Apply trade options (e.g. power_attack: -N attack / +N damage)
+    trade_adj: dict[str, int] = {}
+    for trade in options.get("trade", []):
+        trade_val = trade["value"]
+        trade_adj[trade["from"]] = trade_adj.get(trade["from"], 0) - trade_val
+        trade_adj[trade["to"]] = trade_adj.get(trade["to"], 0) + trade_val
+
     if action_def.get("contested"):
         atk_roll, atk_total, def_total, def_roll, def_bonus, atk_natural = _contested_roll(
             pack,
@@ -420,6 +439,10 @@ def _resolve_degree(
             action_def,
         )
         atk_bonus = _get_derived(attacker, attack_stat)
+        # Apply trade to attack total
+        if attack_stat in trade_adj:
+            atk_total += trade_adj[attack_stat]
+            atk_bonus += trade_adj[attack_stat]
 
         lines = [f"ACTION: {attacker.name} → {defender.name}"]
         lines.append(f"ATTACKER: {pack.dice}({atk_roll}) + {atk_bonus} ({attack_stat}) = {atk_total}")
@@ -429,6 +452,10 @@ def _resolve_degree(
     else:
         attack_bonus = _get_derived(attacker, attack_stat)
         defense_value = _get_derived(defender, defense_stat)
+
+        # Apply trade to attack bonus
+        if attack_stat in trade_adj:
+            attack_bonus += trade_adj[attack_stat]
 
         roll_result = roll_expr(pack.dice)
         roll_val = roll_result["total"]
@@ -461,6 +488,10 @@ def _resolve_degree(
             resistance_stat = resolution.get("resistance_stat", "toughness")
             dc_base = resolution.get("dc_base", 15)
             damage_rank = _get_derived(attacker, damage_rank_stat)
+
+            # Apply trade to damage rank (e.g. Power Attack)
+            if damage_rank_stat in trade_adj:
+                damage_rank += trade_adj[damage_rank_stat]
 
             # Apply critical effect_rank_bonus (e.g. M&M3e nat 20 → +5 effect rank)
             if is_natural_crit:
