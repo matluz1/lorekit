@@ -228,7 +228,10 @@ def snapshot_session(db, session_id):
 
 def restore_snapshot(db, session_id, snapshot):
     """Replace all mutable session state from a snapshot dict."""
-    # Disable FK checks during restore to avoid ordering issues
+    # Disable FK checks during restore to avoid ordering issues.
+    # PRAGMA foreign_keys is ignored inside an active transaction,
+    # so commit any pending work first.
+    db.commit()
     db.execute("PRAGMA foreign_keys = OFF")
 
     try:
