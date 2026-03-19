@@ -1035,7 +1035,7 @@ encounter_start(session_id=1, template="tavern_brawl", initiative='auto', placem
 | zones | str | no | "[]" | JSON array of `{name, tags?}` objects. Can be empty when using template. |
 | initiative | str | no | "auto" | `"auto"` or JSON array of `{character_id, roll}`. Auto rolls d20 + initiative_stat. |
 | adjacency | str | no | "" | JSON array of `{from, to, weight?}` edges. Defaults to linear chain. |
-| placements | str | no | "" | JSON array of `{character_id, zone}` objects |
+| placements | str | no | "" | JSON array of `{character_id, zone, team?}` objects. `team` is an optional label (e.g. `"A"`, `"B"`) — characters on the same team are allies, different teams are enemies. Used by `npc_combat_turn` to build combat context. |
 | template | str | no | "" | Encounter template name from system pack (loads pre-built zones + adjacency) |
 
 Zone tags are defined in the system pack's `combat.zone_tags` section.

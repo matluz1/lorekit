@@ -158,6 +158,7 @@ CREATE TABLE IF NOT EXISTS character_zone (
     encounter_id INTEGER NOT NULL REFERENCES encounter_state(id) ON DELETE CASCADE,
     character_id INTEGER NOT NULL REFERENCES characters(id) ON DELETE CASCADE,
     zone_id      INTEGER NOT NULL REFERENCES encounter_zones(id) ON DELETE CASCADE,
+    team         TEXT    NOT NULL DEFAULT '',
     PRIMARY KEY (encounter_id, character_id)
 );
 
@@ -479,9 +480,10 @@ _CASCADE_MIGRATIONS = {
             encounter_id INTEGER NOT NULL REFERENCES encounter_state(id) ON DELETE CASCADE,
             character_id INTEGER NOT NULL REFERENCES characters(id) ON DELETE CASCADE,
             zone_id      INTEGER NOT NULL REFERENCES encounter_zones(id) ON DELETE CASCADE,
+            team         TEXT    NOT NULL DEFAULT '',
             PRIMARY KEY (encounter_id, character_id)
         )""",
-        ["encounter_id", "character_id", "zone_id"],
+        ["encounter_id", "character_id", "zone_id", "team"],
     ),
     "combat_state": (
         """CREATE TABLE combat_state (

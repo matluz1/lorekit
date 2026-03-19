@@ -22,6 +22,8 @@ def build_combat_context(
 
     Uses relative health descriptions instead of exact numbers.
     Lists available actions, zone names, and character positions.
+    Uses the ``team`` column in character_zone for ally/enemy classification.
+    Same team = ally, different team = enemy, no team = everyone is enemy.
     """
     from encounter import (
         _build_adjacency,
@@ -45,23 +47,28 @@ def build_combat_context(
     npc_zid = _get_character_zone(db, enc_id, npc_id)
     npc_zone = _zone_id_to_name(db, npc_zid) if npc_zid else "unknown"
 
-    # All characters and their positions
+    # All characters and their positions + team
     char_zones = db.execute(
-        "SELECT character_id, zone_id FROM character_zone WHERE encounter_id = ?",
+        "SELECT character_id, zone_id, team FROM character_zone WHERE encounter_id = ?",
         (enc_id,),
     ).fetchall()
+
+    # NPC's own team
+    npc_team = ""
+    for cid, _, team in char_zones:
+        if cid == npc_id:
+            npc_team = team
+            break
 
     adj = _build_adjacency(db, enc_id)
 
     # Build character descriptions with relative health
     allies = []
     enemies = []
-    for cid, zid in char_zones:
+    for cid, zid, team in char_zones:
         if cid == npc_id:
             continue
         cname = _char_name(db, cid)
-        ctype = db.execute("SELECT type FROM characters WHERE id = ?", (cid,)).fetchone()
-        ctype = ctype[0] if ctype else "pc"
         zone_name = _zone_id_to_name(db, zid)
 
         # Distance
@@ -84,7 +91,7 @@ def build_combat_context(
         if health_desc:
             entry += f", {health_desc}"
 
-        if ctype == "npc":
+        if npc_team and team and team == npc_team:
             allies.append(entry)
         else:
             enemies.append(entry)

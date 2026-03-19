@@ -422,9 +422,10 @@ def start_encounter(
             zid = zone_id_map.get(zone_name)
             if zid is None:
                 raise LoreKitError(f"Placement references unknown zone: {zone_name}")
+            team = p.get("team", "")
             db.execute(
-                "INSERT INTO character_zone (encounter_id, character_id, zone_id) VALUES (?, ?, ?)",
-                (enc_id, cid, zid),
+                "INSERT INTO character_zone (encounter_id, character_id, zone_id, team) VALUES (?, ?, ?, ?)",
+                (enc_id, cid, zid, team),
             )
             # Apply terrain modifiers
             mods = _apply_zone_terrain(db, cid, zid, zone_name, cfg)

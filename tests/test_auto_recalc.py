@@ -1006,6 +1006,81 @@ class TestNpcCombatTurn:
         assert "json" in ctx  # JSON template
         db.close()
 
+    def test_build_combat_context_with_teams(self, rules_session, make_character):
+        """Team labels in placements classify allies vs enemies correctly."""
+        from _db import require_db
+        from encounter import start_encounter
+        from npc_combat import build_combat_context
+
+        db = require_db()
+        pc = make_character(rules_session, name="Fighter", char_type="pc")
+        ally_npc = make_character(rules_session, name="Cleric", char_type="npc")
+        enemy_npc1 = make_character(rules_session, name="Ogre", char_type="npc")
+        enemy_npc2 = make_character(rules_session, name="Troll", char_type="npc")
+        for cid in (pc, ally_npc, enemy_npc1, enemy_npc2):
+            _setup_character(db, cid)
+
+        zones = [{"name": "North"}, {"name": "South"}]
+        initiative = [
+            {"character_id": ally_npc, "roll": 30},
+            {"character_id": enemy_npc1, "roll": 20},
+            {"character_id": enemy_npc2, "roll": 15},
+            {"character_id": pc, "roll": 10},
+        ]
+        placements = [
+            {"character_id": pc, "zone": "North", "team": "A"},
+            {"character_id": ally_npc, "zone": "North", "team": "A"},
+            {"character_id": enemy_npc1, "zone": "South", "team": "B"},
+            {"character_id": enemy_npc2, "zone": "South", "team": "B"},
+        ]
+        start_encounter(db, rules_session, zones, initiative, placements=placements, combat_cfg=COMBAT_CFG)
+
+        # From Cleric's perspective (team A): Fighter=ally, Ogre/Troll=enemies
+        ctx = build_combat_context(db, ally_npc, rules_session, COMBAT_CFG)
+        enemies_section = ctx.split("Enemies:")[1].split("Allies:")[0]
+        allies_section = ctx.split("Allies:")[1].split("Zones:")[0]
+        assert "Ogre" in enemies_section
+        assert "Troll" in enemies_section
+        assert "Fighter" in allies_section
+
+        db.close()
+
+    def test_build_combat_context_no_teams_all_enemies(self, rules_session, make_character):
+        """Without team labels, all others listed as enemies."""
+        from _db import require_db
+        from encounter import start_encounter
+        from npc_combat import build_combat_context
+
+        db = require_db()
+        pc = make_character(rules_session, name="Fighter", char_type="pc")
+        npc = make_character(rules_session, name="Goblin", char_type="npc")
+        npc2 = make_character(rules_session, name="Orc", char_type="npc")
+        for cid in (pc, npc, npc2):
+            _setup_character(db, cid)
+
+        zones = [{"name": "North"}, {"name": "South"}]
+        initiative = [
+            {"character_id": npc, "roll": 20},
+            {"character_id": npc2, "roll": 15},
+            {"character_id": pc, "roll": 10},
+        ]
+        placements = [
+            {"character_id": pc, "zone": "North"},
+            {"character_id": npc, "zone": "South"},
+            {"character_id": npc2, "zone": "South"},
+        ]
+        start_encounter(db, rules_session, zones, initiative, placements=placements, combat_cfg=COMBAT_CFG)
+
+        # No teams — everyone is enemy
+        ctx = build_combat_context(db, npc, rules_session, COMBAT_CFG)
+        enemies_section = ctx.split("Enemies:")[1].split("Allies:")[0]
+        assert "Fighter" in enemies_section
+        assert "Orc" in enemies_section
+        allies_section = ctx.split("Allies:")[1].split("Zones:")[0]
+        assert "(none)" in allies_section
+
+        db.close()
+
     def test_execute_narrative_only(self, rules_session, make_character):
         """Narrative-only turn (null intent) still advances initiative."""
         from _db import require_db
