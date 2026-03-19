@@ -1,4 +1,4 @@
-import React from "react";
+import React, { type ReactNode } from "react";
 import { Box, Text } from "ink";
 import Spinner from "ink-spinner";
 
@@ -11,6 +11,40 @@ interface ChatProps {
   messages: ChatMessage[];
   streamingText: string;
   isStreaming: boolean;
+}
+
+/**
+ * Parse inline markdown (bold, italic, bold-italic) into Ink <Text> nodes.
+ * Handles ***bold italic***, **bold**, and *italic*.
+ */
+function parseInline(text: string, baseColor?: string): ReactNode[] {
+  const nodes: ReactNode[] = [];
+  // Match ***…***, **…**, or *…* (non-greedy, no nesting)
+  const re = /(\*{1,3})((?:(?!\1).)+?)\1/g;
+  let last = 0;
+
+  for (const m of text.matchAll(re)) {
+    const idx = m.index!;
+    if (idx > last) {
+      nodes.push(<Text key={last} color={baseColor}>{text.slice(last, idx)}</Text>);
+    }
+    const stars = m[1]!.length;
+    const inner = m[2]!;
+    const bold = stars >= 2;
+    const italic = stars === 1 || stars === 3;
+    nodes.push(
+      <Text key={idx} color={baseColor} bold={bold} italic={italic}>
+        {inner}
+      </Text>
+    );
+    last = idx + m[0]!.length;
+  }
+
+  if (last < text.length) {
+    nodes.push(<Text key={last} color={baseColor}>{text.slice(last)}</Text>);
+  }
+
+  return nodes.length > 0 ? nodes : [<Text key={0} color={baseColor}>{text}</Text>];
 }
 
 export function Chat({
@@ -34,14 +68,14 @@ export function Chat({
               {msg.content}
             </Text>
           ) : (
-            <Text color="green">{msg.content}</Text>
+            <Text>{parseInline(msg.content, "green")}</Text>
           )}
         </Box>
       ))}
       {isStreaming && (
         <Box>
-          <Text color="green">
-            {streamingText || ""}
+          <Text>
+            {parseInline(streamingText || "", "green")}
             <Text color="yellow">
               {" "}
               <Spinner type="dots" />

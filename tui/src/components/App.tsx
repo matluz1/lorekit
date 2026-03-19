@@ -1,6 +1,5 @@
 import React, { useState, useCallback, useRef, useEffect } from "react";
 import { Box, Text, useApp } from "ink";
-import Spinner from "ink-spinner";
 import { Chat, type ChatMessage } from "./Chat.js";
 import { Input } from "./Input.js";
 import type { AgentProcess, Provider, ProviderOptions } from "../provider.js";
@@ -196,9 +195,7 @@ export function App({
     toastParts.push(`${ntc.npcName} → ${shortToolName(ntc.toolName)}`);
   }
 
-  const showToast = isStreaming && (toolCalls.length > 0 || npcToolCalls.length > 0);
-  const lastTool = toolCalls[toolCalls.length - 1];
-  const lastToolActive = lastTool && !lastTool.error && isStreaming;
+  const showToast = toolCalls.length > 0 || npcToolCalls.length > 0;
 
   return (
     <Box flexDirection="column">
@@ -227,19 +224,18 @@ export function App({
       {showToast && (
         <Box paddingX={1}>
           <Text dimColor>
-            {lastToolActive && (
-              <><Spinner type="dots" />{" "}</>
-            )}
             {toastParts.join(" · ")}
           </Text>
         </Box>
       )}
 
       {/* Input */}
-      <Input
-        onSubmit={handleSubmit}
-        disabled={isStreaming}
-      />
+      <Box marginTop={1} flexDirection="column">
+        <Input
+          onSubmit={handleSubmit}
+          disabled={isStreaming}
+        />
+      </Box>
 
       {/* Footer */}
       <Box paddingX={1}>
