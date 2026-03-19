@@ -262,6 +262,7 @@ ADD_COLUMN_MIGRATIONS = [
     ("journal", "narrative_time", "ALTER TABLE journal ADD COLUMN narrative_time TEXT NOT NULL DEFAULT ''"),
     ("combat_state", "save_stat", "ALTER TABLE combat_state ADD COLUMN save_stat TEXT"),
     ("combat_state", "save_dc", "ALTER TABLE combat_state ADD COLUMN save_dc INTEGER"),
+    ("character_zone", "team", "ALTER TABLE character_zone ADD COLUMN team TEXT NOT NULL DEFAULT ''"),
 ]
 
 DROP_COLUMN_MIGRATIONS = [

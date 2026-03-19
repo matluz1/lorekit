@@ -150,9 +150,9 @@ def snapshot_session(db, session_id):
         else:
             snap["zone_adjacency"] = []
         snap["character_zone"] = [
-            {"encounter_id": r[0], "character_id": r[1], "zone_id": r[2]}
+            {"encounter_id": r[0], "character_id": r[1], "zone_id": r[2], "team": r[3]}
             for r in db.execute(
-                f"SELECT encounter_id, character_id, zone_id FROM character_zone WHERE encounter_id IN ({eph})",
+                f"SELECT encounter_id, character_id, zone_id, team FROM character_zone WHERE encounter_id IN ({eph})",
                 enc_ids,
             ).fetchall()
         ]
@@ -337,8 +337,8 @@ def restore_snapshot(db, session_id, snapshot):
 
         for r in snapshot.get("character_zone", []):
             db.execute(
-                "INSERT INTO character_zone (encounter_id, character_id, zone_id) VALUES (?, ?, ?)",
-                (r["encounter_id"], r["character_id"], r["zone_id"]),
+                "INSERT INTO character_zone (encounter_id, character_id, zone_id, team) VALUES (?, ?, ?, ?)",
+                (r["encounter_id"], r["character_id"], r["zone_id"], r["team"]),
             )
 
         # Session meta
