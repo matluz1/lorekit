@@ -853,6 +853,19 @@ def resolve_action(
             if err:
                 raise LoreKitError(err)
 
+    # --- on_use effects (fire unconditionally before any roll) ---
+    on_use = action_def.get("on_use")
+    if on_use:
+        use_lines = [f"ACTION: {attacker.name} uses {action} → {defender.name}"]
+        _apply_on_hit(db, pack, attacker, defender, on_use, use_lines, options=opts)
+        on_use_result = "\n".join(use_lines)
+    else:
+        on_use_result = None
+
+    # --- Utility action (no attack_stat) — on_use only, no roll ---
+    if "attack_stat" not in action_def:
+        return on_use_result or f"ACTION: {attacker.name} uses {action} → {defender.name} (no effect)"
+
     resolution_type = pack.resolution.get("type", "threshold")
 
     if resolution_type == "threshold":
@@ -861,6 +874,10 @@ def resolve_action(
         result = _resolve_degree(db, pack, attacker, defender, action_def, opts)
     else:
         raise LoreKitError(f"Unknown resolution type: {resolution_type}")
+
+    # Prepend on_use result if both on_use and roll happened
+    if on_use_result:
+        result = on_use_result + "\n" + result
 
     # Consume next_attack modifiers on the attacker (e.g. Setup bonus)
     consumed = db.execute(

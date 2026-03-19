@@ -103,6 +103,15 @@
         "damage_roll": {"dice_attr": "weapon_damage_die", "bonus_stat": "str_mod"},
         "subtract_from": "current_hp"
       }
+    },
+    "teleport": {
+      "range": "ranged",
+      "on_use": {
+        "relocate": {"who": "primary", "zone_field": "relocate_zone"}
+      },
+      "intent_fields": {
+        "relocate_zone": {"type": "zone"}
+      }
     }
   },
   "build": {

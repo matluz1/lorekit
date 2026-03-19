@@ -1053,3 +1053,62 @@ class TestRelocateOnHit:
             assert zone_name == "Far"
         finally:
             db.close()
+
+
+class TestUtilityAction:
+    def test_on_use_relocate_no_roll(self, make_session, make_character):
+        """Utility action (no attack_stat) applies on_use effects without rolling."""
+        from _db import require_db
+        from character import set_attr
+        from encounter import (
+            _get_character_zone,
+            _zone_id_to_name,
+            start_encounter,
+        )
+
+        db = require_db()
+        try:
+            sid, atk_id = _setup_fighter(db, make_session, make_character, set_attr, "Caster")
+            _, def_id = _setup_fighter(db, make_session, make_character, set_attr, "Ally")
+
+            sess_id = db.execute("SELECT session_id FROM characters WHERE id = ?", (atk_id,)).fetchone()[0]
+
+            start_encounter(
+                db,
+                sess_id,
+                [{"name": "Near"}, {"name": "Far"}],
+                [{"character_id": atk_id, "roll": 20}, {"character_id": def_id, "roll": 10}],
+                placements=[
+                    {"character_id": atk_id, "zone": "Near"},
+                    {"character_id": def_id, "zone": "Near"},
+                ],
+                combat_cfg={"zone_scale": 30, "movement_unit": "ft", "melee_range": 0, "zone_tags": {}},
+            )
+
+            # Teleport is a utility action — no attack_stat, on_use relocate
+            output = resolve_action(
+                db,
+                atk_id,
+                def_id,
+                "teleport",
+                TEST_SYSTEM,
+                options={"relocate_zone": "Far"},
+            )
+
+            assert "MOVED" in output
+            assert "Far" in output
+            # No roll should appear
+            assert "ATTACK" not in output
+            assert "HIT" not in output
+            assert "MISS" not in output
+
+            # Verify target moved
+            enc_id = db.execute(
+                "SELECT id FROM encounter_state WHERE session_id = ? AND status = 'active'",
+                (sess_id,),
+            ).fetchone()[0]
+            zone_id = _get_character_zone(db, enc_id, def_id)
+            zone_name = _zone_id_to_name(db, zone_id)
+            assert zone_name == "Far"
+        finally:
+            db.close()

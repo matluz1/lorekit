@@ -869,3 +869,50 @@ class TestSequenceValidation:
             assert len(result3) == 2  # extra move dropped by max_per_step, fits max_total
         finally:
             db.close()
+
+
+# ===========================================================================
+# execute_combat_turn — utility action (on_use, no roll)
+# ===========================================================================
+
+
+class TestUtilityAction:
+    def test_teleport_ally(self, make_session, make_character):
+        """NPC moves self and teleports ally via utility action (move + on_use relocate)."""
+        from _db import require_db
+        from npc_combat import execute_combat_turn
+
+        db = require_db()
+        try:
+            sid = make_session()
+            npc = _make_fighter(db, sid, make_character, "Caster")
+            ally = _make_fighter(db, sid, make_character, "Ally")
+            hero = _make_fighter(db, sid, make_character, "Hero", char_type="pc")
+
+            _start_encounter(
+                db,
+                sid,
+                [npc, ally, hero],
+                [{"name": "North"}, {"name": "South"}],
+                [(npc, "North"), (ally, "North"), (hero, "South")],
+            )
+
+            # NPC moves self to South AND teleports Ally to South
+            intent = {
+                "sequence": ["move", "action"],
+                "action": "teleport",
+                "targets": ["Ally"],
+                "move_to": "South",
+                "relocate_zone": "South",
+            }
+
+            lines = execute_combat_turn(db, npc, sid, intent, COMBAT_CFG, TEST_SYSTEM)
+            output = "\n".join(lines)
+
+            # NPC moved
+            assert _get_zone(db, sid, npc) == "South"
+            # Ally was teleported (no dice roll)
+            assert _get_zone(db, sid, ally) == "South"
+            assert "MOVED" in output
+        finally:
+            db.close()
