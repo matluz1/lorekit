@@ -533,20 +533,22 @@ SUMMARY_SET: 42
 Revert the last saved turn. Restores **all** game state — characters, items,
 attributes, abilities, story acts, regions, session metadata — and removes
 timeline/journal entries created since the previous checkpoint. Each
-`turn_save` creates a checkpoint; `turn_revert` pops the latest one and
-restores the previous.
+`turn_save` creates a checkpoint; `turn_revert` restores a previous one.
 
 ```
 turn_revert(session_id=1)
+turn_revert(session_id=1, steps=20)
 ```
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| session_id | int | yes | Session ID |
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| session_id | int | yes | | Session ID |
+| steps | int | no | 1 | How many checkpoints to go back. Use higher values to skip multiple turns at once. |
 
 **Output:**
 ```
 TURN_REVERTED: restored to checkpoint #3 (2 timeline, 1 journal entries removed)
+TURN_REVERTED: restored to checkpoint #40 (12 timeline, 3 journal entries removed) (skipped 19)
 ```
 
 ## timeline_list

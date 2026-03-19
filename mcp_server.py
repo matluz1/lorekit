@@ -466,13 +466,17 @@ def timeline_set_summary(timeline_id: int, summary: str) -> str:
 
 
 @mcp.tool()
-def turn_revert(session_id: int) -> str:
-    """Revert the last saved turn. Restores all game state (characters, items,
+def turn_revert(session_id: int, steps: int = 1) -> str:
+    """Revert saved turns. Restores all game state (characters, items,
     attributes, story, regions, metadata) and removes timeline/journal entries
-    created since the previous checkpoint."""
+    created since the target checkpoint.
+
+    steps: how many checkpoints to go back (default 1). Use higher values
+    to skip multiple turns at once instead of reverting one at a time.
+    """
     from checkpoint import revert_to_previous
 
-    return _run_with_db(revert_to_previous, session_id)
+    return _run_with_db(revert_to_previous, session_id, steps)
 
 
 # ---------------------------------------------------------------------------

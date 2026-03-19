@@ -487,25 +487,31 @@ def create_checkpoint(db, session_id):
     return cur.lastrowid
 
 
-def revert_to_previous(db, session_id):
-    """Pop the latest checkpoint and restore the previous one.
+def revert_to_previous(db, session_id, steps=1):
+    """Pop one or more checkpoints and restore the target.
 
+    steps: how many checkpoints to go back (default 1).
     Returns a summary string of what was undone.
     """
     rows = db.execute(
         "SELECT id, timeline_max_id, journal_max_id, snapshot "
-        "FROM checkpoints WHERE session_id = ? ORDER BY id DESC LIMIT 2",
-        (session_id,),
+        "FROM checkpoints WHERE session_id = ? ORDER BY id DESC LIMIT ?",
+        (session_id, steps + 1),
     ).fetchall()
 
     if len(rows) < 2:
         raise LoreKitError("Nothing to revert -- not enough checkpoints")
 
-    latest_id = rows[0][0]
-    prev_id, tl_max, jn_max, snapshot_json = rows[1]
+    # Clamp steps to available checkpoints (need at least 1 to restore)
+    actual_steps = min(steps, len(rows) - 1)
+    target = rows[actual_steps]
+    target_id, tl_max, jn_max, snapshot_json = target
     snapshot = json.loads(snapshot_json)
 
-    # Find entries to remove (above the previous checkpoint's watermarks)
+    # IDs of checkpoints to delete (everything above target)
+    delete_ids = [r[0] for r in rows[:actual_steps]]
+
+    # Find entries to remove (above the target checkpoint's watermarks)
     tl_ids = [
         r[0]
         for r in db.execute(
@@ -536,10 +542,11 @@ def revert_to_previous(db, session_id):
         ph = ",".join("?" * len(jn_ids))
         db.execute(f"DELETE FROM journal WHERE id IN ({ph})", jn_ids)
 
-    # Delete the latest checkpoint
-    db.execute("DELETE FROM checkpoints WHERE id = ?", (latest_id,))
+    # Delete all checkpoints above target in one batch
+    ph = ",".join("?" * len(delete_ids))
+    db.execute(f"DELETE FROM checkpoints WHERE id IN ({ph})", delete_ids)
 
-    # Restore mutable state from previous checkpoint
+    # Restore mutable state from target checkpoint
     restore_snapshot(db, session_id, snapshot)
 
     parts = []
@@ -549,4 +556,5 @@ def revert_to_previous(db, session_id):
         parts.append(f"{len(jn_ids)} journal")
     removed = f" ({', '.join(parts)} entries removed)" if parts else ""
 
-    return f"TURN_REVERTED: restored to checkpoint #{prev_id}{removed}"
+    skipped = f" (skipped {actual_steps - 1})" if actual_steps > 1 else ""
+    return f"TURN_REVERTED: restored to checkpoint #{target_id}{removed}{skipped}"
