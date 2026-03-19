@@ -101,6 +101,11 @@ def _ensure_current_hp(db, defender: CharacterData) -> int:
 # ---------------------------------------------------------------------------
 
 
+def _char_name_from_id(db, character_id: int) -> str:
+    row = db.execute("SELECT name FROM characters WHERE id = ?", (character_id,)).fetchone()
+    return row[0] if row else f"#{character_id}"
+
+
 def _apply_on_hit(
     db,
     pack: SystemPack,
@@ -109,17 +114,20 @@ def _apply_on_hit(
     on_hit: dict,
     lines: list[str],
     is_crit: bool = False,
+    margin: int = 0,
+    options: dict | None = None,
 ) -> None:
     """Apply all declared on_hit effects from an action definition.
 
     Supported effects (all optional, composable):
     - damage_roll + subtract_from: roll damage dice, subtract from a stat
-    - apply_modifiers: insert combat_state rows on the defender
+    - apply_modifiers: insert combat_state rows (on defender or intent_ally)
     - push + push_direction: force-move defender via zone graph
 
     When is_crit is True and the system pack declares on_critical.damage_multiplier,
     total damage is multiplied accordingly.
     """
+    options = options or {}
     # --- Damage ---
     damage_info = on_hit.get("damage_roll")
     subtract_target = on_hit.get("subtract_from")
@@ -157,6 +165,7 @@ def _apply_on_hit(
     # --- Apply modifiers (combat_state rows) ---
     modifiers = on_hit.get("apply_modifiers")
     if modifiers and isinstance(modifiers, list):
+        recalc_ids = set()
         for mod in modifiers:
             source = mod["source"]
             target_stat = mod["target_stat"]
@@ -164,8 +173,26 @@ def _apply_on_hit(
             mod_type = mod.get("modifier_type", "condition")
             dur_type = mod.get("duration_type", "encounter")
             bonus_type = mod.get("bonus_type")
-
             duration = mod.get("duration")
+
+            # value_min_margin: use max(declared value, margin of success)
+            if mod.get("value_min_margin") and margin > value:
+                value = margin
+
+            # apply_to: who receives the modifier
+            apply_to = mod.get("apply_to", "defender")
+            if apply_to == "intent_ally":
+                ally_id = options.get("ally_id")
+                if not ally_id:
+                    lines.append(f"MODIFIER SKIPPED: {source} — no ally specified")
+                    continue
+                char_id = ally_id
+                ally_name = _char_name_from_id(db, ally_id)
+                label = f"{source} → {ally_name}"
+            else:
+                char_id = defender.character_id
+                label = source
+
             db.execute(
                 "INSERT INTO combat_state "
                 "(character_id, source, target_stat, modifier_type, value, "
@@ -173,18 +200,20 @@ def _apply_on_hit(
                 "VALUES (?, ?, ?, ?, ?, ?, ?, ?) "
                 "ON CONFLICT(character_id, source, target_stat) DO UPDATE SET "
                 "value = excluded.value, duration = excluded.duration",
-                (defender.character_id, source, target_stat, mod_type, value, bonus_type, dur_type, duration),
+                (char_id, source, target_stat, mod_type, value, bonus_type, dur_type, duration),
             )
             dur_info = f"{dur_type}, {duration} rounds" if duration else dur_type
-            lines.append(f"MODIFIER: {source} → {target_stat} {value:+d} ({dur_info})")
+            lines.append(f"MODIFIER: {label} → {target_stat} {value:+d} ({dur_info})")
+            recalc_ids.add(char_id)
+
         db.commit()
 
-        # Auto-recalc defender after on_hit modifiers
         from rules_engine import try_rules_calc
 
-        recalc = try_rules_calc(db, defender.character_id)
-        if recalc:
-            lines.append(recalc)
+        for cid in recalc_ids:
+            recalc = try_rules_calc(db, cid)
+            if recalc:
+                lines.append(recalc)
 
     # --- Forced movement ---
     push = on_hit.get("push")
@@ -315,7 +344,7 @@ def _resolve_threshold(
             else:
                 lines.append(f"HIT! (wins by {margin})")
             on_hit = action_def.get("on_hit", {})
-            _apply_on_hit(db, pack, attacker, defender, on_hit, lines, is_crit=is_crit)
+            _apply_on_hit(db, pack, attacker, defender, on_hit, lines, is_crit=is_crit, margin=margin, options=options)
         else:
             margin = def_total - atk_total
             lines.append(f"MISS! ({defender.name} resists by {margin})")
@@ -343,12 +372,13 @@ def _resolve_threshold(
                 hit = True  # miss upgraded to hit
 
         if hit:
+            margin = attack_total - defense_value
             if is_crit:
                 lines.append("CRITICAL HIT!")
             else:
                 lines.append("HIT!")
             on_hit = action_def.get("on_hit", {})
-            _apply_on_hit(db, pack, attacker, defender, on_hit, lines, is_crit=is_crit)
+            _apply_on_hit(db, pack, attacker, defender, on_hit, lines, is_crit=is_crit, margin=margin, options=options)
         else:
             lines.append("MISS!")
             margin = defense_value - attack_total
@@ -418,6 +448,11 @@ def _resolve_degree(
         hit = True
 
     if hit:
+        # Compute margin for on_hit effects (e.g. value_min_margin)
+        if action_def.get("contested"):
+            hit_margin = atk_total - def_total
+        else:
+            hit_margin = attack_total - defense_dc
         lines.append("HIT!")
 
         # If action has damage_rank_stat, run resistance check (standard degree flow)
@@ -473,7 +508,7 @@ def _resolve_degree(
         else:
             # No resistance check — apply on_hit effects directly
             on_hit = action_def.get("on_hit", {})
-            _apply_on_hit(db, pack, attacker, defender, on_hit, lines)
+            _apply_on_hit(db, pack, attacker, defender, on_hit, lines, margin=hit_margin, options=options)
     else:
         lines.append("MISS!")
         if not action_def.get("contested"):
@@ -737,8 +772,23 @@ def resolve_action(
     resolution_type = pack.resolution.get("type", "threshold")
 
     if resolution_type == "threshold":
-        return _resolve_threshold(db, pack, attacker, defender, action_def, opts)
+        result = _resolve_threshold(db, pack, attacker, defender, action_def, opts)
     elif resolution_type == "degree":
-        return _resolve_degree(db, pack, attacker, defender, action_def, opts)
+        result = _resolve_degree(db, pack, attacker, defender, action_def, opts)
     else:
         raise LoreKitError(f"Unknown resolution type: {resolution_type}")
+
+    # Consume next_attack modifiers on the attacker (e.g. Setup bonus)
+    consumed = db.execute(
+        "DELETE FROM combat_state WHERE character_id = ? AND duration_type = 'next_attack'",
+        (attacker_id,),
+    )
+    if consumed.rowcount > 0:
+        db.commit()
+        from rules_engine import try_rules_calc
+
+        recalc = try_rules_calc(db, attacker_id)
+        if recalc:
+            result += f"\n{recalc}"
+
+    return result

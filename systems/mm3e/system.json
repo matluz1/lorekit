@@ -249,8 +249,7 @@
       "contested": true,
       "on_hit": {
         "apply_modifiers": [
-          {"source": "setup", "target_stat": "bonus_parry", "value": -2, "modifier_type": "condition", "bonus_type": "circumstance", "duration_type": "rounds", "duration": 1},
-          {"source": "setup", "target_stat": "bonus_dodge", "value": -2, "modifier_type": "condition", "bonus_type": "circumstance", "duration_type": "rounds", "duration": 1}
+          {"source": "setup", "target_stat": "bonus_close_attack", "value": 2, "value_min_margin": true, "modifier_type": "buff", "bonus_type": "circumstance", "duration_type": "next_attack", "apply_to": "intent_ally"}
         ]
       }
     },
@@ -261,8 +260,7 @@
       "contested": true,
       "on_hit": {
         "apply_modifiers": [
-          {"source": "setup", "target_stat": "bonus_parry", "value": -2, "modifier_type": "condition", "bonus_type": "circumstance", "duration_type": "rounds", "duration": 1},
-          {"source": "setup", "target_stat": "bonus_dodge", "value": -2, "modifier_type": "condition", "bonus_type": "circumstance", "duration_type": "rounds", "duration": 1}
+          {"source": "setup", "target_stat": "bonus_close_attack", "value": 2, "value_min_margin": true, "modifier_type": "buff", "bonus_type": "circumstance", "duration_type": "next_attack", "apply_to": "intent_ally"}
         ]
       }
     }

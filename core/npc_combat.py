@@ -159,6 +159,7 @@ Decide what to do. Respond with a JSON block followed by optional in-character n
   "sequence": ["move", "action"],
   "action": "action_name or null",
   "target": "character name or null",
+  "ally": "ally name (for actions that grant a bonus to an ally)",
   "move_to": "zone name or null",
   "move_others": [{{"character": "name", "zone": "zone name"}}],
   "narration": "Brief in-character line (optional)"
@@ -253,6 +254,7 @@ def parse_combat_intent(response: str) -> dict:
                 "sequence": sequence or ["move", "action", "move_others"],
                 "action": intent.get("action") or None,
                 "target": intent.get("target") or None,
+                "ally": intent.get("ally") or None,
                 "move_to": intent.get("move_to") or None,
                 "move_others": intent.get("move_others") or None,
                 "narration": intent.get("narration") or None,
@@ -265,6 +267,7 @@ def parse_combat_intent(response: str) -> dict:
         "sequence": ["move", "action", "move_others"],
         "action": None,
         "target": None,
+        "ally": None,
         "move_to": None,
         "move_others": None,
         "narration": response.strip() or None,
@@ -325,8 +328,27 @@ def execute_combat_turn(
                     (session_id, target_name.strip()),
                 ).fetchone()
                 if target_row:
+                    # Build options (e.g. ally_id for setup actions)
+                    action_opts = {}
+                    ally_name = intent.get("ally")
+                    if ally_name:
+                        ally_row = db.execute(
+                            "SELECT id FROM characters WHERE session_id = ? AND LOWER(name) = LOWER(?)",
+                            (session_id, ally_name.strip()),
+                        ).fetchone()
+                        if ally_row:
+                            action_opts["ally_id"] = ally_row[0]
                     try:
-                        lines.append(resolve_action(db, npc_id, target_row[0], action, system_path))
+                        lines.append(
+                            resolve_action(
+                                db,
+                                npc_id,
+                                target_row[0],
+                                action,
+                                system_path,
+                                options=action_opts if action_opts else None,
+                            )
+                        )
                     except LoreKitError as e:
                         lines.append(f"ACTION FAILED: {e}")
                 else:
