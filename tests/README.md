@@ -11,8 +11,8 @@ Run with:
 | Category | Files | What it tests |
 |----------|-------|---------------|
 | **Harness (parametrized)** | `test_system_harness.py` | Engine behavior across all system packs — combat flow, rest, initiative, HUD, templates |
-| **System-agnostic** | `test_encounter.py`, `test_end_turn.py`, `test_stacking*.py` | Core mechanics via `COMBAT_CFG` dicts, no system pack dependency |
-| **System-specific** | `test_pf2e_system.py`, `test_build_engine.py` | Pack content validation — formulas, progressions, class features, build rules |
+| **System-agnostic** | `test_encounter.py`, `test_end_turn.py`, `test_stacking*.py`, `test_npc_combat.py` | Core mechanics via `COMBAT_CFG` dicts, no system pack dependency |
+| **System-specific** | `test_pf2e_system.py`, `test_build_engine.py`, `test_mm3e_combat.py` | Pack content validation — formulas, progressions, class features, build rules |
 | **Unit** | `test_rules_engine.py`, `test_rules_formulas.py`, `test_combat_engine.py` | Individual module behavior |
 | **MCP integration** | `test_mcp_server.py`, `test_auto_recalc.py` | Tool functions end-to-end through the MCP layer |
 
