@@ -169,10 +169,13 @@ Decide what to do. Respond with a JSON block followed by optional in-character n
 Rules:
 - sequence defines execution order. Valid steps: "move", "action", "move_others". Default: ["move", "action"]
   Examples: ["action", "move"] to attack then reposition, ["move_others", "action"] to teleport allies then act
+- action MUST be one of the available actions listed above — NOT an ability name. Your abilities describe what you
+  can do narratively, but the engine resolves them through system actions (e.g. use close_attack for a melee power,
+  ranged_attack for a ranged power, setup_deception for a feint). Use move_others for abilities that move other characters.
 - action/target/move_to can all be null (narrative-only turn)
 - target must be a character name from the lists above
 - move_to must be a zone name from the list above
-- move_others is optional — use it when an ability moves allies or enemies (e.g. mass teleport)
+- move_others is optional — use it when an ability moves allies or enemies (e.g. mass teleport, teleport attack)
 - Keep narration brief (1-2 sentences)"""
 
     return context
@@ -350,7 +353,25 @@ def execute_combat_turn(
                             )
                         )
                     except LoreKitError as e:
-                        lines.append(f"ACTION FAILED: {e}")
+                        err_msg = str(e)
+                        # Fallback: NPC used ability name instead of system action
+                        if "Unknown action" in err_msg and "close_attack" in err_msg:
+                            try:
+                                lines.append(f"NOTE: '{action}' resolved as close_attack")
+                                lines.append(
+                                    resolve_action(
+                                        db,
+                                        npc_id,
+                                        target_row[0],
+                                        "close_attack",
+                                        system_path,
+                                        options=action_opts if action_opts else None,
+                                    )
+                                )
+                            except LoreKitError as e2:
+                                lines.append(f"ACTION FAILED: {e2}")
+                        else:
+                            lines.append(f"ACTION FAILED: {e}")
                 else:
                     lines.append(f"ACTION FAILED: Target '{target_name}' not found")
             elif action and not target_name:
