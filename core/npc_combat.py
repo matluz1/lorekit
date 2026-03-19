@@ -156,6 +156,7 @@ Decide what to do. Respond with a JSON block followed by optional in-character n
 
 ```json
 {{
+  "sequence": ["move", "action"],
   "action": "action_name or null",
   "target": "character name or null",
   "move_to": "zone name or null",
@@ -165,11 +166,12 @@ Decide what to do. Respond with a JSON block followed by optional in-character n
 ```
 
 Rules:
+- sequence defines execution order. Valid steps: "move", "action", "move_others". Default: ["move", "action"]
+  Examples: ["action", "move"] to attack then reposition, ["move_others", "action"] to teleport allies then act
 - action/target/move_to can all be null (narrative-only turn)
 - target must be a character name from the lists above
 - move_to must be a zone name from the list above
-- move_others is optional — use it when an ability moves allies or enemies (e.g. mass teleport, push)
-- You can move AND act, or just one, or neither
+- move_others is optional — use it when an ability moves allies or enemies (e.g. mass teleport)
 - Keep narration brief (1-2 sentences)"""
 
     return context
@@ -244,7 +246,11 @@ def parse_combat_intent(response: str) -> dict:
     if json_match:
         try:
             intent = json.loads(json_match.group(1))
+            raw_seq = intent.get("sequence")
+            valid_steps = {"move", "action", "move_others"}
+            sequence = [s for s in raw_seq if s in valid_steps] if isinstance(raw_seq, list) else None
             return {
+                "sequence": sequence or ["move", "action", "move_others"],
                 "action": intent.get("action") or None,
                 "target": intent.get("target") or None,
                 "move_to": intent.get("move_to") or None,
@@ -256,6 +262,7 @@ def parse_combat_intent(response: str) -> dict:
 
     # Fallback: narrative-only turn (couldn't parse intent)
     return {
+        "sequence": ["move", "action", "move_others"],
         "action": None,
         "target": None,
         "move_to": None,
@@ -306,78 +313,68 @@ def execute_combat_turn(
     lines = []
     enc_id = _require_active_encounter(db, session_id)[0]
 
-    # --- Movement ---
-    move_to = intent.get("move_to")
-    if move_to:
-        try:
-            # Get movement budget from derived stats
-            mv_row = db.execute(
-                "SELECT value FROM character_attributes WHERE character_id = ? AND key = 'movement_zones'",
-                (npc_id,),
-            ).fetchone()
-            movement_budget = int(mv_row[0]) if mv_row else None
+    sequence = intent.get("sequence", ["move", "action", "move_others"])
 
-            move_result = move_character(
-                db,
-                enc_id,
-                npc_id,
-                move_to,
-                combat_cfg=combat_cfg,
-                movement_budget=movement_budget,
-            )
-            lines.append(move_result)
-        except LoreKitError as e:
-            lines.append(f"MOVEMENT FAILED: {e}")
+    for step in sequence:
+        if step == "action":
+            action = intent.get("action")
+            target_name = intent.get("target")
+            if action and target_name:
+                target_row = db.execute(
+                    "SELECT id FROM characters WHERE session_id = ? AND LOWER(name) = LOWER(?)",
+                    (session_id, target_name.strip()),
+                ).fetchone()
+                if target_row:
+                    try:
+                        lines.append(resolve_action(db, npc_id, target_row[0], action, system_path))
+                    except LoreKitError as e:
+                        lines.append(f"ACTION FAILED: {e}")
+                else:
+                    lines.append(f"ACTION FAILED: Target '{target_name}' not found")
+            elif action and not target_name:
+                lines.append(f"ACTION SKIPPED: {action} — no target specified")
 
-    # --- Move others (mass teleport, repositioning abilities) ---
-    move_others = intent.get("move_others")
-    if move_others:
-        from encounter import _char_name
+        elif step == "move":
+            move_to = intent.get("move_to")
+            if move_to:
+                try:
+                    mv_row = db.execute(
+                        "SELECT value FROM character_attributes WHERE character_id = ? AND key = 'movement_zones'",
+                        (npc_id,),
+                    ).fetchone()
+                    movement_budget = int(mv_row[0]) if mv_row else None
+                    lines.append(
+                        move_character(
+                            db,
+                            enc_id,
+                            npc_id,
+                            move_to,
+                            combat_cfg=combat_cfg,
+                            movement_budget=movement_budget,
+                        )
+                    )
+                except LoreKitError as e:
+                    lines.append(f"MOVEMENT FAILED: {e}")
 
-        for entry in move_others:
-            char_name = entry.get("character")
-            target_zone = entry.get("zone")
-            if not char_name or not target_zone:
-                continue
-            char_row = db.execute(
-                "SELECT id FROM characters WHERE session_id = ? AND LOWER(name) = LOWER(?)",
-                (session_id, char_name.strip()),
-            ).fetchone()
-            if not char_row:
-                lines.append(f"MOVE_OTHERS FAILED: '{char_name}' not found")
-                continue
-            try:
-                result = move_character(db, enc_id, char_row[0], target_zone, combat_cfg=combat_cfg)
-                lines.append(result)
-            except LoreKitError as e:
-                lines.append(f"MOVE_OTHERS FAILED ({char_name}): {e}")
-
-    # --- Action resolution ---
-    action = intent.get("action")
-    target_name = intent.get("target")
-    if action and target_name:
-        # Resolve target by name
-        target_row = db.execute(
-            "SELECT id FROM characters WHERE session_id = ? AND LOWER(name) = LOWER(?)",
-            (session_id, target_name.strip()),
-        ).fetchone()
-        if target_row:
-            target_id = target_row[0]
-            try:
-                action_result = resolve_action(
-                    db,
-                    npc_id,
-                    target_id,
-                    action,
-                    system_path,
-                )
-                lines.append(action_result)
-            except LoreKitError as e:
-                lines.append(f"ACTION FAILED: {e}")
-        else:
-            lines.append(f"ACTION FAILED: Target '{target_name}' not found")
-    elif action and not target_name:
-        lines.append(f"ACTION SKIPPED: {action} — no target specified")
+        elif step == "move_others":
+            move_others = intent.get("move_others")
+            if move_others:
+                for entry in move_others:
+                    char_name = entry.get("character")
+                    target_zone = entry.get("zone")
+                    if not char_name or not target_zone:
+                        continue
+                    char_row = db.execute(
+                        "SELECT id FROM characters WHERE session_id = ? AND LOWER(name) = LOWER(?)",
+                        (session_id, char_name.strip()),
+                    ).fetchone()
+                    if not char_row:
+                        lines.append(f"MOVE_OTHERS FAILED: '{char_name}' not found")
+                        continue
+                    try:
+                        lines.append(move_character(db, enc_id, char_row[0], target_zone, combat_cfg=combat_cfg))
+                    except LoreKitError as e:
+                        lines.append(f"MOVE_OTHERS FAILED ({char_name}): {e}")
 
     # --- Advance turn (auto-calls end_turn on NPC) ---
     try:

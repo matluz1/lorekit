@@ -1029,6 +1029,47 @@ class TestNpcCombatTurn:
         assert pc_zone == "South"
         db.close()
 
+    def test_sequence_action_before_move(self, rules_session, make_character):
+        """sequence ["action", "move"] attacks from current zone, then repositions."""
+        from _db import require_db
+        from encounter import _get_character_zone, _require_active_encounter, _zone_id_to_name, start_encounter
+        from npc_combat import execute_combat_turn
+
+        db = require_db()
+        pc = make_character(rules_session, name="Fighter", char_type="pc")
+        npc = make_character(rules_session, name="Rogue", char_type="npc")
+        _setup_character(db, pc)
+        _setup_character(db, npc)
+
+        zones = [{"name": "North"}, {"name": "South"}]
+        initiative = [
+            {"character_id": npc, "roll": 20},
+            {"character_id": pc, "roll": 10},
+        ]
+        placements = [
+            {"character_id": pc, "zone": "North"},
+            {"character_id": npc, "zone": "North"},
+        ]
+        start_encounter(db, rules_session, zones, initiative, placements=placements, combat_cfg=COMBAT_CFG)
+
+        intent = {
+            "sequence": ["action", "move"],
+            "action": "melee_strike",
+            "target": "Fighter",
+            "move_to": "South",
+            "narration": "Strike and retreat",
+        }
+        lines = execute_combat_turn(db, rules_session, npc, intent, COMBAT_CFG, TEST_SYSTEM)
+        result = "\n".join(lines)
+
+        # Action should resolve (both in North at time of attack)
+        assert "ACTION FAILED" not in result or "Target out of range" not in result
+        # NPC should end up in South
+        enc_id = _require_active_encounter(db, rules_session)[0]
+        npc_zone = _zone_id_to_name(db, _get_character_zone(db, enc_id, npc))
+        assert npc_zone == "South"
+        db.close()
+
     def test_build_combat_context(self, rules_session, make_character):
         from _db import require_db
         from encounter import start_encounter
