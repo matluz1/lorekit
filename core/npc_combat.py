@@ -168,8 +168,8 @@ Decide what to do. Respond with a JSON block followed by optional in-character n
 
 Rules:
 - sequence defines execution order. Valid steps: "move", "action", "move_others". Default: ["move", "action"]
-  Examples: ["action", "move"] to attack then reposition, ["move", "action", "move"] to advance, attack, then retreat
-  When sequence has multiple "move" steps, move_to can be a list — each "move" consumes the next destination
+  Examples: ["action", "move"] to attack then reposition (Move-by Action), ["move", "action"] to advance then attack
+  Most turns use at most one "move" and one "action". Only use multiple "move" steps if the system rules allow it.
 - action MUST be one of the available actions listed above — NOT an ability name. Your abilities describe what you
   can do narratively, but the engine resolves them through system actions (e.g. use close_attack for a melee power,
   ranged_attack for a ranged power, setup_deception for a feint). Use move_others for abilities that move other characters.
