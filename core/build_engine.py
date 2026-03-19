@@ -583,6 +583,12 @@ def _apply_effects(
         ability_key = ability["name"].lower().replace(" ", "_").replace("-", "_")
         item_def = source_data.get(ability_key)
 
+        # Try stripping parenthesized parameter (e.g. "Skill Mastery (Deception)" → "skill_mastery")
+        if not item_def or not isinstance(item_def, dict):
+            base_key = re.sub(r"_?\([^)]*\)", "", ability_key).rstrip("_")
+            if base_key != ability_key:
+                item_def = source_data.get(base_key)
+
         # Try stripping trailing number for ranked advantages (e.g. "Close Attack 6" → "close_attack")
         if (not item_def or not isinstance(item_def, dict)) and ability_key[-1:].isdigit():
             base_key = ability_key.rstrip("0123456789").rstrip("_")
@@ -603,9 +609,25 @@ def _apply_effects(
             if rank_match:
                 rank = int(rank_match.group(1))
 
+        # Parameterized effects (e.g. Skill Mastery (Deception) → floor_skill_deception: 10)
+        param_effects = item_def.get("parameterized_effects")
+        if param_effects:
+            param_match = re.search(r"\(([^)]+)\)", ability["name"])
+            if param_match:
+                param_val = param_match.group(1).lower().replace(" ", "_").replace("-", "_")
+                for stat_template, value in param_effects.items():
+                    stat = stat_template.replace("{param}", param_val)
+                    bonuses[stat] = value
+
         effects = item_def.get("effects", {})
-        if not effects:
+        if not effects and not param_effects:
             # No effects to apply (includes combat options with empty effects)
+            if cost_per_rank > 0:
+                item_cost = item_def.get("cost", cost_per_rank)
+                total_cost += item_cost * rank
+            continue
+        elif not effects:
+            # Has parameterized effects but no regular effects — still count cost
             if cost_per_rank > 0:
                 item_cost = item_def.get("cost", cost_per_rank)
                 total_cost += item_cost * rank

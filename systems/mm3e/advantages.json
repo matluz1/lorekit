@@ -584,8 +584,11 @@
     "ranked": false,
     "cost": 1,
     "param": "skill_type",
+    "parameterized_effects": {
+      "floor_skill_{param}": 10
+    },
     "effects": {},
-    "note": "Make routine checks with chosen skill even under pressure"
+    "note": "Make routine checks with chosen skill even under pressure (take 10)"
   },
   "startle": {
     "name": "Startle",
