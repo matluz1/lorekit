@@ -279,6 +279,15 @@ def _contested_roll(
     atk_result = roll_expr(pack.dice)
     atk_roll = atk_result["total"]
     atk_natural = atk_result["natural"]
+
+    # Apply die floor (e.g. Skill Mastery: take 10)
+    try:
+        floor_val = _get_derived(attacker, f"floor_{attack_stat}")
+        if floor_val and atk_roll < floor_val:
+            atk_roll = floor_val
+    except LoreKitError:
+        pass
+
     atk_total = atk_roll + atk_bonus
 
     if action_def.get("contested"):
