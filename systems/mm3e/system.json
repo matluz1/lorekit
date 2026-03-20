@@ -213,14 +213,16 @@
       "attack_stat": "close_attack",
       "defense_stat": "parry",
       "range": "melee",
-      "damage_rank_stat": "close_damage"
+      "damage_rank_stat": "close_damage",
+      "cap": {"sum": ["attack_stat", "close_damage"], "max_stat": "pl_limit"}
     },
     "ranged_attack": {
       "attack_stat": "ranged_attack",
       "defense_stat": "dodge",
       "range": "ranged",
       "range_stat": "weapon_range",
-      "damage_rank_stat": "ranged_damage"
+      "damage_rank_stat": "ranged_damage",
+      "cap": {"sum": ["attack_stat", "ranged_damage"], "max_stat": "pl_limit"}
     },
     "grab": {
       "attack_stat": "close_attack",

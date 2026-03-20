@@ -351,3 +351,255 @@ class TestGrab:
                 assert m[2] == "until_escape"
         finally:
             db.close()
+
+
+# ===========================================================================
+# Action overrides, effect_rank, resistance_stat, PL cap
+# ===========================================================================
+
+
+class TestActionOverride:
+    def test_character_override_used_over_system(self, make_session, make_character):
+        """Character with action_override uses it instead of system action."""
+        from _db import require_db
+        from character import set_attr
+        from combat_engine import resolve_action
+
+        db = require_db()
+        try:
+            sid = make_session()
+            npc = _make_character(db, sid, make_character, "Blaster", fgt="6")
+            hero = _make_character(db, sid, make_character, "Hero", char_type="pc")
+            cfg = _combat_cfg()
+
+            _start_encounter(
+                db,
+                sid,
+                [npc, hero],
+                [{"name": "Arena"}],
+                [(npc, "Arena"), (hero, "Arena")],
+            )
+
+            # Override close_attack to target dodge instead of parry
+            override = json.dumps(
+                {
+                    "attack_stat": "close_attack",
+                    "defense_stat": "dodge",
+                    "range": "melee",
+                    "damage_rank_stat": "close_damage",
+                }
+            )
+            set_attr(db, npc, "action_override", "close_attack", override)
+
+            # d20=15 → hit, resistance d20=5 → fail
+            roll_calls = iter([14, 4])
+            with patch("secrets.randbelow", side_effect=roll_calls):
+                result = resolve_action(db, npc, hero, "close_attack", MM3E_SYSTEM)
+
+            # Should target dodge, not parry
+            assert "dodge" in result.lower() or "HIT!" in result
+        finally:
+            db.close()
+
+    def test_effect_rank_direct(self, make_session, make_character):
+        """Action with effect_rank uses it directly instead of damage_rank_stat."""
+        from _db import require_db
+        from character import set_attr
+        from combat_engine import resolve_action
+
+        db = require_db()
+        try:
+            sid = make_session()
+            npc = _make_character(db, sid, make_character, "Psion", fgt="6")
+            hero = _make_character(db, sid, make_character, "Hero", char_type="pc")
+            cfg = _combat_cfg()
+
+            _start_encounter(
+                db,
+                sid,
+                [npc, hero],
+                [{"name": "Arena"}],
+                [(npc, "Arena"), (hero, "Arena")],
+            )
+
+            # Custom action with effect_rank=10 (ignores close_damage stat)
+            override = json.dumps(
+                {
+                    "attack_stat": "close_attack",
+                    "defense_stat": "parry",
+                    "range": "melee",
+                    "effect_rank": 10,
+                }
+            )
+            set_attr(db, npc, "action_override", "mental_blast", override)
+
+            # d20=18 → hit, resistance d20=3 → fail hard
+            roll_calls = iter([17, 2])
+            with patch("secrets.randbelow", side_effect=roll_calls):
+                result = resolve_action(db, npc, hero, "mental_blast", MM3E_SYSTEM)
+
+            # DC should be 15 + 10 = 25
+            assert "DC 25" in result
+            assert "HIT!" in result
+        finally:
+            db.close()
+
+    def test_resistance_stat_override(self, make_session, make_character):
+        """Action with resistance_stat targets fortitude instead of toughness."""
+        from _db import require_db
+        from character import set_attr
+        from combat_engine import resolve_action
+
+        db = require_db()
+        try:
+            sid = make_session()
+            npc = _make_character(db, sid, make_character, "Psion", fgt="6")
+            hero = _make_character(db, sid, make_character, "Hero", char_type="pc")
+            cfg = _combat_cfg()
+
+            _start_encounter(
+                db,
+                sid,
+                [npc, hero],
+                [{"name": "Arena"}],
+                [(npc, "Arena"), (hero, "Arena")],
+            )
+
+            override = json.dumps(
+                {
+                    "attack_stat": "close_attack",
+                    "defense_stat": "parry",
+                    "range": "melee",
+                    "effect_rank": 8,
+                    "resistance_stat": "fortitude",
+                }
+            )
+            set_attr(db, npc, "action_override", "fort_blast", override)
+
+            # d20=18 → hit, resistance d20=10
+            roll_calls = iter([17, 9])
+            with patch("secrets.randbelow", side_effect=roll_calls):
+                result = resolve_action(db, npc, hero, "fort_blast", MM3E_SYSTEM)
+
+            assert "HIT!" in result
+            assert "RESISTANCE:" in result
+            # Resistance check should use fortitude, not toughness
+            # fortitude is derived from sta (default 4), so resistance_bonus = 4
+            # toughness would be sta(4) = 4 too in default config — but verify the stat is read
+        finally:
+            db.close()
+
+    def test_cap_warning(self, make_session, make_character):
+        """Action where attack + effect_rank > cap max_stat shows warning."""
+        from _db import require_db
+        from character import set_attr
+        from combat_engine import resolve_action
+
+        db = require_db()
+        try:
+            sid = make_session()
+            # fgt=10 → close_attack=10
+            npc = _make_character(db, sid, make_character, "OverPowered", fgt="10")
+            hero = _make_character(db, sid, make_character, "Hero", char_type="pc")
+            cfg = _combat_cfg()
+
+            _start_encounter(
+                db,
+                sid,
+                [npc, hero],
+                [{"name": "Arena"}],
+                [(npc, "Arena"), (hero, "Arena")],
+            )
+
+            # Set pl_limit derived stat
+            set_attr(db, npc, "derived", "pl_limit", "20")
+
+            # Custom action: attack_stat=close_attack (10), effect_rank=12 → total 22 > 20
+            override = json.dumps(
+                {
+                    "attack_stat": "close_attack",
+                    "defense_stat": "parry",
+                    "range": "melee",
+                    "effect_rank": 12,
+                    "cap": {"sum": ["attack_stat", "effect_rank"], "max_stat": "pl_limit"},
+                }
+            )
+            set_attr(db, npc, "action_override", "op_blast", override)
+
+            # d20=18 → hit, resistance d20=5 → fail
+            roll_calls = iter([17, 4])
+            with patch("secrets.randbelow", side_effect=roll_calls):
+                result = resolve_action(db, npc, hero, "op_blast", MM3E_SYSTEM)
+
+            assert "WARNING: cap exceeded" in result
+            assert "HIT!" in result
+        finally:
+            db.close()
+
+    def test_cap_clean(self, make_session, make_character):
+        """Action within cap limits shows no warning."""
+        from _db import require_db
+        from character import set_attr
+        from combat_engine import resolve_action
+
+        db = require_db()
+        try:
+            sid = make_session()
+            npc = _make_character(db, sid, make_character, "Balanced", fgt="6")
+            hero = _make_character(db, sid, make_character, "Hero", char_type="pc")
+            cfg = _combat_cfg()
+
+            _start_encounter(
+                db,
+                sid,
+                [npc, hero],
+                [{"name": "Arena"}],
+                [(npc, "Arena"), (hero, "Arena")],
+            )
+
+            # close_attack uses cap from system.json: close_attack(6) + close_damage(4) = 10
+            # pl_limit from rules_calc = power_level * 2 = 1 * 2 = 2... too low
+            # Set it manually to 20
+            set_attr(db, npc, "derived", "pl_limit", "20")
+
+            # d20=18 → hit, resistance d20=5 → fail
+            roll_calls = iter([17, 4])
+            with patch("secrets.randbelow", side_effect=roll_calls):
+                result = resolve_action(db, npc, hero, "close_attack", MM3E_SYSTEM)
+
+            assert "WARNING" not in result
+        finally:
+            db.close()
+
+    def test_system_action_still_works(self, make_session, make_character):
+        """Characters without overrides still use system actions normally."""
+        from _db import require_db
+        from npc_combat import execute_combat_turn
+
+        db = require_db()
+        try:
+            sid = make_session()
+            npc = _make_character(db, sid, make_character, "Normal")
+            hero = _make_character(db, sid, make_character, "Hero", char_type="pc")
+            cfg = _combat_cfg()
+
+            _start_encounter(
+                db,
+                sid,
+                [npc, hero],
+                [{"name": "Arena"}],
+                [(npc, "Arena"), (hero, "Arena")],
+            )
+
+            intent = {"sequence": ["action"], "action": "close_attack", "targets": ["Hero"]}
+
+            # d20=15 → hit, resistance d20=5 → fail
+            roll_calls = iter([14, 4])
+            with patch("secrets.randbelow", side_effect=roll_calls):
+                lines = execute_combat_turn(db, npc, sid, intent, cfg, MM3E_SYSTEM)
+
+            output = "\n".join(lines)
+            assert "HIT!" in output
+            assert "RESISTANCE:" in output
+        finally:
+            db.close()

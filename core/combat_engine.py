@@ -53,6 +53,25 @@ def _get_derived(char: CharacterData, stat: str) -> int:
     raise LoreKitError(f"Stat '{stat}' not found on character {char.name}")
 
 
+def _get_action_def(pack: SystemPack, char: CharacterData, action: str) -> dict:
+    """Look up an action definition: character override first, then system pack."""
+    overrides = char.attributes.get("action_override", {})
+    if action in overrides:
+        raw = overrides[action]
+        if isinstance(raw, str):
+            import json
+
+            return json.loads(raw)
+        return raw
+
+    if action in pack.actions:
+        return pack.actions[action]
+
+    # Build combined list of available actions
+    available = sorted(set(pack.actions.keys()) | set(overrides.keys()))
+    raise LoreKitError(f"Unknown action '{action}'. Available: {', '.join(available)}")
+
+
 def _get_attr_str(char: CharacterData, stat: str) -> str:
     """Read a string attribute (e.g., weapon_damage_die). Checks build then all."""
     build = char.attributes.get("build", {})
@@ -533,15 +552,41 @@ def _resolve_degree(
             hit_margin = attack_total - defense_dc
         lines.append("HIT!")
 
-        # If action has damage_rank_stat, run resistance check (standard degree flow)
+        # If action has damage_rank_stat or effect_rank, run resistance check
         damage_rank_stat = action_def.get("damage_rank_stat")
-        if damage_rank_stat:
-            resistance_stat = resolution.get("resistance_stat", "toughness")
+        effect_rank_direct = action_def.get("effect_rank")
+
+        if damage_rank_stat or effect_rank_direct is not None:
+            # Per-action resistance stat override (e.g. Fortitude for mental powers)
+            resistance_stat = action_def.get("resistance_stat", resolution.get("resistance_stat", "toughness"))
             dc_base = resolution.get("dc_base", 15)
-            damage_rank = _get_derived(attacker, damage_rank_stat)
+
+            if effect_rank_direct is not None:
+                damage_rank = int(effect_rank_direct)
+            else:
+                damage_rank = _get_derived(attacker, damage_rank_stat)
+
+            # Data-driven cap check (e.g. attack + effect ≤ pl_limit)
+            cap = action_def.get("cap")
+            if cap:
+                cap_stats = cap["sum"]
+                cap_max_stat = cap["max_stat"]
+                cap_values = []
+                for cs in cap_stats:
+                    if cs == "effect_rank" and effect_rank_direct is not None:
+                        cap_values.append(damage_rank)
+                    elif cs == "attack_stat":
+                        cap_values.append(_get_derived(attacker, attack_stat))
+                    else:
+                        cap_values.append(_get_derived(attacker, cs))
+                cap_total = sum(cap_values)
+                cap_max = _get_derived(attacker, cap_max_stat)
+                if cap_total > cap_max:
+                    parts = " + ".join(str(v) for v in cap_values)
+                    lines.append(f"WARNING: cap exceeded — {parts} = {cap_total} > {cap_max}")
 
             # Apply trade to damage rank (e.g. Power Attack)
-            if damage_rank_stat in trade_adj:
+            if damage_rank_stat and damage_rank_stat in trade_adj:
                 damage_rank += trade_adj[damage_rank_stat]
 
             # Apply critical effect_rank_bonus (e.g. M&M3e nat 20 → +5 effect rank)
@@ -759,8 +804,7 @@ def resolve_area_action(
 
     create_checkpoint(db, attacker.session_id)
 
-    if action not in pack.actions:
-        raise LoreKitError(f"Unknown action '{action}'. Available: {', '.join(pack.actions.keys())}")
+    action_def = _get_action_def(pack, attacker, action)
 
     enc = _get_active_encounter(db, attacker.session_id)
     if enc is None:
@@ -783,7 +827,6 @@ def resolve_area_action(
     if not target_ids:
         return f"AREA: {attacker.name} uses {action} — no targets in area"
 
-    action_def = pack.actions[action]
     opts = options or {}
     resolution_type = pack.resolution.get("type", "threshold")
 
@@ -819,10 +862,7 @@ def resolve_action(
 
     create_checkpoint(db, attacker.session_id)
 
-    if action not in pack.actions:
-        raise LoreKitError(f"Unknown action '{action}'. Available: {', '.join(pack.actions.keys())}")
-
-    action_def = pack.actions[action]
+    action_def = _get_action_def(pack, attacker, action)
     opts = options or {}
 
     # Range validation when an encounter is active
