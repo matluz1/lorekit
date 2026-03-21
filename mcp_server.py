@@ -773,7 +773,7 @@ def turn_save(
             init_order = _json.loads(enc_row[0])
             current_turn = enc_row[1]
             remaining = len(init_order) - current_turn - 1
-            if remaining > 0:
+            if remaining > 0 and current_turn > 0:
                 names = []
                 for cid in init_order[current_turn + 1 :]:
                     name_row = db.execute("SELECT name FROM characters WHERE id = ?", (cid,)).fetchone()

@@ -1527,6 +1527,16 @@ def resolve_action(
     if incap:
         warnings.append(f"⚠ WARNING: {defender.name} is {cond_name} — attacking an incapacitated target")
 
+    # Snapshot next_attack_received modifier IDs on defender BEFORE resolution.
+    # These will be consumed after resolution (new ones added during this action survive).
+    pre_existing_nar = {
+        row[0]
+        for row in db.execute(
+            "SELECT id FROM combat_state WHERE character_id = ? AND duration_type = 'next_attack_received'",
+            (defender_id,),
+        ).fetchall()
+    }
+
     # Range validation when an encounter is active
     range_type = action_def.get("range")
     if range_type and pack.combat:
@@ -1594,11 +1604,24 @@ def resolve_action(
         if recalc:
             result += f"\n{recalc}"
 
+    # Consume pre-existing next_attack_received modifiers on the defender
+    # (new ones added during this resolution survive for future attacks)
+    if pre_existing_nar:
+        placeholders = ",".join("?" for _ in pre_existing_nar)
+        db.execute(f"DELETE FROM combat_state WHERE id IN ({placeholders})", tuple(pre_existing_nar))
+        db.commit()
+        _sync_and_recalc(db, defender_id, pack, None)
+        from rules_engine import try_rules_calc
+
+        recalc = try_rules_calc(db, defender_id)
+        if recalc:
+            result += f"\n{recalc}"
+
     # Track action count for condition-based limits (dazed max_total: 1, etc.)
     _increment_turn_actions(db, attacker_id)
 
-    # Prepend incapacitated target warning if applicable
-    if incap:
+    # Prepend warnings if applicable
+    if warnings:
         result = "\n".join(warnings) + "\n" + result
 
     return result

@@ -466,7 +466,7 @@
       "contested": true,
       "on_hit": {
         "apply_modifiers": [
-          {"source": "vulnerable", "target_stat": "bonus_dodge", "value": 0, "modifier_type": "condition", "duration_type": "rounds", "duration": 1}
+          {"source": "vulnerable", "target_stat": "bonus_dodge", "value": 0, "modifier_type": "condition", "duration_type": "next_attack_received"}
         ]
       }
     },
@@ -477,7 +477,7 @@
       "contested": true,
       "on_hit": {
         "apply_modifiers": [
-          {"source": "vulnerable", "target_stat": "bonus_dodge", "value": 0, "modifier_type": "condition", "duration_type": "rounds", "duration": 1}
+          {"source": "vulnerable", "target_stat": "bonus_dodge", "value": 0, "modifier_type": "condition", "duration_type": "next_attack_received"}
         ]
       }
     }
