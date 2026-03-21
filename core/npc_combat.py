@@ -189,28 +189,30 @@ def build_combat_context(
         # Add mechanical descriptions for recognized conditions
         cond_notes = []
         for label in active_labels:
-            desc = condition_rules.get(label)
+            cdef = condition_rules.get(label)
+            desc = cdef.get("description") if isinstance(cdef, dict) else cdef
             if desc:
                 cond_notes.append(f"  ⚠ {label}: {desc}")
         if cond_notes:
             condition_section += "\n".join(cond_notes) + "\n"
 
-    # Also check on_failure labels from damage_condition (uses sdata already loaded)
-    if condition_rules and system_path and sdata:
-        damage_row = db.execute(
-            "SELECT value FROM character_attributes WHERE character_id = ? AND key = 'damage_condition'",
-            (npc_id,),
+    # Also check attribute-based condition thresholds
+    cond_thresholds = sdata.get("combat", {}).get("condition_thresholds", []) if sdata else []
+    for thresh in cond_thresholds:
+        attr_key = thresh.get("attribute")
+        min_val = thresh.get("min")
+        cond_name = thresh.get("condition")
+        if not (attr_key and min_val is not None and cond_name and cond_name in condition_rules):
+            continue
+        row = db.execute(
+            "SELECT value FROM character_attributes WHERE character_id = ? AND key = ?",
+            (npc_id, attr_key),
         ).fetchone()
-        if damage_row:
-            dc = int(float(damage_row[0]))
-            on_failure = sdata.get("resolution", {}).get("on_failure", {})
-            for degree, effects in on_failure.items():
-                label = effects.get("label")
-                if label and label in condition_rules and dc >= int(degree):
-                    if label not in active_labels:
-                        desc = condition_rules[label]
-                        condition_section += f"  ⚠ {label}: {desc}\n"
-                        active_labels.add(label)
+        if row and float(row[0]) >= min_val and cond_name not in active_labels:
+            cdef = condition_rules[cond_name]
+            desc = cdef.get("description") if isinstance(cdef, dict) else cdef
+            condition_section += f"  ⚠ {cond_name}: {desc}\n"
+            active_labels.add(cond_name)
 
     context = f"""COMBAT — Round {rnd}
 It is your turn ({npc_name}).
@@ -454,8 +456,14 @@ def _validate_sequence(
     schema: dict | None,
     db,
     npc_id: int,
+    *,
+    condition_rules: dict | None = None,
+    condition_thresholds: list | None = None,
 ) -> list[str]:
     """Validate and trim sequence against system + character limits.
+
+    Checks schema limits, character attribute overrides, and active
+    condition restrictions (e.g. staggered → max_total 1).
 
     Returns the validated sequence (excess steps dropped with warning logged).
     """
@@ -481,6 +489,23 @@ def _validate_sequence(
                 max_total += new_val - old_val
             max_per_step[step_name] = new_val
 
+    # Condition-based overrides (e.g. staggered → max_total: 1)
+    if condition_rules:
+        active_conditions = _get_active_conditions(db, npc_id, condition_rules, condition_thresholds)
+        for cond_name in active_conditions:
+            cond_def = condition_rules.get(cond_name, {})
+            if not isinstance(cond_def, dict):
+                continue
+            cond_max_total = cond_def.get("max_total")
+            if cond_max_total is not None:
+                if max_total is None or cond_max_total < max_total:
+                    max_total = cond_max_total
+            cond_max_move = cond_def.get("max_move")
+            if cond_max_move is not None:
+                cur = max_per_step.get("move")
+                if cur is None or cond_max_move < cur:
+                    max_per_step["move"] = cond_max_move
+
     # Validate per-step counts
     step_counts: dict[str, int] = {}
     validated = []
@@ -496,6 +521,40 @@ def _validate_sequence(
         validated = validated[:max_total]
 
     return validated
+
+
+def _get_active_conditions(db, character_id: int, condition_rules: dict, thresholds: list | None = None) -> set[str]:
+    """Determine which condition_rules are active on a character.
+
+    Checks combat_state modifier sources and attribute-based thresholds
+    from the system pack's ``condition_thresholds`` list.
+    """
+    active = set()
+
+    # Check combat_state sources
+    sources = db.execute(
+        "SELECT DISTINCT source FROM combat_state WHERE character_id = ?",
+        (character_id,),
+    ).fetchall()
+    for (source,) in sources:
+        if source in condition_rules:
+            active.add(source)
+
+    # Check attribute-based condition thresholds
+    for thresh in thresholds or []:
+        attr_key = thresh.get("attribute")
+        min_val = thresh.get("min")
+        cond_name = thresh.get("condition")
+        if not (attr_key and min_val is not None and cond_name):
+            continue
+        row = db.execute(
+            "SELECT value FROM character_attributes WHERE character_id = ? AND key = ?",
+            (character_id, attr_key),
+        ).fetchone()
+        if row and float(row[0]) >= min_val:
+            active.add(cond_name)
+
+    return active
 
 
 def execute_combat_turn(
@@ -525,15 +584,19 @@ def execute_combat_turn(
     lines = []
     enc_id = _require_active_encounter(db, session_id)[0]
 
-    # Load intent schema
+    # Load intent schema and condition rules
     pack = load_system_pack(system_path)
     schema = pack.intent or None
     steps_def = schema.get("steps", {}) if schema else {}
+    cond_rules = pack.combat.get("condition_rules", {})
+    cond_thresholds = pack.combat.get("condition_thresholds", [])
 
     sequence = intent.get("sequence", ["move", "action"])
 
-    # Validate sequence against schema + character overrides
-    sequence = _validate_sequence(sequence, schema, db, npc_id)
+    # Validate sequence against schema + character overrides + conditions
+    sequence = _validate_sequence(
+        sequence, schema, db, npc_id, condition_rules=cond_rules, condition_thresholds=cond_thresholds
+    )
 
     # Normalize move_to into a queue (supports string or list for multi-move)
     raw_move_to = intent.get("move_to")

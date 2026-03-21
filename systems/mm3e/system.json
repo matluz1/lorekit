@@ -28,12 +28,17 @@
       "concealment": {"miss_chance": 0.2}
     },
     "condition_rules": {
-      "dazed": "you may take ONLY a standard action OR a move action, not both",
-      "staggered": "you may take ONLY a standard action OR a move action, not both",
-      "stunned": "you cannot take any actions",
-      "incapacitated": "you are out of the fight",
-      "grab": "you are immobilized — you cannot move (speed 0) and dodge is reduced"
-    }
+      "dazed": {"description": "you may take ONLY a standard action OR a move action, not both", "max_total": 1},
+      "staggered": {"description": "you may take ONLY a standard action OR a move action, not both", "max_total": 1},
+      "stunned": {"description": "you cannot take any actions", "max_total": 0},
+      "incapacitated": {"description": "you are out of the fight", "max_total": 0},
+      "grab": {"description": "you are immobilized — you cannot move (speed 0) and dodge is reduced", "max_move": 0}
+    },
+    "condition_thresholds": [
+      {"attribute": "damage_condition", "min": 2, "condition": "dazed"},
+      {"attribute": "damage_condition", "min": 3, "condition": "staggered"},
+      {"attribute": "damage_condition", "min": 4, "condition": "incapacitated"}
+    ]
   },
 
   "defaults": {

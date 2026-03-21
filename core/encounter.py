@@ -560,6 +560,9 @@ def _get_condition_reminders(db, cid: int, session_id: int) -> list[str]:
     seen = set()
     reminders = []
 
+    def _desc(cdef):
+        return cdef.get("description") if isinstance(cdef, dict) else cdef
+
     # Check active modifier sources
     sources = db.execute(
         "SELECT DISTINCT source FROM combat_state WHERE character_id = ?",
@@ -567,22 +570,28 @@ def _get_condition_reminders(db, cid: int, session_id: int) -> list[str]:
     ).fetchall()
     for (source,) in sources:
         if source in condition_rules and source not in seen:
-            reminders.append(f"⚠ {cname} is {source}: {condition_rules[source]}")
+            desc = _desc(condition_rules[source])
+            if desc:
+                reminders.append(f"⚠ {cname} is {source}: {desc}")
             seen.add(source)
 
-    # Check damage_condition against on_failure labels
-    damage_row = db.execute(
-        "SELECT value FROM character_attributes WHERE character_id = ? AND key = 'damage_condition'",
-        (cid,),
-    ).fetchone()
-    if damage_row:
-        dc = int(float(damage_row[0]))
-        on_failure = sdata.get("resolution", {}).get("on_failure", {})
-        for degree, effects in on_failure.items():
-            label = effects.get("label")
-            if label and label in condition_rules and dc >= int(degree) and label not in seen:
-                reminders.append(f"⚠ {cname} is {label}: {condition_rules[label]}")
-                seen.add(label)
+    # Check attribute-based condition thresholds
+    for thresh in sdata.get("combat", {}).get("condition_thresholds", []):
+        attr_key = thresh.get("attribute")
+        min_val = thresh.get("min")
+        cond_name = thresh.get("condition")
+        if not (attr_key and min_val is not None and cond_name):
+            continue
+        if cond_name in condition_rules and cond_name not in seen:
+            row = db.execute(
+                "SELECT value FROM character_attributes WHERE character_id = ? AND key = ?",
+                (cid, attr_key),
+            ).fetchone()
+            if row and float(row[0]) >= min_val:
+                desc = _desc(condition_rules[cond_name])
+                if desc:
+                    reminders.append(f"⚠ {cname} is {cond_name}: {desc}")
+                seen.add(cond_name)
 
     return reminders
 
