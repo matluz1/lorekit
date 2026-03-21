@@ -29,10 +29,14 @@ these over calling individual tools separately.
 ### turn_save
 
 Save a game turn: narration + player choice + last_gm_message in one call.
+Creates a checkpoint so the player can revert if needed.
 
-> **During combat, do NOT call turn_save manually.** Checkpoints are created
-> automatically by `encounter_advance_turn` whenever a PC's turn begins.
-> Resume calling `turn_save` normally after `encounter_end`.
+> **ALWAYS call turn_save as your last action before the player acts.**
+> This applies in all contexts: combat, exploration, dialogue, downtime.
+> The checkpoint and `last_gm_message` it creates are what make undo and
+> session resume work correctly. During combat, `encounter_advance_turn`
+> will remind you with "⚠ PC TURN — call turn_save with narration before
+> player acts".
 
 ```
 turn_save(session_id=1, narration="<exact text shown to player>", summary="<1-2 sentence summary>", player_choice="<player's exact message>")
@@ -43,7 +47,7 @@ turn_save(session_id=1, narration="<exact text shown to player>", summary="<1-2 
 | session_id | int | yes | | Session ID |
 | narration | str | no | "" | GM narration text (exact text shown to player) |
 | summary | str | no | "" | 1-2 sentence summary for semantic search |
-| player_choice | str | no | "" | Player's exact message |
+| player_choice | str | no | "" | Player's exact message from the **previous** turn (not the upcoming one) |
 | narrative_time | str | no | "" | Override in-game timestamp (ISO 8601). If omitted, uses current narrative clock. |
 
 At least one of narration or player_choice is required.
@@ -121,6 +125,10 @@ REGIONS_CREATED: 4
 Assemble full context for resuming a session in one call. Returns session
 details, narrative time, metadata, active story act, all PCs with full sheets,
 all regions, last 20 timeline entries, and last 5 journal notes.
+
+> **On resume during combat:** replay `last_gm_message` and wait for the
+> player to act. Do NOT re-resolve a `player_choice` that already appears
+> in the timeline — it was already handled before the session closed.
 
 ```
 session_resume(session_id=1)
