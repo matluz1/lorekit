@@ -66,6 +66,25 @@ def get_active_conditions(db, character_id: int, condition_rules: dict, threshol
     return active
 
 
+def is_incapacitated(db, character_id: int, pack: SystemPack) -> tuple[bool, str | None]:
+    """Check if a character has an active condition with max_total 0.
+
+    Returns (True, condition_name) if the character cannot act at all,
+    or (False, None) otherwise.
+    """
+    combat_cfg = pack.combat or {}
+    condition_rules = combat_cfg.get("condition_rules")
+    if not condition_rules:
+        return False, None
+    thresholds = combat_cfg.get("condition_thresholds")
+    active = get_active_conditions(db, character_id, condition_rules, thresholds)
+    for cond_name in active:
+        cond_def = condition_rules.get(cond_name, {})
+        if isinstance(cond_def, dict) and cond_def.get("max_total") == 0:
+            return True, cond_name
+    return False, None
+
+
 def _check_condition_action_limit(db, character_id: int, pack: SystemPack) -> None:
     """Raise LoreKitError if active conditions prevent the character from acting.
 
@@ -468,6 +487,7 @@ def _expand_combat_options(pack: SystemPack, options: dict) -> dict:
 
     options = dict(options)
     trades = list(options.get("trade", []))
+    option_warnings = options.get("_option_warnings", [])
 
     for entry in named:
         # Normalize: bare string "power_attack" → {"name": "power_attack"}
@@ -478,13 +498,18 @@ def _expand_combat_options(pack: SystemPack, options: dict) -> dict:
             continue
         defn = pack.combat_options.get(name)
         if defn is None:
+            option_warnings.append(f"⚠ UNKNOWN COMBAT OPTION: '{name}' not found in system pack")
             continue
 
         # Resolve value: fixed from definition, or GM-provided, clamped to max
-        value = defn.get("value", entry.get("value", 0))
+        requested = entry.get("value")
+        value = defn.get("value", requested if requested is not None else 0)
         max_val = defn.get("max")
         if max_val is not None and value > max_val:
+            option_warnings.append(f"⚠ CLAMPED: {name} value {value} exceeds max {max_val}, using {max_val}")
             value = max_val
+        if requested is None and "value" not in defn:
+            option_warnings.append(f"⚠ MISSING VALUE: {name} requires a value (max {max_val}), defaulting to 0")
 
         # Build trade dict
         trade_def = defn.get("trade", {})
@@ -506,6 +531,8 @@ def _expand_combat_options(pack: SystemPack, options: dict) -> dict:
         trades.append(trade)
 
     options["trade"] = trades
+    if option_warnings:
+        options["_option_warnings"] = option_warnings
     return options
 
 
@@ -1476,10 +1503,34 @@ def resolve_action(
     action_def = _get_action_def(pack, attacker, action)
     opts = _expand_combat_options(pack, options or {})
 
+    # Validate defender is in the active encounter
+    from encounter import _get_active_encounter
+
+    enc = _get_active_encounter(db, attacker.session_id)
+    if enc is not None:
+        enc_id_check = enc[0]
+        in_encounter = db.execute(
+            "SELECT 1 FROM character_zone WHERE encounter_id = ? AND character_id = ?",
+            (enc_id_check, defender_id),
+        ).fetchone()
+        if not in_encounter:
+            raise LoreKitError(
+                f"{defender.name} (id {defender_id}) is not in the active encounter. "
+                f"Check the character ID — use names instead of numeric IDs to avoid mistakes."
+            )
+
+    # Collect warnings
+    warnings: list[str] = opts.pop("_option_warnings", [])
+
+    # Warn if defender is incapacitated
+    incap, cond_name = is_incapacitated(db, defender_id, pack)
+    if incap:
+        warnings.append(f"⚠ WARNING: {defender.name} is {cond_name} — attacking an incapacitated target")
+
     # Range validation when an encounter is active
     range_type = action_def.get("range")
     if range_type and pack.combat:
-        from encounter import _get_active_encounter, check_range
+        from encounter import check_range
 
         enc = _get_active_encounter(db, attacker.session_id)
         if enc is not None:
@@ -1545,5 +1596,9 @@ def resolve_action(
 
     # Track action count for condition-based limits (dazed max_total: 1, etc.)
     _increment_turn_actions(db, attacker_id)
+
+    # Prepend incapacitated target warning if applicable
+    if incap:
+        result = "\n".join(warnings) + "\n" + result
 
     return result

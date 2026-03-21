@@ -847,6 +847,23 @@ def advance_turn(db, session_id: int, combat_cfg: dict | None = None) -> str:
     char_id = init_order[next_turn]
     cname = _char_name(db, char_id)
 
+    # Auto-skip characters that cannot act (incapacitated, stunned, etc.)
+    if system_path:
+        from combat_engine import is_incapacitated
+        from system_pack import load_system_pack as _load_pack
+
+        _pack = _load_pack(system_path)
+        incap, cond_name = is_incapacitated(db, char_id, _pack)
+        if incap:
+            lines.append(f"SKIP: {cname} is {cond_name} — cannot act")
+            # Recurse to advance to the next character
+            db.execute(
+                "UPDATE encounter_state SET current_turn = ?, round = ? WHERE id = ?",
+                (next_turn, new_round, enc_id),
+            )
+            db.commit()
+            return "\n".join(lines) + "\n\n" + advance_turn(db, session_id, combat_cfg=combat_cfg)
+
     # Start-of-turn processing for the character whose turn is beginning
     if system_path:
         from combat_engine import start_turn as _start_turn
