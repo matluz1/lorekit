@@ -308,7 +308,7 @@ situation to the player.
 
 1. Describe the situation (use `encounter_status` for the zone-grouped HUD).
 2. Ask the player for their action.
-3. Resolve with `rules_resolve`. Narrate the result.
+3. Resolve with `rules_resolve` — **always use character names, not numeric IDs**.
 4. Move with `encounter_move` if needed.
 5. Apply buffs/debuffs with `combat_modifier`.
 
