@@ -396,6 +396,30 @@
       "4": {"set_max": {"damage_condition": 4}, "label": "incapacitated"}
     }
   },
+
+  "combat_options": {
+    "power_attack": {
+      "trade": {"from": "close_attack", "to": "close_damage"},
+      "max": 5
+    },
+    "all_out_attack": {
+      "trade": {"to": "close_attack"},
+      "apply_modifiers": [
+        {"source": "all_out_attack", "target_stat": "bonus_dodge", "negate": true, "modifier_type": "debuff", "duration_type": "until_next_turn"},
+        {"source": "all_out_attack", "target_stat": "bonus_parry", "negate": true, "modifier_type": "debuff", "duration_type": "until_next_turn"}
+      ],
+      "max": 5
+    },
+    "accurate_attack": {
+      "trade": {"from": "close_damage", "to": "close_attack"},
+      "max": 5
+    },
+    "defensive_attack": {
+      "trade": {"from": "close_attack", "to": "dodge"},
+      "max": 5
+    }
+  },
+
   "actions": {
     "close_attack": {
       "attack_stat": "close_attack",

@@ -1267,3 +1267,185 @@ class TestConditionActionLimit:
             assert "ACTION" in r2
         finally:
             db.close()
+
+
+# ---------------------------------------------------------------------------
+# Named combat options
+# ---------------------------------------------------------------------------
+
+
+class TestCombatOptions:
+    def test_expand_named_options(self):
+        """Named combat options expand into trade dicts."""
+        from combat_engine import _expand_combat_options
+        from system_pack import load_system_pack
+
+        pack = load_system_pack(MM3E_SYSTEM)
+
+        opts = _expand_combat_options(
+            pack,
+            {
+                "combat_options": [
+                    {"name": "power_attack", "value": 5},
+                    {"name": "all_out_attack", "value": 3},
+                ]
+            },
+        )
+
+        trades = opts["trade"]
+        assert len(trades) == 2
+
+        # Power Attack: from close_attack, to close_damage, value 5
+        pa = trades[0]
+        assert pa["from"] == "close_attack"
+        assert pa["to"] == "close_damage"
+        assert pa["value"] == 5
+
+        # All-out Attack: no from, to close_attack, value 3, with apply_modifiers
+        aoa = trades[1]
+        assert "from" not in aoa
+        assert aoa["to"] == "close_attack"
+        assert aoa["value"] == 3
+        assert len(aoa["apply_modifiers"]) == 2
+        # negate: true means modifier value = -3
+        assert aoa["apply_modifiers"][0]["value"] == -3
+        assert aoa["apply_modifiers"][1]["value"] == -3
+
+    def test_clamp_to_max(self):
+        """Value exceeding max is clamped."""
+        from combat_engine import _expand_combat_options
+        from system_pack import load_system_pack
+
+        pack = load_system_pack(MM3E_SYSTEM)
+
+        opts = _expand_combat_options(pack, {"combat_options": [{"name": "power_attack", "value": 99}]})
+
+        assert opts["trade"][0]["value"] == 5  # max is 5
+
+    def test_optional_from_in_trade(self, make_session, make_character):
+        """Trades without 'from' work correctly (only add to 'to' stat)."""
+        from _db import require_db
+        from character import set_attr
+
+        db = require_db()
+        try:
+            sid = make_session()
+            atk_id = make_character(sid, name="Hero", level=1)
+            def_id = make_character(sid, name="Villain", level=1)
+
+            for key, val in [
+                ("fgt", "6"),
+                ("agl", "2"),
+                ("dex", "0"),
+                ("str", "6"),
+                ("sta", "4"),
+                ("int", "0"),
+                ("awe", "2"),
+                ("pre", "0"),
+            ]:
+                set_attr(db, atk_id, "stat", key, val)
+                set_attr(db, def_id, "stat", key, val)
+
+            from rules_engine import rules_calc
+
+            rules_calc(db, atk_id, MM3E_SYSTEM)
+            rules_calc(db, def_id, MM3E_SYSTEM)
+
+            from encounter import start_encounter
+
+            start_encounter(
+                db,
+                sid,
+                [{"name": "Arena"}],
+                [{"character_id": atk_id, "roll": 20}, {"character_id": def_id, "roll": 10}],
+                placements=[
+                    {"character_id": atk_id, "zone": "Arena"},
+                    {"character_id": def_id, "zone": "Arena"},
+                ],
+                combat_cfg={"zone_scale": 1, "movement_unit": "rank", "melee_range": 0, "zone_tags": {}},
+            )
+
+            # Trade with no 'from' — just adds +5 to close_attack
+            roll_calls = iter([14, 19])
+            with patch("secrets.randbelow", side_effect=roll_calls):
+                output = resolve_action(
+                    db,
+                    atk_id,
+                    def_id,
+                    "close_attack",
+                    MM3E_SYSTEM,
+                    options={"trade": [{"to": "close_attack", "value": 5}]},
+                )
+            # Should not crash and should show the attack
+            assert "ACTION:" in output
+        finally:
+            db.close()
+
+    def test_named_options_apply_modifiers(self, make_session, make_character):
+        """All-out Attack via named option applies persistent defense penalties."""
+        from _db import require_db
+        from character import set_attr
+
+        db = require_db()
+        try:
+            sid = make_session()
+            atk_id = make_character(sid, name="Hero", level=1)
+            def_id = make_character(sid, name="Villain", level=1)
+
+            for key, val in [
+                ("fgt", "6"),
+                ("agl", "2"),
+                ("dex", "0"),
+                ("str", "6"),
+                ("sta", "4"),
+                ("int", "0"),
+                ("awe", "2"),
+                ("pre", "0"),
+            ]:
+                set_attr(db, atk_id, "stat", key, val)
+                set_attr(db, def_id, "stat", key, val)
+
+            from rules_engine import rules_calc
+
+            rules_calc(db, atk_id, MM3E_SYSTEM)
+            rules_calc(db, def_id, MM3E_SYSTEM)
+
+            from encounter import start_encounter
+
+            start_encounter(
+                db,
+                sid,
+                [{"name": "Arena"}],
+                [{"character_id": atk_id, "roll": 20}, {"character_id": def_id, "roll": 10}],
+                placements=[
+                    {"character_id": atk_id, "zone": "Arena"},
+                    {"character_id": def_id, "zone": "Arena"},
+                ],
+                combat_cfg={"zone_scale": 1, "movement_unit": "rank", "melee_range": 0, "zone_tags": {}},
+            )
+
+            roll_calls = iter([14, 19])
+            with patch("secrets.randbelow", side_effect=roll_calls):
+                output = resolve_action(
+                    db,
+                    atk_id,
+                    def_id,
+                    "close_attack",
+                    MM3E_SYSTEM,
+                    options={"combat_options": [{"name": "all_out_attack", "value": 5}]},
+                )
+
+            assert "TRADE MODIFIER: all_out_attack" in output
+
+            # Verify modifiers on attacker
+            mods = db.execute(
+                "SELECT source, target_stat, value, duration_type FROM combat_state "
+                "WHERE character_id = ? AND source = 'all_out_attack'",
+                (atk_id,),
+            ).fetchall()
+            assert len(mods) == 2
+            for m in mods:
+                assert m[2] == -5  # negated value
+                assert m[3] == "until_next_turn"
+        finally:
+            db.close()

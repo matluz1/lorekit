@@ -62,6 +62,9 @@ class SystemPack:
     # Combat positioning config: {"zone_scale": 30, "melee_range": 0, "zone_tags": {...}, ...}
     combat: dict[str, Any] = field(default_factory=dict)
 
+    # Named combat options: {"power_attack": {"trade": {...}, "max": 5}, ...}
+    combat_options: dict[str, dict[str, Any]] = field(default_factory=dict)
+
     # NPC combat intent schema: {"steps": {...}, "default_sequence": [...], "sequence_rules": {...}, ...}
     intent: dict[str, Any] = field(default_factory=dict)
 
@@ -120,6 +123,9 @@ def load_system_pack(pack_dir: str) -> SystemPack:
 
     # Combat positioning config
     pack.combat = dict(data.get("combat", {}))
+
+    # Named combat options
+    pack.combat_options = dict(data.get("combat_options", {}))
 
     # NPC combat intent schema
     pack.intent = dict(data.get("intent", {}))

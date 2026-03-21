@@ -453,6 +453,57 @@ def _write_attr(db, character_id: int, key: str, value: Any) -> None:
     db.commit()
 
 
+def _expand_combat_options(pack: SystemPack, options: dict) -> dict:
+    """Expand named combat options into trade dicts.
+
+    Reads ``combat_options`` from the options dict, looks up each name in
+    ``pack.combat_options``, resolves the value, and injects trade dicts
+    (with optional apply_modifiers) into ``options["trade"]``.
+
+    Returns a new options dict with the expanded trades appended.
+    """
+    named = options.get("combat_options")
+    if not named or not pack.combat_options:
+        return options
+
+    options = dict(options)
+    trades = list(options.get("trade", []))
+
+    for entry in named:
+        name = entry["name"]
+        defn = pack.combat_options.get(name)
+        if defn is None:
+            continue
+
+        # Resolve value: fixed from definition, or GM-provided, clamped to max
+        value = defn.get("value", entry.get("value", 0))
+        max_val = defn.get("max")
+        if max_val is not None and value > max_val:
+            value = max_val
+
+        # Build trade dict
+        trade_def = defn.get("trade", {})
+        trade: dict[str, Any] = {"to": trade_def["to"], "value": value}
+        if "from" in trade_def:
+            trade["from"] = trade_def["from"]
+
+        # Build apply_modifiers with negate support
+        apply_mods = defn.get("apply_modifiers")
+        if apply_mods:
+            resolved_mods = []
+            for mod in apply_mods:
+                mod = dict(mod)
+                if mod.pop("negate", False):
+                    mod["value"] = -value
+                resolved_mods.append(mod)
+            trade["apply_modifiers"] = resolved_mods
+
+        trades.append(trade)
+
+    options["trade"] = trades
+    return options
+
+
 def _apply_trade_modifiers(
     db,
     attacker: CharacterData,
@@ -801,7 +852,9 @@ def _resolve_threshold(
     trade_mod_lines: list[str] = []
     for trade in options.get("trade", []):
         trade_val = trade["value"]
-        trade_adj[trade["from"]] = trade_adj.get(trade["from"], 0) - trade_val
+        from_stat = trade.get("from")
+        if from_stat:
+            trade_adj[from_stat] = trade_adj.get(from_stat, 0) - trade_val
         trade_adj[trade["to"]] = trade_adj.get(trade["to"], 0) + trade_val
 
     # Apply persistent trade cost modifiers to the attacker (e.g. All-out Attack penalties)
@@ -930,7 +983,9 @@ def _resolve_degree(
     trade_mod_lines: list[str] = []
     for trade in options.get("trade", []):
         trade_val = trade["value"]
-        trade_adj[trade["from"]] = trade_adj.get(trade["from"], 0) - trade_val
+        from_stat = trade.get("from")
+        if from_stat:
+            trade_adj[from_stat] = trade_adj.get(from_stat, 0) - trade_val
         trade_adj[trade["to"]] = trade_adj.get(trade["to"], 0) + trade_val
 
     # Apply persistent trade cost modifiers to the attacker (e.g. All-out Attack penalties)
@@ -1372,7 +1427,7 @@ def resolve_area_action(
     if not target_ids:
         return f"AREA: {attacker.name} uses {action} — no targets in area"
 
-    opts = options or {}
+    opts = _expand_combat_options(pack, options or {})
     resolution_type = pack.resolution.get("type", "threshold")
 
     results = []
@@ -1414,7 +1469,7 @@ def resolve_action(
     create_checkpoint(db, attacker.session_id)
 
     action_def = _get_action_def(pack, attacker, action)
-    opts = options or {}
+    opts = _expand_combat_options(pack, options or {})
 
     # Range validation when an encounter is active
     range_type = action_def.get("range")

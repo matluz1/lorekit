@@ -381,27 +381,30 @@ Actions like `setup_deception` already declare `source="vulnerable"` in their
 | `until_escape` | Manual removal only (grab, restraint). |
 | `next_attack` | Consumed after the next attack resolves. |
 
-### Trade options with costs
+### Combat options
 
-Trade options adjust stats for a single resolution (e.g., Power Attack: -N
-attack / +N damage). Pass them in the `options` parameter of `rules_resolve`.
+The system pack defines named combat options (e.g., Power Attack, All-out
+Attack) with their trade structure and costs. **Use named options instead of
+raw trades** — they are pre-configured and error-proof.
 
-When a trade has persistent side effects (like All-out Attack reducing defenses
-until your next turn), include `apply_modifiers` on the trade dict:
+Pass `combat_options` in the `options` parameter of `rules_resolve`:
 ```json
-{"trade": [
-  {"from": "close_attack", "to": "close_damage", "value": 5,
-   "apply_modifiers": [
-     {"source": "all_out_attack", "target_stat": "bonus_dodge",
-      "value": -5, "duration_type": "until_next_turn"},
-     {"source": "all_out_attack", "target_stat": "bonus_parry",
-      "value": -5, "duration_type": "until_next_turn"}
-   ]}
+{"combat_options": [
+  {"name": "power_attack", "value": 5},
+  {"name": "all_out_attack", "value": 5}
 ]}
 ```
-The engine applies these modifiers to the **attacker** regardless of hit/miss
-(they are costs, not effects). They persist until removed by `start_turn`
-processing on the attacker's next turn.
+
+The engine looks up the option definitions in the system pack, builds the
+correct trades, and applies any persistent modifiers automatically. You only
+need to provide the name and value.
+
+If the system pack defines a fixed value for an option, omit the value — the
+engine uses the defined one. If you provide a value exceeding the option's
+`max`, it is clamped.
+
+Raw trades (`{"trade": [...]}`) still work for ad-hoc cases not covered by
+named options, but prefer named options when available.
 
 ### Area effects
 
