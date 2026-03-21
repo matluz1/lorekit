@@ -173,9 +173,7 @@ def build_combat_context(
                     if max_val:
                         label += f" (max {max_val})"
                     opt_lines.append(label)
-                combat_options_section = (
-                    "Combat options (include in your JSON as combat_options list): " + ", ".join(opt_lines) + "\n"
-                )
+                combat_options_section = "Combat options: " + ", ".join(opt_lines) + "\n"
 
     # NPC's own abilities (powers, feats, advantages)
     abilities_section = ""
@@ -341,7 +339,24 @@ def _build_intent_prompt(schema: dict | None) -> tuple[str, str]:
 
     for fname, fdef in extra_fields.items():
         ftype = fdef.get("type", "text")
-        example[fname] = f"{ftype} (optional)" if fdef.get("nullable") else ftype
+        nullable = fdef.get("nullable", False)
+        item_schema = fdef.get("item_schema")
+
+        if ftype == "list" and item_schema:
+            # Generate a structured example from item_schema
+            item_example = {}
+            for field_key, field_type in item_schema.items():
+                if field_type == "number":
+                    item_example[field_key] = 0
+                elif field_type == "boolean":
+                    item_example[field_key] = False
+                else:
+                    item_example[field_key] = "..."
+            example[fname] = [item_example]
+        elif nullable:
+            example[fname] = f"{ftype} or null"
+        else:
+            example[fname] = ftype
 
     json_block = json.dumps(example, indent=2)
 

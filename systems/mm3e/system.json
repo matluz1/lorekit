@@ -622,7 +622,7 @@
     },
     "extra_fields": {
       "narration": { "type": "text", "nullable": true },
-      "combat_options": { "type": "list", "nullable": true }
+      "combat_options": { "type": "list", "nullable": true, "item_schema": {"name": "string", "value": "number"} }
     },
     "rules": [
       "sequence defines execution order — reorder steps as tactics demand",
