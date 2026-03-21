@@ -1,6 +1,6 @@
-import React, { type ReactNode } from "react";
+import React, { useState, useEffect, type ReactNode } from "react";
 import { Box, Text } from "ink";
-import Spinner from "ink-spinner";
+
 
 export interface ChatMessage {
   role: "gm" | "player" | "system";
@@ -47,6 +47,17 @@ function parseInline(text: string, baseColor?: string): ReactNode[] {
   return nodes.length > 0 ? nodes : [<Text key={0} color={baseColor}>{text}</Text>];
 }
 
+/** Slow spinner — 2 frames at 960ms, like Claude Code. */
+const SPINNER_FRAMES = ["⠂", "⠐"];
+function SlowSpinner() {
+  const [frame, setFrame] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setFrame((f) => (f + 1) % SPINNER_FRAMES.length), 960);
+    return () => clearInterval(id);
+  }, []);
+  return <Text color="yellow">{SPINNER_FRAMES[frame]}</Text>;
+}
+
 export function Chat({
   messages,
   streamingText,
@@ -76,10 +87,8 @@ export function Chat({
         <Box>
           <Text>
             {parseInline(streamingText || "", "green")}
-            <Text color="yellow">
-              {" "}
-              <Spinner type="dots" />
-            </Text>
+            <Text>{" "}</Text>
+            <SlowSpinner />
           </Text>
         </Box>
       )}

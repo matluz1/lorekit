@@ -314,19 +314,7 @@ class PersistentProcess implements AgentProcess {
       logStreamLine(line);
 
       const chunk = parseChunk(line);
-      if (chunk) {
-        // Drip text one character at a time for smooth streaming.
-        // setTimeout(0) yields to the event loop so Ink can render between chars.
-        if (chunk.type === "text") {
-          const text = chunk.content;
-          for (let i = 0; i < text.length; i += 4) {
-            yield { type: "text", content: text.slice(i, i + 4) };
-            await new Promise(resolve => setImmediate(resolve));
-          }
-        } else {
-          yield chunk;
-        }
-      }
+      if (chunk) yield chunk;
 
       // Check if this is a result message (end of this turn)
       try {
@@ -388,17 +376,7 @@ class EphemeralProcess implements AgentProcess {
     let gotResult = false;
     for await (const line of rl) {
       const chunk = parseChunk(line);
-      if (chunk) {
-        if (chunk.type === "text") {
-          const text = chunk.content;
-          for (let i = 0; i < text.length; i += 4) {
-            yield { type: "text", content: text.slice(i, i + 4) };
-            await new Promise(resolve => setImmediate(resolve));
-          }
-        } else {
-          yield chunk;
-        }
-      }
+      if (chunk) yield chunk;
 
       // Break on result message (end of turn) — don't wait for process close
       try {

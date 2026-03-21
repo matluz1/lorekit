@@ -80,6 +80,15 @@ export function App({
     };
   }, []);
 
+  // Throttle streaming text updates to reduce re-renders
+  const streamFlushRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingTextRef = useRef("");
+
+  const flushStreamingText = useCallback(() => {
+    setStreamingText(pendingTextRef.current);
+    streamFlushRef.current = null;
+  }, []);
+
   // ── GM submit ─────────────────────────────────────────
   const handleSubmit = useCallback(
     async (text: string) => {
@@ -116,6 +125,7 @@ export function App({
       setMessages((prev) => [...prev, { role: "player", content: text }]);
       setIsStreaming(true);
       setStreamingText("");
+      pendingTextRef.current = "";
       setToolCalls([]);
       setNpcToolCalls([]);
 
@@ -125,7 +135,10 @@ export function App({
         for await (const chunk of agentRef.current.send(text)) {
           if (chunk.type === "text") {
             fullText += chunk.content;
-            setStreamingText(fullText);
+            pendingTextRef.current = fullText;
+            if (!streamFlushRef.current) {
+              streamFlushRef.current = setTimeout(flushStreamingText, 80);
+            }
           } else if (chunk.type === "tool_use") {
             setToolCalls((prev) => [
               ...prev,
@@ -178,6 +191,11 @@ export function App({
           { role: "system", content: `Error: ${err.message}` },
         ]);
       } finally {
+        if (streamFlushRef.current) {
+          clearTimeout(streamFlushRef.current);
+          streamFlushRef.current = null;
+        }
+        pendingTextRef.current = "";
         setStreamingText("");
         setIsStreaming(false);
       }
