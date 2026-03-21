@@ -1102,6 +1102,17 @@ def _resolve_degree(
                     for stat, value in set_attrs.items():
                         _write_attr(db, defender.character_id, stat, value)
 
+                # Apply set_max: only write if new value exceeds current
+                set_max_attrs = effect.get("set_max")
+                if set_max_attrs and isinstance(set_max_attrs, dict):
+                    for stat, value in set_max_attrs.items():
+                        try:
+                            current = _get_derived(defender, stat)
+                        except LoreKitError:
+                            current = 0
+                        if value > current:
+                            _write_attr(db, defender.character_id, stat, value)
+
                 label = effect.get("label")
                 if label:
                     lines.append(f"CONDITION: {label}")
