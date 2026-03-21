@@ -775,6 +775,7 @@ def character_build(
     name: str,
     level: int,
     type: str = "pc",
+    gender: str = "",
     region: int = 0,
     attrs: str = "[]",
     items: str = "[]",
@@ -784,6 +785,7 @@ def character_build(
 ) -> str:
     """Create a full character in one call: identity + attributes + items + abilities.
 
+    gender: character gender (e.g. "female", "male", etc"). Used in prompts for correct pronoun usage.
     attrs: JSON array of {"category":"stat","key":"str","value":"16"} objects.
     items: JSON array of {"name":"Sword","desc":"...","qty":1,"equipped":1} objects.
     abilities: JSON array of {"name":"Flame Burst","desc":"...","category":"spell","uses":"1/day"} objects.
@@ -808,7 +810,7 @@ def character_build(
 
     db = require_db()
     try:
-        r = char_create(db, session, name, level, type, region)
+        r = char_create(db, session, name, level, type, region, gender)
         char_id = int(r.split(": ")[1])
 
         attr_count = 0
@@ -1162,6 +1164,7 @@ def character_sheet_update(
     character_id: int | str,
     level: int = 0,
     status: str = "",
+    gender: str = "",
     region: int = 0,
     attrs: str = "[]",
     items: str = "[]",
@@ -1170,8 +1173,9 @@ def character_sheet_update(
     core: str = "{}",
     aliases: str = "[]",
 ) -> str:
-    """Batch update a character: level/status/region + attributes + items + abilities + remove items.
+    """Batch update a character: level/status/region/gender + attributes + items + abilities + remove items.
 
+    gender: character gender (e.g. "female", "male", etc). Used in prompts for correct pronoun usage.
     attrs: JSON array of {"category":"stat","key":"hp","value":"25"} objects.
     items: JSON array of {"name":"Potion","desc":"...","qty":2,"equipped":0} objects.
     abilities: JSON array of {"name":"Shield","desc":"...","category":"spell","uses":"1/day"} objects.
@@ -1202,8 +1206,8 @@ def character_sheet_update(
         character_id = _resolve_character(db, character_id)
         results = []
 
-        if level or status or region:
-            r = char_update(db, character_id, level=level, status=status, region_id=region)
+        if level or status or region or gender:
+            r = char_update(db, character_id, level=level, status=status, region_id=region, gender=gender)
             results.append(r)
 
         attr_count = 0
@@ -1331,7 +1335,7 @@ def _build_npc_prompt(db, npc_id: int, session_id: int, gm_message: str = "") ->
 
     db.row_factory = sqlite3.Row
 
-    npc = db.execute("SELECT id, name FROM characters WHERE id = ? AND type = 'npc'", (npc_id,)).fetchone()
+    npc = db.execute("SELECT id, name, gender FROM characters WHERE id = ? AND type = 'npc'", (npc_id,)).fetchone()
     if not npc:
         return None
 
@@ -1340,6 +1344,7 @@ def _build_npc_prompt(db, npc_id: int, session_id: int, gm_message: str = "") ->
         return None
 
     npc_name = npc["name"]
+    npc_gender = npc["gender"]
     setting = session["setting"]
     system_type = session["system_type"]
 
@@ -1416,7 +1421,9 @@ def _build_npc_prompt(db, npc_id: int, session_id: int, gm_message: str = "") ->
 
     guides = _load_npc_guides()
 
-    system_prompt = f"""You are {npc_name}, {personality}.
+    gender_line = f"\nGender: {npc_gender}" if npc_gender else ""
+
+    system_prompt = f"""You are {npc_name}, {personality}.{gender_line}
 
 World setting: {setting}
 Rule system: {system_type}

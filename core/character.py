@@ -13,10 +13,14 @@ def usage():
     print("Usage: python core/character.py <action> [args]")
     print()
     print("Actions:")
-    print("  create --session <id> --name <name> --level <level> [--type pc|npc] [--region <region_id>]")
+    print(
+        "  create --session <id> --name <name> --level <level> [--type pc|npc] [--gender <gender>] [--region <region_id>]"
+    )
     print("  view <character_id>")
     print("  list --session <session_id> [--type pc|npc] [--region <region_id>]")
-    print("  update <character_id> [--name <name>] [--level <level>] [--status <status>] [--region <region_id>]")
+    print(
+        "  update <character_id> [--name <name>] [--gender <gender>] [--level <level>] [--status <status>] [--region <region_id>]"
+    )
     print("  set-attr <character_id> --category <cat> --key <key> --value <value>")
     print("  get-attr <character_id> [--category <cat>]")
     print("  set-item <character_id> --name <name> [--desc <desc>] [--qty <n>] [--equipped 0|1]")
@@ -57,13 +61,15 @@ def main():
     print(fn(db, args))
 
 
-def create(db, session_id: int, name: str, level: int, char_type: str = "pc", region_id: int = 0) -> str:
+def create(
+    db, session_id: int, name: str, level: int, char_type: str = "pc", region_id: int = 0, gender: str = ""
+) -> str:
     if char_type not in ("pc", "npc"):
         raise LoreKitError("type must be pc or npc")
     region_val = region_id if region_id else None
     cur = db.execute(
-        "INSERT INTO characters (session_id, name, level, type, region_id) VALUES (?, ?, ?, ?, ?)",
-        (session_id, name, level, char_type, region_val),
+        "INSERT INTO characters (session_id, name, gender, level, type, region_id) VALUES (?, ?, ?, ?, ?, ?)",
+        (session_id, name, gender, level, char_type, region_val),
     )
     db.commit()
     return f"CHARACTER_CREATED: {cur.lastrowid}"
@@ -78,16 +84,23 @@ def cmd_create(db, args):
             "--level": ("level", True, ""),
             "--type": ("char_type", False, "pc"),
             "--region": ("region", False, ""),
+            "--gender": ("gender", False, ""),
         },
     )
     return create(
-        db, int(p["session"]), p["name"], int(p["level"]), p["char_type"], int(p["region"]) if p["region"] else 0
+        db,
+        int(p["session"]),
+        p["name"],
+        int(p["level"]),
+        p["char_type"],
+        int(p["region"]) if p["region"] else 0,
+        p["gender"],
     )
 
 
 def view(db, character_id: int) -> str:
     row = db.execute(
-        "SELECT c.id, c.session_id, c.name, c.level, c.status, c.type, "
+        "SELECT c.id, c.session_id, c.name, c.gender, c.level, c.status, c.type, "
         "COALESCE(r.name, ''), c.created_at "
         "FROM characters c LEFT JOIN regions r ON c.region_id = r.id "
         "WHERE c.id = ?",
@@ -99,11 +112,12 @@ def view(db, character_id: int) -> str:
         f"ID: {row[0]}",
         f"SESSION: {row[1]}",
         f"NAME: {row[2]}",
-        f"TYPE: {row[5]}",
-        f"LEVEL: {row[3]}",
-        f"STATUS: {row[4]}",
-        f"REGION: {row[6]}",
-        f"CREATED: {row[7]}",
+        f"GENDER: {row[3]}",
+        f"TYPE: {row[6]}",
+        f"LEVEL: {row[4]}",
+        f"STATUS: {row[5]}",
+        f"REGION: {row[7]}",
+        f"CREATED: {row[8]}",
         "",
         "--- ATTRIBUTES ---",
     ]
@@ -130,7 +144,7 @@ def view(db, character_id: int) -> str:
     lines.append(format_table(cur))
 
     # NPC-specific sections
-    if row[5] == "npc":
+    if row[6] == "npc":
         session_id = row[1]
 
         # NPC core identity
@@ -171,7 +185,7 @@ def cmd_view(db, args):
 
 
 def list_chars(db, session_id: int, char_type: str = "", region_id: int = 0) -> str:
-    query = "SELECT id, name, type, level, status FROM characters WHERE session_id = ?"
+    query = "SELECT id, name, gender, type, level, status FROM characters WHERE session_id = ?"
     params: list = [session_id]
     if char_type:
         query += " AND type = ?"
@@ -196,14 +210,17 @@ def cmd_list(db, args):
     return list_chars(db, int(p["session"]), p["char_type"], int(p["region"]) if p["region"] else 0)
 
 
-def update(db, character_id: int, name: str = "", level: int = 0, status: str = "", region_id: int = 0) -> str:
+def update(
+    db, character_id: int, name: str = "", level: int = 0, status: str = "", region_id: int = 0, gender: str = ""
+) -> str:
     _COLUMN_MAP = {
         "name": ("name", str),
+        "gender": ("gender", str),
         "level": ("level", int),
         "status": ("status", str),
         "region_id": ("region_id", int),
     }
-    values = {"name": name, "level": level, "status": status, "region_id": region_id}
+    values = {"name": name, "gender": gender, "level": level, "status": status, "region_id": region_id}
     sets = []
     params = []
     for key, (col, typ) in _COLUMN_MAP.items():
@@ -211,7 +228,7 @@ def update(db, character_id: int, name: str = "", level: int = 0, status: str = 
             sets.append(f"{col} = ?")
             params.append(typ(values[key]))
     if not sets:
-        raise LoreKitError("Provide name, level, status, and/or region")
+        raise LoreKitError("Provide name, gender, level, status, and/or region")
     params.append(character_id)
     db.execute(f"UPDATE characters SET {','.join(sets)} WHERE id = ?", params)
     db.commit()
@@ -223,6 +240,7 @@ def cmd_update(db, args):
         args,
         {
             "--name": ("name", False, ""),
+            "--gender": ("gender", False, ""),
             "--level": ("level", False, ""),
             "--status": ("status", False, ""),
             "--region": ("region", False, ""),
@@ -236,6 +254,7 @@ def cmd_update(db, args):
         int(p["level"]) if p["level"] else 0,
         p["status"],
         int(p["region"]) if p["region"] else 0,
+        p["gender"],
     )
 
 

@@ -27,6 +27,7 @@ CREATE TABLE IF NOT EXISTS characters (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
     session_id  INTEGER NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
     name        TEXT    NOT NULL,
+    gender      TEXT    NOT NULL DEFAULT '',
     level       INTEGER NOT NULL DEFAULT 1,
     status      TEXT    NOT NULL DEFAULT 'alive',
     type        TEXT    NOT NULL DEFAULT 'pc',
@@ -265,6 +266,7 @@ ADD_COLUMN_MIGRATIONS = [
     ("combat_state", "save_dc", "ALTER TABLE combat_state ADD COLUMN save_dc INTEGER"),
     ("character_zone", "team", "ALTER TABLE character_zone ADD COLUMN team TEXT NOT NULL DEFAULT ''"),
     ("character_abilities", "cost", "ALTER TABLE character_abilities ADD COLUMN cost REAL NOT NULL DEFAULT 0"),
+    ("characters", "gender", "ALTER TABLE characters ADD COLUMN gender TEXT NOT NULL DEFAULT ''"),
 ]
 
 DROP_COLUMN_MIGRATIONS = [
@@ -350,13 +352,14 @@ _CASCADE_MIGRATIONS = {
             id          INTEGER PRIMARY KEY AUTOINCREMENT,
             session_id  INTEGER NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
             name        TEXT    NOT NULL,
+            gender      TEXT    NOT NULL DEFAULT '',
             level       INTEGER NOT NULL DEFAULT 1,
             status      TEXT    NOT NULL DEFAULT 'alive',
             type        TEXT    NOT NULL DEFAULT 'pc',
             region_id   INTEGER REFERENCES regions(id) ON DELETE SET NULL,
             created_at  TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
         )""",
-        ["id", "session_id", "name", "level", "status", "type", "region_id", "created_at"],
+        ["id", "session_id", "name", "gender", "level", "status", "type", "region_id", "created_at"],
     ),
     "character_attributes": (
         """CREATE TABLE character_attributes (

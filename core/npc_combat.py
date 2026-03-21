@@ -51,6 +51,8 @@ def build_combat_context(
     movement_unit = combat_cfg.get("movement_unit", "zone")
 
     npc_name = _char_name(db, npc_id)
+    npc_gender = db.execute("SELECT gender FROM characters WHERE id = ?", (npc_id,)).fetchone()
+    npc_gender = npc_gender[0] if npc_gender and npc_gender[0] else ""
 
     # NPC's current zone
     npc_zid = _get_character_zone(db, enc_id, npc_id)
@@ -78,6 +80,10 @@ def build_combat_context(
         if cid == npc_id:
             continue
         cname = _char_name(db, cid)
+        cgender = db.execute("SELECT gender FROM characters WHERE id = ?", (cid,)).fetchone()
+        cgender = cgender[0] if cgender and cgender[0] else ""
+        if cgender:
+            cname = f"{cname} ({cgender})"
         zone_name = _zone_id_to_name(db, zid)
 
         # Distance
@@ -214,8 +220,9 @@ def build_combat_context(
             condition_section += f"  ⚠ {cond_name}: {desc}\n"
             active_labels.add(cond_name)
 
+    gender_note = f" [{npc_gender}]" if npc_gender else ""
     context = f"""COMBAT — Round {rnd}
-It is your turn ({npc_name}).
+It is your turn ({npc_name}{gender_note}).
 
 Your position: {npc_zone_str}
 {_get_relative_health(db, npc_id, hud_cfg) or ""}

@@ -88,11 +88,12 @@ def generate_reflection(db, session_id, npc_id, context_hint="", narrative_time=
     # 1. Load NPC core identity
     core = npc_memory.get_core(db, session_id, npc_id)
 
-    # 2. Load NPC name
-    char_row = db.execute("SELECT name FROM characters WHERE id = ?", (npc_id,)).fetchone()
+    # 2. Load NPC name and gender
+    char_row = db.execute("SELECT name, gender FROM characters WHERE id = ?", (npc_id,)).fetchone()
     if not char_row:
         raise LoreKitError(f"Character #{npc_id} not found")
     npc_name = char_row[0]
+    npc_gender = char_row[1] or ""
 
     # 3. Load unprocessed memories
     memories = get_unprocessed_memories(db, session_id, npc_id)
@@ -102,7 +103,7 @@ def generate_reflection(db, session_id, npc_id, context_hint="", narrative_time=
         return {"reflections_stored": 0, "rules_added": 0, "npc_name": npc_name, "pruned": 0}
 
     # 5. Build reflection prompt
-    prompt = _build_reflection_prompt(npc_name, core, memories, context_hint)
+    prompt = _build_reflection_prompt(npc_name, core, memories, context_hint, gender=npc_gender)
 
     # 6. Build memory_id_map (1-indexed → actual memory ID)
     memory_id_map = {i + 1: m["id"] for i, m in enumerate(memories)}
@@ -259,7 +260,7 @@ def prune_memories(db, session_id, npc_id, narrative_now=""):
 # ---------------------------------------------------------------------------
 
 
-def _build_reflection_prompt(npc_name, core, memories, context_hint=""):
+def _build_reflection_prompt(npc_name, core, memories, context_hint="", gender=""):
     """Build the reflection prompt for the LLM."""
     # Identity section
     identity_parts = []
@@ -285,7 +286,8 @@ def _build_reflection_prompt(npc_name, core, memories, context_hint=""):
     # Context hint
     context_line = f"\nNote: {context_hint}\n" if context_hint else ""
 
-    return f"""You are analyzing the recent experiences of {npc_name}, a character in a tabletop RPG.
+    gender_note = f" (gender: {gender})" if gender else ""
+    return f"""You are analyzing the recent experiences of {npc_name}{gender_note}, a character in a tabletop RPG.
 
 ## {npc_name}'s Identity
 {identity_text}
