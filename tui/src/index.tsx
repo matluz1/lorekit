@@ -64,7 +64,7 @@ const app = render(
   />,
   {
     exitOnCtrlC: true,
-    maxFps: 10,
+    maxFps: 60,
   }
 );
 
