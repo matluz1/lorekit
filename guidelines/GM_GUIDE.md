@@ -149,7 +149,19 @@ word for word. The purpose is to replay the scene verbatim on resume.
 ### Reverting a turn
 
 Use `turn_revert` to undo the last turn. This restores **all** game state to
-the previous checkpoint.
+the previous checkpoint. You can call it multiple times to go further back.
+
+**When the player asks to go back to a previous point:**
+
+1. Use `turn_revert` with the appropriate `steps` to reach the desired state.
+2. **Ask the player to confirm** this is where they want to continue from.
+   Warn them that future checkpoints will be permanently discarded.
+3. Only after the player confirms, resume narrating and call `turn_save`
+   with `force=True` on the next save. This discards the future checkpoints
+   and anchors the session at this point.
+
+Do **not** save immediately after reverting — always confirm with the player
+first. Once they confirm, save as soon as possible (on the next narration).
 
 ### Session metadata
 
