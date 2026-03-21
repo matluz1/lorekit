@@ -757,6 +757,14 @@ def advance_turn(db, session_id: int, combat_cfg: dict | None = None) -> str:
     char_id = init_order[next_turn]
     cname = _char_name(db, char_id)
 
+    # Auto-checkpoint before a PC's turn so the player can always revert
+    char_type = db.execute("SELECT type FROM characters WHERE id = ?", (char_id,)).fetchone()
+    if char_type and char_type[0] == "pc":
+        from checkpoint import create_checkpoint
+
+        create_checkpoint(db, session_id)
+        lines.append("CHECKPOINT (auto-save before PC turn)")
+
     lines.append(f"TURN: Round {new_round}, {cname} (character {char_id})")
 
     # Position info

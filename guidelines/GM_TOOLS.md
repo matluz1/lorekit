@@ -30,6 +30,10 @@ these over calling individual tools separately.
 
 Save a game turn: narration + player choice + last_gm_message in one call.
 
+> **During combat, do NOT call turn_save manually.** Checkpoints are created
+> automatically by `encounter_advance_turn` whenever a PC's turn begins.
+> Resume calling `turn_save` normally after `encounter_end`.
+
 ```
 turn_save(session_id=1, narration="<exact text shown to player>", summary="<1-2 sentence summary>", player_choice="<player's exact message>")
 ```
@@ -530,10 +534,10 @@ SUMMARY_SET: 42
 
 ## turn_revert
 
-Revert the last saved turn. Restores **all** game state — characters, items,
-attributes, abilities, story acts, regions, session metadata — and removes
-timeline/journal entries created since the previous checkpoint. Each
-`turn_save` creates a checkpoint; `turn_revert` restores a previous one.
+Undo turns by moving the checkpoint cursor back. Restores **all** game state
+— characters, items, attributes, abilities, story acts, regions, session
+metadata, timeline, and journal. Checkpoints are preserved (not deleted),
+so you can redo with `turn_advance`.
 
 ```
 turn_revert(session_id=1)
@@ -547,8 +551,30 @@ turn_revert(session_id=1, steps=20)
 
 **Output:**
 ```
-TURN_REVERTED: restored to checkpoint #3 (2 timeline, 1 journal entries removed)
-TURN_REVERTED: restored to checkpoint #40 (12 timeline, 3 journal entries removed) (skipped 19)
+TURN_REVERTED: restored to checkpoint #3
+TURN_REVERTED: restored to checkpoint #40 (skipped 19)
+```
+
+## turn_advance
+
+Redo previously reverted turns. Moves the checkpoint cursor forward. Only
+works if no new action was taken since the revert (saving a new turn after
+reverting truncates the future checkpoints).
+
+```
+turn_advance(session_id=1)
+turn_advance(session_id=1, steps=3)
+```
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| session_id | int | yes | | Session ID |
+| steps | int | no | 1 | How many checkpoints to go forward. |
+
+**Output:**
+```
+TURN_ADVANCED: restored to checkpoint #5
+TURN_ADVANCED: restored to checkpoint #8 (skipped 2)
 ```
 
 ## timeline_list

@@ -693,6 +693,7 @@ def turn_save(
     Always include a summary when providing narration (used for semantic search).
     narrative_time: optional override for the in-game timestamp on these entries.
       If omitted, the current narrative clock is used automatically.
+    During combat, checkpoints are automatic (see encounter_advance_turn).
     """
     if not narration and not player_choice:
         return "ERROR: Provide at least one of narration or player_choice"
@@ -2535,6 +2536,8 @@ def encounter_advance_turn(session_id: int) -> str:
 
     Increments the round counter when wrapping past the last character.
     Returns the new active character with position summary.
+    Automatically creates a checkpoint before each PC turn (no manual
+    turn_save needed during combat).
     """
     from _db import LoreKitError, require_db
 
