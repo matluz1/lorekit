@@ -684,6 +684,7 @@ def turn_save(
     summary: str = "",
     player_choice: str = "",
     narrative_time: str = "",
+    force: bool = False,
 ) -> str:
     """Save a game turn: narration + player choice + last_gm_message in one call.
 
@@ -695,11 +696,13 @@ def turn_save(
       If omitted, the current narrative clock is used automatically.
     Always call turn_save as your last action before the player acts.
     During combat, encounter_advance_turn reminds you when a PC turn begins.
+    force: if True and the cursor is behind the tip, delete future checkpoints
+      and save here (like making a new git commit after checkout — the old branch
+      is lost). Without force, the call is rejected to prevent accidental data loss.
 
     WARNING: After a turn_revert, do NOT call turn_save until you have advanced
-    back to the desired checkpoint with turn_advance (if needed). Calling turn_save while the
-    cursor is rewound will permanently delete all future checkpoints (like making
-    a new git commit after checkout — the old branch is lost).
+    back to the desired checkpoint with turn_advance (if needed), unless you pass
+    force=True to confirm you want to discard the future checkpoints.
     """
     if not narration and not player_choice:
         return "ERROR: Provide at least one of narration or player_choice"
@@ -760,7 +763,7 @@ def turn_save(
             pass  # tagging is best-effort
 
         # Checkpoint after writing (the "approved" state after this turn)
-        create_checkpoint(db, session_id)
+        create_checkpoint(db, session_id, force=force)
 
         return "\n".join(results)
     except LoreKitError as e:
