@@ -1,4 +1,4 @@
-"""Tests for checkpoint/turn revert system."""
+"""Tests for checkpoint/turn undo-redo system."""
 
 import os
 import sqlite3
@@ -15,6 +15,7 @@ from mcp_server import (  # noqa: E402
     journal_list,
     session_meta_get,
     timeline_list,
+    turn_advance,
     turn_revert,
     turn_save,
 )
@@ -136,36 +137,128 @@ def test_revert_error_no_checkpoints(make_session):
 
 
 def test_revert_twice_works_then_fails(make_session):
+    """Revert preserves checkpoints (cursor-based), fails at earliest."""
     sid = make_session()
     turn_save(session_id=sid, narration="Turn 1.", summary="T1")
     turn_save(session_id=sid, narration="Turn 2.", summary="T2")
     turn_save(session_id=sid, narration="Turn 3.", summary="T3")
-    # First revert: removes turn 3
+    # 4 checkpoints: #0, #1, #2, #3
+    assert _checkpoint_count(sid) == 4
+    # First revert: cursor moves back from #3 to #2
     result = turn_revert(session_id=sid)
     assert "TURN_REVERTED" in result
-    # Second revert: removes turn 2
+    # Second revert: cursor moves from #2 to #1
     result = turn_revert(session_id=sid)
     assert "TURN_REVERTED" in result
     listing = timeline_list(session_id=sid)
     assert "Turn 1." in listing
     assert "Turn 2." not in listing
     assert "Turn 3." not in listing
-    # Third revert: removes turn 1 (restores to checkpoint #0)
+    # Checkpoints are preserved (not deleted)
+    assert _checkpoint_count(sid) == 4
+    # Third revert: cursor moves from #1 to #0
     result = turn_revert(session_id=sid)
     assert "TURN_REVERTED" in result
-    # Fourth revert: should fail (only checkpoint #0 remains)
+    # Fourth revert: already at #0, should fail
     result = turn_revert(session_id=sid)
     assert "ERROR" in result
 
 
 def test_revert_then_save_works(make_session):
-    """After reverting, saving a new turn should work normally."""
+    """After reverting, saving truncates future checkpoints (branch truncation)."""
     sid = make_session()
     turn_save(session_id=sid, narration="Turn 1.", summary="T1")
     turn_save(session_id=sid, narration="Bad turn.", summary="Bad")
+    # 3 checkpoints: #0, #1, #2
+    assert _checkpoint_count(sid) == 3
     turn_revert(session_id=sid)
+    # Still 3 checkpoints (cursor moved back, nothing deleted)
+    assert _checkpoint_count(sid) == 3
     turn_save(session_id=sid, narration="Good turn.", summary="Good")
+    # Branch truncation: #2 deleted, new #3 created → 3 checkpoints (#0, #1, #3)
+    assert _checkpoint_count(sid) == 3
     listing = timeline_list(session_id=sid)
     assert "Turn 1." in listing
     assert "Good turn." in listing
     assert "Bad turn." not in listing
+
+
+# -- Redo (turn_advance) --
+
+
+def test_redo_after_revert(make_session):
+    """Revert then advance restores the later state."""
+    sid = make_session()
+    turn_save(session_id=sid, narration="Turn 1.", summary="T1")
+    turn_save(session_id=sid, narration="Turn 2.", summary="T2")
+    turn_revert(session_id=sid)
+    listing = timeline_list(session_id=sid)
+    assert "Turn 2." not in listing
+    # Redo
+    result = turn_advance(session_id=sid)
+    assert "TURN_ADVANCED" in result
+    listing = timeline_list(session_id=sid)
+    assert "Turn 2." in listing
+
+
+def test_redo_at_tip_fails(make_session):
+    """Advance without a prior revert should fail."""
+    sid = make_session()
+    turn_save(session_id=sid, narration="Turn 1.", summary="T1")
+    result = turn_advance(session_id=sid)
+    assert "ERROR" in result
+
+
+def test_redo_after_new_action_fails(make_session):
+    """Revert then save then advance should fail (future truncated)."""
+    sid = make_session()
+    turn_save(session_id=sid, narration="Turn 1.", summary="T1")
+    turn_save(session_id=sid, narration="Turn 2.", summary="T2")
+    turn_revert(session_id=sid)
+    turn_save(session_id=sid, narration="Turn 3.", summary="T3")
+    result = turn_advance(session_id=sid)
+    assert "ERROR" in result
+
+
+def test_multi_step_redo(make_session):
+    """Revert 3, advance 2 — should land at correct intermediate state."""
+    sid = make_session()
+    turn_save(session_id=sid, narration="Turn 1.", summary="T1")
+    turn_save(session_id=sid, narration="Turn 2.", summary="T2")
+    turn_save(session_id=sid, narration="Turn 3.", summary="T3")
+    # Revert 3 steps (back to checkpoint #0)
+    turn_revert(session_id=sid, steps=3)
+    listing = timeline_list(session_id=sid)
+    assert "Turn 1." not in listing
+    # Advance 2 steps (to checkpoint #2)
+    result = turn_advance(session_id=sid, steps=2)
+    assert "TURN_ADVANCED" in result
+    listing = timeline_list(session_id=sid)
+    assert "Turn 1." in listing
+    assert "Turn 2." in listing
+    assert "Turn 3." not in listing
+
+
+def test_cursor_in_session_meta(make_session):
+    """Cursor is persisted in session_meta and excluded from snapshots."""
+    sid = make_session()
+    turn_save(session_id=sid, narration="Turn 1.", summary="T1")
+    # Cursor should be set
+    db = _get_db()
+    row = db.execute(
+        "SELECT value FROM session_meta WHERE session_id = ? AND key = 'cursor_checkpoint_id'",
+        (sid,),
+    ).fetchone()
+    assert row is not None
+    cursor_val = int(row[0])
+    # Cursor should point to the latest checkpoint
+    tip = db.execute("SELECT MAX(id) FROM checkpoints WHERE session_id = ?", (sid,)).fetchone()[0]
+    assert cursor_val == tip
+    # Cursor should NOT appear in any snapshot
+    snap_json = db.execute("SELECT snapshot FROM checkpoints WHERE id = ?", (tip,)).fetchone()[0]
+    import json
+
+    snap = json.loads(snap_json)
+    meta_keys = [m["key"] for m in snap.get("session_meta", [])]
+    assert "cursor_checkpoint_id" not in meta_keys
+    db.close()

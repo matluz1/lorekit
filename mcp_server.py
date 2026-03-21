@@ -481,6 +481,18 @@ def turn_revert(session_id: int, steps: int = 1) -> str:
     return _run_with_db(revert_to_previous, session_id, steps)
 
 
+@mcp.tool()
+def turn_advance(session_id: int, steps: int = 1) -> str:
+    """Redo previously reverted turns. Only works if no new action was
+    taken since the revert (future checkpoints still exist).
+
+    steps: how many checkpoints to go forward (default 1).
+    """
+    from checkpoint import advance_to_next
+
+    return _run_with_db(advance_to_next, session_id, steps)
+
+
 # ---------------------------------------------------------------------------
 # journal
 # ---------------------------------------------------------------------------

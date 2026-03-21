@@ -18,11 +18,11 @@ def snapshot_session(db, session_id):
     """Read all mutable session state into a dict for checkpointing."""
     snap = {}
 
-    # Session metadata
+    # Session metadata (exclude cursor_checkpoint_id — managed outside snapshot)
     snap["session_meta"] = [
         {"id": r[0], "key": r[1], "value": r[2]}
         for r in db.execute(
-            "SELECT id, key, value FROM session_meta WHERE session_id = ?",
+            "SELECT id, key, value FROM session_meta WHERE session_id = ? AND key != 'cursor_checkpoint_id'",
             (session_id,),
         ).fetchall()
     ]
@@ -231,6 +231,24 @@ def snapshot_session(db, session_id):
         ).fetchall()
     ]
 
+    # Timeline
+    snap["timeline"] = [
+        {"id": r[0], "entry_type": r[1], "content": r[2], "summary": r[3], "narrative_time": r[4], "created_at": r[5]}
+        for r in db.execute(
+            "SELECT id, entry_type, content, summary, narrative_time, created_at FROM timeline WHERE session_id = ?",
+            (session_id,),
+        ).fetchall()
+    ]
+
+    # Journal
+    snap["journal"] = [
+        {"id": r[0], "entry_type": r[1], "content": r[2], "narrative_time": r[3], "created_at": r[4]}
+        for r in db.execute(
+            "SELECT id, entry_type, content, narrative_time, created_at FROM journal WHERE session_id = ?",
+            (session_id,),
+        ).fetchall()
+    ]
+
     return snap
 
 
@@ -256,6 +274,24 @@ def restore_snapshot(db, session_id, snapshot):
             db.execute(f"DELETE FROM character_abilities WHERE character_id IN ({ph})", cur_char_ids)
             db.execute(f"DELETE FROM combat_state WHERE character_id IN ({ph})", cur_char_ids)
             db.execute(f"DELETE FROM character_aliases WHERE character_id IN ({ph})", cur_char_ids)
+
+        # Timeline and journal — delete current, will re-insert from snapshot
+        cur_tl_ids = [
+            r[0] for r in db.execute("SELECT id FROM timeline WHERE session_id = ?", (session_id,)).fetchall()
+        ]
+        cur_jn_ids = [r[0] for r in db.execute("SELECT id FROM journal WHERE session_id = ?", (session_id,)).fetchall()]
+
+        from _vectordb import delete_embeddings, index_journal, index_timeline
+
+        delete_embeddings(db, "timeline", cur_tl_ids)
+        delete_embeddings(db, "journal", cur_jn_ids)
+
+        if cur_tl_ids:
+            ph = ",".join("?" * len(cur_tl_ids))
+            db.execute(f"DELETE FROM timeline WHERE id IN ({ph})", cur_tl_ids)
+        if cur_jn_ids:
+            ph = ",".join("?" * len(cur_jn_ids))
+            db.execute(f"DELETE FROM journal WHERE id IN ({ph})", cur_jn_ids)
 
         # Clean up entry_entities for this session's timeline/journal
         db.execute(
@@ -468,13 +504,85 @@ def restore_snapshot(db, session_id, snapshot):
                 ),
             )
 
+        # Timeline
+        for r in snapshot.get("timeline", []):
+            db.execute(
+                "INSERT INTO timeline (id, session_id, entry_type, content, summary, narrative_time, created_at) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (
+                    r["id"],
+                    session_id,
+                    r["entry_type"],
+                    r["content"],
+                    r["summary"],
+                    r["narrative_time"],
+                    r["created_at"],
+                ),
+            )
+            if r["summary"]:
+                index_timeline(db, session_id, r["id"], r["entry_type"], r["summary"], r["created_at"])
+
+        # Journal
+        for r in snapshot.get("journal", []):
+            db.execute(
+                "INSERT INTO journal (id, session_id, entry_type, content, narrative_time, created_at) "
+                "VALUES (?, ?, ?, ?, ?, ?)",
+                (r["id"], session_id, r["entry_type"], r["content"], r["narrative_time"], r["created_at"]),
+            )
+            index_journal(db, session_id, r["id"], r["entry_type"], r["content"], r["created_at"])
+
         db.commit()
     finally:
         db.execute("PRAGMA foreign_keys = ON")
 
 
+def _get_cursor(db, session_id):
+    """Return the current cursor checkpoint ID, or the latest checkpoint if unset."""
+    row = db.execute(
+        "SELECT value FROM session_meta WHERE session_id = ? AND key = 'cursor_checkpoint_id'",
+        (session_id,),
+    ).fetchone()
+    if row:
+        cp_id = int(row[0])
+        # Validate it still exists
+        exists = db.execute("SELECT 1 FROM checkpoints WHERE id = ?", (cp_id,)).fetchone()
+        if exists:
+            return cp_id
+    # Fallback: latest checkpoint
+    row = db.execute("SELECT MAX(id) FROM checkpoints WHERE session_id = ?", (session_id,)).fetchone()
+    return row[0] if row and row[0] is not None else None
+
+
+def _set_cursor(db, session_id, checkpoint_id):
+    """Upsert cursor_checkpoint_id in session_meta."""
+    existing = db.execute(
+        "SELECT id FROM session_meta WHERE session_id = ? AND key = 'cursor_checkpoint_id'",
+        (session_id,),
+    ).fetchone()
+    if existing:
+        db.execute(
+            "UPDATE session_meta SET value = ? WHERE id = ?",
+            (str(checkpoint_id), existing[0]),
+        )
+    else:
+        db.execute(
+            "INSERT INTO session_meta (session_id, key, value) VALUES (?, 'cursor_checkpoint_id', ?)",
+            (session_id, str(checkpoint_id)),
+        )
+
+
 def create_checkpoint(db, session_id):
     """Snapshot current state and save as a checkpoint. Returns checkpoint id."""
+    # Branch truncation: if cursor is behind tip, delete future checkpoints
+    cursor = _get_cursor(db, session_id)
+    if cursor is not None:
+        tip = db.execute("SELECT MAX(id) FROM checkpoints WHERE session_id = ?", (session_id,)).fetchone()[0]
+        if tip is not None and cursor < tip:
+            db.execute(
+                "DELETE FROM checkpoints WHERE session_id = ? AND id > ?",
+                (session_id, cursor),
+            )
+
     tl_max = db.execute(
         "SELECT COALESCE(MAX(id), 0) FROM timeline WHERE session_id = ?",
         (session_id,),
@@ -491,78 +599,85 @@ def create_checkpoint(db, session_id):
         "INSERT INTO checkpoints (session_id, timeline_max_id, journal_max_id, snapshot) VALUES (?, ?, ?, ?)",
         (session_id, tl_max, jn_max, json.dumps(snap)),
     )
+    new_id = cur.lastrowid
+    _set_cursor(db, session_id, new_id)
     db.commit()
-    return cur.lastrowid
+    return new_id
 
 
 def revert_to_previous(db, session_id, steps=1):
-    """Pop one or more checkpoints and restore the target.
+    """Move cursor back by *steps* checkpoints and restore that state.
 
-    steps: how many checkpoints to go back (default 1).
-    Returns a summary string of what was undone.
+    Checkpoints are preserved (not deleted) so redo is possible.
+    Returns a summary string.
     """
-    rows = db.execute(
-        "SELECT id, timeline_max_id, journal_max_id, snapshot "
-        "FROM checkpoints WHERE session_id = ? ORDER BY id DESC LIMIT ?",
-        (session_id, steps + 1),
+    all_cps = db.execute(
+        "SELECT id FROM checkpoints WHERE session_id = ? ORDER BY id ASC",
+        (session_id,),
     ).fetchall()
+    cp_ids = [r[0] for r in all_cps]
 
-    if len(rows) < 2:
+    if len(cp_ids) < 2:
         raise LoreKitError("Nothing to revert -- not enough checkpoints")
 
-    # Clamp steps to available checkpoints (need at least 1 to restore)
-    actual_steps = min(steps, len(rows) - 1)
-    target = rows[actual_steps]
-    target_id, tl_max, jn_max, snapshot_json = target
+    cursor = _get_cursor(db, session_id)
+    if cursor is None or cursor not in cp_ids:
+        cursor = cp_ids[-1]
+
+    cursor_idx = cp_ids.index(cursor)
+    target_idx = cursor_idx - steps
+    if target_idx < 0:
+        target_idx = 0
+    if target_idx == cursor_idx:
+        raise LoreKitError("Nothing to revert -- already at earliest checkpoint")
+
+    target_id = cp_ids[target_idx]
+    snapshot_json = db.execute("SELECT snapshot FROM checkpoints WHERE id = ?", (target_id,)).fetchone()[0]
     snapshot = json.loads(snapshot_json)
 
-    # IDs of checkpoints to delete (everything above target)
-    delete_ids = [r[0] for r in rows[:actual_steps]]
-
-    # Find entries to remove (above the target checkpoint's watermarks)
-    tl_ids = [
-        r[0]
-        for r in db.execute(
-            "SELECT id FROM timeline WHERE session_id = ? AND id > ?",
-            (session_id, tl_max),
-        ).fetchall()
-    ]
-
-    jn_ids = [
-        r[0]
-        for r in db.execute(
-            "SELECT id FROM journal WHERE session_id = ? AND id > ?",
-            (session_id, jn_max),
-        ).fetchall()
-    ]
-
-    # Clean up embeddings for deleted entries
-    from _vectordb import delete_embeddings
-
-    delete_embeddings(db, "timeline", tl_ids)
-    delete_embeddings(db, "journal", jn_ids)
-
-    # Delete timeline and journal entries above watermarks
-    if tl_ids:
-        ph = ",".join("?" * len(tl_ids))
-        db.execute(f"DELETE FROM timeline WHERE id IN ({ph})", tl_ids)
-    if jn_ids:
-        ph = ",".join("?" * len(jn_ids))
-        db.execute(f"DELETE FROM journal WHERE id IN ({ph})", jn_ids)
-
-    # Delete all checkpoints above target in one batch
-    ph = ",".join("?" * len(delete_ids))
-    db.execute(f"DELETE FROM checkpoints WHERE id IN ({ph})", delete_ids)
-
-    # Restore mutable state from target checkpoint
     restore_snapshot(db, session_id, snapshot)
+    _set_cursor(db, session_id, target_id)
+    db.commit()
 
-    parts = []
-    if tl_ids:
-        parts.append(f"{len(tl_ids)} timeline")
-    if jn_ids:
-        parts.append(f"{len(jn_ids)} journal")
-    removed = f" ({', '.join(parts)} entries removed)" if parts else ""
-
+    actual_steps = cursor_idx - target_idx
     skipped = f" (skipped {actual_steps - 1})" if actual_steps > 1 else ""
-    return f"TURN_REVERTED: restored to checkpoint #{target_id}{removed}{skipped}"
+    return f"TURN_REVERTED: restored to checkpoint #{target_id}{skipped}"
+
+
+def advance_to_next(db, session_id, steps=1):
+    """Move cursor forward by *steps* checkpoints (redo) and restore that state.
+
+    Only works if future checkpoints exist (no new action since revert).
+    Returns a summary string.
+    """
+    all_cps = db.execute(
+        "SELECT id FROM checkpoints WHERE session_id = ? ORDER BY id ASC",
+        (session_id,),
+    ).fetchall()
+    cp_ids = [r[0] for r in all_cps]
+
+    if not cp_ids:
+        raise LoreKitError("Nothing to redo -- no checkpoints")
+
+    cursor = _get_cursor(db, session_id)
+    if cursor is None or cursor not in cp_ids:
+        cursor = cp_ids[-1]
+
+    cursor_idx = cp_ids.index(cursor)
+    target_idx = cursor_idx + steps
+    if target_idx >= len(cp_ids):
+        target_idx = len(cp_ids) - 1
+    if target_idx == cursor_idx:
+        raise LoreKitError("Nothing to redo -- already at latest checkpoint")
+
+    target_id = cp_ids[target_idx]
+    snapshot_json = db.execute("SELECT snapshot FROM checkpoints WHERE id = ?", (target_id,)).fetchone()[0]
+    snapshot = json.loads(snapshot_json)
+
+    restore_snapshot(db, session_id, snapshot)
+    _set_cursor(db, session_id, target_id)
+    db.commit()
+
+    actual_steps = target_idx - cursor_idx
+    skipped = f" (skipped {actual_steps - 1})" if actual_steps > 1 else ""
+    return f"TURN_ADVANCED: restored to checkpoint #{target_id}{skipped}"
