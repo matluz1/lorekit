@@ -534,6 +534,59 @@ def _get_char_modifiers_summary(db, cid: int) -> list[str]:
     return parts
 
 
+def _get_condition_reminders(db, cid: int, session_id: int) -> list[str]:
+    """Return condition reminder lines for a character based on system pack rules.
+
+    Checks both active combat_state modifiers and damage_condition thresholds
+    from the system's on_failure table.
+    """
+    system_path = _resolve_system_path(db, session_id)
+    if not system_path:
+        return []
+
+    import os
+
+    sys_json = os.path.join(system_path, "system.json")
+    if not os.path.isfile(sys_json):
+        return []
+
+    with open(sys_json) as f:
+        sdata = json.load(f)
+    condition_rules = sdata.get("combat", {}).get("condition_rules", {})
+    if not condition_rules:
+        return []
+
+    cname = _char_name(db, cid)
+    seen = set()
+    reminders = []
+
+    # Check active modifier sources
+    sources = db.execute(
+        "SELECT DISTINCT source FROM combat_state WHERE character_id = ?",
+        (cid,),
+    ).fetchall()
+    for (source,) in sources:
+        if source in condition_rules and source not in seen:
+            reminders.append(f"⚠ {cname} is {source}: {condition_rules[source]}")
+            seen.add(source)
+
+    # Check damage_condition against on_failure labels
+    damage_row = db.execute(
+        "SELECT value FROM character_attributes WHERE character_id = ? AND key = 'damage_condition'",
+        (cid,),
+    ).fetchone()
+    if damage_row:
+        dc = int(float(damage_row[0]))
+        on_failure = sdata.get("resolution", {}).get("on_failure", {})
+        for degree, effects in on_failure.items():
+            label = effects.get("label")
+            if label and label in condition_rules and dc >= int(degree) and label not in seen:
+                reminders.append(f"⚠ {cname} is {label}: {condition_rules[label]}")
+                seen.add(label)
+
+    return reminders
+
+
 def get_status(db, session_id: int, combat_cfg: dict | None = None) -> str:
     """Return the current encounter state as a formatted HUD string.
 
@@ -626,6 +679,13 @@ def get_status(db, session_id: int, combat_cfg: dict | None = None) -> str:
 
         lines.append(f"└{'─' * 48}┘")
         prev_zid = zid
+
+    # Condition reminders for current turn character
+    if current_char_id:
+        cond_reminders = _get_condition_reminders(db, current_char_id, session_id)
+        if cond_reminders:
+            lines.append("")
+            lines.extend(cond_reminders)
 
     return "\n".join(lines)
 
@@ -813,6 +873,11 @@ def advance_turn(db, session_id: int, combat_cfg: dict | None = None) -> str:
                 )
             else:
                 lines.append(f"Nearest other: {nearest_name}, {nearest_dist} zone(s) in {nearest_zone}")
+
+    # Condition reminders for the character whose turn is starting
+    cond_reminders = _get_condition_reminders(db, char_id, session_id)
+    if cond_reminders:
+        lines.extend(cond_reminders)
 
     return "\n".join(lines)
 

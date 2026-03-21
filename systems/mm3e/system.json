@@ -26,6 +26,13 @@
       "cover": {"target_stat": "bonus_dodge", "value": 2, "modifier_type": "environment"},
       "total_cover": {"target_stat": "bonus_dodge", "value": 10, "modifier_type": "environment"},
       "concealment": {"miss_chance": 0.2}
+    },
+    "condition_rules": {
+      "dazed": "you may take ONLY a standard action OR a move action, not both",
+      "staggered": "you may take ONLY a standard action OR a move action, not both",
+      "stunned": "you cannot take any actions",
+      "incapacitated": "you are out of the fight",
+      "grab": "you are immobilized — you cannot move (speed 0) and dodge is reduced"
     }
   },
 
@@ -414,7 +421,9 @@
       "sequence defines execution order — reorder steps as tactics demand",
       "Most turns use at most one move and one action",
       "action MUST be one of the available actions — NOT an ability name",
-      "action/targets/move_to can all be null (narrative-only turn)"
+      "action/targets/move_to can all be null (narrative-only turn)",
+      "melee actions require the target to be in the SAME zone — move first if needed",
+      "ranged actions require the target to be within weapon range"
     ]
   },
 

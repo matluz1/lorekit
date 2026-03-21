@@ -116,7 +116,7 @@ def build_combat_context(
         tag_str = f" [{', '.join(ztags)}]" if ztags else ""
         zone_list.append(f"{zname}{tag_str}")
 
-    # Available actions from system pack
+    # Available actions from system pack (with range annotations)
     actions_section = ""
     system_path = _resolve_system_path_internal(db, session_id)
     if system_path:
@@ -128,8 +128,14 @@ def build_combat_context(
                 data = json.load(f)
             actions = data.get("actions", {})
             if actions:
-                action_names = list(actions.keys())
-                actions_section = f"Available actions: {', '.join(action_names)}\n"
+                action_labels = []
+                for aname, adef in actions.items():
+                    arange = adef.get("range", "")
+                    if arange:
+                        action_labels.append(f"{aname} ({arange})")
+                    else:
+                        action_labels.append(aname)
+                actions_section = f"Available actions: {', '.join(action_labels)}\n"
 
     # NPC's own abilities (powers, feats, advantages)
     abilities_section = ""
@@ -147,8 +153,10 @@ def build_combat_context(
     if npc_ztags:
         npc_zone_str += f" [{', '.join(npc_ztags)}]"
 
-    # Load intent schema for JSON template and rules
+    # Load intent schema and condition rules for JSON template and rules
     intent_schema = None
+    condition_rules = {}
+    sdata = None
     if system_path:
         import os
 
@@ -157,8 +165,52 @@ def build_combat_context(
             with open(system_json) as f:
                 sdata = json.load(f)
             intent_schema = sdata.get("intent")
+            condition_rules = sdata.get("combat", {}).get("condition_rules", {})
 
     json_block, rules_block = _build_intent_prompt(intent_schema)
+
+    # Active conditions with mechanical effects
+    condition_section = ""
+    active_labels = set()
+    mod_rows = db.execute(
+        "SELECT source, target_stat, value, duration_type, duration FROM combat_state WHERE character_id = ?",
+        (npc_id,),
+    ).fetchall()
+    if mod_rows:
+        mod_lines = []
+        for source, stat, value, dur_type, duration in mod_rows:
+            line = f"  {source}: {value:+d} to {stat}"
+            if dur_type == "rounds" and duration is not None:
+                line += f" [{duration}r left]"
+            mod_lines.append(line)
+            active_labels.add(source)
+        condition_section = "Your active conditions:\n" + "\n".join(mod_lines) + "\n"
+
+        # Add mechanical descriptions for recognized conditions
+        cond_notes = []
+        for label in active_labels:
+            desc = condition_rules.get(label)
+            if desc:
+                cond_notes.append(f"  ⚠ {label}: {desc}")
+        if cond_notes:
+            condition_section += "\n".join(cond_notes) + "\n"
+
+    # Also check on_failure labels from damage_condition (uses sdata already loaded)
+    if condition_rules and system_path and sdata:
+        damage_row = db.execute(
+            "SELECT value FROM character_attributes WHERE character_id = ? AND key = 'damage_condition'",
+            (npc_id,),
+        ).fetchone()
+        if damage_row:
+            dc = int(float(damage_row[0]))
+            on_failure = sdata.get("resolution", {}).get("on_failure", {})
+            for degree, effects in on_failure.items():
+                label = effects.get("label")
+                if label and label in condition_rules and dc >= int(degree):
+                    if label not in active_labels:
+                        desc = condition_rules[label]
+                        condition_section += f"  ⚠ {label}: {desc}\n"
+                        active_labels.add(label)
 
     context = f"""COMBAT — Round {rnd}
 It is your turn ({npc_name}).
@@ -173,7 +225,7 @@ Allies:
 {chr(10).join(f"  {a}" for a in allies) if allies else "  (none)"}
 
 Zones: {", ".join(zone_list)}
-{actions_section}{abilities_section}
+{actions_section}{abilities_section}{condition_section}
 Decide what to do. Respond with a JSON block followed by optional in-character narration.
 
 ```json
