@@ -9,7 +9,7 @@ import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "core"))
 
-from combat_engine import resolve_action
+from combat_engine import resolve_action, resolve_area_action
 
 FIXTURES = os.path.join(os.path.dirname(__file__), "fixtures")
 TEST_SYSTEM = os.path.join(FIXTURES, "test_system")
@@ -547,7 +547,6 @@ class TestAreaEffect:
         """radius=0 only hits characters in the center zone."""
         from _db import require_db
         from character import set_attr
-        from combat_engine import resolve_area_action
 
         db = require_db()
         try:
@@ -580,7 +579,6 @@ class TestAreaEffect:
         """radius=1 hits center + adjacent zones."""
         from _db import require_db
         from character import set_attr
-        from combat_engine import resolve_area_action
 
         db = require_db()
         try:
@@ -615,7 +613,6 @@ class TestAreaEffect:
         """Attacker is excluded from area targets by default."""
         from _db import require_db
         from character import set_attr
-        from combat_engine import resolve_area_action
 
         db = require_db()
         try:
@@ -646,7 +643,6 @@ class TestAreaEffect:
         """center='self' uses the attacker's zone."""
         from _db import require_db
         from character import set_attr
-        from combat_engine import resolve_area_action
 
         db = require_db()
         try:
@@ -678,7 +674,6 @@ class TestAreaEffect:
         """Area effect without an active encounter raises an error."""
         from _db import LoreKitError, require_db
         from character import set_attr
-        from combat_engine import resolve_area_action
 
         db = require_db()
         try:
@@ -700,7 +695,6 @@ class TestAreaEffect:
         """Area with no targets returns a clean message."""
         from _db import require_db
         from character import set_attr
-        from combat_engine import resolve_area_action
         from encounter import start_encounter
 
         db = require_db()
@@ -1110,5 +1104,159 @@ class TestUtilityAction:
             zone_id = _get_character_zone(db, enc_id, def_id)
             zone_name = _zone_id_to_name(db, zone_id)
             assert zone_name == "Far"
+        finally:
+            db.close()
+
+
+# ---------------------------------------------------------------------------
+# Condition-based action limits (shared PC + NPC enforcement)
+# ---------------------------------------------------------------------------
+
+
+def _setup_mm3e_fighter(db, make_session, make_character, set_attr, name):
+    """Create an M&M3e character with basic stats."""
+    sid = make_session()
+    cid = make_character(sid, name=name, level=1)
+    for key, val in [
+        ("fgt", "6"),
+        ("agl", "2"),
+        ("dex", "0"),
+        ("str", "6"),
+        ("sta", "4"),
+        ("int", "0"),
+        ("awe", "2"),
+        ("pre", "0"),
+        ("power_level", "10"),
+    ]:
+        set_attr(db, cid, "stat", key, val)
+    from rules_engine import rules_calc
+
+    rules_calc(db, cid, MM3E_SYSTEM)
+    return sid, cid
+
+
+class TestConditionActionLimit:
+    """Condition-based action limits apply to both PCs and NPCs."""
+
+    def test_incapacitated_blocks_action(self, make_session, make_character):
+        """A character with damage_condition >= 4 (incapacitated) cannot act."""
+        from _db import LoreKitError, require_db
+        from character import set_attr
+
+        db = require_db()
+        try:
+            sid, atk_id = _setup_mm3e_fighter(db, make_session, make_character, set_attr, "Attacker")
+            _, def_id = _setup_mm3e_fighter(db, make_session, make_character, set_attr, "Defender")
+            # Set attacker to incapacitated
+            set_attr(db, atk_id, "stat", "damage_condition", "4")
+
+            with pytest.raises(LoreKitError, match="BLOCKED.*incapacitated"):
+                resolve_action(db, atk_id, def_id, "close_attack", MM3E_SYSTEM)
+        finally:
+            db.close()
+
+    def test_stunned_blocks_action(self, make_session, make_character):
+        """A character with a 'stunned' combat_state source cannot act."""
+        from _db import LoreKitError, require_db
+        from character import set_attr
+
+        db = require_db()
+        try:
+            sid, atk_id = _setup_mm3e_fighter(db, make_session, make_character, set_attr, "Attacker")
+            _, def_id = _setup_mm3e_fighter(db, make_session, make_character, set_attr, "Defender")
+            # Apply stunned via combat_state
+            db.execute(
+                "INSERT INTO combat_state (character_id, source, target_stat, value, modifier_type, duration_type, duration) "
+                "VALUES (?, 'stunned', 'bonus_dodge', -2, 'condition', 'rounds', 1)",
+                (atk_id,),
+            )
+            db.commit()
+
+            with pytest.raises(LoreKitError, match="BLOCKED.*stunned"):
+                resolve_action(db, atk_id, def_id, "close_attack", MM3E_SYSTEM)
+        finally:
+            db.close()
+
+    def test_dazed_allows_first_action_blocks_second(self, make_session, make_character):
+        """Dazed (max_total: 1): first action goes through, second is blocked."""
+        from _db import LoreKitError, require_db
+        from character import set_attr
+
+        db = require_db()
+        try:
+            sid, atk_id = _setup_mm3e_fighter(db, make_session, make_character, set_attr, "Attacker")
+            _, def_id = _setup_mm3e_fighter(db, make_session, make_character, set_attr, "Defender")
+            # Set attacker to dazed (damage_condition = 2)
+            set_attr(db, atk_id, "stat", "damage_condition", "2")
+
+            # First action should succeed
+            roll_calls = iter([14, 19])  # attack d20=15, resist d20=20
+            with patch("secrets.randbelow", side_effect=roll_calls):
+                result = resolve_action(db, atk_id, def_id, "close_attack", MM3E_SYSTEM)
+            assert "ACTION" in result
+
+            # Second action should be blocked
+            with pytest.raises(LoreKitError, match="BLOCKED.*dazed.*1/1"):
+                resolve_action(db, atk_id, def_id, "close_attack", MM3E_SYSTEM)
+        finally:
+            db.close()
+
+    def test_action_counter_resets_on_advance_turn(self, make_session, make_character):
+        """The per-turn action counter resets when advance_turn is called."""
+        from _db import require_db
+        from character import set_attr
+        from encounter import advance_turn
+
+        db = require_db()
+        try:
+            sid, atk_id = _setup_mm3e_fighter(db, make_session, make_character, set_attr, "Attacker")
+            _, def_id = _setup_mm3e_fighter(db, make_session, make_character, set_attr, "Defender")
+
+            # Set up encounter
+            from encounter import start_encounter
+
+            zones = [{"name": "Arena"}]
+            initiative = [{"character_id": atk_id, "roll": 20}, {"character_id": def_id, "roll": 10}]
+            placements = [{"character_id": atk_id, "zone": "Arena"}, {"character_id": def_id, "zone": "Arena"}]
+            start_encounter(db, sid, zones, initiative, placements=placements)
+
+            # Set dazed
+            set_attr(db, atk_id, "stat", "damage_condition", "2")
+
+            # Use the one allowed action
+            roll_calls = iter([14, 19])
+            with patch("secrets.randbelow", side_effect=roll_calls):
+                resolve_action(db, atk_id, def_id, "close_attack", MM3E_SYSTEM)
+
+            # Advance past attacker's turn (to defender), then back to attacker
+            combat_cfg = {"zone_scale": 1}
+            advance_turn(db, sid, combat_cfg)  # now defender's turn
+            advance_turn(db, sid, combat_cfg)  # back to attacker's turn
+
+            # Counter should be reset — action should work again
+            roll_calls = iter([14, 19])
+            with patch("secrets.randbelow", side_effect=roll_calls):
+                result = resolve_action(db, atk_id, def_id, "close_attack", MM3E_SYSTEM)
+            assert "ACTION" in result
+        finally:
+            db.close()
+
+    def test_healthy_character_not_blocked(self, make_session, make_character):
+        """A character with no active conditions can act freely."""
+        from _db import require_db
+        from character import set_attr
+
+        db = require_db()
+        try:
+            sid, atk_id = _setup_mm3e_fighter(db, make_session, make_character, set_attr, "Attacker")
+            _, def_id = _setup_mm3e_fighter(db, make_session, make_character, set_attr, "Defender")
+
+            # Two actions should both work (no condition limiting)
+            roll_calls = iter([14, 19, 14, 19])
+            with patch("secrets.randbelow", side_effect=roll_calls):
+                r1 = resolve_action(db, atk_id, def_id, "close_attack", MM3E_SYSTEM)
+                r2 = resolve_action(db, atk_id, def_id, "close_attack", MM3E_SYSTEM)
+            assert "ACTION" in r1
+            assert "ACTION" in r2
         finally:
             db.close()

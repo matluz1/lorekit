@@ -28,6 +28,119 @@ from system_pack import (
 )
 
 # ---------------------------------------------------------------------------
+# Condition checks (shared by PC resolve_action and NPC _validate_sequence)
+# ---------------------------------------------------------------------------
+
+
+def get_active_conditions(db, character_id: int, condition_rules: dict, thresholds: list | None = None) -> set[str]:
+    """Determine which condition_rules are active on a character.
+
+    Checks combat_state modifier sources and attribute-based thresholds
+    from the system pack's ``condition_thresholds`` list.
+    """
+    active = set()
+
+    # Check combat_state sources
+    sources = db.execute(
+        "SELECT DISTINCT source FROM combat_state WHERE character_id = ?",
+        (character_id,),
+    ).fetchall()
+    for (source,) in sources:
+        if source in condition_rules:
+            active.add(source)
+
+    # Check attribute-based condition thresholds
+    for thresh in thresholds or []:
+        attr_key = thresh.get("attribute")
+        min_val = thresh.get("min")
+        cond_name = thresh.get("condition")
+        if not (attr_key and min_val is not None and cond_name):
+            continue
+        row = db.execute(
+            "SELECT value FROM character_attributes WHERE character_id = ? AND key = ?",
+            (character_id, attr_key),
+        ).fetchone()
+        if row and float(row[0]) >= min_val:
+            active.add(cond_name)
+
+    return active
+
+
+def _check_condition_action_limit(db, character_id: int, pack: SystemPack) -> None:
+    """Raise LoreKitError if active conditions prevent the character from acting.
+
+    Reads condition_rules and condition_thresholds from the system pack's
+    combat config.  For each active condition with a ``max_total`` field:
+      - max_total 0 → character cannot act at all (stunned, incapacitated)
+      - max_total >= 1 → character can act that many times per turn;
+        uses a ``_actions_this_turn`` attribute as a counter (reset on
+        advance_turn).
+    """
+    combat_cfg = pack.combat or {}
+    condition_rules = combat_cfg.get("condition_rules")
+    if not condition_rules:
+        return
+
+    thresholds = combat_cfg.get("condition_thresholds")
+    active = get_active_conditions(db, character_id, condition_rules, thresholds)
+    if not active:
+        return
+
+    # Find the most restrictive max_total among active conditions
+    effective_max: int | None = None
+    blocking_condition: str | None = None
+    for cond_name in active:
+        cond_def = condition_rules.get(cond_name, {})
+        if not isinstance(cond_def, dict):
+            continue
+        cond_max = cond_def.get("max_total")
+        if cond_max is not None:
+            if effective_max is None or cond_max < effective_max:
+                effective_max = cond_max
+                blocking_condition = cond_name
+
+    if effective_max is None:
+        return
+
+    if effective_max == 0:
+        desc = condition_rules.get(blocking_condition, {}).get("description", "")
+        msg = f"BLOCKED: character is {blocking_condition}"
+        if desc:
+            msg += f" — {desc}"
+        raise LoreKitError(msg)
+
+    # max_total >= 1: check per-turn action counter
+    row = db.execute(
+        "SELECT value FROM character_attributes WHERE character_id = ? AND key = '_actions_this_turn'",
+        (character_id,),
+    ).fetchone()
+    actions_used = int(row[0]) if row else 0
+
+    if actions_used >= effective_max:
+        desc = condition_rules.get(blocking_condition, {}).get("description", "")
+        msg = f"BLOCKED: character is {blocking_condition} — already used {actions_used}/{effective_max} action(s) this turn"
+        if desc:
+            msg += f" ({desc})"
+        raise LoreKitError(msg)
+
+
+def _increment_turn_actions(db, character_id: int) -> None:
+    """Increment the per-turn action counter for a character."""
+    row = db.execute(
+        "SELECT value FROM character_attributes WHERE character_id = ? AND key = '_actions_this_turn'",
+        (character_id,),
+    ).fetchone()
+    new_val = (int(row[0]) if row else 0) + 1
+    db.execute(
+        "INSERT INTO character_attributes (character_id, category, key, value) "
+        "VALUES (?, 'internal', '_actions_this_turn', ?) "
+        "ON CONFLICT(character_id, category, key) DO UPDATE SET value = ?",
+        (character_id, str(new_val), str(new_val)),
+    )
+    db.commit()
+
+
+# ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
@@ -799,6 +912,9 @@ def resolve_area_action(
     pack = load_system_pack(pack_dir)
     attacker = load_character_data(db, attacker_id)
 
+    # Condition-based action limit (dazed, stunned, incapacitated, etc.)
+    _check_condition_action_limit(db, attacker_id, pack)
+
     # Auto-checkpoint
     from checkpoint import create_checkpoint
 
@@ -841,6 +957,9 @@ def resolve_area_action(
             raise LoreKitError(f"Unknown resolution type: {resolution_type}")
         results.append(result)
 
+    # Area action counts as one action for condition tracking
+    _increment_turn_actions(db, attacker_id)
+
     return "\n---\n".join(results)
 
 
@@ -856,6 +975,9 @@ def resolve_action(
     pack = load_system_pack(pack_dir)
     attacker = load_character_data(db, attacker_id)
     defender = load_character_data(db, defender_id)
+
+    # Condition-based action limit (dazed, stunned, incapacitated, etc.)
+    _check_condition_action_limit(db, attacker_id, pack)
 
     # Auto-checkpoint before resolution so turn_revert can undo combat actions
     from checkpoint import create_checkpoint
@@ -931,5 +1053,8 @@ def resolve_action(
         recalc = try_rules_calc(db, attacker_id)
         if recalc:
             result += f"\n{recalc}"
+
+    # Track action count for condition-based limits (dazed max_total: 1, etc.)
+    _increment_turn_actions(db, attacker_id)
 
     return result

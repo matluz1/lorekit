@@ -810,6 +810,13 @@ def advance_turn(db, session_id: int, combat_cfg: dict | None = None) -> str:
         lines.append(end_result)
         lines.append("")
 
+    # Reset per-turn action counter for the ending character
+    db.execute(
+        "DELETE FROM character_attributes WHERE character_id = ? AND key = '_actions_this_turn'",
+        (ending_char_id,),
+    )
+    db.commit()
+
     # Advance
     next_turn = current_turn + 1
     new_round = rnd

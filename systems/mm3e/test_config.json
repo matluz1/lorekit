@@ -19,5 +19,6 @@
   "attack_bonus_key": "bonus_close_attack",
   "cover_zone_tag": "cover",
   "vital_current": "damage_condition",
+  "vital_start_value": 0,
   "vital_max": null
 }

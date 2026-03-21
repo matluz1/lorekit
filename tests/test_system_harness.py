@@ -137,10 +137,11 @@ class TestFullCombatHarness:
             npc = make_character(sid, name="Foe", char_type="npc")
             _setup_from_config(db, pc, config, system_path)
             _setup_from_config(db, npc, config, system_path)
-            # Set vitals for threshold systems
+            # Set vitals (HP for threshold systems, damage_condition for degree)
             if config.get("vital_current"):
-                _set_attrs(db, pc, {config["vital_current"]: 20})
-                _set_attrs(db, npc, {config["vital_current"]: 15})
+                vital_val = config.get("vital_start_value", 20)
+                _set_attrs(db, pc, {config["vital_current"]: vital_val})
+                _set_attrs(db, npc, {config["vital_current"]: vital_val})
             from rules_engine import rules_calc
 
             rules_calc(db, pc, system_path)

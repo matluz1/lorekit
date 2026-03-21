@@ -498,7 +498,9 @@ def _validate_sequence(
 
     # Condition-based overrides (e.g. staggered → max_total: 1)
     if condition_rules:
-        active_conditions = _get_active_conditions(db, npc_id, condition_rules, condition_thresholds)
+        from combat_engine import get_active_conditions
+
+        active_conditions = get_active_conditions(db, npc_id, condition_rules, condition_thresholds)
         for cond_name in active_conditions:
             cond_def = condition_rules.get(cond_name, {})
             if not isinstance(cond_def, dict):
@@ -528,40 +530,6 @@ def _validate_sequence(
         validated = validated[:max_total]
 
     return validated
-
-
-def _get_active_conditions(db, character_id: int, condition_rules: dict, thresholds: list | None = None) -> set[str]:
-    """Determine which condition_rules are active on a character.
-
-    Checks combat_state modifier sources and attribute-based thresholds
-    from the system pack's ``condition_thresholds`` list.
-    """
-    active = set()
-
-    # Check combat_state sources
-    sources = db.execute(
-        "SELECT DISTINCT source FROM combat_state WHERE character_id = ?",
-        (character_id,),
-    ).fetchall()
-    for (source,) in sources:
-        if source in condition_rules:
-            active.add(source)
-
-    # Check attribute-based condition thresholds
-    for thresh in thresholds or []:
-        attr_key = thresh.get("attribute")
-        min_val = thresh.get("min")
-        cond_name = thresh.get("condition")
-        if not (attr_key and min_val is not None and cond_name):
-            continue
-        row = db.execute(
-            "SELECT value FROM character_attributes WHERE character_id = ? AND key = ?",
-            (character_id, attr_key),
-        ).fetchone()
-        if row and float(row[0]) >= min_val:
-            active.add(cond_name)
-
-    return active
 
 
 def execute_combat_turn(
