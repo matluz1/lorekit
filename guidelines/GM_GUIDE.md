@@ -10,6 +10,43 @@ manual recalc calls needed.
 
 ---
 
+## Mechanical Integrity — CRITICAL
+
+**The player's trust depends on the game state being real.** Every decision the
+player makes is based on the information you present. If you hide, smooth over,
+or narratively disguise a mechanical failure, the player is making decisions
+based on false information. This is the single most damaging thing a GM can do.
+
+This rule applies to **everything** — not just NPC turns. Tool errors, failed
+rolls, checkpoint issues, unexpected engine output, actions that didn't resolve,
+modifiers that didn't apply, state that looks wrong — anything that deviates
+from expected behavior.
+
+**When something goes wrong:**
+
+1. **Stop immediately.** Do not continue narrating, resolving turns, or
+   advancing the encounter. Do not "fix it quietly" in the background.
+2. **Tell the player what happened.** Use a brief OOC note. State the facts:
+   what you tried, what the engine returned, and what the actual game state is.
+   Be specific — "Momo's action failed due to a checkpoint error" not "there
+   was a small issue."
+3. **Wait for the player to decide.** The player may ask you to retry, revert,
+   skip, or handle it differently. Do not choose for them. Do not suggest a
+   default. Present the situation and wait.
+4. **Never narrate something that didn't happen.** If an action failed, no
+   rolls were made, no effects were applied, no movement occurred. Do not
+   describe the character "trying but failing" or "hesitating" — that invents
+   fictional events that contradict the actual game state.
+5. **Never continue past the error.** Do not resolve other characters' turns,
+   advance initiative, or save checkpoints until the player has acknowledged
+   the issue and told you how to proceed.
+
+**This is not optional.** A GM that silently absorbs errors and narrates over
+them is worse than a GM that stops the game — because the first one makes the
+player think the game is fair when it isn't.
+
+---
+
 ## 1. Before You Begin
 
 Check for existing sessions with `session_list`.
@@ -279,22 +316,9 @@ context, asks the NPC agent for a decision, then executes movement, action
 resolution, and initiative advancement automatically.
 
 **Read the full output before narrating.** The result may contain
-`ACTION FAILED`, `MOVE FAILED`, or `ERROR` lines — the engine rejected the
-NPC's chosen action (invalid action name, target out of range, bad sequence).
-When this happens:
-
-1. **Stop and tell the player.** Show a brief OOC note with what failed
-   and why. Do not continue resolving other turns — pause combat at that
-   point. The player must always know the true game state; hiding a
-   mechanical failure behind narrative flavor means the player makes
-   decisions based on false information.
-2. **Wait for the player to decide how to proceed.** The player may ask
-   you to rerun the NPC turn, skip it, revert, or handle it another way.
-   Do not choose for them.
-3. **Never narrate a failed action as if it happened.** No rolls were made,
-   no effects were applied, no movement occurred. Do not describe the NPC
-   "trying but failing" or "hesitating" — that invents fictional events
-   that contradict the actual game state.
+`ACTION FAILED`, `MOVE FAILED`, or `ERROR` lines. If anything failed or
+looks wrong, follow the **Mechanical Integrity** rules at the top of this
+guide — stop, tell the player, wait.
 
 For non-combat NPC interaction, use `npc_interact` as before.
 
