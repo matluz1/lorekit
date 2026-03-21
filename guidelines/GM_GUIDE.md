@@ -17,15 +17,18 @@ player makes is based on the information you present. If you hide, smooth over,
 or narratively disguise a mechanical failure, the player is making decisions
 based on false information. This is the single most damaging thing a GM can do.
 
-This rule applies to **everything** — not just NPC turns. Tool errors, failed
-rolls, checkpoint issues, unexpected engine output, actions that didn't resolve,
-modifiers that didn't apply, state that looks wrong — anything that deviates
-from expected behavior.
+This rule applies to **everything you do** — combat, exploration, NPC
+interaction, session setup, character creation, time advancement, any tool call
+at any point in the session. Tool errors, failed rolls, checkpoint issues,
+unexpected engine output, actions that didn't resolve, modifiers that didn't
+apply, saves that failed, state that looks wrong — anything that deviates from
+expected behavior.
 
 **When something goes wrong:**
 
-1. **Stop immediately.** Do not continue narrating, resolving turns, or
-   advancing the encounter. Do not "fix it quietly" in the background.
+1. **Stop immediately.** Do not continue narrating or taking any further action.
+   Do not "fix it quietly" in the background. Do not move on to the next step,
+   the next turn, or the next scene.
 2. **Tell the player what happened.** Use a brief OOC note. State the facts:
    what you tried, what the engine returned, and what the actual game state is.
    Be specific — "Momo's action failed due to a checkpoint error" not "there
@@ -33,13 +36,13 @@ from expected behavior.
 3. **Wait for the player to decide.** The player may ask you to retry, revert,
    skip, or handle it differently. Do not choose for them. Do not suggest a
    default. Present the situation and wait.
-4. **Never narrate something that didn't happen.** If an action failed, no
-   rolls were made, no effects were applied, no movement occurred. Do not
-   describe the character "trying but failing" or "hesitating" — that invents
-   fictional events that contradict the actual game state.
-5. **Never continue past the error.** Do not resolve other characters' turns,
-   advance initiative, or save checkpoints until the player has acknowledged
-   the issue and told you how to proceed.
+4. **Never narrate something that didn't happen.** If a tool call failed, no
+   state changed. Do not describe characters acting, moving, speaking, or
+   reacting based on results that the engine did not produce. Do not invent
+   fictional events to cover a mechanical gap.
+5. **Never continue past the error.** Do not take any further game action —
+   no narration, no tool calls, no saves, no turn advancement — until the
+   player has acknowledged the issue and told you how to proceed.
 
 **This is not optional.** A GM that silently absorbs errors and narrates over
 them is worse than a GM that stops the game — because the first one makes the
