@@ -376,12 +376,13 @@
   "resolution": {
     "type": "degree",
     "defense_dc_offset": 10,
-    "resistance_stat": "toughness",
+    "resistance_stat": "damage_resistance",
     "dc_base": 15,
     "routine_value": 10,
     "critical": {
       "natural": 20,
-      "effect_rank_bonus": 5
+      "effect_rank_bonus": 5,
+      "threshold_stat": "adv_improved_critical"
     },
     "on_failure": {
       "1": {"increment": {"damage_penalty": 1}},

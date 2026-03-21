@@ -385,6 +385,25 @@ def _get_derived(char: CharacterData, stat: str) -> int:
     raise LoreKitError(f"Stat '{stat}' not found on character {char.name}")
 
 
+def _is_crit(crit_cfg: dict | None, natural: int | None, attacker: CharacterData) -> bool:
+    """Check if a natural roll qualifies as a critical hit.
+
+    If the system pack declares a ``threshold_stat`` in its critical config,
+    the attacker's value for that stat lowers the critical threshold
+    (e.g. 2 ranks → crit on 18-20 instead of only 20).
+    """
+    if not crit_cfg or natural is None:
+        return False
+    base_threshold = crit_cfg.get("natural", 20)
+    threshold_stat = crit_cfg.get("threshold_stat")
+    if threshold_stat:
+        try:
+            base_threshold -= _get_derived(attacker, threshold_stat)
+        except LoreKitError:
+            pass
+    return natural >= base_threshold
+
+
 def _get_action_def(pack: SystemPack, char: CharacterData, action: str) -> dict:
     """Look up an action definition: character override first, then system pack."""
     overrides = char.attributes.get("action_override", {})
@@ -749,7 +768,7 @@ def _resolve_threshold(
         lines.append(f"ATTACKER: {pack.dice}({atk_roll}) + {atk_bonus} ({attack_stat}) = {atk_total}")
         lines.append(f"DEFENDER: {pack.dice}({def_roll}) + {def_bonus} ({defense_stat}) = {def_total}")
 
-        is_natural_crit = crit_cfg and atk_natural is not None and atk_natural == crit_cfg.get("natural")
+        is_natural_crit = _is_crit(crit_cfg, atk_natural, attacker)
         hit = atk_total >= def_total
         is_crit = False
         if is_natural_crit and crit_cfg.get("degree_shift", 0) > 0:
@@ -789,7 +808,7 @@ def _resolve_threshold(
             f"ATTACK: {pack.dice}({roll_val}) + {attack_bonus} = {attack_total} vs {defense_stat} {defense_value}",
         ]
 
-        is_natural_crit = crit_cfg and natural is not None and natural == crit_cfg.get("natural")
+        is_natural_crit = _is_crit(crit_cfg, natural, attacker)
         hit = attack_total >= defense_value
         is_crit = False
         if is_natural_crit and crit_cfg.get("degree_shift", 0) > 0:
@@ -879,7 +898,7 @@ def _resolve_degree(
         lines.append(f"ATTACKER: {pack.dice}({atk_roll}) + {atk_bonus} ({attack_stat}) = {atk_total}")
         lines.append(f"DEFENDER: {pack.dice}({def_roll}) + {def_bonus} ({defense_stat}) = {def_total}")
         hit = atk_total >= def_total
-        is_natural_crit = crit_cfg and atk_natural is not None and atk_natural == crit_cfg.get("natural")
+        is_natural_crit = _is_crit(crit_cfg, atk_natural, attacker)
     else:
         attack_bonus = _get_derived(attacker, attack_stat)
         defense_value = _get_derived(defender, defense_stat)
@@ -911,7 +930,7 @@ def _resolve_degree(
         defense_dc = dc_offset + defense_value
 
         hit = attack_total >= defense_dc
-        is_natural_crit = crit_cfg and natural is not None and natural == crit_cfg.get("natural")
+        is_natural_crit = _is_crit(crit_cfg, natural, attacker)
 
     # Apply degree_shift from crit config (miss upgraded to hit)
     if is_natural_crit and crit_cfg.get("degree_shift", 0) > 0 and not hit:
