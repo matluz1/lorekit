@@ -406,6 +406,25 @@ engine uses the defined one. If you provide a value exceeding the option's
 Raw trades (`{"trade": [...]}`) still work for ad-hoc cases not covered by
 named options, but prefer named options when available.
 
+NPCs can also use combat options — they see the available options in their
+combat context and can include them in their intent JSON.
+
+### Registering power-based actions
+
+When a character has a power that grants a unique action (e.g., a Fort-based
+damage power), register it as an **action override** so it appears in the
+character's available actions:
+
+```
+character_sheet_update(character_id="Momo", attrs=[
+  {"category": "action_override", "key": "damage_fort",
+   "value": "{\"attack_stat\": \"close_attack\", \"defense_stat\": \"dodge\", \"effect_rank\": 10, \"resistance_stat\": \"fortitude\", \"range\": \"melee\"}"}
+])
+```
+
+The engine checks character overrides before system pack actions. NPCs see
+overrides in their available actions list and can choose them by name.
+
 ### Area effects
 
 Pass the `area` option to `rules_resolve` for actions that hit multiple

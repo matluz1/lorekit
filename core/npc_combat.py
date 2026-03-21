@@ -122,8 +122,10 @@ def build_combat_context(
         tag_str = f" [{', '.join(ztags)}]" if ztags else ""
         zone_list.append(f"{zname}{tag_str}")
 
-    # Available actions from system pack (with range annotations)
+    # Available actions from system pack + character action overrides
     actions_section = ""
+    combat_options_section = ""
+    sdata = None
     system_path = _resolve_system_path_internal(db, session_id)
     if system_path:
         import os
@@ -131,17 +133,49 @@ def build_combat_context(
         system_json = os.path.join(system_path, "system.json")
         if os.path.isfile(system_json):
             with open(system_json) as f:
-                data = json.load(f)
-            actions = data.get("actions", {})
+                sdata = json.load(f)
+            actions = dict(sdata.get("actions", {}))
+
+            # Merge character-specific action overrides (e.g. powers that grant actions)
+            char_overrides = db.execute(
+                "SELECT key, value FROM character_attributes WHERE character_id = ? AND category = 'action_override'",
+                (npc_id,),
+            ).fetchall()
+            for key, val in char_overrides:
+                try:
+                    actions[key] = json.loads(val) if isinstance(val, str) else val
+                except json.JSONDecodeError:
+                    pass
+
             if actions:
                 action_labels = []
                 for aname, adef in actions.items():
-                    arange = adef.get("range", "")
-                    if arange:
-                        action_labels.append(f"{aname} ({arange})")
+                    if isinstance(adef, dict):
+                        arange = adef.get("range", "")
+                        if arange:
+                            action_labels.append(f"{aname} ({arange})")
+                        else:
+                            action_labels.append(aname)
                     else:
                         action_labels.append(aname)
                 actions_section = f"Available actions: {', '.join(action_labels)}\n"
+
+            # Available combat options (e.g. power_attack, all_out_attack)
+            combat_opts = sdata.get("combat_options", {})
+            if combat_opts:
+                opt_lines = []
+                for oname, odef in combat_opts.items():
+                    desc = odef.get("description", "")
+                    max_val = odef.get("max")
+                    label = oname
+                    if desc:
+                        label += f" — {desc}"
+                    if max_val:
+                        label += f" (max {max_val})"
+                    opt_lines.append(label)
+                combat_options_section = (
+                    "Combat options (include in your JSON as combat_options list): " + ", ".join(opt_lines) + "\n"
+                )
 
     # NPC's own abilities (powers, feats, advantages)
     abilities_section = ""
@@ -162,16 +196,9 @@ def build_combat_context(
     # Load intent schema and condition rules for JSON template and rules
     intent_schema = None
     condition_rules = {}
-    sdata = None
-    if system_path:
-        import os
-
-        system_json = os.path.join(system_path, "system.json")
-        if os.path.isfile(system_json):
-            with open(system_json) as f:
-                sdata = json.load(f)
-            intent_schema = sdata.get("intent")
-            condition_rules = sdata.get("combat", {}).get("condition_rules", {})
+    if sdata:
+        intent_schema = sdata.get("intent")
+        condition_rules = sdata.get("combat", {}).get("condition_rules", {})
 
     json_block, rules_block = _build_intent_prompt(intent_schema)
 
@@ -249,7 +276,7 @@ Allies:
 {chr(10).join(f"  {a}" for a in allies) if allies else "  (none)"}
 
 Zones: {", ".join(zone_list)}
-{actions_section}{abilities_section}{condition_section}
+{actions_section}{combat_options_section}{abilities_section}{condition_section}
 Decide what to do. Respond with a JSON block followed by optional in-character narration.
 
 ```json
@@ -638,6 +665,11 @@ def execute_combat_turn(
                         val = intent.get(field_name)
                         if val is not None:
                             action_opts[field_name] = val
+
+                    # Pass combat_options from NPC intent
+                    npc_combat_opts = intent.get("combat_options")
+                    if npc_combat_opts:
+                        action_opts["combat_options"] = npc_combat_opts
 
                     try:
                         lines.append(

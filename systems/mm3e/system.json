@@ -399,10 +399,12 @@
 
   "combat_options": {
     "power_attack": {
+      "description": "Trade attack for damage (-N attack, +N damage)",
       "trade": {"from": "close_attack", "to": "close_damage"},
       "max": 5
     },
     "all_out_attack": {
+      "description": "Gain attack bonus, lose defense until next turn (+N attack, -N dodge/parry)",
       "trade": {"to": "close_attack"},
       "apply_modifiers": [
         {"source": "all_out_attack", "target_stat": "bonus_dodge", "negate": true, "modifier_type": "debuff", "duration_type": "until_next_turn"},
@@ -411,10 +413,12 @@
       "max": 5
     },
     "accurate_attack": {
+      "description": "Trade damage for attack (+N attack, -N damage)",
       "trade": {"from": "close_damage", "to": "close_attack"},
       "max": 5
     },
     "defensive_attack": {
+      "description": "Trade attack for defense (-N attack, +N dodge)",
       "trade": {"from": "close_attack", "to": "dodge"},
       "max": 5
     }
@@ -617,7 +621,8 @@
       "max_total": 2
     },
     "extra_fields": {
-      "narration": { "type": "text", "nullable": true }
+      "narration": { "type": "text", "nullable": true },
+      "combat_options": { "type": "list", "nullable": true }
     },
     "rules": [
       "sequence defines execution order — reorder steps as tactics demand",
