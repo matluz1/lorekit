@@ -286,20 +286,21 @@ def restore_snapshot(db, session_id, snapshot):
         delete_embeddings(db, "timeline", cur_tl_ids)
         delete_embeddings(db, "journal", cur_jn_ids)
 
+        # Clean up entry_entities BEFORE deleting timeline/journal rows
+        # (the subquery depends on those rows still existing)
+        if cur_tl_ids:
+            ph = ",".join("?" * len(cur_tl_ids))
+            db.execute(f"DELETE FROM entry_entities WHERE source = 'timeline' AND source_id IN ({ph})", cur_tl_ids)
+        if cur_jn_ids:
+            ph = ",".join("?" * len(cur_jn_ids))
+            db.execute(f"DELETE FROM entry_entities WHERE source = 'journal' AND source_id IN ({ph})", cur_jn_ids)
+
         if cur_tl_ids:
             ph = ",".join("?" * len(cur_tl_ids))
             db.execute(f"DELETE FROM timeline WHERE id IN ({ph})", cur_tl_ids)
         if cur_jn_ids:
             ph = ",".join("?" * len(cur_jn_ids))
             db.execute(f"DELETE FROM journal WHERE id IN ({ph})", cur_jn_ids)
-
-        # Clean up entry_entities for this session's timeline/journal
-        db.execute(
-            """DELETE FROM entry_entities WHERE
-               (source = 'timeline' AND source_id IN (SELECT id FROM timeline WHERE session_id = ?))
-            OR (source = 'journal' AND source_id IN (SELECT id FROM journal WHERE session_id = ?))""",
-            (session_id, session_id),
-        )
 
         # Clean up encounter tables
         cur_enc_ids = [
@@ -456,10 +457,11 @@ def restore_snapshot(db, session_id, snapshot):
                 (r["id"], r["character_id"], r["alias"]),
             )
 
-        # Entry entities
+        # Entry entities — use INSERT OR REPLACE to handle orphaned rows
+        # left behind by previous buggy restores where cleanup was skipped
         for r in snapshot.get("entry_entities", []):
             db.execute(
-                "INSERT INTO entry_entities (id, source, source_id, entity_type, entity_id) VALUES (?, ?, ?, ?, ?)",
+                "INSERT OR REPLACE INTO entry_entities (id, source, source_id, entity_type, entity_id) VALUES (?, ?, ?, ?, ?)",
                 (r["id"], r["source"], r["source_id"], r["entity_type"], r["entity_id"]),
             )
 
@@ -571,13 +573,18 @@ def _set_cursor(db, session_id, checkpoint_id):
         )
 
 
-def create_checkpoint(db, session_id):
+def create_checkpoint(db, session_id, *, force: bool = False):
     """Snapshot current state and save as a checkpoint. Returns checkpoint id."""
     # Branch truncation: if cursor is behind tip, delete future checkpoints
     cursor = _get_cursor(db, session_id)
     if cursor is not None:
         tip = db.execute("SELECT MAX(id) FROM checkpoints WHERE session_id = ?", (session_id,)).fetchone()[0]
         if tip is not None and cursor < tip:
+            if not force:
+                raise LoreKitError(
+                    "Cursor is behind tip — calling turn_save will delete future checkpoints. "
+                    "Use turn_advance to move forward, or pass force=True to confirm."
+                )
             db.execute(
                 "DELETE FROM checkpoints WHERE session_id = ? AND id > ?",
                 (session_id, cursor),

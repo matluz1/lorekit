@@ -210,14 +210,14 @@ def test_redo_at_tip_fails(make_session):
 
 
 def test_redo_after_new_action_fails(make_session):
-    """Revert then save then advance should fail (future truncated)."""
+    """Revert then save should fail (guard against accidental truncation)."""
     sid = make_session()
     turn_save(session_id=sid, narration="Turn 1.", summary="T1")
     turn_save(session_id=sid, narration="Turn 2.", summary="T2")
     turn_revert(session_id=sid)
-    turn_save(session_id=sid, narration="Turn 3.", summary="T3")
-    result = turn_advance(session_id=sid)
+    result = turn_save(session_id=sid, narration="Turn 3.", summary="T3")
     assert "ERROR" in result
+    assert "future checkpoints" in result
 
 
 def test_multi_step_redo(make_session):

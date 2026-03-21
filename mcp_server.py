@@ -695,6 +695,11 @@ def turn_save(
       If omitted, the current narrative clock is used automatically.
     Always call turn_save as your last action before the player acts.
     During combat, encounter_advance_turn reminds you when a PC turn begins.
+
+    WARNING: After a turn_revert, do NOT call turn_save until you have advanced
+    back to the desired checkpoint with turn_advance (if needed). Calling turn_save while the
+    cursor is rewound will permanently delete all future checkpoints (like making
+    a new git commit after checkout — the old branch is lost).
     """
     if not narration and not player_choice:
         return "ERROR: Provide at least one of narration or player_choice"
