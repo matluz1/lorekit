@@ -762,6 +762,27 @@ def turn_save(
         except Exception:
             pass  # tagging is best-effort
 
+        # Warn if saving mid-round (characters haven't acted yet)
+        enc_row = db.execute(
+            "SELECT initiative_order, current_turn FROM encounter_state WHERE session_id = ? AND status = 'active'",
+            (session_id,),
+        ).fetchone()
+        if enc_row:
+            import json as _json
+
+            init_order = _json.loads(enc_row[0])
+            current_turn = enc_row[1]
+            remaining = len(init_order) - current_turn - 1
+            if remaining > 0:
+                names = []
+                for cid in init_order[current_turn + 1 :]:
+                    name_row = db.execute("SELECT name FROM characters WHERE id = ?", (cid,)).fetchone()
+                    if name_row:
+                        names.append(name_row[0])
+                results.append(
+                    f"⚠ INCOMPLETE ROUND: {remaining} character(s) have not acted this round ({', '.join(names)})"
+                )
+
         # Checkpoint after writing (the "approved" state after this turn)
         create_checkpoint(db, session_id, force=force)
 
