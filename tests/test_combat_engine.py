@@ -776,15 +776,22 @@ class TestDegreeOnHit:
             assert "MODIFIER: grab" in output
             assert "RESISTANCE:" not in output
 
-            # Verify combat_state modifiers applied
-            rows = db.execute(
-                "SELECT source, target_stat, value FROM combat_state WHERE character_id = ? AND source = 'grab'",
+            # The on_hit inserts a marker row (source="grab") which triggers
+            # the grab condition; sync_condition_modifiers creates cond:grab rows
+            # with the mechanical effects from condition_rules.
+            marker = db.execute(
+                "SELECT source, target_stat FROM combat_state WHERE character_id = ? AND source = 'grab'",
                 (def_id,),
             ).fetchall()
-            assert len(rows) == 2
-            stats = {r[1] for r in rows}
-            assert "bonus_dodge" in stats
-            assert "bonus_speed" in stats
+            assert len(marker) == 1
+
+            cond_rows = db.execute(
+                "SELECT source, target_stat, value FROM combat_state WHERE character_id = ? AND source = 'cond:grab'",
+                (def_id,),
+            ).fetchall()
+            cond_stats = {r[1] for r in cond_rows}
+            assert "bonus_dodge" in cond_stats
+            assert "bonus_speed" in cond_stats
         finally:
             db.close()
 

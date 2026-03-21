@@ -30,6 +30,7 @@ class SystemPack:
 
     name: str = ""
     dice: str = ""
+    pack_dir: str = ""
 
     # Default values for optional variables
     defaults: dict[str, Any] = field(default_factory=dict)
@@ -54,6 +55,9 @@ class SystemPack:
 
     # End-of-turn tick config: {"rounds": {"action": "decrement", "remove_at": 0}, ...}
     end_turn: dict[str, dict[str, Any]] = field(default_factory=dict)
+
+    # Start-of-turn tick config: {"until_next_turn": {"action": "remove"}, ...}
+    start_turn: dict[str, dict[str, Any]] = field(default_factory=dict)
 
     # Combat positioning config: {"zone_scale": 30, "melee_range": 0, "zone_tags": {...}, ...}
     combat: dict[str, Any] = field(default_factory=dict)
@@ -80,6 +84,7 @@ def load_system_pack(pack_dir: str) -> SystemPack:
 
     data = _load_json(system_path)
     pack = SystemPack()
+    pack.pack_dir = pack_dir
 
     # Meta
     meta = data.get("meta", {})
@@ -109,6 +114,9 @@ def load_system_pack(pack_dir: str) -> SystemPack:
 
     # End-of-turn tick config
     pack.end_turn = dict(data.get("end_turn", {}))
+
+    # Start-of-turn tick config
+    pack.start_turn = dict(data.get("start_turn", {}))
 
     # Combat positioning config
     pack.combat = dict(data.get("combat", {}))

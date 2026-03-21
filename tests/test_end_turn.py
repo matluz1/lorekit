@@ -375,3 +375,153 @@ class TestNoEndTurnConfig:
                 assert "no end_turn config" in output
         finally:
             db.close()
+
+
+# ===========================================================================
+# start_turn tests
+# ===========================================================================
+
+
+class TestStartTurn:
+    def test_removes_until_next_turn_modifiers(self, make_session, make_character):
+        """start_turn removes modifiers with duration_type until_next_turn."""
+        from _db import require_db
+        from character import set_attr
+        from combat_engine import start_turn
+
+        db = require_db()
+        try:
+            sid, cid = _setup_character(db, make_session, make_character, set_attr)
+
+            db.execute(
+                "INSERT INTO combat_state "
+                "(character_id, source, target_stat, modifier_type, value, duration_type) "
+                "VALUES (?, 'all_out', 'bonus_defense', 'debuff', -5, 'until_next_turn')",
+                (cid,),
+            )
+            db.commit()
+
+            output = start_turn(db, cid, TEST_SYSTEM)
+            assert "EXPIRED" in output
+            assert "all_out" in output
+
+            rows = db.execute(
+                "SELECT * FROM combat_state WHERE character_id = ? AND source = 'all_out'",
+                (cid,),
+            ).fetchall()
+            assert len(rows) == 0
+        finally:
+            db.close()
+
+    def test_skips_other_duration_types(self, make_session, make_character):
+        """start_turn leaves rounds and encounter modifiers untouched."""
+        from _db import require_db
+        from character import set_attr
+        from combat_engine import start_turn
+
+        db = require_db()
+        try:
+            sid, cid = _setup_character(db, make_session, make_character, set_attr)
+
+            db.execute(
+                "INSERT INTO combat_state "
+                "(character_id, source, target_stat, modifier_type, value, duration_type, duration) "
+                "VALUES (?, 'haste', 'bonus_defense', 'buff', 2, 'rounds', 3)",
+                (cid,),
+            )
+            db.execute(
+                "INSERT INTO combat_state "
+                "(character_id, source, target_stat, modifier_type, value, duration_type) "
+                "VALUES (?, 'terrain', 'bonus_defense', 'buff', 1, 'encounter')",
+                (cid,),
+            )
+            db.commit()
+
+            output = start_turn(db, cid, TEST_SYSTEM)
+            assert output == ""
+
+            rows = db.execute(
+                "SELECT source FROM combat_state WHERE character_id = ?",
+                (cid,),
+            ).fetchall()
+            assert len(rows) == 2
+        finally:
+            db.close()
+
+    def test_no_config_returns_empty(self, make_session, make_character):
+        """System pack without start_turn config returns empty string."""
+        from _db import require_db
+        from character import set_attr
+        from combat_engine import start_turn
+
+        db = require_db()
+        try:
+            import json
+            import tempfile
+
+            with tempfile.TemporaryDirectory() as tmpdir:
+                system = {
+                    "meta": {"name": "No Start Turn", "dice": "d20"},
+                    "defaults": {"str": 10, "bonus_defense": 0},
+                    "derived": {},
+                }
+                with open(os.path.join(tmpdir, "system.json"), "w") as f:
+                    json.dump(system, f)
+
+                sid = make_session()
+                cid = make_character(sid, name="Test", level=1)
+
+                output = start_turn(db, cid, tmpdir)
+                assert output == ""
+        finally:
+            db.close()
+
+    def test_triggers_recompute(self, make_session, make_character):
+        """Removing until_next_turn modifier triggers stat recompute."""
+        from _db import require_db
+        from character import set_attr
+        from combat_engine import start_turn
+
+        db = require_db()
+        try:
+            sid, cid = _setup_character(db, make_session, make_character, set_attr)
+
+            # Get baseline defense
+            from rules_engine import rules_calc
+
+            rules_calc(db, cid, TEST_SYSTEM)
+            base_def = db.execute(
+                "SELECT value FROM character_attributes "
+                "WHERE character_id = ? AND category = 'derived' AND key = 'defense'",
+                (cid,),
+            ).fetchone()[0]
+
+            # Add a penalty modifier
+            db.execute(
+                "INSERT INTO combat_state "
+                "(character_id, source, target_stat, modifier_type, value, duration_type) "
+                "VALUES (?, 'penalty', 'bonus_defense', 'debuff', -5, 'until_next_turn')",
+                (cid,),
+            )
+            db.commit()
+            rules_calc(db, cid, TEST_SYSTEM)
+
+            penalized_def = db.execute(
+                "SELECT value FROM character_attributes "
+                "WHERE character_id = ? AND category = 'derived' AND key = 'defense'",
+                (cid,),
+            ).fetchone()[0]
+            assert int(penalized_def) < int(base_def)
+
+            # start_turn should remove and recompute
+            output = start_turn(db, cid, TEST_SYSTEM)
+            assert "EXPIRED" in output
+
+            restored_def = db.execute(
+                "SELECT value FROM character_attributes "
+                "WHERE character_id = ? AND category = 'derived' AND key = 'defense'",
+                (cid,),
+            ).fetchone()[0]
+            assert int(restored_def) == int(base_def)
+        finally:
+            db.close()

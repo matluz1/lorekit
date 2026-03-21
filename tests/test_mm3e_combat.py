@@ -299,9 +299,34 @@ class TestSetupActions:
                 "SELECT target_stat, value FROM combat_state WHERE character_id = ? AND source = 'vulnerable'",
                 (hero,),
             ).fetchall()
-            assert len(mods) > 0, "Vulnerable modifiers should be applied"
+            assert len(mods) > 0, "Vulnerable condition marker should be applied"
             mod_stats = {m[0] for m in mods}
-            assert "bonus_parry" in mod_stats or "bonus_dodge" in mod_stats
+            assert "bonus_dodge" in mod_stats
+
+            # Verify the is_vulnerable flag was set by sync_condition_modifiers
+            flag = db.execute(
+                "SELECT value FROM character_attributes "
+                "WHERE character_id = ? AND category = 'condition_flags' AND key = 'is_vulnerable'",
+                (hero,),
+            ).fetchone()
+            assert flag is not None, "is_vulnerable flag should be set"
+            assert int(flag[0]) == 1
+
+            # Verify dodge/parry are halved via formula (not flat modifier)
+            dodge = db.execute(
+                "SELECT value FROM character_attributes "
+                "WHERE character_id = ? AND category = 'derived' AND key = 'dodge'",
+                (hero,),
+            ).fetchone()
+            parry = db.execute(
+                "SELECT value FROM character_attributes "
+                "WHERE character_id = ? AND category = 'derived' AND key = 'parry'",
+                (hero,),
+            ).fetchone()
+            # Hero: agl=4, ranks_dodge=2 → base 6 → halved = 3
+            # Hero: fgt=4, ranks_parry=2 → base 6 → halved = 3
+            assert int(dodge[0]) == 3
+            assert int(parry[0]) == 3
         finally:
             db.close()
 
@@ -347,8 +372,15 @@ class TestGrab:
             mod_stats = {m[1] for m in mods}
             assert "bonus_dodge" in mod_stats
             assert "bonus_speed" in mod_stats
-            for m in mods:
-                assert m[2] == "until_escape"
+            # The marker row (source="grab") triggers the condition;
+            # sync_condition_modifiers creates cond:grab rows with the mechanical effects.
+            marker = [m for m in mods if m[0] == "grab"]
+            assert len(marker) == 1
+            assert marker[0][2] == "until_escape"
+            cond_mods = [m for m in mods if m[0] == "cond:grab"]
+            assert len(cond_mods) >= 2
+            for m in cond_mods:
+                assert m[2] == "condition"
         finally:
             db.close()
 

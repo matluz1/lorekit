@@ -14,6 +14,10 @@
     "rounds": {"action": "decrement", "remove_at": 0}
   },
 
+  "start_turn": {
+    "until_next_turn": {"action": "remove"}
+  },
+
   "combat": {
     "zone_scale": 1,
     "movement_unit": "rank",
@@ -100,7 +104,8 @@
         "description": "Immobilized — speed 0 and dodge is reduced",
         "max_move": 0,
         "modifiers": [
-          {"target_stat": "bonus_dodge", "value": -2, "modifier_type": "circumstance"}
+          {"target_stat": "bonus_dodge", "value": -2, "modifier_type": "circumstance"},
+          {"target_stat": "bonus_speed", "value": -999, "modifier_type": "circumstance"}
         ]
       },
       "blind": {
@@ -413,8 +418,7 @@
       "range": "melee",
       "on_hit": {
         "apply_modifiers": [
-          {"source": "grab", "target_stat": "bonus_dodge", "value": -2, "modifier_type": "condition", "duration_type": "until_escape"},
-          {"source": "grab", "target_stat": "bonus_speed", "value": -999, "modifier_type": "condition", "duration_type": "until_escape"}
+          {"source": "grab", "target_stat": "bonus_dodge", "value": 0, "modifier_type": "condition", "duration_type": "until_escape"}
         ]
       }
     },
@@ -434,8 +438,7 @@
       "contested": true,
       "on_hit": {
         "apply_modifiers": [
-          {"source": "vulnerable", "target_stat": "bonus_parry", "halve": true, "modifier_type": "condition", "duration_type": "rounds", "duration": 1},
-          {"source": "vulnerable", "target_stat": "bonus_dodge", "halve": true, "modifier_type": "condition", "duration_type": "rounds", "duration": 1}
+          {"source": "vulnerable", "target_stat": "bonus_dodge", "value": 0, "modifier_type": "condition", "duration_type": "rounds", "duration": 1}
         ]
       }
     },
@@ -446,8 +449,7 @@
       "contested": true,
       "on_hit": {
         "apply_modifiers": [
-          {"source": "vulnerable", "target_stat": "bonus_parry", "halve": true, "modifier_type": "condition", "duration_type": "rounds", "duration": 1},
-          {"source": "vulnerable", "target_stat": "bonus_dodge", "halve": true, "modifier_type": "condition", "duration_type": "rounds", "duration": 1}
+          {"source": "vulnerable", "target_stat": "bonus_dodge", "value": 0, "modifier_type": "condition", "duration_type": "rounds", "duration": 1}
         ]
       }
     }

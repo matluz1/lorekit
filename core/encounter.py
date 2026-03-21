@@ -842,6 +842,15 @@ def advance_turn(db, session_id: int, combat_cfg: dict | None = None) -> str:
     char_id = init_order[next_turn]
     cname = _char_name(db, char_id)
 
+    # Start-of-turn processing for the character whose turn is beginning
+    if system_path:
+        from combat_engine import start_turn as _start_turn
+
+        start_result = _start_turn(db, char_id, system_path)
+        if start_result:
+            lines.append(start_result)
+            lines.append("")
+
     # Remind GM to save before yielding to the player
     char_type = db.execute("SELECT type FROM characters WHERE id = ?", (char_id,)).fetchone()
     is_pc = char_type and char_type[0] == "pc"

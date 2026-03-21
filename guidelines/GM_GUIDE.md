@@ -300,8 +300,81 @@ For non-combat NPC interaction, use `npc_interact` as before.
 
 ### Advancing turns
 
-Use `encounter_advance_turn` after each character acts. This automatically
-ticks modifier durations and removes expired modifiers.
+Use `encounter_advance_turn` after each character acts. This automatically:
+- Ticks `rounds` durations (decrement, remove at 0) at the **end** of the
+  acting character's turn.
+- Removes `until_next_turn` modifiers at the **start** of the new character's
+  turn (before they act).
+- Syncs condition flags and recomputes derived stats when modifiers change.
+
+### Conditions
+
+The engine **mechanically enforces** conditions declared in the system pack's
+`condition_rules`. You do not need to manually track action limits or defense
+changes — the engine does it.
+
+**How conditions activate:**
+- **Source match**: when a `combat_state` modifier has a `source` that matches a
+  key in `condition_rules` (e.g., `source="vulnerable"` matches the
+  `"vulnerable"` condition).
+- **Attribute threshold**: when a character attribute crosses a threshold declared
+  in `condition_thresholds` (e.g., `damage_condition >= 2` activates `dazed`).
+
+**What the engine enforces:**
+- `max_total` action limits — `dazed` (1 action) and `stunned` (0 actions)
+  are hard-blocked by the engine. A second action raises an error.
+- Condition flags (e.g., `is_vulnerable`, `is_defenseless`) written to character
+  attributes so formulas can read them (halve defenses, zero defenses, etc.).
+- `cond:*` combat modifiers auto-created for conditions that define `modifiers`
+  (e.g., `cond:hindered` applies speed penalty).
+- Combined conditions auto-expand (e.g., `staggered` → `dazed` + `hindered`).
+
+**How to trigger a condition via `combat_modifier`:**
+Use the condition name as the `source`. Example:
+```
+combat_modifier(character_id="Target", action="add",
+    source="vulnerable", target_stat="bonus_dodge", value=0,
+    modifier_type="condition", duration_type="rounds", duration=1)
+```
+The engine detects the source, sets the flag, and formulas apply the effect.
+
+**You do NOT need to manually trigger conditions from action on_hit effects.**
+Actions like `setup_deception` already declare `source="vulnerable"` in their
+`on_hit` — the engine handles the rest automatically.
+
+### Duration types
+
+| Type | Behavior |
+|------|----------|
+| `encounter` | Persists until encounter ends. Never ticked. |
+| `rounds` | Decremented at **end** of owner's turn. Removed when duration reaches 0. |
+| `until_next_turn` | Removed at **start** of owner's next turn (before they act). Use for self-imposed penalties like All-out Attack. |
+| `save_ends` | Save rolled at end of turn. Removed on success. |
+| `condition` | Tied to condition state. Managed by sync — do not set manually. |
+| `until_escape` | Manual removal only (grab, restraint). |
+| `next_attack` | Consumed after the next attack resolves. |
+
+### Trade options with costs
+
+Trade options adjust stats for a single resolution (e.g., Power Attack: -N
+attack / +N damage). Pass them in the `options` parameter of `rules_resolve`.
+
+When a trade has persistent side effects (like All-out Attack reducing defenses
+until your next turn), include `apply_modifiers` on the trade dict:
+```json
+{"trade": [
+  {"from": "close_attack", "to": "close_damage", "value": 5,
+   "apply_modifiers": [
+     {"source": "all_out_attack", "target_stat": "bonus_dodge",
+      "value": -5, "duration_type": "until_next_turn"},
+     {"source": "all_out_attack", "target_stat": "bonus_parry",
+      "value": -5, "duration_type": "until_next_turn"}
+   ]}
+]}
+```
+The engine applies these modifiers to the **attacker** regardless of hit/miss
+(they are costs, not effects). They persist until removed by `start_turn`
+processing on the attacker's next turn.
 
 ### Area effects
 

@@ -352,9 +352,14 @@ def _sync_and_recalc(db, character_id: int, pack: SystemPack, lines: list[str] |
     cc = combat_cfg.get("combined_conditions", {})
     th = combat_cfg.get("condition_thresholds")
     if cr and sync_condition_modifiers(db, character_id, cr, cc, th):
-        from rules_engine import try_rules_calc
+        from rules_engine import rules_calc as _rules_calc
 
-        recalc = try_rules_calc(db, character_id)
+        if pack.pack_dir:
+            recalc = _rules_calc(db, character_id, pack.pack_dir)
+        else:
+            from rules_engine import try_rules_calc
+
+            recalc = try_rules_calc(db, character_id)
         if recalc and lines is not None:
             lines.append(recalc)
 
@@ -446,6 +451,56 @@ def _write_attr(db, character_id: int, key: str, value: Any) -> None:
         (character_id, key, str(value)),
     )
     db.commit()
+
+
+def _apply_trade_modifiers(
+    db,
+    attacker: CharacterData,
+    options: dict,
+    lines: list[str],
+) -> None:
+    """Apply persistent modifiers declared on trade options to the attacker.
+
+    Each trade dict may include an ``apply_modifiers`` list of modifier specs
+    that are inserted into combat_state on the attacker regardless of hit/miss
+    (they represent the cost of using the option).
+    """
+    recalc = False
+    for trade in options.get("trade", []):
+        trade_mods = trade.get("apply_modifiers")
+        if not trade_mods or not isinstance(trade_mods, list):
+            continue
+        for mod in trade_mods:
+            source = mod["source"]
+            target_stat = mod["target_stat"]
+            mod_type = mod.get("modifier_type", "condition")
+            dur_type = mod.get("duration_type", "encounter")
+            bonus_type = mod.get("bonus_type")
+            duration = mod.get("duration")
+            value = mod.get("value", 0)
+
+            db.execute(
+                "INSERT INTO combat_state "
+                "(character_id, source, target_stat, modifier_type, value, "
+                "bonus_type, duration_type, duration) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?) "
+                "ON CONFLICT(character_id, source, target_stat) DO UPDATE SET "
+                "value = excluded.value, duration = excluded.duration",
+                (attacker.character_id, source, target_stat, mod_type, value, bonus_type, dur_type, duration),
+            )
+            dur_info = f"{dur_type}, {duration} rounds" if duration else dur_type
+            lines.append(f"TRADE MODIFIER: {source} → {target_stat} {value:+d} ({dur_info})")
+            recalc = True
+
+    if recalc:
+        db.commit()
+        from rules_engine import try_rules_calc
+
+        recomp = try_rules_calc(db, attacker.character_id)
+        if recomp:
+            for line in recomp.split("\n"):
+                if line.startswith("  ") and "→" in line:
+                    lines.append(f"  {line.strip()}")
 
 
 def _ensure_current_hp(db, defender: CharacterData) -> int:
@@ -595,6 +650,10 @@ def _apply_on_hit(
             if recalc:
                 lines.append(recalc)
 
+        # Sync conditions in case a newly-inserted source matches a condition_rules key
+        for cid in recalc_ids:
+            _sync_and_recalc(db, cid, pack, lines)
+
     # --- Forced movement ---
     push = on_hit.get("push")
     if push:
@@ -738,10 +797,14 @@ def _resolve_threshold(
 
     # Apply trade options
     trade_adj: dict[str, int] = {}
+    trade_mod_lines: list[str] = []
     for trade in options.get("trade", []):
         trade_val = trade["value"]
         trade_adj[trade["from"]] = trade_adj.get(trade["from"], 0) - trade_val
         trade_adj[trade["to"]] = trade_adj.get(trade["to"], 0) + trade_val
+
+    # Apply persistent trade cost modifiers to the attacker (e.g. All-out Attack penalties)
+    _apply_trade_modifiers(db, attacker, options, trade_mod_lines)
 
     # Gather resolution effects from defender's active conditions
     res_effects = _get_defender_resolution_effects(db, defender.character_id, pack)
@@ -832,6 +895,7 @@ def _resolve_threshold(
             margin = defense_value - attack_total
             lines.append(f"Missed by {margin}")
 
+    lines.extend(trade_mod_lines)
     return "\n".join(lines)
 
 
@@ -862,10 +926,14 @@ def _resolve_degree(
 
     # Apply trade options (e.g. power_attack: -N attack / +N damage)
     trade_adj: dict[str, int] = {}
+    trade_mod_lines: list[str] = []
     for trade in options.get("trade", []):
         trade_val = trade["value"]
         trade_adj[trade["from"]] = trade_adj.get(trade["from"], 0) - trade_val
         trade_adj[trade["to"]] = trade_adj.get(trade["to"], 0) + trade_val
+
+    # Apply persistent trade cost modifiers to the attacker (e.g. All-out Attack penalties)
+    _apply_trade_modifiers(db, attacker, options, trade_mod_lines)
 
     # Gather resolution effects from defender's active conditions
     res_effects = _get_defender_resolution_effects(db, defender.character_id, pack)
@@ -1046,6 +1114,7 @@ def _resolve_degree(
             margin = def_total - atk_total
             lines.append(f"{defender.name} resists by {margin}")
 
+    lines.extend(trade_mod_lines)
     return "\n".join(lines)
 
 
@@ -1169,6 +1238,59 @@ def end_turn(db, character_id: int, pack_dir: str) -> str:
     _sync_and_recalc(db, character_id, pack, lines)
 
     return "\n".join(lines)
+
+
+def start_turn(db, character_id: int, pack_dir: str) -> str:
+    """Process start-of-turn effects on a character's combat modifiers.
+
+    Reads the system pack's start_turn config and processes each active
+    modifier whose duration_type has a declared tick behavior.
+
+    Tick behaviors:
+    - remove: delete all modifiers with this duration_type
+    """
+    pack = load_system_pack(pack_dir)
+    char = load_character_data(db, character_id)
+
+    if not pack.start_turn:
+        return ""
+
+    rows = db.execute(
+        "SELECT id, source, target_stat, value, duration_type FROM combat_state WHERE character_id = ?",
+        (character_id,),
+    ).fetchall()
+
+    if not rows:
+        return ""
+
+    lines: list[str] = [f"START TURN: {char.name}"]
+    removed_any = False
+
+    for row_id, source, target_stat, value, dur_type in rows:
+        tick_cfg = pack.start_turn.get(dur_type)
+        if tick_cfg is None:
+            continue
+
+        action = tick_cfg.get("action")
+
+        if action == "remove":
+            db.execute("DELETE FROM combat_state WHERE id = ?", (row_id,))
+            lines.append(f"  EXPIRED: {source} ({target_stat} {value:+d}) — removed")
+            removed_any = True
+
+    db.commit()
+
+    if removed_any:
+        from rules_engine import rules_calc as _rules_calc
+
+        recomp = _rules_calc(db, character_id, pack_dir)
+        for line in recomp.split("\n"):
+            if line.startswith("  ") and "→" in line:
+                lines.append(f"  RECOMPUTED: {line.strip()}")
+
+        _sync_and_recalc(db, character_id, pack, lines)
+
+    return "\n".join(lines) if removed_any else ""
 
 
 # ---------------------------------------------------------------------------
