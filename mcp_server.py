@@ -725,18 +725,10 @@ def turn_save(
         results = []
         saved_entries = []  # (source, source_id, text) for entity auto-tagging
 
-        if narration:
-            r = tl_add(db, session_id, "narration", narration, summary, narrative_time)
-            results.append(r)
-            # Extract timeline ID for auto-tagging
-            try:
-                tl_id = int(r.split(": ")[1])
-                saved_entries.append(("timeline", tl_id, narration))
-            except (IndexError, ValueError):
-                pass
-            r = meta_set(db, session_id, "last_gm_message", narration)
-            results.append(r)
-
+        # Save player_choice BEFORE narration so that on resume the narration
+        # is always the last timeline entry — making it clear the choice was
+        # already resolved. If only a player_choice exists (no narration yet),
+        # it correctly appears as the last entry, signaling a pending action.
         if player_choice:
             r = tl_add(db, session_id, "player_choice", player_choice, narrative_time=narrative_time)
             results.append(r)
@@ -745,6 +737,17 @@ def turn_save(
                 saved_entries.append(("timeline", tl_id, player_choice))
             except (IndexError, ValueError):
                 pass
+
+        if narration:
+            r = tl_add(db, session_id, "narration", narration, summary, narrative_time)
+            results.append(r)
+            try:
+                tl_id = int(r.split(": ")[1])
+                saved_entries.append(("timeline", tl_id, narration))
+            except (IndexError, ValueError):
+                pass
+            r = meta_set(db, session_id, "last_gm_message", narration)
+            results.append(r)
 
         # Auto-tag entities in saved entries
         try:
