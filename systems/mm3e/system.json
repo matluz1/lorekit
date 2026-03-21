@@ -390,10 +390,10 @@
       "threshold_stat": "adv_improved_critical"
     },
     "on_failure": {
-      "1": {"increment": {"damage_penalty": 1}},
-      "2": {"increment": {"damage_penalty": 1}, "label": "dazed"},
-      "3": {"increment": {"damage_penalty": 1}, "label": "staggered"},
-      "4": {"label": "incapacitated"}
+      "1": {"increment": {"damage_penalty": 1}, "set": {"damage_condition": 1}},
+      "2": {"increment": {"damage_penalty": 1}, "set": {"damage_condition": 2}, "label": "dazed"},
+      "3": {"increment": {"damage_penalty": 1}, "set": {"damage_condition": 3}, "label": "staggered"},
+      "4": {"set": {"damage_condition": 4}, "label": "incapacitated"}
     }
   },
   "actions": {

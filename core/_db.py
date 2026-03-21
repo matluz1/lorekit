@@ -127,6 +127,7 @@ CREATE TABLE IF NOT EXISTS combat_state (
     duration       INTEGER,
     save_stat      TEXT,
     save_dc        INTEGER,
+    applied_by     INTEGER REFERENCES characters(id),
     created_at     TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
     UNIQUE(character_id, source, target_stat)
 );
@@ -267,6 +268,7 @@ ADD_COLUMN_MIGRATIONS = [
     ("character_zone", "team", "ALTER TABLE character_zone ADD COLUMN team TEXT NOT NULL DEFAULT ''"),
     ("character_abilities", "cost", "ALTER TABLE character_abilities ADD COLUMN cost REAL NOT NULL DEFAULT 0"),
     ("characters", "gender", "ALTER TABLE characters ADD COLUMN gender TEXT NOT NULL DEFAULT ''"),
+    ("combat_state", "applied_by", "ALTER TABLE combat_state ADD COLUMN applied_by INTEGER REFERENCES characters(id)"),
 ]
 
 DROP_COLUMN_MIGRATIONS = [

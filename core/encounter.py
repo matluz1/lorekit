@@ -568,14 +568,19 @@ def _get_condition_reminders(db, cid: int, session_id: int) -> list[str]:
 
     # Check active modifier sources
     sources = db.execute(
-        "SELECT DISTINCT source FROM combat_state WHERE character_id = ?",
+        "SELECT DISTINCT source, applied_by FROM combat_state WHERE character_id = ?",
         (cid,),
     ).fetchall()
-    for (source,) in sources:
+    for source, applied_by in sources:
         if source in condition_rules and source not in seen:
+            by_note = ""
+            if applied_by:
+                applier = db.execute("SELECT name FROM characters WHERE id = ?", (applied_by,)).fetchone()
+                if applier:
+                    by_note = f" (by {applier[0]})"
             desc = _desc(condition_rules[source])
             if desc:
-                reminders.append(f"⚠ {cname} is {source}: {desc}")
+                reminders.append(f"⚠ {cname} is {source}{by_note}: {desc}")
             gm_instr = _gm_instr(condition_rules[source])
             if gm_instr:
                 reminders.append(f"   → {gm_instr}")

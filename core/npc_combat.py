@@ -179,13 +179,18 @@ def build_combat_context(
     condition_section = ""
     active_labels = set()
     mod_rows = db.execute(
-        "SELECT source, target_stat, value, duration_type, duration FROM combat_state WHERE character_id = ?",
+        "SELECT source, target_stat, value, duration_type, duration, applied_by "
+        "FROM combat_state WHERE character_id = ?",
         (npc_id,),
     ).fetchall()
     if mod_rows:
         mod_lines = []
-        for source, stat, value, dur_type, duration in mod_rows:
+        for source, stat, value, dur_type, duration, applied_by in mod_rows:
             line = f"  {source}: {value:+d} to {stat}"
+            if applied_by:
+                applier_name = db.execute("SELECT name FROM characters WHERE id = ?", (applied_by,)).fetchone()
+                if applier_name:
+                    line += f" (by {applier_name[0]})"
             if dur_type == "rounds" and duration is not None:
                 line += f" [{duration}r left]"
             mod_lines.append(line)

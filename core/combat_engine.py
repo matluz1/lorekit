@@ -631,11 +631,12 @@ def _apply_on_hit(
             db.execute(
                 "INSERT INTO combat_state "
                 "(character_id, source, target_stat, modifier_type, value, "
-                "bonus_type, duration_type, duration) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?) "
+                "bonus_type, duration_type, duration, applied_by) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) "
                 "ON CONFLICT(character_id, source, target_stat) DO UPDATE SET "
-                "value = excluded.value, duration = excluded.duration",
-                (char_id, source, target_stat, mod_type, value, bonus_type, dur_type, duration),
+                "value = excluded.value, duration = excluded.duration, "
+                "applied_by = excluded.applied_by",
+                (char_id, source, target_stat, mod_type, value, bonus_type, dur_type, duration, attacker.character_id),
             )
             dur_info = f"{dur_type}, {duration} rounds" if duration else dur_type
             lines.append(f"MODIFIER: {label} → {target_stat} {value:+d} ({dur_info})")
@@ -1094,6 +1095,12 @@ def _resolve_degree(
                         new_val = current + value
                         _write_attr(db, defender.character_id, stat, new_val)
                         lines.append(f"{stat}: {current} → {new_val}")
+
+                # Apply direct attribute writes from degree table
+                set_attrs = effect.get("set")
+                if set_attrs and isinstance(set_attrs, dict):
+                    for stat, value in set_attrs.items():
+                        _write_attr(db, defender.character_id, stat, value)
 
                 label = effect.get("label")
                 if label:
