@@ -470,7 +470,12 @@ def _expand_combat_options(pack: SystemPack, options: dict) -> dict:
     trades = list(options.get("trade", []))
 
     for entry in named:
-        name = entry["name"]
+        # Normalize: bare string "power_attack" → {"name": "power_attack"}
+        if isinstance(entry, str):
+            entry = {"name": entry}
+        name = entry.get("name")
+        if not name:
+            continue
         defn = pack.combat_options.get(name)
         if defn is None:
             continue
