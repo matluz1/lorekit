@@ -35,7 +35,11 @@
         "effect": "Incapacitated"
       }
     },
-    "cumulative_penalty_note": "The -1 penalties to Toughness are cumulative. Three failed checks with 1 degree each = total -3 penalty."
+    "cumulative_penalty_note": "The -1 penalties to Toughness are cumulative. Three failed checks with 1 degree each = total -3 penalty.",
+    "escalation": {
+      "incapacitated_again": "If an incapacitated target fails another Damage resistance check, they become dying.",
+      "dying_again": "If a dying target fails another Damage resistance check, they are dead."
+    }
   },
 
   "basic_conditions": {
@@ -89,11 +93,11 @@
     },
     "transformed": {
       "name": "Transformed",
-      "effect": "Some or all traits altered by an outside agency"
+      "effect": "Some or all traits altered by an outside agency. Character point total cannot increase."
     },
     "unaware": {
       "name": "Unaware",
-      "effect": "Completely unaware of surroundings; all targets have total concealment from you"
+      "effect": "Completely unaware of surroundings; unable to make interaction or Perception checks"
     },
     "vulnerable": {
       "name": "Vulnerable",
@@ -153,7 +157,7 @@
     },
     "prone": {
       "name": "Prone",
-      "components": [],
+      "components": ["hindered"],
       "effect": "-5 circumstance penalty on close attack checks. Opponents get +5 close attack bonus. +5 bonus vs ranged attacks.",
       "note": "Lying on ground; stand up costs move action (or free with Instant Up)"
     },

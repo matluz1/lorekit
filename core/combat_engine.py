@@ -141,6 +141,225 @@ def _increment_turn_actions(db, character_id: int) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Condition modifier sync (Phases 1+2: additive modifiers + decomposition)
+# ---------------------------------------------------------------------------
+
+
+def expand_conditions(
+    active: set[str],
+    condition_rules: dict,
+    combined_conditions: dict,
+) -> tuple[set[str], list[dict]]:
+    """Expand combined conditions into base conditions.
+
+    Returns (expanded_set, extra_modifiers) where expanded_set includes both
+    the original labels and all component base conditions, and extra_modifiers
+    collects any extra_modifiers from combined condition entries in
+    condition_rules or combined_conditions.
+    """
+    expanded = set(active)
+    extra_mods: list[dict] = []
+    seen: set[str] = set()
+
+    def _expand(cond: str) -> None:
+        if cond in seen:
+            return
+        seen.add(cond)
+
+        # Check condition_rules first (inline components), then combined_conditions
+        cdef = condition_rules.get(cond, {})
+        components = cdef.get("components") or []
+        if not components:
+            cdef_combined = combined_conditions.get(cond, {})
+            components = cdef_combined.get("components") or []
+            if cdef_combined.get("extra_modifiers"):
+                extra_mods.extend(cdef_combined["extra_modifiers"])
+        else:
+            if cdef.get("extra_modifiers"):
+                extra_mods.extend(cdef["extra_modifiers"])
+
+        for comp in components:
+            expanded.add(comp)
+            _expand(comp)
+
+    for cond in list(active):
+        _expand(cond)
+
+    return expanded, extra_mods
+
+
+def sync_condition_modifiers(
+    db,
+    character_id: int,
+    condition_rules: dict,
+    combined_conditions: dict,
+    thresholds: list | None = None,
+) -> bool:
+    """Sync combat_state rows for active conditions.
+
+    1. Determine active conditions (via get_active_conditions).
+    2. Expand combined conditions into base conditions.
+    3. For each base condition with 'modifiers', ensure combat_state has
+       matching rows with source = 'cond:<name>'.
+    4. For each condition with 'flags', write/delete is_<flag> attributes.
+    5. For inactive conditions, delete 'cond:*' rows and flag attributes.
+    6. Return True if anything changed (caller should rules_calc).
+    """
+    active = get_active_conditions(db, character_id, condition_rules, thresholds)
+    expanded, extra_mods = expand_conditions(active, condition_rules, combined_conditions)
+
+    changed = False
+
+    # Collect all desired cond:* modifiers from expanded conditions
+    desired_mods: dict[tuple[str, str], dict] = {}  # (source, target_stat) → mod
+    desired_flags: set[str] = set()
+
+    for cond_name in expanded:
+        cdef = condition_rules.get(cond_name, {})
+        if not isinstance(cdef, dict):
+            continue
+
+        # Additive modifiers
+        for mod in cdef.get("modifiers", []):
+            source = f"cond:{cond_name}"
+            key = (source, mod["target_stat"])
+            desired_mods[key] = mod
+
+        # Condition flags
+        for flag in cdef.get("flags", []):
+            desired_flags.add(flag)
+
+    # Extra modifiers from combined condition entries (e.g. prone → -5 close_attack)
+    for mod in extra_mods:
+        # Use source from the combined condition that generated it
+        source = "cond:extra"
+        key = (source, mod["target_stat"])
+        desired_mods[key] = mod
+
+    # Get current cond:* rows
+    existing_rows = db.execute(
+        "SELECT id, source, target_stat FROM combat_state WHERE character_id = ? AND source LIKE 'cond:%'",
+        (character_id,),
+    ).fetchall()
+    existing_keys = {(src, stat): row_id for row_id, src, stat in existing_rows}
+
+    # Insert missing modifier rows
+    for (source, target_stat), mod in desired_mods.items():
+        if (source, target_stat) not in existing_keys:
+            db.execute(
+                "INSERT INTO combat_state "
+                "(character_id, source, target_stat, modifier_type, value, "
+                "duration_type) "
+                "VALUES (?, ?, ?, ?, ?, 'condition')",
+                (
+                    character_id,
+                    source,
+                    target_stat,
+                    mod.get("modifier_type", "condition"),
+                    mod["value"],
+                ),
+            )
+            changed = True
+
+    # Remove stale modifier rows
+    for (source, target_stat), row_id in existing_keys.items():
+        if (source, target_stat) not in desired_mods:
+            db.execute("DELETE FROM combat_state WHERE id = ?", (row_id,))
+            changed = True
+
+    # Sync condition flags as character attributes
+    existing_flags = db.execute(
+        "SELECT key FROM character_attributes WHERE character_id = ? AND category = 'condition_flags'",
+        (character_id,),
+    ).fetchall()
+    existing_flag_set = {row[0] for row in existing_flags}
+
+    for flag in desired_flags:
+        if flag not in existing_flag_set:
+            db.execute(
+                "INSERT INTO character_attributes (character_id, category, key, value) "
+                "VALUES (?, 'condition_flags', ?, '1') "
+                "ON CONFLICT(character_id, category, key) DO UPDATE SET value = '1'",
+                (character_id, flag),
+            )
+            changed = True
+
+    for flag in existing_flag_set:
+        if flag not in desired_flags:
+            db.execute(
+                "DELETE FROM character_attributes WHERE character_id = ? AND category = 'condition_flags' AND key = ?",
+                (character_id, flag),
+            )
+            changed = True
+
+    if changed:
+        db.commit()
+
+    return changed
+
+
+def _get_defender_resolution_effects(
+    db,
+    defender_id: int,
+    pack: SystemPack,
+) -> dict:
+    """Collect resolution_effects from all active conditions on the defender.
+
+    Returns a merged dict of resolution effects. Supported keys are
+    system-defined; the engine recognises:
+      - attacker_routine_check (bool): use routine_value instead of rolling
+      - hits_are_critical (bool): any hit becomes a critical
+      - attacker_bonus (dict[range_type → int]): bonus to attack by range
+      - miss_chance (float 0-1): probability of miss even on a hit
+    """
+    combat_cfg = pack.combat or {}
+    condition_rules = combat_cfg.get("condition_rules", {})
+    combined_conditions = combat_cfg.get("combined_conditions", {})
+    thresholds = combat_cfg.get("condition_thresholds")
+    if not condition_rules:
+        return {}
+
+    active = get_active_conditions(db, defender_id, condition_rules, thresholds)
+    expanded, _ = expand_conditions(active, condition_rules, combined_conditions)
+
+    merged: dict = {}
+    for cond_name in expanded:
+        cdef = condition_rules.get(cond_name, {})
+        if not isinstance(cdef, dict):
+            continue
+        effects = cdef.get("resolution_effects", {})
+        for key, val in effects.items():
+            if key == "attacker_bonus" and isinstance(val, dict):
+                # Additive per range type — stack bonuses
+                existing = merged.setdefault("attacker_bonus", {})
+                for range_type, bonus in val.items():
+                    existing[range_type] = existing.get(range_type, 0) + bonus
+            elif key == "miss_chance":
+                # Take highest miss chance
+                merged[key] = max(merged.get(key, 0.0), val)
+            else:
+                # Boolean flags — any True wins
+                if val:
+                    merged[key] = True
+
+    return merged
+
+
+def _sync_and_recalc(db, character_id: int, pack: SystemPack, lines: list[str] | None = None) -> None:
+    """Run condition modifier sync and recalc if anything changed."""
+    combat_cfg = pack.combat or {}
+    cr = combat_cfg.get("condition_rules", {})
+    cc = combat_cfg.get("combined_conditions", {})
+    th = combat_cfg.get("condition_thresholds")
+    if cr and sync_condition_modifiers(db, character_id, cr, cc, th):
+        from rules_engine import try_rules_calc
+
+        recalc = try_rules_calc(db, character_id)
+        if recalc and lines is not None:
+            lines.append(recalc)
+
+
+# ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
@@ -505,6 +724,12 @@ def _resolve_threshold(
         trade_adj[trade["from"]] = trade_adj.get(trade["from"], 0) - trade_val
         trade_adj[trade["to"]] = trade_adj.get(trade["to"], 0) + trade_val
 
+    # Gather resolution effects from defender's active conditions
+    res_effects = _get_defender_resolution_effects(db, defender.character_id, pack)
+    range_type = action_def.get("range")
+    atk_bonus_map = res_effects.get("attacker_bonus", {})
+    cond_atk_bonus = atk_bonus_map.get(range_type, 0) if range_type else 0
+
     if action_def.get("contested"):
         atk_roll, atk_total, def_total, def_roll, def_bonus, atk_natural = _contested_roll(
             pack,
@@ -516,6 +741,9 @@ def _resolve_threshold(
         if attack_stat in trade_adj:
             atk_total += trade_adj[attack_stat]
             atk_bonus += trade_adj[attack_stat]
+        if cond_atk_bonus:
+            atk_total += cond_atk_bonus
+            atk_bonus += cond_atk_bonus
 
         lines = [f"ACTION: {attacker.name} → {defender.name}"]
         lines.append(f"ATTACKER: {pack.dice}({atk_roll}) + {atk_bonus} ({attack_stat}) = {atk_total}")
@@ -529,6 +757,8 @@ def _resolve_threshold(
                 is_crit = True
             else:
                 hit = True  # miss upgraded to hit
+        if hit and res_effects.get("hits_are_critical"):
+            is_crit = True
 
         if hit:
             margin = atk_total - def_total
@@ -546,6 +776,8 @@ def _resolve_threshold(
         defense_value = _get_derived(defender, defense_stat)
         if attack_stat in trade_adj:
             attack_bonus += trade_adj[attack_stat]
+        if cond_atk_bonus:
+            attack_bonus += cond_atk_bonus
 
         roll_result = roll_expr(pack.dice)
         roll_val = roll_result["total"]
@@ -565,6 +797,8 @@ def _resolve_threshold(
                 is_crit = True
             else:
                 hit = True  # miss upgraded to hit
+        if hit and res_effects.get("hits_are_critical"):
+            is_crit = True
 
         if hit:
             margin = attack_total - defense_value
@@ -614,6 +848,16 @@ def _resolve_degree(
         trade_adj[trade["from"]] = trade_adj.get(trade["from"], 0) - trade_val
         trade_adj[trade["to"]] = trade_adj.get(trade["to"], 0) + trade_val
 
+    # Gather resolution effects from defender's active conditions
+    res_effects = _get_defender_resolution_effects(db, defender.character_id, pack)
+    use_routine = res_effects.get("attacker_routine_check", False)
+    routine_value = resolution.get("routine_value", 10)
+
+    # Determine range-based attack bonus from defender conditions
+    range_type = action_def.get("range")
+    atk_bonus_map = res_effects.get("attacker_bonus", {})
+    cond_atk_bonus = atk_bonus_map.get(range_type, 0) if range_type else 0
+
     if action_def.get("contested"):
         atk_roll, atk_total, def_total, def_roll, def_bonus, atk_natural = _contested_roll(
             pack,
@@ -626,6 +870,10 @@ def _resolve_degree(
         if attack_stat in trade_adj:
             atk_total += trade_adj[attack_stat]
             atk_bonus += trade_adj[attack_stat]
+        # Apply condition-based attack bonus
+        if cond_atk_bonus:
+            atk_total += cond_atk_bonus
+            atk_bonus += cond_atk_bonus
 
         lines = [f"ACTION: {attacker.name} → {defender.name}"]
         lines.append(f"ATTACKER: {pack.dice}({atk_roll}) + {atk_bonus} ({attack_stat}) = {atk_total}")
@@ -639,23 +887,39 @@ def _resolve_degree(
         # Apply trade to attack bonus
         if attack_stat in trade_adj:
             attack_bonus += trade_adj[attack_stat]
+        # Apply condition-based attack bonus
+        if cond_atk_bonus:
+            attack_bonus += cond_atk_bonus
 
-        roll_result = roll_expr(pack.dice)
-        roll_val = roll_result["total"]
-        natural = roll_result["natural"]
+        # Routine check: use routine_value instead of rolling (e.g. defenseless target)
+        if use_routine:
+            roll_val = routine_value
+            natural = routine_value
+            lines = [
+                f"ACTION: {attacker.name} → {defender.name}",
+                f"ATTACK: routine({routine_value}) + {attack_bonus} = {routine_value + attack_bonus} vs DC {dc_offset + defense_value}",
+            ]
+        else:
+            roll_result = roll_expr(pack.dice)
+            roll_val = roll_result["total"]
+            natural = roll_result["natural"]
+            lines = [
+                f"ACTION: {attacker.name} → {defender.name}",
+                f"ATTACK: {pack.dice}({roll_val}) + {attack_bonus} = {roll_val + attack_bonus} vs DC {dc_offset + defense_value}",
+            ]
         attack_total = roll_val + attack_bonus
         defense_dc = dc_offset + defense_value
 
-        lines = [
-            f"ACTION: {attacker.name} → {defender.name}",
-            f"ATTACK: {pack.dice}({roll_val}) + {attack_bonus} = {attack_total} vs DC {defense_dc}",
-        ]
         hit = attack_total >= defense_dc
         is_natural_crit = crit_cfg and natural is not None and natural == crit_cfg.get("natural")
 
     # Apply degree_shift from crit config (miss upgraded to hit)
     if is_natural_crit and crit_cfg.get("degree_shift", 0) > 0 and not hit:
         hit = True
+
+    # Resolution effect: hits_are_critical (e.g. defenseless)
+    if hit and res_effects.get("hits_are_critical"):
+        is_natural_crit = True  # treat as crit for effect rank bonus
 
     if hit:
         # Compute margin for on_hit effects (e.g. value_min_margin)
@@ -747,6 +1011,9 @@ def _resolve_degree(
                 label = effect.get("label")
                 if label:
                     lines.append(f"CONDITION: {label}")
+
+                # Sync condition modifiers after damage/stat changes
+                _sync_and_recalc(db, defender.character_id, pack, lines)
         else:
             # No resistance check — apply on_hit effects directly
             on_hit = action_def.get("on_hit", {})
@@ -878,6 +1145,9 @@ def end_turn(db, character_id: int, pack_dir: str) -> str:
         for line in recomp.split("\n"):
             if line.startswith("  ") and "→" in line:
                 lines.append(f"  RECOMPUTED: {line.strip()}")
+
+    # Sync condition modifiers (conditions may have changed after modifier expiry)
+    _sync_and_recalc(db, character_id, pack, lines)
 
     return "\n".join(lines)
 

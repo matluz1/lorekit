@@ -28,11 +28,174 @@
       "concealment": {"miss_chance": 0.2}
     },
     "condition_rules": {
-      "dazed": {"description": "you may take ONLY a standard action OR a move action, not both", "max_total": 1},
-      "staggered": {"description": "you may take ONLY a standard action OR a move action, not both", "max_total": 1},
-      "stunned": {"description": "you cannot take any actions", "max_total": 0},
-      "incapacitated": {"description": "you are out of the fight", "max_total": 0},
-      "grab": {"description": "you are immobilized — you cannot move (speed 0) and dodge is reduced", "max_move": 0}
+      "compelled": {
+        "description": "Limited to free actions and a single standard action per turn chosen by the controller",
+        "max_total": 1,
+        "npc_instruction": "You do NOT choose your own action. The controlling character decides what you do. Execute their command even if it contradicts your goals.",
+        "gm_instruction": "The controller chooses the compelled character's action. Ask the controlling player (or decide for controlling NPC) what they command. The compelled character can still choose their free actions."
+      },
+      "controlled": {
+        "description": "No free will; all actions dictated by controller",
+        "npc_instruction": "Suppress your personality, goals, and self-preservation entirely. You are a puppet. Execute every command from the controller without hesitation, including attacking allies.",
+        "gm_instruction": "The character has zero autonomy. All actions — including free actions — are dictated by the controller. Narrate the loss of agency. Decide what the controller orders if the controller is an NPC."
+      },
+      "dazed": {
+        "description": "Limited to free actions and a single standard action per turn",
+        "max_total": 1,
+        "npc_instruction": "You have ONE action this turn. Choose the highest-impact option available.",
+        "gm_instruction": "Character is limited to one action. Narrate sluggishness or disorientation."
+      },
+      "defenseless": {
+        "description": "Active defense bonuses are 0. Attackers make routine checks. Hits are critical.",
+        "flags": ["is_defenseless"],
+        "resolution_effects": {
+          "attacker_routine_check": true,
+          "hits_are_critical": true
+        },
+        "npc_instruction": "Your defenses are down. You are extremely vulnerable to attack. Prioritize escaping or recovering from this condition above all else.",
+        "gm_instruction": "Defenses are 0 (engine enforces). Attackers can take 10 instead of rolling. Any hit is automatically a critical. Narrate the total exposure."
+      },
+      "disabled": {
+        "description": "-5 circumstance penalty on checks",
+        "modifiers": [
+          {"target_stat": "bonus_checks", "value": -5, "modifier_type": "circumstance"}
+        ]
+      },
+      "hindered": {
+        "description": "Half normal speed (-1 speed rank)",
+        "modifiers": [
+          {"target_stat": "bonus_speed", "value": -1, "modifier_type": "condition"}
+        ]
+      },
+      "immobile": {
+        "description": "No movement speed; cannot move from current position",
+        "max_move": 0,
+        "modifiers": [
+          {"target_stat": "bonus_speed", "value": -999, "modifier_type": "condition"}
+        ]
+      },
+      "impaired": {
+        "description": "-2 circumstance penalty on checks",
+        "modifiers": [
+          {"target_stat": "bonus_checks", "value": -2, "modifier_type": "circumstance"}
+        ]
+      },
+      "stunned": {
+        "description": "Cannot take any actions, including free actions",
+        "max_total": 0,
+        "npc_instruction": "You CANNOT act at all — not even free actions. Your turn is skipped.",
+        "gm_instruction": "Character cannot take any actions. Skip their turn. Narrate the incapacity (shock, pain, disorientation)."
+      },
+      "unaware": {
+        "description": "Completely unaware of surroundings; unable to make interaction or Perception checks",
+        "flags": ["is_unaware"]
+      },
+      "vulnerable": {
+        "description": "Active defenses halved (round up final value)",
+        "flags": ["is_vulnerable"],
+        "npc_instruction": "Your defenses are halved. You are significantly easier to hit. Consider defensive actions or repositioning.",
+        "gm_instruction": "Defenses halved (engine enforces via formula). Narrate the compromised guard or exposure."
+      },
+      "grab": {
+        "description": "Immobilized — speed 0 and dodge is reduced",
+        "max_move": 0,
+        "modifiers": [
+          {"target_stat": "bonus_dodge", "value": -2, "modifier_type": "circumstance"}
+        ]
+      },
+      "blind": {
+        "description": "Cannot see. Hindered, visually unaware, vulnerable.",
+        "components": ["hindered", "vulnerable", "unaware"],
+        "npc_instruction": "You CANNOT see. Do not reference anything visual. Target enemies by sound (accept that you may miss or target the wrong location). All targets have concealment from you.",
+        "gm_instruction": "Character cannot use visual information. Adjudicate whether non-visual senses can compensate. Apply concealment to all attack targets."
+      },
+      "bound": {
+        "description": "Physically restrained and unable to move",
+        "components": ["defenseless", "immobile", "impaired"]
+      },
+      "entranced": {
+        "description": "Fascinated; takes no actions. Ends on threat or hostile action.",
+        "components": ["stunned"],
+        "npc_instruction": "You are captivated and cannot act voluntarily. Do nothing. If you are attacked or an ally shakes you, the trance breaks.",
+        "gm_instruction": "Character is frozen in fascination. An obvious threat (attack, fire, danger) breaks the trance automatically. An ally can break it with an interaction check (DC 10 + effect rank). Narrate the fixation."
+      },
+      "exhausted": {
+        "description": "Worse than fatigued — impaired and hindered",
+        "components": ["impaired", "hindered"]
+      },
+      "incapacitated": {
+        "description": "Knocked out; unable to act",
+        "max_total": 0,
+        "components": ["defenseless", "stunned", "unaware"],
+        "gm_instruction": "Character is completely out of the fight. All component conditions (defenseless, stunned, unaware) apply."
+      },
+      "staggered": {
+        "description": "Limited to one standard or move action, half speed",
+        "max_total": 1,
+        "components": ["dazed", "hindered"],
+        "npc_instruction": "You have ONE action this turn and half speed. Choose the highest-impact option available.",
+        "gm_instruction": "Character is limited to one action and half speed. Second stagger = incapacitated."
+      },
+      "prone": {
+        "description": "Lying on ground. -5 close attacks, opponents +5 close / -5 ranged against you.",
+        "components": ["hindered"],
+        "extra_modifiers": [
+          {"target_stat": "bonus_close_attack", "value": -5, "modifier_type": "circumstance"}
+        ],
+        "resolution_effects": {
+          "attacker_bonus": {"melee": 5, "ranged": -5}
+        },
+        "npc_instruction": "You are on the ground. Standing costs a move action. While prone, your close attacks take -5 and enemies in melee get +5 against you, but ranged attacks against you take -5. Decide: stand up or stay prone.",
+        "gm_instruction": "Character is on the ground. Standing up costs a move action. Apply -5 to character's close attacks and +5 to opponents' close attacks. Ranged attacks against prone target take -5."
+      },
+      "paralyzed": {
+        "description": "Physically unable to move but may still be aware",
+        "components": ["defenseless", "immobile", "stunned"],
+        "gm_instruction": "Character is physically unable to move. Mental actions only (if any). Adjudicate whether mental-only actions are available."
+      },
+      "restrained": {
+        "description": "Partially held; can still act but with difficulty",
+        "components": ["hindered", "vulnerable"]
+      },
+      "surprised": {
+        "description": "Caught off guard; lasts until first action",
+        "components": ["stunned", "vulnerable"],
+        "gm_instruction": "Character is caught off guard. Stunned and vulnerable until their first action."
+      },
+      "asleep": {
+        "description": "Essentially helpless. Wakes from damage or sudden stimulus.",
+        "components": ["defenseless", "stunned", "unaware"],
+        "gm_instruction": "Character is asleep. Wakes from damage or sudden loud stimulus. All component conditions apply."
+      },
+      "deaf": {
+        "description": "Cannot hear. Auditorily unaware.",
+        "components": ["unaware"],
+        "npc_instruction": "You CANNOT hear. Do not react to sounds, verbal commands, or spoken warnings. Communicate only through gestures or visual signals.",
+        "gm_instruction": "Character cannot hear. Verbal communication fails. Surprise attacks from behind are more likely."
+      },
+      "dying": {
+        "description": "Near death. Fortitude check DC 15 each round; failure = death.",
+        "components": ["incapacitated"],
+        "npc_instruction": "You are unconscious and dying. You cannot act or make decisions.",
+        "gm_instruction": "Character makes a Fortitude check (DC 15) at the start of each round. Success: stable. Failure: one step closer to death — three cumulative failures = dead. An ally can stabilize with Treatment check (DC 15) or Healing effect."
+      }
+    },
+    "combined_conditions": {
+      "staggered":    { "components": ["dazed", "hindered"] },
+      "exhausted":    { "components": ["impaired", "hindered"] },
+      "incapacitated": { "components": ["defenseless", "stunned", "unaware"] },
+      "bound":        { "components": ["defenseless", "immobile", "impaired"] },
+      "paralyzed":    { "components": ["defenseless", "immobile", "stunned"] },
+      "restrained":   { "components": ["hindered", "vulnerable"] },
+      "surprised":    { "components": ["stunned", "vulnerable"] },
+      "asleep":       { "components": ["defenseless", "stunned", "unaware"] },
+      "blind":        { "components": ["hindered", "vulnerable", "unaware"] },
+      "deaf":         { "components": ["unaware"] },
+      "dying":        { "components": ["incapacitated"] },
+      "entranced":    { "components": ["stunned"] },
+      "prone":        { "components": ["hindered"], "extra_modifiers": [
+        {"target_stat": "bonus_close_attack", "value": -5, "modifier_type": "circumstance"}
+      ]}
     },
     "condition_thresholds": [
       {"attribute": "damage_condition", "min": 2, "condition": "dazed"},
@@ -70,6 +233,12 @@
     "bonus_ranged_damage": 0,
 
     "bonus_initiative": 0,
+    "bonus_speed": 0,
+    "bonus_checks": 0,
+
+    "is_defenseless": 0,
+    "is_vulnerable": 0,
+    "is_unaware": 0,
 
     "ranks_acrobatics": 0,
     "ranks_athletics": 0,
@@ -140,8 +309,8 @@
     "effective_awe": "awe + effect_enhanced_awe",
     "effective_pre": "pre + effect_enhanced_pre",
 
-    "dodge": "effective_agl + ranks_dodge + bonus_dodge + effect_enhanced_dodge",
-    "parry": "effective_fgt + ranks_parry + bonus_parry + effect_enhanced_parry",
+    "dodge": "if(is_defenseless, 0, if(is_vulnerable, floor((effective_agl + ranks_dodge + bonus_dodge + effect_enhanced_dodge) / 2), effective_agl + ranks_dodge + bonus_dodge + effect_enhanced_dodge))",
+    "parry": "if(is_defenseless, 0, if(is_vulnerable, floor((effective_fgt + ranks_parry + bonus_parry + effect_enhanced_parry) / 2), effective_fgt + ranks_parry + bonus_parry + effect_enhanced_parry))",
     "fortitude": "effective_sta + ranks_fortitude + bonus_fortitude + effect_enhanced_fortitude",
     "will": "effective_awe + ranks_will + bonus_will + effect_enhanced_will",
     "toughness": "effective_sta + ranks_toughness + bonus_toughness + effect_protection + adv_defensive_roll",
@@ -209,6 +378,7 @@
     "defense_dc_offset": 10,
     "resistance_stat": "toughness",
     "dc_base": 15,
+    "routine_value": 10,
     "critical": {
       "natural": 20,
       "effect_rank_bonus": 5

@@ -563,6 +563,9 @@ def _get_condition_reminders(db, cid: int, session_id: int) -> list[str]:
     def _desc(cdef):
         return cdef.get("description") if isinstance(cdef, dict) else cdef
 
+    def _gm_instr(cdef):
+        return cdef.get("gm_instruction") if isinstance(cdef, dict) else None
+
     # Check active modifier sources
     sources = db.execute(
         "SELECT DISTINCT source FROM combat_state WHERE character_id = ?",
@@ -573,6 +576,9 @@ def _get_condition_reminders(db, cid: int, session_id: int) -> list[str]:
             desc = _desc(condition_rules[source])
             if desc:
                 reminders.append(f"⚠ {cname} is {source}: {desc}")
+            gm_instr = _gm_instr(condition_rules[source])
+            if gm_instr:
+                reminders.append(f"   → {gm_instr}")
             seen.add(source)
 
     # Check attribute-based condition thresholds
@@ -591,6 +597,9 @@ def _get_condition_reminders(db, cid: int, session_id: int) -> list[str]:
                 desc = _desc(condition_rules[cond_name])
                 if desc:
                     reminders.append(f"⚠ {cname} is {cond_name}: {desc}")
+                gm_instr = _gm_instr(condition_rules[cond_name])
+                if gm_instr:
+                    reminders.append(f"   → {gm_instr}")
                 seen.add(cond_name)
 
     return reminders

@@ -192,13 +192,19 @@ def build_combat_context(
             active_labels.add(source)
         condition_section = "Your active conditions:\n" + "\n".join(mod_lines) + "\n"
 
-        # Add mechanical descriptions for recognized conditions
+        # Add mechanical descriptions and NPC behavioral instructions
         cond_notes = []
         for label in active_labels:
             cdef = condition_rules.get(label)
-            desc = cdef.get("description") if isinstance(cdef, dict) else cdef
-            if desc:
-                cond_notes.append(f"  ⚠ {label}: {desc}")
+            if isinstance(cdef, dict):
+                desc = cdef.get("description")
+                if desc:
+                    cond_notes.append(f"  ⚠ {label}: {desc}")
+                npc_instr = cdef.get("npc_instruction")
+                if npc_instr:
+                    cond_notes.append(f"    → {npc_instr}")
+            elif cdef:
+                cond_notes.append(f"  ⚠ {label}: {cdef}")
         if cond_notes:
             condition_section += "\n".join(cond_notes) + "\n"
 
@@ -218,6 +224,10 @@ def build_combat_context(
             cdef = condition_rules[cond_name]
             desc = cdef.get("description") if isinstance(cdef, dict) else cdef
             condition_section += f"  ⚠ {cond_name}: {desc}\n"
+            if isinstance(cdef, dict):
+                npc_instr = cdef.get("npc_instruction")
+                if npc_instr:
+                    condition_section += f"    → {npc_instr}\n"
             active_labels.add(cond_name)
 
     gender_note = f" [{npc_gender}]" if npc_gender else ""

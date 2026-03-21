@@ -2192,6 +2192,7 @@ def combat_modifier(
             recalc = try_rules_calc(db, character_id)
             if recalc:
                 result += "\n" + recalc
+            result += _sync_condition_modifiers_for(db, character_id)
             return result
 
         elif action == "list":
@@ -2223,6 +2224,7 @@ def combat_modifier(
                 recalc = try_rules_calc(db, character_id)
                 if recalc:
                     result += "\n" + recalc
+                result += _sync_condition_modifiers_for(db, character_id)
             return result
 
         elif action == "clear":
@@ -2237,6 +2239,7 @@ def combat_modifier(
                 recalc = try_rules_calc(db, character_id)
                 if recalc:
                     result += "\n" + recalc
+                result += _sync_condition_modifiers_for(db, character_id)
             return result
 
         else:
@@ -2384,6 +2387,34 @@ def _resolve_system_path_for_session(db, session_id: int) -> str:
     system_name = meta_row[0]
     project_root = os.path.dirname(os.path.abspath(__file__))
     return os.path.join(project_root, "systems", system_name)
+
+
+def _sync_condition_modifiers_for(db, character_id: int) -> str:
+    """Run condition modifier sync for a character. Returns any recalc output."""
+    row = db.execute(
+        "SELECT session_id FROM characters WHERE id = ?",
+        (character_id,),
+    ).fetchone()
+    if not row:
+        return ""
+    system_path = _resolve_system_path_for_session(db, row[0])
+    if not system_path:
+        return ""
+    from combat_engine import sync_condition_modifiers
+    from system_pack import load_system_pack
+
+    try:
+        pack = load_system_pack(system_path)
+    except Exception:
+        return ""
+    combat_cfg = pack.combat or {}
+    cr = combat_cfg.get("condition_rules", {})
+    cc = combat_cfg.get("combined_conditions", {})
+    th = combat_cfg.get("condition_thresholds")
+    if cr and sync_condition_modifiers(db, character_id, cr, cc, th):
+        recalc = try_rules_calc(db, character_id)
+        return f"\n{recalc}" if recalc else ""
+    return ""
 
 
 def _load_combat_cfg(db, session_id: int) -> dict:
