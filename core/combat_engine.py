@@ -312,6 +312,26 @@ def sync_condition_modifiers(
             )
             changed = True
 
+    # Condition-based cancellation: remove modifiers with duration_types
+    # that active conditions cancel (e.g. stunned cancels sustained/concentration)
+    cancel_types: set[str] = set()
+    for cond_name in expanded:
+        cdef = condition_rules.get(cond_name, {})
+        if isinstance(cdef, dict):
+            for dt in cdef.get("cancels_duration_types", []):
+                cancel_types.add(dt)
+
+    if cancel_types:
+        placeholders = ",".join("?" for _ in cancel_types)
+        cancelled = db.execute(
+            f"DELETE FROM combat_state WHERE character_id = ? "
+            f"AND duration_type IN ({placeholders}) "
+            f"AND source NOT LIKE 'cond:%'",
+            (character_id, *cancel_types),
+        )
+        if cancelled.rowcount > 0:
+            changed = True
+
     if changed:
         db.commit()
 
@@ -1452,6 +1472,7 @@ def start_turn(db, character_id: int, pack_dir: str) -> str:
 
     Tick behaviors:
     - remove: delete all modifiers with this duration_type
+    - warn: emit a reminder listing active modifiers of this duration_type
     """
     pack = load_system_pack(pack_dir)
     char = load_character_data(db, character_id)
@@ -1469,6 +1490,10 @@ def start_turn(db, character_id: int, pack_dir: str) -> str:
 
     lines: list[str] = [f"START TURN: {char.name}"]
     removed_any = False
+    has_output = False
+
+    # Collect warnings by duration_type
+    warn_items: dict[str, list[str]] = {}
 
     for row_id, source, target_stat, value, dur_type in rows:
         tick_cfg = pack.start_turn.get(dur_type)
@@ -1481,6 +1506,15 @@ def start_turn(db, character_id: int, pack_dir: str) -> str:
             db.execute("DELETE FROM combat_state WHERE id = ?", (row_id,))
             lines.append(f"  EXPIRED: {source} ({target_stat} {value:+d}) — removed")
             removed_any = True
+            has_output = True
+
+        elif action == "warn":
+            warn_items.setdefault(dur_type, []).append(f"{source} ({target_stat} {value:+d})")
+
+    # Emit sustain warnings
+    for dur_type, items in warn_items.items():
+        lines.append(f"  SUSTAINED: {', '.join(items)} — free action required to maintain each")
+        has_output = True
 
     db.commit()
 
@@ -1494,7 +1528,7 @@ def start_turn(db, character_id: int, pack_dir: str) -> str:
 
         _sync_and_recalc(db, character_id, pack, lines)
 
-    return "\n".join(lines) if removed_any else ""
+    return "\n".join(lines) if has_output else ""
 
 
 # ---------------------------------------------------------------------------

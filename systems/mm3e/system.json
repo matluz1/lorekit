@@ -16,7 +16,8 @@
   },
 
   "start_turn": {
-    "until_next_turn": {"action": "remove"}
+    "until_next_turn": {"action": "remove"},
+    "sustained": {"action": "warn"}
   },
 
   "combat": {
@@ -88,8 +89,9 @@
       "stunned": {
         "description": "Cannot take any actions, including free actions",
         "max_total": 0,
+        "cancels_duration_types": ["sustained", "concentration"],
         "npc_instruction": "You CANNOT act at all — not even free actions. Your turn is skipped.",
-        "gm_instruction": "Character cannot take any actions. Skip their turn. Narrate the incapacity (shock, pain, disorientation)."
+        "gm_instruction": "Character cannot take any actions. Skip their turn. Sustained powers drop automatically."
       },
       "unaware": {
         "description": "Completely unaware of surroundings; unable to make interaction or Perception checks",
