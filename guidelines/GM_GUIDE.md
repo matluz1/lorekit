@@ -82,7 +82,10 @@ player's answer before moving on.
    - **Campaign**: open-ended, plan first 2-3 acts only.
 
 5. **Plan the story in acts.** Each act has a title, a goal, and a turning-point
-   event.
+   event. **The act plan is GM-only material — never show it to the player.**
+   Do not reveal act titles, goals, turning-point events, or any structural
+   detail of the plan. The player experiences the story as it unfolds, not as
+   a roadmap.
 
 6. **Create the session with `session_setup`.** Pass name, setting, system,
    language (in meta), story size, premise, acts, regions, and narrative_time.
