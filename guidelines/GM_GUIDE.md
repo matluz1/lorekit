@@ -422,11 +422,41 @@ named options, but prefer named options when available.
 NPCs can also use combat options — they see the available options in their
 combat context and can include them in their intent JSON.
 
-### Registering power-based actions
+### Ability metadata in character_build
 
-When a character has a power that grants a unique action (e.g., a Fort-based
-damage power), register it as an **action override** so it appears in the
-character's available actions:
+When building characters, abilities can carry optional fields that
+auto-register mechanical bridges. This is the **preferred** method — no
+separate `character_sheet_update` call needed.
+
+**`action`** — ability grants a new combat action (auto-creates `action_override`):
+```json
+{"name":"Banish", "category":"power", "uses":"at_will", "cost":33,
+ "desc":"Teleport Attack 11, Close Range",
+ "action":{"key":"banish","attack_stat":"close_attack","defense_stat":"dodge","range":"melee"}}
+```
+
+**`uses_action`** — ability maps to an existing system action (shown as hint to NPCs):
+```json
+{"name":"Daze", "category":"advantage", "uses":"at_will",
+ "desc":"Deception vs Insight — target is Dazed",
+ "uses_action":"setup_deception"}
+```
+
+**`movement`** — ability modifies movement behavior (e.g. teleport skips adjacency):
+```json
+{"name":"Blink", "category":"power", "uses":"at_will", "cost":11,
+ "desc":"Teleport 11, must see destination",
+ "movement":{"mode":"teleport","skip_adjacency":true}}
+```
+
+NPCs see `action` overrides in their "Available actions" list, `uses_action`
+as a hint on their ability (`[uses action: setup_deception]`), and movement
+modes as a note (`Movement modes: teleport (skip adjacency)`).
+
+### Manual action overrides
+
+For cases not covered by `character_build`, you can still register overrides
+manually via `character_sheet_update`:
 
 ```
 character_sheet_update(character_id="Momo", attrs=[
@@ -437,6 +467,31 @@ character_sheet_update(character_id="Momo", attrs=[
 
 The engine checks character overrides before system pack actions. NPCs see
 overrides in their available actions list and can choose them by name.
+
+### Free actions
+
+Pass `{"free_action": true}` in the options of `rules_resolve` to bypass
+the action counter. Use this for advantage-granted free actions (e.g.
+Takedown follow-up attacks) that shouldn't count toward the dazed/staggered
+action limit.
+
+### On-hit follow-up actions
+
+System packs can declare `on_hit_actions` on action definitions. These
+auto-resolve follow-up actions when the primary action hits:
+
+```json
+"close_attack": {
+  ...,
+  "on_hit_actions": [
+    {"action": "grab", "requires_ability": "Fast Grab", "free": true}
+  ]
+}
+```
+
+The engine checks if the attacker has the required ability before resolving
+the follow-up. If `"free": true`, the follow-up doesn't count toward the
+action limit. No GM intervention needed — it happens automatically.
 
 ### Area effects
 

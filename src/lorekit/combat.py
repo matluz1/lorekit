@@ -1794,8 +1794,11 @@ def resolve_action(
     attacker = load_character_data(db, attacker_id)
     defender = load_character_data(db, defender_id)
 
+    is_free = (options or {}).get("free_action", False)
+
     # Condition-based action limit (dazed, stunned, incapacitated, etc.)
-    _check_condition_action_limit(db, attacker_id, pack)
+    if not is_free:
+        _check_condition_action_limit(db, attacker_id, pack)
 
     # Auto-checkpoint before resolution so turn_revert can undo combat actions
     from lorekit.support.checkpoint import create_checkpoint
@@ -1928,8 +1931,33 @@ def resolve_action(
         if recalc:
             result += f"\n{recalc}"
 
+    # Process on_hit_actions (follow-up free actions on hit, e.g. Fast Grab)
+    on_hit_actions = action_def.get("on_hit_actions")
+    if on_hit_actions and "HIT" in result:
+        for oha in on_hit_actions:
+            req_ability = oha.get("requires_ability")
+            if req_ability:
+                has_ability = any(a["name"] == req_ability for a in attacker.abilities)
+                if not has_ability:
+                    continue
+            follow_action = oha["action"]
+            follow_opts = {"free_action": True} if oha.get("free") else {}
+            try:
+                follow_result = resolve_action(
+                    db,
+                    attacker_id,
+                    defender_id,
+                    follow_action,
+                    pack_dir,
+                    options=follow_opts,
+                )
+                result += f"\nFREE ACTION ({follow_action}):\n{follow_result}"
+            except LoreKitError as e:
+                result += f"\nFREE ACTION FAILED ({follow_action}): {e}"
+
     # Track action count for condition-based limits (dazed max_total: 1, etc.)
-    _increment_turn_actions(db, attacker_id)
+    if not is_free:
+        _increment_turn_actions(db, attacker_id)
 
     # Prepend warnings if applicable
     if warnings:

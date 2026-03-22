@@ -474,7 +474,10 @@
       "defense_stat": "parry",
       "range": "melee",
       "damage_rank_stat": "close_damage",
-      "cap": {"sum": ["attack_stat", "close_damage"], "max_stat": "pl_limit"}
+      "cap": {"sum": ["attack_stat", "close_damage"], "max_stat": "pl_limit"},
+      "on_hit_actions": [
+        {"action": "grab", "requires_ability": "Fast Grab", "free": true}
+      ]
     },
     "ranged_attack": {
       "attack_stat": "ranged_attack",
