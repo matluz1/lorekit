@@ -567,7 +567,8 @@
       "select": "multiple",
       "cost_per_rank": 1,
       "effects": true,
-      "ability_category": "advantage"
+      "ability_category": "advantage",
+      "stat_prefix": "adv_"
     },
     "power": {
       "effect_source": "effects.json",
@@ -575,6 +576,7 @@
       "ability_category": "power",
       "pipeline": true,
       "feeds": true,
+      "stat_prefix": "effect_",
       "modifier_groups": [
         {"source_key": "extras", "ability_key": "extras", "pipeline_var": "sum_extras", "default_cost": 1},
         {"source_key": "flaws", "ability_key": "flaws", "pipeline_var": "sum_flaws", "default_cost": -1},

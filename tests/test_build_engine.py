@@ -778,6 +778,143 @@ class TestMM3eAbilityCosts:
         assert result.ability_costs == {}
 
 
+class TestMM3eStatPrefix:
+    """Test stat_prefix — cost tallying from stats set directly."""
+
+    def test_advantage_stat_costed(self):
+        """adv_close_attack=10 as a stat costs 10 PP via stat_prefix."""
+        char_attrs = {"stat": {"adv_close_attack": "10", "power_level": "10"}}
+        result = process_build(MM3E_SYSTEM, char_attrs, [], level=1)
+        assert result.costs["advantage"] == 10
+        assert result.ability_costs["advantage"]["adv_close_attack"] == 10
+
+    def test_multiple_advantage_stats(self):
+        """Multiple adv_* stats are all tallied."""
+        char_attrs = {
+            "stat": {
+                "adv_close_attack": "10",
+                "adv_improved_initiative": "5",
+                "adv_evasion": "2",
+                "power_level": "10",
+            }
+        }
+        result = process_build(MM3E_SYSTEM, char_attrs, [], level=1)
+        assert result.costs["advantage"] == 17
+
+    def test_stat_and_ability_no_double_count(self):
+        """If both adv_close_attack stat AND Close Attack ability exist, don't double-count."""
+        char_attrs = {"stat": {"adv_close_attack": "5", "power_level": "10"}}
+        abilities = [
+            {"name": "Close Attack", "description": "", "category": "advantage", "uses": ""},
+            {"name": "Close Attack", "description": "", "category": "advantage", "uses": ""},
+            {"name": "Close Attack", "description": "", "category": "advantage", "uses": ""},
+            {"name": "Close Attack", "description": "", "category": "advantage", "uses": ""},
+            {"name": "Close Attack", "description": "", "category": "advantage", "uses": ""},
+        ]
+        result = process_build(MM3E_SYSTEM, char_attrs, abilities, level=1)
+        # Ability sets adv_close_attack=5 via effects → covered by ability cost (5 PP)
+        # Stat adv_close_attack=5 should be skipped (key in covered_stats)
+        assert result.costs["advantage"] == 5
+
+    def test_effect_stat_costed(self):
+        """effect_protection=10 as a stat costs 10 PP via stat_prefix on power rule."""
+        char_attrs = {"stat": {"effect_protection": "10", "power_level": "10"}}
+        result = process_build(MM3E_SYSTEM, char_attrs, [], level=1)
+        assert result.costs["powers"] == 10
+
+    def test_effect_stat_with_structured_power_no_double(self):
+        """Structured power feeding effect_protection + stat should not double-count."""
+        char_attrs = {"stat": {"power_level": "10"}}
+        abilities = [
+            _power_ability("Armor", {"effect": "protection", "ranks": 10, "feeds": {"effect_protection": 10}}),
+        ]
+        result = process_build(MM3E_SYSTEM, char_attrs, abilities, level=1)
+        # Pipeline costs 10 PP. No stat to double-count since effect_protection
+        # comes from feeds (covered).
+        assert result.costs["powers"] == 10
+
+    def test_effect_stat_with_explicit_cost_no_double(self):
+        """Power with explicit cost + matching stat should not double-count."""
+        char_attrs = {"stat": {"effect_protection": "10", "power_level": "10"}}
+        abilities = [
+            {"name": "Protection 10", "description": "Protection effect.", "category": "power", "uses": "", "cost": 10},
+        ]
+        result = process_build(MM3E_SYSTEM, char_attrs, abilities, level=1)
+        # Explicit cost 10 PP covers effect_protection.
+        assert result.costs["powers"] == 10
+
+    def test_mixed_stat_and_ability_advantages(self):
+        """Stat advantages + ability advantages sum correctly."""
+        char_attrs = {
+            "stat": {
+                "adv_close_attack": "10",
+                "power_level": "10",
+            }
+        }
+        abilities = [
+            {"name": "Fearless", "description": "", "category": "advantage", "uses": ""},
+            {"name": "Power Attack", "description": "", "category": "advantage", "uses": ""},
+        ]
+        result = process_build(MM3E_SYSTEM, char_attrs, abilities, level=1)
+        # adv_close_attack=10 (stat) + Fearless=1 + Power Attack=1 = 12
+        assert result.costs["advantage"] == 12
+
+    def test_zero_stat_ignored(self):
+        """Stats with value 0 are not counted."""
+        char_attrs = {"stat": {"adv_close_attack": "0", "power_level": "10"}}
+        result = process_build(MM3E_SYSTEM, char_attrs, [], level=1)
+        assert "advantage" not in result.costs
+
+    def test_budget_includes_stat_costs(self):
+        """budget_spent sums all categories including stat-derived costs."""
+        char_attrs = {
+            "stat": {
+                "str": "5",  # 10 PP
+                "adv_close_attack": "5",  # 5 PP
+                "effect_protection": "5",  # 5 PP
+                "power_level": "10",
+            }
+        }
+        result = process_build(MM3E_SYSTEM, char_attrs, [], level=1)
+        assert result.budget_total == 150
+        assert result.budget_spent == 20  # 10 + 5 + 5
+
+
+class TestMM3eArrayOfDesc:
+    """Test array_of detection from description JSON."""
+
+    def test_array_of_in_desc_json(self):
+        """array_of in description JSON is detected by _process_arrays."""
+        char_attrs = {"stat": {"power_level": "10"}}
+        abilities = [
+            _power_ability("Blink", {"effect": "movement", "ranks": 11}),
+            {
+                "name": "Banish",
+                "description": json.dumps({"array_of": "Blink", "desc": "Teleporte ofensivo"}),
+                "category": "power",
+                "uses": "",
+            },
+        ]
+        result = process_build(MM3E_SYSTEM, char_attrs, abilities, level=1)
+        assert result.costs.get("arrays") == 1
+        assert result.ability_costs["arrays"]["Banish"] == 1
+
+    def test_array_of_with_dynamic(self):
+        """Dynamic alternate in description JSON costs 2 PP."""
+        char_attrs = {"stat": {"power_level": "10"}}
+        abilities = [
+            _power_ability("Blink", {"effect": "movement", "ranks": 11}),
+            {
+                "name": "Banish",
+                "description": json.dumps({"array_of": "Blink", "dynamic": True}),
+                "category": "power",
+                "uses": "",
+            },
+        ]
+        result = process_build(MM3E_SYSTEM, char_attrs, abilities, level=1)
+        assert result.costs.get("arrays") == 2
+
+
 class TestEquipmentPf2e:
     """PF2e equipment tests (split from TestEquipment for clarity)."""
 

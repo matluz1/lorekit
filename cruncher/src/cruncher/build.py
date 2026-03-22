@@ -134,7 +134,7 @@ def process_build(
         if "keys" in rules:
             _process_ranked_purchase(rules, char_attrs, category, result)
         elif rules.get("effect_source") or rules.get("pipeline"):
-            _process_pipeline(rules, pack_dir, char_abilities, system_data, result)
+            _process_pipeline(rules, pack_dir, char_abilities, system_data, result, char_attrs=char_attrs)
         elif "source" in rules:
             _process_source(
                 pack_dir,
@@ -227,7 +227,12 @@ def _process_ranked_purchase(
 
 
 def _process_pipeline(
-    rules: dict, pack_dir: str, char_abilities: list[dict[str, str]], system_data: dict, result: BuildResult
+    rules: dict,
+    pack_dir: str,
+    char_abilities: list[dict[str, str]],
+    system_data: dict,
+    result: BuildResult,
+    char_attrs: dict[str, dict[str, str]] | None = None,
 ) -> None:
     """Process structured abilities: compute costs via pipeline, apply feeds."""
     effect_source = rules.get("effect_source", "")
@@ -249,6 +254,10 @@ def _process_pipeline(
 
     pipeline = system_data.get("pipeline", [])
     modifier_groups = rules.get("modifier_groups", [])
+    stat_prefix = rules.get("stat_prefix", "")
+
+    # Track stat keys covered by abilities to avoid double-counting with stat_prefix
+    covered_stat_keys: set[str] = set()
 
     total_cost = 0
     for ability in char_abilities:
@@ -265,6 +274,11 @@ def _process_pipeline(
                 total_cost += explicit_cost
                 powers_map = result.ability_costs.setdefault("powers", {})
                 powers_map[ability_name] = powers_map.get(ability_name, 0) + explicit_cost
+
+                # Mark inferred stat key as covered to prevent double-counting
+                if stat_prefix:
+                    base = re.sub(r"_?\d+$", "", ability_name.lower().replace(" ", "_").replace("-", "_"))
+                    covered_stat_keys.add(f"{stat_prefix}{base}")
             continue
 
         # Skip alternates — their cost is handled by _process_arrays
@@ -283,11 +297,12 @@ def _process_pipeline(
             powers_map = result.ability_costs.setdefault("powers", {})
             powers_map[ability_name] = powers_map.get(ability_name, 0) + cost
 
-        # Apply feeds (stat contributions)
+        # Apply feeds (stat contributions) and track covered keys
         if rules.get("feeds"):
             feeds = power_data.get("feeds", {})
             for stat, value in feeds.items():
                 result.attributes[stat] = result.attributes.get(stat, 0) + value
+                covered_stat_keys.add(stat)
 
         # Auto-apply per_rank_effects from effect definition
         effect_key = power_data.get("effect", "")
@@ -303,6 +318,21 @@ def _process_pipeline(
                 bonus = spec * ranks
             if bonus:
                 result.attributes[stat] = result.attributes.get(stat, 0) + bonus
+                covered_stat_keys.add(stat)
+
+    # Tally costs from stats set directly (not via abilities)
+    if stat_prefix and effects_data and char_attrs:
+        stat_cost = _tally_stat_costs(
+            effects_data,
+            char_attrs,
+            stat_prefix,
+            1,
+            covered_stat_keys,
+            "powers",
+            result,
+            cost_field="cost_per_rank",
+        )
+        total_cost += stat_cost
 
     if total_cost > 0:
         result.costs["powers"] = total_cost
@@ -317,7 +347,7 @@ def _parse_structured_ability(ability: dict[str, str]) -> dict | None:
         data = json.loads(desc)
     except json.JSONDecodeError:
         return None
-    return data if (data.get("effect") or "cost" in data) else None
+    return data if (data.get("effect") or "cost" in data or data.get("array_of")) else None
 
 
 def _compute_pipeline_cost(
@@ -440,6 +470,58 @@ def _process_sub_budgets(rules: dict, result: BuildResult) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Stat-prefix cost tallying
+# ---------------------------------------------------------------------------
+
+
+def _tally_stat_costs(
+    source_data: dict,
+    char_attrs: dict[str, dict[str, str]],
+    prefix: str,
+    default_cost: float,
+    covered_keys: set[str],
+    category: str,
+    result: BuildResult,
+    cost_field: str = "cost",
+) -> float:
+    """Tally costs from character stats whose keys start with *prefix*.
+
+    For each stat key matching ``{prefix}{base_key}``, look up the base_key in
+    *source_data* to determine the per-rank cost (via *cost_field*), then
+    multiply by the stat value.  Stats whose key is in *covered_keys* (already
+    costed through abilities) are skipped to avoid double-counting.
+
+    """
+    total = 0.0
+    for cat_attrs in char_attrs.values():
+        for key, val_str in cat_attrs.items():
+            if not key.startswith(prefix):
+                continue
+            if key in covered_keys:
+                continue
+
+            val = _parse_number(val_str)
+            if val == 0:
+                continue
+
+            base_key = key[len(prefix) :]
+            item_def = source_data.get(base_key, {})
+            if isinstance(item_def, dict):
+                item_cost = item_def.get(cost_field, default_cost)
+            else:
+                item_cost = default_cost
+
+            cost = val * item_cost
+            total += cost
+
+            # Track in ability_costs for budget reporting
+            cat_costs = result.ability_costs.setdefault(category, {})
+            cat_costs[key] = cat_costs.get(key, 0) + cost
+
+    return total
+
+
+# ---------------------------------------------------------------------------
 # Source-based operations (writes, effects, progressions)
 # ---------------------------------------------------------------------------
 
@@ -530,9 +612,20 @@ def _process_source(
     elif select_mode == "multiple":
         if has_effects:
             ability_category = rules.get("ability_category", "")
-            effect_cost = _apply_effects(source_data, char_abilities, result, cost_per_rank, category=ability_category)
+            effect_cost, covered_stats = _apply_effects(
+                source_data, char_abilities, result, cost_per_rank, category=ability_category
+            )
             if effect_cost > 0:
                 result.costs[category] = result.costs.get(category, 0) + effect_cost
+
+            # Tally costs from stats set directly (not via abilities)
+            stat_prefix = rules.get("stat_prefix", "")
+            if stat_prefix and cost_per_rank > 0:
+                stat_cost = _tally_stat_costs(
+                    source_data, char_attrs, stat_prefix, cost_per_rank, covered_stats, category, result
+                )
+                if stat_cost > 0:
+                    result.costs[category] = result.costs.get(category, 0) + stat_cost
 
     elif select_mode == "equipped":
         items = char_items or []
@@ -583,13 +676,15 @@ def _apply_effects(
     result: BuildResult,
     cost_per_rank: float = 0,
     category: str = "",
-) -> float:
+) -> tuple[float, set[str]]:
     """Aggregate effects from character abilities into result attributes.
 
     Effect keys from the data file are used as-is — the engine does not
     interpret or prefix them.
 
-    Returns total cost if cost_per_rank > 0.
+    Returns (total_cost, covered_stat_keys) where covered_stat_keys is the
+    set of stat keys written as bonuses (used by stat_prefix to avoid
+    double-counting).
     """
     bonuses: dict[str, float] = {}
     total_cost = 0.0
@@ -680,4 +775,4 @@ def _apply_effects(
     for stat, total in bonuses.items():
         result.attributes[stat] = result.attributes.get(stat, 0) + total
 
-    return total_cost
+    return total_cost, set(bonuses.keys())

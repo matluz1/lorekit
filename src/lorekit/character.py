@@ -383,6 +383,18 @@ def cmd_set_ability(db, args):
     return set_ability(db, int(cid), p["name"], p["desc"], p["category"], p["uses"])
 
 
+def remove_ability(db, character_id: int, name: str) -> str:
+    """Remove an ability by name from a character."""
+    cur = db.execute(
+        "DELETE FROM character_abilities WHERE character_id = ? AND name = ?",
+        (character_id, name),
+    )
+    db.commit()
+    if cur.rowcount:
+        return f"ABILITY_REMOVED: {name}"
+    return f"ABILITY_NOT_FOUND: {name}"
+
+
 def get_abilities(db, character_id: int) -> str:
     cur = db.execute(
         "SELECT id, name, category, uses, description FROM character_abilities "

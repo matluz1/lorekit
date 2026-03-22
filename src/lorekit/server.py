@@ -796,6 +796,24 @@ def turn_save(
         db.close()
 
 
+def _embed_array_of(ab: dict) -> str:
+    """Embed array_of/dynamic into description JSON when present."""
+    import json as _json
+
+    desc = ab.get("desc", "")
+    array_of = ab.get("array_of")
+    if not array_of:
+        return desc
+    try:
+        desc_data = _json.loads(desc) if desc.strip().startswith("{") else {"desc": desc}
+    except (ValueError, AttributeError):
+        desc_data = {"desc": desc}
+    desc_data["array_of"] = array_of
+    if ab.get("dynamic"):
+        desc_data["dynamic"] = True
+    return _json.dumps(desc_data)
+
+
 @mcp.tool()
 def character_build(
     session: int,
@@ -816,6 +834,8 @@ def character_build(
     attrs: JSON array of {"category":"stat","key":"str","value":"16"} objects.
     items: JSON array of {"name":"Sword","desc":"...","qty":1,"equipped":1} objects.
     abilities: JSON array of {"name":"Flame Burst","desc":"...","category":"spell","uses":"1/day"} objects.
+      Optional fields: "cost" (point cost), "array_of" (name of primary power for alternates),
+      "dynamic" (true for dynamic alternates). array_of/dynamic are embedded into the description JSON.
     core: JSON object of NPC core identity fields (only for type=npc).
       Keys: self_concept, current_goals, emotional_state, relationships, behavioral_patterns.
     aliases: JSON array of alternative names for this character (e.g. ["Bob", "the bartender"]).
@@ -852,9 +872,8 @@ def character_build(
 
         ability_count = 0
         for ab in abilities_list:
-            set_ability(
-                db, char_id, ab["name"], ab["desc"], ab["category"], ab.get("uses", "at_will"), ab.get("cost", 0)
-            )
+            desc = _embed_array_of(ab)
+            set_ability(db, char_id, ab["name"], desc, ab["category"], ab.get("uses", "at_will"), ab.get("cost", 0))
             ability_count += 1
 
         core_set = False
@@ -1197,16 +1216,20 @@ def character_sheet_update(
     items: str = "[]",
     abilities: str = "[]",
     remove_items: str = "[]",
+    remove_abilities: str = "[]",
     core: str = "{}",
     aliases: str = "[]",
 ) -> str:
-    """Batch update a character: level/status/region/gender + attributes + items + abilities + remove items.
+    """Batch update a character: level/status/region/gender + attributes + items + abilities + remove items/abilities.
 
     gender: character gender (e.g. "female", "male", etc). Used in prompts for correct pronoun usage.
     attrs: JSON array of {"category":"stat","key":"hp","value":"25"} objects.
     items: JSON array of {"name":"Potion","desc":"...","qty":2,"equipped":0} objects.
     abilities: JSON array of {"name":"Shield","desc":"...","category":"spell","uses":"1/day"} objects.
+      Optional fields: "cost" (point cost), "array_of" (name of primary power for alternates),
+      "dynamic" (true for dynamic alternates). array_of/dynamic are embedded into the description JSON.
     remove_items: JSON array of item names (strings) or item IDs (integers).
+    remove_abilities: JSON array of ability names (strings) to remove.
     core: JSON object of NPC core identity fields (only for NPCs).
       Keys: self_concept, current_goals, emotional_state, relationships, behavioral_patterns.
     aliases: JSON array of alternative names for this character (e.g. ["Bob", "the bartender"]).
@@ -1214,7 +1237,7 @@ def character_sheet_update(
     """
     import json as _json
 
-    from lorekit.character import remove_item, set_ability, set_attr, set_item
+    from lorekit.character import remove_ability, remove_item, set_ability, set_attr, set_item
     from lorekit.character import update as char_update
     from lorekit.db import LoreKitError, require_db
 
@@ -1223,6 +1246,7 @@ def character_sheet_update(
         items_list = _json.loads(items)
         abilities_list = _json.loads(abilities)
         remove_list = _json.loads(remove_items)
+        remove_abilities_list = _json.loads(remove_abilities)
         core_dict = _json.loads(core)
         aliases_list = _json.loads(aliases)
     except _json.JSONDecodeError as e:
@@ -1260,6 +1284,14 @@ def character_sheet_update(
         if remove_count:
             results.append(f"ITEMS_REMOVED: {remove_count}")
 
+        remove_ab_count = 0
+        for ab_name in remove_abilities_list:
+            if isinstance(ab_name, str) and ab_name.strip():
+                remove_ability(db, character_id, ab_name.strip())
+                remove_ab_count += 1
+        if remove_ab_count:
+            results.append(f"ABILITIES_REMOVED: {remove_ab_count}")
+
         item_count = 0
         for it in items_list:
             set_item(db, character_id, it["name"], it.get("desc", ""), it.get("qty", 1), it.get("equipped", 0))
@@ -1269,8 +1301,9 @@ def character_sheet_update(
 
         ability_count = 0
         for ab in abilities_list:
+            desc = _embed_array_of(ab)
             set_ability(
-                db, character_id, ab["name"], ab["desc"], ab["category"], ab.get("uses", "at_will"), ab.get("cost", 0)
+                db, character_id, ab["name"], desc, ab["category"], ab.get("uses", "at_will"), ab.get("cost", 0)
             )
             ability_count += 1
         if ability_count:
