@@ -210,6 +210,16 @@ first. Once they confirm, save as soon as possible (on the next narration).
 
 Use `session_meta_set` for world-level information (house rules, world lore).
 
+**World lore convention:** meta keys prefixed with `lore_` are automatically
+injected into every NPC's prompt as common world knowledge. Use these
+**only** for facts that every character in the setting would know from
+everyday life. Keep entries concise — there is a ~800 token cap.
+
+**Do not** put specialized or secret knowledge in `lore_` keys. Technical
+details, plot secrets, or information that requires expertise should be
+added as **individual NPC memories** via `npc_memory_add` for characters
+who would know them. This keeps NPC knowledge isolated and accurate.
+
 ### Journal
 
 The journal is an optional notepad for GM-only notes -- player preferences,

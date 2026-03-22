@@ -164,7 +164,12 @@ def session_update(session_id: int, status: str) -> str:
 
 @mcp.tool()
 def session_meta_set(session_id: int, key: str, value: str) -> str:
-    """Set a session metadata key-value pair. Overwrites if key exists."""
+    """Set a session metadata key-value pair. Overwrites if key exists.
+
+    Keys with the "lore_" prefix are automatically included in NPC prompts as world
+    knowledge (capped at ~800 tokens). Use these for fundamental facts about the setting
+    that all characters would know (e.g. lore_biology, lore_society, lore_magic).
+    """
     from lorekit.narrative.session import meta_set
 
     return _run_with_db(meta_set, session_id, key, value)
@@ -1019,6 +1024,9 @@ def session_setup(
     """Set up an entire session in one call: session + metadata + story + acts + regions + narrative time.
 
     meta: JSON object of key-value pairs, e.g. {"language":"English","house_rules":"..."}.
+      Keys prefixed with "lore_" are automatically included in NPC prompts as world knowledge
+      (capped at ~800 tokens). Use these for fundamental setting facts that all characters
+      would know (e.g. lore_biology, lore_society, lore_magic). Other keys remain GM-only.
     acts: JSON array of {"title":"...","desc":"...","goal":"...","event":"..."} objects.
     regions: JSON array of {"name":"...","desc":"...","children":[{"name":"...","desc":"..."}]} objects.
     narrative_time: initial in-game time as ISO 8601, e.g. "1347-03-15T14:00".
@@ -1461,12 +1469,24 @@ def _build_npc_prompt(db, npc_id: int, session_id: int, gm_message: str = "") ->
             line += f" [{cr['duration']}r left]"
         combat_lines.append(line)
 
-    # Get narrative time
-    meta_row = db.execute(
-        "SELECT value FROM session_meta WHERE session_id = ? AND key = 'narrative_time'",
+    # Get narrative time and lore_ meta keys
+    meta_rows = db.execute(
+        "SELECT key, value FROM session_meta WHERE session_id = ?",
         (session_id,),
-    ).fetchone()
-    narrative_time = meta_row["value"] if meta_row else ""
+    ).fetchall()
+    narrative_time = ""
+    lore_lines = []
+    _LORE_TOKEN_CAP = 800
+    _lore_tokens = 0
+    for mr in meta_rows:
+        if mr["key"] == "narrative_time":
+            narrative_time = mr["value"]
+        elif mr["key"].startswith("lore_"):
+            entry_tokens = len(mr["value"]) // 4
+            if _lore_tokens + entry_tokens <= _LORE_TOKEN_CAP:
+                label = mr["key"][5:].replace("_", " ").capitalize()
+                lore_lines.append(f"  {label}: {mr['value']}")
+                _lore_tokens += entry_tokens
 
     # Pre-fetch: core identity + memories + timeline
     prefetch_result = assemble_context(
@@ -1483,9 +1503,13 @@ def _build_npc_prompt(db, npc_id: int, session_id: int, gm_message: str = "") ->
 
     gender_line = f"\nGender: {npc_gender}" if npc_gender else ""
 
+    lore_section = ""
+    if lore_lines:
+        lore_section = "\n\nWorld lore:\n" + chr(10).join(lore_lines)
+
     system_prompt = f"""You are {npc_name}, {personality}.{gender_line}
 
-World setting: {setting}
+World setting: {setting}{lore_section}
 Rule system: {system_type}
 
 Your attributes:
