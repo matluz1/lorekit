@@ -1024,9 +1024,7 @@ def _resolve_threshold(
             if miss_roll < miss_chance:
                 hit = False
                 is_crit = False
-                lines.append(
-                    f"MISS CHANCE: {miss_chance * 100:.0f}% — roll {miss_roll * 100:.1f}% — concealment causes miss!"
-                )
+                lines.append(f"MISS CHANCE: {miss_chance * 100:.0f}% — roll {miss_roll * 100:.1f}% — miss!")
 
         if hit:
             margin = atk_total - def_total
@@ -1075,9 +1073,7 @@ def _resolve_threshold(
             if miss_roll < miss_chance:
                 hit = False
                 is_crit = False
-                lines.append(
-                    f"MISS CHANCE: {miss_chance * 100:.0f}% — roll {miss_roll * 100:.1f}% — concealment causes miss!"
-                )
+                lines.append(f"MISS CHANCE: {miss_chance * 100:.0f}% — roll {miss_roll * 100:.1f}% — miss!")
 
         if hit:
             margin = attack_total - defense_value
@@ -1214,9 +1210,7 @@ def _resolve_degree(
         if miss_roll < miss_chance:
             hit = False
             is_natural_crit = False
-            lines.append(
-                f"MISS CHANCE: {miss_chance * 100:.0f}% — roll {miss_roll * 100:.1f}% — concealment causes miss!"
-            )
+            lines.append(f"MISS CHANCE: {miss_chance * 100:.0f}% — roll {miss_roll * 100:.1f}% — miss!")
 
     if hit:
         # Compute margin for on_hit effects (e.g. value_min_margin)
@@ -1232,7 +1226,7 @@ def _resolve_degree(
 
         if damage_rank_stat or effect_rank_direct is not None:
             # Per-action resistance stat override (e.g. Fortitude for mental powers)
-            resistance_stat = action_def.get("resistance_stat", resolution.get("resistance_stat", "toughness"))
+            resistance_stat = action_def.get("resistance_stat", resolution.get("resistance_stat"))
             dc_base = resolution.get("dc_base", 15)
 
             if effect_rank_direct is not None:
