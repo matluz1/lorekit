@@ -4,12 +4,16 @@
   "affliction": {
     "name": "Affliction",
     "type": "attack",
+    "resolution": "attack_vs_defense",
     "action": "standard",
     "range": "close",
     "duration": "instant",
     "cost_per_rank": 1,
+    "attack_stat": "close_attack",
+    "defense_stat": "fortitude",
     "resistance": "fortitude_or_will",
     "dc_formula": "rank + 10",
+    "outcome_table": "affliction_degrees",
     "degrees": {
       "1": ["dazed", "entranced", "fatigued", "hindered", "impaired", "vulnerable"],
       "2": ["compelled", "defenseless", "disabled", "exhausted", "immobile", "prone", "stunned"],
@@ -21,6 +25,7 @@
   "burrowing": {
     "name": "Burrowing",
     "type": "movement",
+    "resolution": "gm_assisted",
     "action": "free",
     "range": "personal",
     "duration": "sustained",
@@ -31,6 +36,7 @@
   "communication": {
     "name": "Communication",
     "type": "sensory",
+    "resolution": "gm_assisted",
     "action": "free",
     "range": "rank",
     "duration": "sustained",
@@ -41,6 +47,7 @@
   "comprehend": {
     "name": "Comprehend",
     "type": "sensory",
+    "resolution": "gm_assisted",
     "action": "none",
     "range": "personal",
     "duration": "permanent",
@@ -51,6 +58,7 @@
   "concealment": {
     "name": "Concealment",
     "type": "sensory",
+    "resolution": "gm_assisted",
     "action": "free",
     "range": "personal",
     "duration": "sustained",
@@ -61,6 +69,7 @@
   "create": {
     "name": "Create",
     "type": "control",
+    "resolution": "gm_assisted",
     "action": "standard",
     "range": "ranged",
     "duration": "sustained",
@@ -71,27 +80,35 @@
   "damage": {
     "name": "Damage",
     "type": "attack",
+    "resolution": "attack_vs_defense",
     "action": "standard",
     "range": "close",
     "duration": "instant",
     "cost_per_rank": 1,
+    "attack_stat": "close_attack",
+    "defense_stat": "parry",
     "resistance": "toughness",
     "dc_formula": "rank + 15",
+    "outcome_table": "damage_degrees",
     "note": "Base close damage. Add Increased Range extra for ranged (= sample Blast at 2/rank)"
   },
   "deflect": {
     "name": "Deflect",
     "type": "defense",
+    "resolution": "opposed_check",
     "action": "standard",
     "range": "ranged",
     "duration": "instant",
     "cost_per_rank": 1,
+    "defender_stat": "effect_rank",
+    "attacker_stat": "attack_roll",
     "resistance": null,
     "note": "Deflect incoming attacks. Check: d20 + effect rank vs attack roll"
   },
   "elongation": {
     "name": "Elongation",
     "type": "general",
+    "resolution": "gm_assisted",
     "action": "free",
     "range": "personal",
     "duration": "sustained",
@@ -102,6 +119,7 @@
   "enhanced_trait": {
     "name": "Enhanced Trait",
     "type": "general",
+    "resolution": "stat_mod",
     "action": "free",
     "range": "personal",
     "duration": "sustained",
@@ -112,6 +130,7 @@
   "environment": {
     "name": "Environment",
     "type": "control",
+    "resolution": "gm_assisted",
     "action": "standard",
     "range": "rank",
     "duration": "sustained",
@@ -122,6 +141,7 @@
   "extra_limbs": {
     "name": "Extra Limbs",
     "type": "general",
+    "resolution": "gm_assisted",
     "action": "none",
     "range": "personal",
     "duration": "permanent",
@@ -132,6 +152,7 @@
   "feature": {
     "name": "Feature",
     "type": "general",
+    "resolution": "gm_assisted",
     "action": "none",
     "range": "personal",
     "duration": "permanent",
@@ -142,6 +163,7 @@
   "flight": {
     "name": "Flight",
     "type": "movement",
+    "resolution": "gm_assisted",
     "action": "free",
     "range": "personal",
     "duration": "sustained",
@@ -152,27 +174,29 @@
   "growth": {
     "name": "Growth",
     "type": "general",
+    "resolution": "stat_mod",
     "action": "free",
     "range": "personal",
     "duration": "sustained",
     "cost_per_rank": 2,
     "resistance": null,
     "per_rank_effects": {
-      "str": "+1 per rank",
-      "sta": "+1 per rank",
-      "intimidation": "+1 per 2 ranks",
-      "stealth": "-1 per rank",
-      "dodge": "-1 per 2 ranks",
-      "parry": "-1 per 2 ranks",
-      "speed": "+1 per 8 ranks",
-      "size_category": "+1 per 4 ranks",
-      "mass_rank": "+1 per rank"
+      "str": {"value": 1, "per": 1},
+      "sta": {"value": 1, "per": 1},
+      "intimidation": {"value": 1, "per": 2},
+      "stealth": {"value": -1, "per": 1},
+      "dodge": {"value": -1, "per": 2},
+      "parry": {"value": -1, "per": 2},
+      "speed": {"value": 1, "per": 8},
+      "size_category": {"value": 1, "per": 4},
+      "mass_rank": {"value": 1, "per": 1}
     },
     "note": "Increase size. Each rank: +1 Str, +1 Sta, +1 mass rank. Each 2 ranks: +1 Intimidation, -1 Dodge, -1 Parry. Each 4 ranks: +1 size category. Each 8 ranks: +1 Speed."
   },
   "healing": {
     "name": "Healing",
     "type": "general",
+    "resolution": "gm_assisted",
     "action": "standard",
     "range": "close",
     "duration": "instant",
@@ -183,16 +207,23 @@
   "illusion": {
     "name": "Illusion",
     "type": "control",
+    "resolution": "gm_assisted",
     "action": "standard",
     "range": "perception",
     "duration": "sustained",
     "cost_per_rank": "1_to_5",
     "resistance": "awareness",
+    "gm_hints": {
+      "check_type": "Insight vs effect DC",
+      "dc_formula": "rank + 10",
+      "key_rules": ["Interaction reveals illusion", "Each sense type costs 1/rank"]
+    },
     "note": "Create false sensory impressions. Cost depends on senses affected: 1/rank per sense type, up to 5/rank for all senses"
   },
   "immortality": {
     "name": "Immortality",
     "type": "defense",
+    "resolution": "gm_assisted",
     "action": "none",
     "range": "personal",
     "duration": "permanent",
@@ -203,6 +234,7 @@
   "immunity": {
     "name": "Immunity",
     "type": "defense",
+    "resolution": "passive",
     "action": "none",
     "range": "personal",
     "duration": "permanent",
@@ -222,6 +254,7 @@
   "insubstantial": {
     "name": "Insubstantial",
     "type": "general",
+    "resolution": "gm_assisted",
     "action": "free",
     "range": "personal",
     "duration": "sustained",
@@ -232,6 +265,7 @@
   "leaping": {
     "name": "Leaping",
     "type": "movement",
+    "resolution": "gm_assisted",
     "action": "free",
     "range": "personal",
     "duration": "instant",
@@ -242,6 +276,7 @@
   "luck_control": {
     "name": "Luck Control",
     "type": "control",
+    "resolution": "gm_assisted",
     "action": "reaction",
     "range": "perception",
     "duration": "instant",
@@ -252,10 +287,13 @@
   "mind_reading": {
     "name": "Mind Reading",
     "type": "sensory",
+    "resolution": "opposed_check",
     "action": "standard",
     "range": "perception",
     "duration": "sustained",
     "cost_per_rank": 2,
+    "defender_stat": "effect_rank",
+    "attacker_stat": "will",
     "resistance": "will",
     "dc_formula": "rank + 10",
     "note": "Read surface thoughts. Opposed by Will. Additional degrees reveal deeper thoughts."
@@ -263,6 +301,7 @@
   "morph": {
     "name": "Morph",
     "type": "general",
+    "resolution": "gm_assisted",
     "action": "free",
     "range": "personal",
     "duration": "sustained",
@@ -273,16 +312,20 @@
   "move_object": {
     "name": "Move Object",
     "type": "control",
+    "resolution": "opposed_check",
     "action": "standard",
     "range": "ranged",
     "duration": "sustained",
     "cost_per_rank": 2,
+    "defender_stat": "effect_rank",
+    "attacker_stat": "strength",
     "resistance": "strength",
     "note": "Telekinesis. Effective Strength = rank for lifting/moving. Can use as ranged attack for grab/throw."
   },
   "movement": {
     "name": "Movement",
     "type": "movement",
+    "resolution": "gm_assisted",
     "action": "free",
     "range": "personal",
     "duration": "sustained",
@@ -293,17 +336,22 @@
   "nullify": {
     "name": "Nullify",
     "type": "attack",
+    "resolution": "attack_vs_defense",
     "action": "standard",
     "range": "ranged",
     "duration": "instant",
     "cost_per_rank": 1,
+    "attack_stat": "ranged_attack",
+    "defense_stat": "dodge",
     "resistance": "rank_or_will",
     "dc_formula": "rank + 10",
+    "outcome_table": "nullify_degrees",
     "note": "Counter/suppress powers. Opposed check: d20 + Nullify rank vs d20 + target effect rank (or Will)"
   },
   "protection": {
     "name": "Protection",
     "type": "defense",
+    "resolution": "stat_mod",
     "action": "none",
     "range": "personal",
     "duration": "permanent",
@@ -315,6 +363,7 @@
   "quickness": {
     "name": "Quickness",
     "type": "general",
+    "resolution": "gm_assisted",
     "action": "free",
     "range": "personal",
     "duration": "sustained",
@@ -325,6 +374,7 @@
   "regeneration": {
     "name": "Regeneration",
     "type": "defense",
+    "resolution": "passive",
     "action": "none",
     "range": "personal",
     "duration": "permanent",
@@ -335,6 +385,7 @@
   "remote_sensing": {
     "name": "Remote Sensing",
     "type": "sensory",
+    "resolution": "gm_assisted",
     "action": "free",
     "range": "rank",
     "duration": "sustained",
@@ -345,6 +396,7 @@
   "senses": {
     "name": "Senses",
     "type": "sensory",
+    "resolution": "gm_assisted",
     "action": "none",
     "range": "personal",
     "duration": "permanent",
@@ -355,25 +407,27 @@
   "shrinking": {
     "name": "Shrinking",
     "type": "general",
+    "resolution": "stat_mod",
     "action": "free",
     "range": "personal",
     "duration": "sustained",
     "cost_per_rank": 2,
     "resistance": null,
     "per_rank_effects": {
-      "stealth": "+1 per rank",
-      "intimidation": "-1 per 2 ranks",
-      "dodge": "+1 per 2 ranks",
-      "parry": "+1 per 2 ranks",
-      "strength": "-1 per 4 ranks",
-      "speed": "-1 per 8 ranks",
-      "size_category": "-1 per 4 ranks"
+      "stealth": {"value": 1, "per": 1},
+      "intimidation": {"value": -1, "per": 2},
+      "dodge": {"value": 1, "per": 2},
+      "parry": {"value": 1, "per": 2},
+      "strength": {"value": -1, "per": 4},
+      "speed": {"value": -1, "per": 8},
+      "size_category": {"value": -1, "per": 4}
     },
     "note": "Decrease size. Per rank: +1 Stealth. Per 2 ranks: -1 Intimidation, +1 Dodge, +1 Parry. Per 4 ranks: -1 Str, -1 size category. Per 8 ranks: -1 Speed."
   },
   "speed": {
     "name": "Speed",
     "type": "movement",
+    "resolution": "gm_assisted",
     "action": "free",
     "range": "personal",
     "duration": "sustained",
@@ -384,6 +438,7 @@
   "summon": {
     "name": "Summon",
     "type": "control",
+    "resolution": "gm_assisted",
     "action": "standard",
     "range": "close",
     "duration": "sustained",
@@ -394,6 +449,7 @@
   "swimming": {
     "name": "Swimming",
     "type": "movement",
+    "resolution": "gm_assisted",
     "action": "free",
     "range": "personal",
     "duration": "sustained",
@@ -404,6 +460,7 @@
   "teleport": {
     "name": "Teleport",
     "type": "movement",
+    "resolution": "gm_assisted",
     "action": "move",
     "range": "rank",
     "duration": "instant",
@@ -414,6 +471,7 @@
   "transform": {
     "name": "Transform",
     "type": "control",
+    "resolution": "gm_assisted",
     "action": "standard",
     "range": "close",
     "duration": "sustained",
@@ -424,6 +482,7 @@
   "variable": {
     "name": "Variable",
     "type": "general",
+    "resolution": "gm_assisted",
     "action": "standard",
     "range": "personal",
     "duration": "sustained",
@@ -434,12 +493,16 @@
   "weaken": {
     "name": "Weaken",
     "type": "attack",
+    "resolution": "attack_vs_defense",
     "action": "standard",
     "range": "close",
     "duration": "instant",
     "cost_per_rank": 1,
+    "attack_stat": "close_attack",
+    "defense_stat": "fortitude",
     "resistance": "fortitude_or_will",
     "dc_formula": "rank + 10",
+    "outcome_table": "weaken_degrees",
     "note": "Reduce target trait. Degrees of failure determine ranks lost. Target chooses which trait is affected unless specified."
   }
 }

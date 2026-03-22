@@ -400,6 +400,35 @@
     }
   },
 
+  "outcome_tables": {
+    "damage_degrees": {
+      "success": "no_effect",
+      "1": {"increment": {"damage_penalty": 1}, "set_max": {"damage_condition": 1}},
+      "2": {"increment": {"damage_penalty": 1}, "set_max": {"damage_condition": 2}, "label": "dazed"},
+      "3": {"increment": {"damage_penalty": 1}, "set_max": {"damage_condition": 3}, "label": "staggered"},
+      "4": {"set_max": {"damage_condition": 4}, "label": "incapacitated"}
+    },
+    "affliction_degrees": {
+      "success": "no_effect",
+      "1": {"label": "{degree_1_condition}"},
+      "2": {"label": "{degree_2_condition}"},
+      "3": {"label": "{degree_3_condition}"}
+    },
+    "weaken_degrees": {
+      "success": "no_effect",
+      "1": {"weaken_ranks": 1},
+      "2": {"weaken_ranks": 2},
+      "3": {"weaken_ranks": 3},
+      "4": {"weaken_ranks": 4}
+    },
+    "nullify_degrees": {
+      "success": "no_effect",
+      "1": {"label": "effect suppressed for 1 round"},
+      "2": {"label": "effect nullified"},
+      "3": {"label": "effect nullified, all of descriptor nullified"}
+    }
+  },
+
   "combat_options": {
     "power_attack": {
       "description": "Trade attack for damage (-N attack, +N damage)",

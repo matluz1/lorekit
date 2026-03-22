@@ -288,6 +288,21 @@ def _process_pipeline(
             for stat, value in feeds.items():
                 result.attributes[stat] = result.attributes.get(stat, 0) + value
 
+        # Auto-apply per_rank_effects from effect definition
+        effect_key = power_data.get("effect", "")
+        ranks = int(power_data.get("ranks", 1))
+        effect_def = effects_data.get(effect_key, {})
+        per_rank = effect_def.get("per_rank_effects", {})
+        for stat, spec in per_rank.items():
+            if isinstance(spec, dict):
+                per = spec.get("per", 1)
+                value = spec.get("value", 0)
+                bonus = (ranks // per) * value if per > 0 else 0
+            else:
+                bonus = spec * ranks
+            if bonus:
+                result.attributes[stat] = result.attributes.get(stat, 0) + bonus
+
     if total_cost > 0:
         result.costs["powers"] = total_cost
 
@@ -620,13 +635,14 @@ def _apply_effects(
                     bonuses[stat] = value
 
         effects = item_def.get("effects", {})
-        if not effects and not param_effects:
+        per_rank = item_def.get("per_rank_effects", {})
+        if not effects and not per_rank and not param_effects:
             # No effects to apply (includes combat options with empty effects)
             if cost_per_rank > 0:
                 item_cost = item_def.get("cost", cost_per_rank)
                 total_cost += item_cost * rank
             continue
-        elif not effects:
+        elif not effects and not per_rank:
             # Has parameterized effects but no regular effects — still count cost
             if cost_per_rank > 0:
                 item_cost = item_def.get("cost", cost_per_rank)
@@ -636,9 +652,18 @@ def _apply_effects(
         if item_def.get("ranked", False):
             effects = item_def.get("effects_per_rank", effects)
 
+        # Merge per_rank_effects into effects (per_rank_effects take precedence)
+        if per_rank:
+            effects = {**effects, **per_rank}
+
         for stat, effect_val in effects.items():
             if isinstance(effect_val, dict):
                 bonus = effect_val.get("value", 0)
+                per = effect_val.get("per")
+                if per and per > 0:
+                    # per_rank_effects: floor(rank / per) * value
+                    bonuses[stat] = bonuses.get(stat, 0) + (rank // per) * bonus
+                    continue
             else:
                 bonus = effect_val
             bonuses[stat] = bonuses.get(stat, 0) + bonus * rank
