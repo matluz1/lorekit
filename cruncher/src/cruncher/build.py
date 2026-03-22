@@ -248,6 +248,7 @@ def _process_pipeline(
             modifiers_data = _load_json(path)
 
     pipeline = system_data.get("pipeline", [])
+    modifier_groups = rules.get("modifier_groups", [])
 
     total_cost = 0
     for ability in char_abilities:
@@ -271,7 +272,7 @@ def _process_pipeline(
             continue
 
         if power_data.get("effect"):
-            cost = _compute_pipeline_cost(power_data, effects_data, modifiers_data, pipeline)
+            cost = _compute_pipeline_cost(power_data, effects_data, modifiers_data, pipeline, modifier_groups)
         elif "cost" in power_data:
             cost = power_data["cost"]
         else:
@@ -319,8 +320,23 @@ def _parse_structured_ability(ability: dict[str, str]) -> dict | None:
     return data if (data.get("effect") or "cost" in data) else None
 
 
-def _compute_pipeline_cost(data: dict, effects_data: dict, modifiers_data: dict, pipeline: list[dict]) -> float:
-    """Compute cost using pipeline stages."""
+def _compute_pipeline_cost(
+    data: dict,
+    effects_data: dict,
+    modifiers_data: dict,
+    pipeline: list[dict],
+    modifier_groups: list[dict],
+) -> float:
+    """Compute cost using pipeline stages.
+
+    modifier_groups defines how to collect modifier costs from the modifiers
+    data file into pipeline variables.  Each entry maps:
+      source_key   – top-level key in the modifiers file (e.g. "extras")
+      ability_key  – key in the ability's structured data (e.g. "extras")
+      pipeline_var – variable name exposed to pipeline formulas (e.g. "sum_extras")
+      default_cost – fallback cost when a modifier lacks an explicit cost
+    Multiple groups may contribute to the same pipeline_var (values are summed).
+    """
     if not pipeline:
         return 0
 
@@ -333,36 +349,26 @@ def _compute_pipeline_cost(data: dict, effects_data: dict, modifiers_data: dict,
     base_cost = effect_def.get("cost_per_rank", 1)
     ranks = data.get("ranks", 0)
 
-    # Sum per-rank modifiers
-    extras_data = modifiers_data.get("extras", {})
-    flaws_data = modifiers_data.get("flaws", {})
+    # Collect modifier costs into pipeline variables
+    pipeline_vars: dict[str, float] = {}
+    for group in modifier_groups:
+        source_key = group.get("source_key", "")
+        ability_key = group.get("ability_key", "")
+        pipeline_var = group.get("pipeline_var", "")
+        default_cost = group.get("default_cost", 0)
 
-    sum_extras = sum(extras_data.get(k, {}).get("cost", 1) for k in data.get("extras", []))
-    sum_flaws = sum(flaws_data.get(k, {}).get("cost", -1) for k in data.get("flaws", []))
+        source = modifiers_data.get(source_key, {})
+        total = sum(source.get(k, {}).get("cost", default_cost) for k in data.get(ability_key, []))
+        pipeline_vars[pipeline_var] = pipeline_vars.get(pipeline_var, 0) + total
 
-    # Sum flat modifiers
-    sum_flat = sum(extras_data.get(k, {}).get("cost", 1) for k in data.get("flat_extras", [])) + sum(
-        flaws_data.get(k, {}).get("cost", -1) for k in data.get("flat_flaws", [])
-    )
-
-    return _run_pipeline(
-        pipeline,
-        base_cost,
-        ranks,
-        sum_extras,
-        sum_flaws,
-        sum_flat,
-        data.get("removable", 0),
-    )
+    return _run_pipeline(pipeline, base_cost, ranks, pipeline_vars, data.get("removable", 0))
 
 
 def _run_pipeline(
     pipeline: list[dict],
     base_cost: float,
     ranks: int,
-    sum_extras: float,
-    sum_flaws: float,
-    sum_flat: float,
+    pipeline_vars: dict[str, float],
     removable: int,
 ) -> float:
     """Run pipeline stages using the formula evaluator."""
@@ -371,10 +377,8 @@ def _run_pipeline(
     ctx_values = {
         "base_cost_per_rank": base_cost,
         "ranks": ranks,
-        "sum_extras": sum_extras,
-        "sum_flaws": sum_flaws,
-        "sum_flat": sum_flat,
         "removable": removable,
+        **pipeline_vars,
     }
 
     prev = 0

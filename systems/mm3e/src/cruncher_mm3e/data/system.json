@@ -574,7 +574,13 @@
       "modifier_source": "modifiers.json",
       "ability_category": "power",
       "pipeline": true,
-      "feeds": true
+      "feeds": true,
+      "modifier_groups": [
+        {"source_key": "extras", "ability_key": "extras", "pipeline_var": "sum_extras", "default_cost": 1},
+        {"source_key": "flaws", "ability_key": "flaws", "pipeline_var": "sum_flaws", "default_cost": -1},
+        {"source_key": "extras", "ability_key": "flat_extras", "pipeline_var": "sum_flat", "default_cost": 1},
+        {"source_key": "flaws", "ability_key": "flat_flaws", "pipeline_var": "sum_flat", "default_cost": -1}
+      ]
     },
     "array": {
       "alternate_cost": 1,
