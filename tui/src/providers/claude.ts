@@ -8,16 +8,19 @@ import type {
 } from "../provider.js";
 import { gmLog } from "../logger.js";
 
-/** Buffers for accumulating streaming deltas before logging. */
-let argsBuffer = "";
-let thinkBuffer = "";
+// ── Module-level regex constants (compiled once) ────────────
+const NPC_TOOLS_RE = /^\[NPC_TOOLS:([^:]+):([^\]]+)\]/;
+
+// ── Streaming log buffers ───────────────────────────────────
+// Array-based to avoid O(n²) string concatenation.
+let argsParts: string[] = [];
+let thinkParts: string[] = [];
 let currentBlockType = "";
 
-/** Log interesting events from a raw JSONL line to gm.log. */
-function logStreamLine(line: string) {
-  let msg: any;
-  try { msg = JSON.parse(line); } catch { return; }
+const MAX_LINE_BUFFER = 2000;
 
+/** Log interesting events from a raw JSONL line to gm.log. */
+function logStreamLine(msg: any) {
   if (msg.type === "stream_event") {
     const evt = msg.event;
     if (!evt) return;
@@ -26,30 +29,29 @@ function logStreamLine(line: string) {
       const block = evt.content_block;
       currentBlockType = block?.type ?? "";
       if (block?.type === "tool_use") {
-        argsBuffer = "";
+        argsParts = [];
         gmLog("TOOL", block.name ?? "");
       } else if (block?.type === "thinking") {
-        thinkBuffer = "";
+        thinkParts = [];
       }
     } else if (evt.type === "content_block_delta") {
       const d = evt.delta;
       if (d?.type === "thinking_delta" && d.thinking) {
-        thinkBuffer += d.thinking;
+        thinkParts.push(d.thinking);
       } else if (d?.type === "input_json_delta" && d.partial_json) {
-        argsBuffer += d.partial_json;
+        argsParts.push(d.partial_json);
       }
     } else if (evt.type === "content_block_stop") {
-      if (thinkBuffer) {
-        gmLog("THINK", thinkBuffer);
-        thinkBuffer = "";
+      if (thinkParts.length > 0) {
+        gmLog("THINK", thinkParts.join(""));
+        thinkParts = [];
       }
-      if (argsBuffer) {
-        gmLog("ARGS", argsBuffer);
-        argsBuffer = "";
+      if (argsParts.length > 0) {
+        gmLog("ARGS", argsParts.join(""));
+        argsParts = [];
       }
     }
   } else if (msg.type === "user") {
-    // User message sent to the model (tool results or player input)
     const content = msg.message?.content;
     if (typeof content === "string") {
       gmLog("USER", content);
@@ -73,49 +75,50 @@ function logStreamLine(line: string) {
 }
 
 /**
- * Parse a single JSONL line from Claude's stream-json output into a StreamChunk.
- * Returns null for lines we want to skip (pings, internal events).
+ * Parse a single JSONL line from Claude's stream-json output.
+ * Returns the parsed JSON and an optional StreamChunk.
+ * Parses JSON exactly once per line.
  */
-function parseChunk(line: string): StreamChunk | null {
-  if (!line.trim()) return null;
+function parseLine(line: string): { msg: any; chunk: StreamChunk | null } {
+  const trimmed = line.trim();
+  if (!trimmed) return { msg: null, chunk: null };
 
   let msg: any;
   try {
-    msg = JSON.parse(line);
+    msg = JSON.parse(trimmed);
   } catch {
-    return null;
+    return { msg: null, chunk: null };
   }
 
   // Streaming delta events
   if (msg.type === "stream_event") {
     const evt = msg.event;
-    if (!evt) return null;
+    if (!evt) return { msg, chunk: null };
 
     if (evt.type === "content_block_start" && evt.content_block?.type === "tool_use") {
-      return { type: "tool_use", content: evt.content_block.name ?? "" };
+      return { msg, chunk: { type: "tool_use", content: evt.content_block.name ?? "" } };
     }
 
     if (evt.type === "content_block_delta") {
       if (evt.delta?.type === "text_delta" && evt.delta.text) {
-        return { type: "text", content: evt.delta.text };
+        return { msg, chunk: { type: "text", content: evt.delta.text } };
       }
     }
-    // Skip pings, message_start, content_block_stop, message_delta, message_stop, input_json_delta
-    return null;
+    return { msg, chunk: null };
   }
 
   // Final result
   if (msg.type === "result") {
     if (msg.is_error) {
       const errors = msg.errors?.join("; ") ?? msg.result ?? "Unknown error";
-      return { type: "error", content: errors };
+      return { msg, chunk: { type: "error", content: errors } };
     }
-    return null; // Success result — text already streamed
+    return { msg, chunk: null };
   }
 
   // System init message
   if (msg.type === "system" && msg.subtype === "init") {
-    return { type: "system", content: msg.session_id ?? "" };
+    return { msg, chunk: { type: "system", content: msg.session_id ?? "" } };
   }
 
   // Tool result messages (verbose mode complete messages)
@@ -128,25 +131,22 @@ function parseChunk(line: string): StreamChunk | null {
           : Array.isArray(block.content)
             ? block.content.map((c: any) => c.text ?? "").join("")
             : JSON.stringify(block.content);
-        // Unwrap MCP JSON envelope: {"result": "..."}
         try {
           const parsed = JSON.parse(text);
           if (typeof parsed.result === "string") text = parsed.result;
         } catch {}
-        // Surface errors — either explicit is_error or content starting with ERROR:
         if (block.is_error || text.startsWith("ERROR:")) {
-          return { type: "tool_result", content: text };
+          return { msg, chunk: { type: "tool_result", content: text } };
         }
-        // Detect NPC tool usage markers from npc_interact results
-        const npcMatch = text.match(/^\[NPC_TOOLS:([^:]+):([^\]]+)\]/);
+        const npcMatch = text.match(NPC_TOOLS_RE);
         if (npcMatch) {
-          return { type: "npc_tool_use", content: `${npcMatch[1]}:${npcMatch[2]}` };
+          return { msg, chunk: { type: "npc_tool_use", content: `${npcMatch[1]}:${npcMatch[2]}` } };
         }
       }
     }
   }
 
-  return null;
+  return { msg, chunk: null };
 }
 
 export class ClaudeProvider implements Provider {
@@ -200,7 +200,7 @@ class PersistentProcess implements AgentProcess {
   private lineBuffer: string[] = [];
   private waitingResolve: ((line: string | null) => void) | null = null;
   private done = false;
-  private stderrChunks: string[] = [];
+  private stderrText = "";
 
   constructor(private opts: ProviderOptions) {
     const args = [
@@ -218,13 +218,12 @@ class PersistentProcess implements AgentProcess {
       cwd: opts.cwd || undefined,
     });
 
-    // Capture stderr for error reporting
     this.proc.stderr?.on("data", (data: Buffer) => {
       const text = data.toString().trim();
-      if (text) this.stderrChunks.push(text);
+      if (text) this.stderrText += text + "\n";
     });
 
-    this.proc.on("error", (err) => {
+    this.proc.on("error", (err: any) => {
       this.done = true;
       this.opts.onError?.(`Failed to spawn claude: ${err.message}`);
       if (this.waitingResolve) {
@@ -239,7 +238,7 @@ class PersistentProcess implements AgentProcess {
 
     this.rl = createInterface({ input: this.proc.stdout! });
 
-    this.rl.on("line", (line) => {
+    this.rl.on("line", (line: any) => {
       // Capture session_id from init message
       const trimmed = line.trim();
       if (trimmed && !this._sessionId) {
@@ -256,7 +255,10 @@ class PersistentProcess implements AgentProcess {
         this.waitingResolve = null;
         resolve(line);
       } else {
-        this.lineBuffer.push(line);
+        // Cap buffer to prevent unbounded growth
+        if (this.lineBuffer.length < MAX_LINE_BUFFER) {
+          this.lineBuffer.push(line);
+        }
       }
     });
 
@@ -268,11 +270,10 @@ class PersistentProcess implements AgentProcess {
       }
     });
 
-    this.proc.on("exit", (code) => {
+    this.proc.on("exit", (code: any) => {
       this.done = true;
       if (code && code !== 0) {
-        const stderr = this.stderrChunks.join("\n");
-        this.opts.onError?.(`claude exited with code ${code}${stderr ? ": " + stderr : ""}`);
+        this.opts.onError?.(`claude exited with code ${code}${this.stderrText ? ": " + this.stderrText : ""}`);
       }
       if (this.waitingResolve) {
         this.waitingResolve(null);
@@ -307,25 +308,21 @@ class PersistentProcess implements AgentProcess {
     this.proc.stdin!.write(userMsg + "\n");
     gmLog("USER", message);
 
-    // Read lines until we get a "result" message (end of turn)
     while (true) {
       const line = await this.nextLine();
       if (line === null) break;
-      logStreamLine(line);
 
-      const chunk = parseChunk(line);
+      const { msg, chunk } = parseLine(line);
+      if (msg) logStreamLine(msg);
       if (chunk) yield chunk;
-
-      // Check if this is a result message (end of this turn)
-      try {
-        const msg = JSON.parse(line);
-        if (msg.type === "result") break;
-      } catch {}
+      if (msg?.type === "result") break;
     }
   }
 
   stop() {
     this.proc.stdin?.end();
+    this.rl.close();
+    this.proc.removeAllListeners();
     this.proc.kill();
   }
 }
@@ -362,11 +359,10 @@ class EphemeralProcess implements AgentProcess {
       cwd: this.opts.cwd || undefined,
     });
 
-    // Capture stderr for error reporting
-    const stderrChunks: string[] = [];
+    const stderrParts: string[] = [];
     this.proc.stderr?.on("data", (data: Buffer) => {
       const text = data.toString().trim();
-      if (text) stderrChunks.push(text);
+      if (text) stderrParts.push(text);
     });
 
     this.proc.stdout?.on("error", () => {});
@@ -375,26 +371,20 @@ class EphemeralProcess implements AgentProcess {
 
     let gotResult = false;
     for await (const line of rl) {
-      const chunk = parseChunk(line);
+      const { msg, chunk } = parseLine(line);
       if (chunk) yield chunk;
-
-      // Break on result message (end of turn) — don't wait for process close
-      try {
-        const msg = JSON.parse(line);
-        if (msg.type === "result") {
-          gotResult = true;
-          break;
-        }
-      } catch {}
+      if (msg?.type === "result") {
+        gotResult = true;
+        break;
+      }
     }
 
-    // If we never got a result, report stderr
-    if (!gotResult && stderrChunks.length > 0) {
-      yield { type: "error", content: stderrChunks.join("\n") };
+    if (!gotResult && stderrParts.length > 0) {
+      yield { type: "error", content: stderrParts.join("\n") };
     }
 
-    // Clean up
     rl.close();
+    this.proc.removeAllListeners();
     this.proc.kill();
   }
 

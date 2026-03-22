@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { Box, Text, useApp } from "ink";
-import { Chat, type ChatMessage } from "./Chat.js";
+import { Chat, chatMsg, type ChatMessage } from "./Chat.js";
 import { Input } from "./Input.js";
 import type { AgentProcess, Provider, ProviderOptions } from "../provider.js";
 import { clearLog } from "../logger.js";
@@ -42,7 +42,7 @@ export function App({
 
   // ── GM state ──────────────────────────────────────────
   const [messages, setMessages] = useState<ChatMessage[]>([
-    { role: "system", content: "Starting GM process…" },
+    chatMsg("system", "Starting GM process…"),
   ]);
   const [streamingText, setStreamingText] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
@@ -61,10 +61,7 @@ export function App({
   // Spawn the persistent GM process on mount
   useEffect(() => {
     const onError = (msg: string) => {
-      setMessages((prev) => [
-        ...prev,
-        { role: "system", content: `Error: ${msg}` },
-      ]);
+      setMessages((prev) => [...prev, chatMsg("system", `Error: ${msg}`)]);
     };
 
     const agent = provider.spawn({ ...providerOpts, onError });
@@ -73,10 +70,7 @@ export function App({
     const timer = setTimeout(() => {
       setMessages((prev) => {
         if (prev.some((m) => m.content.startsWith("Error:"))) return prev;
-        return [
-          ...prev,
-          { role: "system", content: "GM ready. Type your action." },
-        ];
+        return [...prev, chatMsg("system", "GM ready. Type your action.")];
       });
     }, 2000);
 
@@ -108,40 +102,34 @@ export function App({
 
       if (text.toLowerCase() === "/clearlog") {
         clearLog();
-        setMessages((prev) => [
-          ...prev,
-          { role: "system", content: "Log cleared." },
-        ]);
+        setMessages((prev) => [...prev, chatMsg("system", "Log cleared.")]);
         return;
       }
 
       if (!agentRef.current.alive) {
         setMessages((prev) => [
           ...prev,
-          { role: "player", content: text },
-          {
-            role: "system",
-            content:
-              "GM process is not running. Restart with /quit and relaunch.",
-          },
+          chatMsg("player", text),
+          chatMsg("system", "GM process is not running. Restart with /quit and relaunch."),
         ]);
         return;
       }
 
-      setMessages((prev) => [...prev, { role: "player", content: text }]);
+      setMessages((prev) => [...prev, chatMsg("player", text)]);
       setIsStreaming(true);
       setStreamingText("");
       pendingTextRef.current = "";
       setToolCalls([]);
       setNpcToolCalls([]);
 
-      let fullText = "";
+      // Array-based text accumulation — avoids O(n²) string concat
+      const textParts: string[] = [];
 
       try {
         for await (const chunk of agentRef.current.send(text)) {
           if (chunk.type === "text") {
-            fullText += chunk.content;
-            pendingTextRef.current = fullText;
+            textParts.push(chunk.content);
+            pendingTextRef.current = textParts.join("");
             if (!streamFlushRef.current) {
               streamFlushRef.current = setTimeout(flushStreamingText, 80);
             }
@@ -153,7 +141,7 @@ export function App({
           } else if (chunk.type === "tool_result") {
             setMessages((prev) => [
               ...prev,
-              { role: "system", content: `Tool error: ${chunk.content}` },
+              chatMsg("system", `Tool error: ${chunk.content}`),
             ]);
             setToolCalls((prev) => {
               if (prev.length === 0) return prev;
@@ -180,18 +168,19 @@ export function App({
           } else if (chunk.type === "error") {
             setMessages((prev) => [
               ...prev,
-              { role: "system", content: `Error: ${chunk.content}` },
+              chatMsg("system", `Error: ${chunk.content}`),
             ]);
           }
         }
 
+        const fullText = textParts.join("");
         if (fullText) {
-          setMessages((prev) => [...prev, { role: "gm", content: fullText }]);
+          setMessages((prev) => [...prev, chatMsg("gm", fullText)]);
         }
       } catch (err: any) {
         setMessages((prev) => [
           ...prev,
-          { role: "system", content: `Error: ${err.message}` },
+          chatMsg("system", `Error: ${err.message}`),
         ]);
       } finally {
         if (streamFlushRef.current) {

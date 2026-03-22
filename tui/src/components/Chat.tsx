@@ -1,9 +1,20 @@
 import React, { useState, useEffect, useMemo, type ReactNode } from "react";
 import { Box, Text } from "ink";
 
+// ── Module-level regex (compiled once) ──────────────────────
+const MARKDOWN_RE = /(\*{1,3})((?:(?!\1).)+?)\1/g;
+
+let nextMsgId = 1;
+
 export interface ChatMessage {
+  id: number;
   role: "gm" | "player" | "system";
   content: string;
+}
+
+/** Create a ChatMessage with an auto-incrementing stable ID. */
+export function chatMsg(role: ChatMessage["role"], content: string): ChatMessage {
+  return { id: nextMsgId++, role, content };
 }
 
 interface ChatProps {
@@ -16,14 +27,12 @@ const MAX_VISIBLE_MESSAGES = 80;
 
 /**
  * Parse inline markdown (bold, italic, bold-italic) into Ink <Text> nodes.
- * Handles ***bold italic***, **bold**, and *italic*.
  */
 function parseInline(text: string, baseColor?: string): ReactNode[] {
   const nodes: ReactNode[] = [];
-  const re = /(\*{1,3})((?:(?!\1).)+?)\1/g;
   let last = 0;
 
-  for (const m of text.matchAll(re)) {
+  for (const m of text.matchAll(MARKDOWN_RE)) {
     const idx = m.index!;
     if (idx > last) {
       nodes.push(<Text key={last} color={baseColor}>{text.slice(last, idx)}</Text>);
@@ -47,7 +56,7 @@ function parseInline(text: string, baseColor?: string): ReactNode[] {
   return nodes.length > 0 ? nodes : [<Text key={0} color={baseColor}>{text}</Text>];
 }
 
-/** Memoized single message row. */
+/** Memoized single message row — only re-renders when content changes. */
 const MessageRow = React.memo(function MessageRow({
   msg,
   isLast,
@@ -86,12 +95,28 @@ function SlowSpinner() {
   return <Text color="yellow">{SPINNER_FRAMES[frame]}</Text>;
 }
 
+/** Separate component for streaming text — isolates re-renders from message list. */
+const StreamingBlock = React.memo(function StreamingBlock({
+  text,
+}: {
+  text: string;
+}) {
+  return (
+    <Box>
+      <Text>
+        {parseInline(text || "", "green")}
+        <Text>{" "}</Text>
+        <SlowSpinner />
+      </Text>
+    </Box>
+  );
+});
+
 export const Chat = React.memo(function Chat({
   messages,
   streamingText,
   isStreaming,
 }: ChatProps) {
-  // Only render the last N messages to keep layout cost bounded
   const visible = useMemo(
     () => messages.slice(-MAX_VISIBLE_MESSAGES),
     [messages]
@@ -110,20 +135,12 @@ export const Chat = React.memo(function Chat({
       )}
       {visible.map((msg, i) => (
         <MessageRow
-          key={messages.length - visible.length + i}
+          key={msg.id}
           msg={msg}
           isLast={i === visible.length - 1 && !isStreaming}
         />
       ))}
-      {isStreaming && (
-        <Box>
-          <Text>
-            {parseInline(streamingText || "", "green")}
-            <Text>{" "}</Text>
-            <SlowSpinner />
-          </Text>
-        </Box>
-      )}
+      {isStreaming && <StreamingBlock text={streamingText} />}
     </Box>
   );
 });

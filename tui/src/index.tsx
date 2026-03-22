@@ -5,7 +5,7 @@ import { resolve } from "node:path";
 import { spawn, type ChildProcess } from "node:child_process";
 import { App } from "./components/App.js";
 import { ClaudeProvider } from "./providers/claude.js";
-import { initLogger } from "./logger.js";
+import { initLogger, flushLog } from "./logger.js";
 
 // Resolve paths relative to project root (one level up from tui/)
 const projectRoot = resolve(import.meta.dirname, "../..");
@@ -64,13 +64,14 @@ const app = render(
   />,
   {
     exitOnCtrlC: true,
-    maxFps: 60,
+    maxFps: 30,
   }
 );
 
 await app.waitUntilExit();
 
-// Kill the shared MCP HTTP server
+// Flush buffered logs and kill the shared MCP HTTP server
+await flushLog();
 if (mcpHttpServer.pid) {
   mcpHttpServer.kill();
 }
