@@ -716,6 +716,7 @@ def move_character(
     target_zone: str,
     combat_cfg: dict | None = None,
     movement_budget: int | None = None,
+    skip_adjacency: bool = False,
 ) -> str:
     """Move a character to a different zone with validation.
 
@@ -723,6 +724,8 @@ def move_character(
     - movement_budget: max zones the character can traverse (from derived stat
       or system default). If None, movement is unrestricted.
     - combat_cfg: system pack's combat section (for terrain costs)
+    - skip_adjacency: bypass adjacency/path validation (e.g. teleport).
+      Still validates target zone exists and condition-based movement restrictions.
     """
     cfg = combat_cfg or {}
     zone_scale = cfg.get("zone_scale", 1)
@@ -756,28 +759,31 @@ def move_character(
 
     current_zone_name = _zone_id_to_name(db, current_zid)
 
-    # Validate movement cost
-    adj = _build_adjacency(db, encounter_id)
-    cost = _movement_cost(db, adj, current_zid, target_zid, cfg)
+    if skip_adjacency:
+        cost = 0
+    else:
+        # Validate movement cost
+        adj = _build_adjacency(db, encounter_id)
+        cost = _movement_cost(db, adj, current_zid, target_zid, cfg)
 
-    if cost is None:
-        raise LoreKitError(f"Cannot reach {target_zone} from {current_zone_name} — no path exists")
+        if cost is None:
+            raise LoreKitError(f"Cannot reach {target_zone} from {current_zone_name} — no path exists")
 
-    if movement_budget is not None and cost > movement_budget:
-        if zone_scale > 1:
-            raise LoreKitError(
-                f"Cannot reach {target_zone}. Cost: {cost} zone(s) "
-                f"({cost * zone_scale}{movement_unit}). "
-                f"Movement budget: {movement_budget} zone(s) "
-                f"({movement_budget * zone_scale}{movement_unit}). "
-                f"Current position: {current_zone_name}."
-            )
-        else:
-            raise LoreKitError(
-                f"Cannot reach {target_zone}. Cost: {cost} zone(s). "
-                f"Movement budget: {movement_budget} zone(s). "
-                f"Current position: {current_zone_name}."
-            )
+        if movement_budget is not None and cost > movement_budget:
+            if zone_scale > 1:
+                raise LoreKitError(
+                    f"Cannot reach {target_zone}. Cost: {cost} zone(s) "
+                    f"({cost * zone_scale}{movement_unit}). "
+                    f"Movement budget: {movement_budget} zone(s) "
+                    f"({movement_budget * zone_scale}{movement_unit}). "
+                    f"Current position: {current_zone_name}."
+                )
+            else:
+                raise LoreKitError(
+                    f"Cannot reach {target_zone}. Cost: {cost} zone(s). "
+                    f"Movement budget: {movement_budget} zone(s). "
+                    f"Current position: {current_zone_name}."
+                )
 
     # Remove old zone terrain modifiers
     _remove_zone_terrain(db, character_id, current_zone_name)

@@ -175,15 +175,46 @@ def build_combat_context(
                     opt_lines.append(label)
                 combat_options_section = "Combat options: " + ", ".join(opt_lines) + "\n"
 
-    # NPC's own abilities (powers, feats, advantages)
+    # NPC's own abilities (powers, feats, advantages) — with action/movement hints
     abilities_section = ""
     ability_rows = db.execute(
         "SELECT name, uses, description FROM character_abilities WHERE character_id = ?",
         (npc_id,),
     ).fetchall()
     if ability_rows:
-        lines = [f"  {ab[0]} ({ab[1]}): {ab[2]}" for ab in ability_rows]
-        abilities_section = "Your abilities:\n" + "\n".join(lines) + "\n"
+        ab_lines = []
+        for ab_name, ab_uses, ab_desc in ability_rows:
+            line = f"  {ab_name} ({ab_uses}): "
+            try:
+                desc_data = json.loads(ab_desc)
+                display_desc = desc_data.get("desc", ab_desc)
+                uses_action = desc_data.get("uses_action")
+                line += display_desc
+                if uses_action:
+                    line += f" [uses action: {uses_action}]"
+            except (json.JSONDecodeError, TypeError, AttributeError):
+                line += ab_desc
+            ab_lines.append(line)
+        abilities_section = "Your abilities:\n" + "\n".join(ab_lines) + "\n"
+
+    # Movement modes (e.g. teleport)
+    movement_section = ""
+    move_mode_rows = db.execute(
+        "SELECT key, value FROM character_attributes WHERE character_id = ? AND category = 'movement_mode'",
+        (npc_id,),
+    ).fetchall()
+    if move_mode_rows:
+        mode_labels = []
+        for mkey, mval in move_mode_rows:
+            try:
+                mdata = json.loads(mval)
+                if mdata.get("skip_adjacency"):
+                    mode_labels.append(f"{mkey} (skip adjacency)")
+                else:
+                    mode_labels.append(mkey)
+            except (json.JSONDecodeError, TypeError):
+                mode_labels.append(mkey)
+        movement_section = f"Movement modes: {', '.join(mode_labels)}\n"
 
     # NPC's own zone tags
     npc_ztags = _get_zone_tags(db, npc_zid) if npc_zid else []
@@ -274,7 +305,7 @@ Allies:
 {chr(10).join(f"  {a}" for a in allies) if allies else "  (none)"}
 
 Zones: {", ".join(zone_list)}
-{actions_section}{combat_options_section}{abilities_section}{condition_section}
+{actions_section}{combat_options_section}{abilities_section}{movement_section}{condition_section}
 Decide what to do. Respond with a JSON block followed by optional in-character narration.
 
 ```json
@@ -695,25 +726,7 @@ def execute_combat_turn(
                             )
                         )
                     except LoreKitError as e:
-                        err_msg = str(e)
-                        # Fallback: NPC used ability name instead of system action
-                        if "Unknown action" in err_msg and "close_attack" in err_msg:
-                            try:
-                                lines.append(f"NOTE: '{action}' resolved as close_attack")
-                                lines.append(
-                                    resolve_action(
-                                        db,
-                                        npc_id,
-                                        target_row[0],
-                                        "close_attack",
-                                        system_path,
-                                        options=action_opts if action_opts else None,
-                                    )
-                                )
-                            except LoreKitError as e2:
-                                lines.append(f"ACTION FAILED: {e2}")
-                        else:
-                            lines.append(f"ACTION FAILED: {e}")
+                        lines.append(f"ACTION FAILED: {e}")
                 else:
                     lines.append(f"ACTION FAILED: Target '{target_name}' not found")
             elif action and not target_name:
@@ -728,6 +741,14 @@ def execute_combat_turn(
                         (npc_id,),
                     ).fetchone()
                     movement_budget = int(mv_row[0]) if mv_row else None
+
+                    # Check for movement modes that bypass adjacency (e.g. teleport)
+                    mode_rows = db.execute(
+                        "SELECT value FROM character_attributes WHERE character_id = ? AND category = 'movement_mode'",
+                        (npc_id,),
+                    ).fetchall()
+                    skip_adj = any(json.loads(v).get("skip_adjacency") for (v,) in mode_rows) if mode_rows else False
+
                     lines.append(
                         move_character(
                             db,
@@ -736,6 +757,7 @@ def execute_combat_turn(
                             move_to,
                             combat_cfg=combat_cfg,
                             movement_budget=movement_budget,
+                            skip_adjacency=skip_adj,
                         )
                     )
                 except LoreKitError as e:

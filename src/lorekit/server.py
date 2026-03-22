@@ -801,21 +801,25 @@ def turn_save(
         db.close()
 
 
-def _embed_array_of(ab: dict) -> str:
-    """Embed array_of/dynamic into description JSON when present."""
+def _embed_ability_metadata(ab: dict) -> str:
+    """Embed array_of/dynamic/uses_action into description JSON when present."""
     import json as _json
 
     desc = ab.get("desc", "")
     array_of = ab.get("array_of")
-    if not array_of:
+    uses_action = ab.get("uses_action")
+    if not array_of and not uses_action:
         return desc
     try:
         desc_data = _json.loads(desc) if desc.strip().startswith("{") else {"desc": desc}
     except (ValueError, AttributeError):
         desc_data = {"desc": desc}
-    desc_data["array_of"] = array_of
+    if array_of:
+        desc_data["array_of"] = array_of
     if ab.get("dynamic"):
         desc_data["dynamic"] = True
+    if uses_action:
+        desc_data["uses_action"] = uses_action
     return _json.dumps(desc_data)
 
 
@@ -841,6 +845,9 @@ def character_build(
     abilities: JSON array of {"name":"Flame Burst","desc":"...","category":"spell","uses":"1/day"} objects.
       Optional fields: "cost" (point cost), "array_of" (name of primary power for alternates),
       "dynamic" (true for dynamic alternates). array_of/dynamic are embedded into the description JSON.
+      "action" (dict with key + action def): auto-registers as action_override for combat.
+      "uses_action" (string): maps ability to an existing system action (e.g. "setup_deception").
+      "movement" (dict with mode + flags): auto-registers as movement_mode (e.g. {"mode":"teleport","skip_adjacency":true}).
     core: JSON object of NPC core identity fields (only for type=npc).
       Keys: self_concept, current_goals, emotional_state, relationships, behavioral_patterns.
     aliases: JSON array of alternative names for this character (e.g. ["Bob", "the bartender"]).
@@ -877,8 +884,24 @@ def character_build(
 
         ability_count = 0
         for ab in abilities_list:
-            desc = _embed_array_of(ab)
+            desc = _embed_ability_metadata(ab)
             set_ability(db, char_id, ab["name"], desc, ab["category"], ab.get("uses", "at_will"), ab.get("cost", 0))
+
+            # Auto-register action_override from ability's action field
+            action_def = ab.get("action")
+            if action_def:
+                import copy as _copy
+
+                adef = _copy.deepcopy(action_def)
+                akey = adef.pop("key", ab["name"].lower().replace(" ", "_"))
+                set_attr(db, char_id, "action_override", akey, _json.dumps(adef))
+
+            # Auto-register movement_mode from ability's movement field
+            movement_def = ab.get("movement")
+            if movement_def:
+                mode = movement_def.get("mode", "special")
+                set_attr(db, char_id, "movement_mode", mode, _json.dumps(movement_def))
+
             ability_count += 1
 
         core_set = False
@@ -996,6 +1019,23 @@ def ability_from_template(
 
         # Store the merged data as the ability description (JSON)
         set_ability(db, character_id, ability_name, _json.dumps(merged), ability_category, "at_will")
+
+        # Auto-register action_override from template's action field
+        action_def = merged.get("action")
+        if isinstance(action_def, dict):
+            adef = copy.deepcopy(action_def)
+            akey = adef.pop("key", ability_name.lower().replace(" ", "_"))
+            from lorekit.character import set_attr
+
+            set_attr(db, character_id, "action_override", akey, _json.dumps(adef))
+
+        # Auto-register movement_mode from template's movement field
+        movement_def = merged.get("movement")
+        if isinstance(movement_def, dict):
+            mode = movement_def.get("mode", "special")
+            from lorekit.character import set_attr
+
+            set_attr(db, character_id, "movement_mode", mode, _json.dumps(movement_def))
 
         # Auto-run rules_calc
         rules_summary = try_rules_calc(db, character_id)
@@ -1309,10 +1349,26 @@ def character_sheet_update(
 
         ability_count = 0
         for ab in abilities_list:
-            desc = _embed_array_of(ab)
+            desc = _embed_ability_metadata(ab)
             set_ability(
                 db, character_id, ab["name"], desc, ab["category"], ab.get("uses", "at_will"), ab.get("cost", 0)
             )
+
+            # Auto-register action_override from ability's action field
+            action_def = ab.get("action")
+            if action_def:
+                import copy as _copy
+
+                adef = _copy.deepcopy(action_def)
+                akey = adef.pop("key", ab["name"].lower().replace(" ", "_"))
+                set_attr(db, character_id, "action_override", akey, _json.dumps(adef))
+
+            # Auto-register movement_mode from ability's movement field
+            movement_def = ab.get("movement")
+            if movement_def:
+                mode = movement_def.get("mode", "special")
+                set_attr(db, character_id, "movement_mode", mode, _json.dumps(movement_def))
+
             ability_count += 1
         if ability_count:
             results.append(f"ABILITIES_SET: {ability_count}")
@@ -2645,6 +2701,15 @@ def encounter_move(character_id: int | str, target_zone: str) -> str:
             except (ValueError, TypeError):
                 pass
 
+        # Check for movement modes that bypass adjacency (e.g. teleport)
+        import json as _json
+
+        mode_rows = db.execute(
+            "SELECT value FROM character_attributes WHERE character_id = ? AND category = 'movement_mode'",
+            (character_id,),
+        ).fetchall()
+        skip_adj = any(_json.loads(v).get("skip_adjacency") for (v,) in mode_rows) if mode_rows else False
+
         from lorekit.encounter import move_character
 
         return move_character(
@@ -2654,6 +2719,7 @@ def encounter_move(character_id: int | str, target_zone: str) -> str:
             target_zone,
             combat_cfg=combat_cfg,
             movement_budget=movement_budget,
+            skip_adjacency=skip_adj,
         )
     except LoreKitError as e:
         return f"ERROR: {e}"
