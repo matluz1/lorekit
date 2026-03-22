@@ -68,6 +68,12 @@ def advance(db, session_id: int, amount: int, unit: str) -> str:
     if not current:
         raise LoreKitError("Narrative time not set. Use time_set first.")
 
+    # Normalize years with fewer than 4 digits (e.g. 847 → 0847)
+    if current and current[0].isdigit():
+        parts = current.split("-", 1)
+        if len(parts) == 2 and len(parts[0]) < 4:
+            current = parts[0].zfill(4) + "-" + parts[1]
+
     # Parse current time — support both with and without seconds
     for fmt in ("%Y-%m-%dT%H:%M:%S", "%Y-%m-%dT%H:%M"):
         try:

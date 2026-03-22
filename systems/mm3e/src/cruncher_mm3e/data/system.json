@@ -650,6 +650,11 @@
     "long": {
       "reset_uses": ["per_day", "per_encounter"],
       "clear_duration_types": ["encounter", "rounds", "save_ends"],
+      "reset_attributes": [
+        {"category": "combat", "key": "damage_condition", "value": "0"},
+        {"category": "combat", "key": "damage_penalty", "value": "0"},
+        {"category": "stat", "key": "damage_penalty", "value": "0"}
+      ],
       "time_advance": {"amount": 8, "unit": "hours"}
     }
   },

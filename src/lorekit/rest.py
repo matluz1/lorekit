@@ -126,6 +126,24 @@ def rest(db, session_id: int, rest_type: str, pack_dir: str) -> str:
             if reset_count:
                 char_lines.append(f"    Abilities reset: {reset_count}")
 
+        # --- Reset named attributes (e.g. damage_condition, damage_penalty) ---
+        reset_attrs = type_cfg.get("reset_attributes", [])
+        for ra in reset_attrs:
+            cat = ra["category"]
+            key = ra["key"]
+            val = str(ra.get("value", "0"))
+            old_row = db.execute(
+                "SELECT value FROM character_attributes WHERE character_id = ? AND category = ? AND key = ?",
+                (cid, cat, key),
+            ).fetchone()
+            if old_row and old_row[0] != val:
+                db.execute(
+                    "INSERT INTO character_attributes (character_id, category, key, value) "
+                    "VALUES (?, ?, ?, ?) ON CONFLICT(character_id, category, key) DO UPDATE SET value = excluded.value",
+                    (cid, cat, key, val),
+                )
+                char_lines.append(f"    {key}: {old_row[0]} → {val}")
+
         # --- Clear combat modifiers ---
         clear_types = type_cfg.get("clear_duration_types", [])
         if clear_types:
