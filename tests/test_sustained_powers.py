@@ -2,14 +2,12 @@
 
 import json
 import os
-import sys
 from unittest.mock import patch
 
+import cruncher_mm3e
 import pytest
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "core"))
-
-MM3E_SYSTEM = os.path.join(os.path.dirname(__file__), "..", "systems", "mm3e")
+MM3E_SYSTEM = cruncher_mm3e.pack_path()
 
 
 def _combat_cfg():
@@ -18,8 +16,8 @@ def _combat_cfg():
 
 
 def _make_character(db, session_id, make_character, name, char_type="npc", **stats):
-    from character import set_attr
-    from rules_engine import rules_calc
+    from lorekit.character import set_attr
+    from lorekit.rules import rules_calc
 
     cid = make_character(session_id, name=name, char_type=char_type)
     defaults = {
@@ -40,7 +38,7 @@ def _make_character(db, session_id, make_character, name, char_type="npc", **sta
 
 
 def _start_encounter(db, session_id, characters, zones, placements):
-    from encounter import start_encounter
+    from lorekit.encounter import start_encounter
 
     cfg = _combat_cfg()
     start_encounter(
@@ -61,8 +59,8 @@ def _start_encounter(db, session_id, characters, zones, placements):
 class TestConditionCancellation:
     def test_stunned_cancels_sustained_modifiers(self, make_session, make_character):
         """When stunned activates, sustained modifiers should be removed."""
-        from _db import require_db
-        from combat_engine import sync_condition_modifiers
+        from lorekit.combat import sync_condition_modifiers
+        from lorekit.db import require_db
 
         db = require_db()
         try:
@@ -112,8 +110,8 @@ class TestConditionCancellation:
 
     def test_stunned_does_not_cancel_non_sustained(self, make_session, make_character):
         """Stunned should not remove modifiers with other duration types (e.g. rounds)."""
-        from _db import require_db
-        from combat_engine import sync_condition_modifiers
+        from lorekit.combat import sync_condition_modifiers
+        from lorekit.db import require_db
 
         db = require_db()
         try:
@@ -152,8 +150,8 @@ class TestConditionCancellation:
 
     def test_no_cancellation_without_stunned(self, make_session, make_character):
         """Without a cancelling condition, sustained modifiers should persist."""
-        from _db import require_db
-        from combat_engine import sync_condition_modifiers
+        from lorekit.combat import sync_condition_modifiers
+        from lorekit.db import require_db
 
         db = require_db()
         try:
@@ -193,8 +191,8 @@ class TestConditionCancellation:
 class TestSustainWarning:
     def test_sustained_modifier_emits_warning(self, make_session, make_character):
         """start_turn should warn about sustained modifiers."""
-        from _db import require_db
-        from combat_engine import start_turn
+        from lorekit.combat import start_turn
+        from lorekit.db import require_db
 
         db = require_db()
         try:
@@ -221,8 +219,8 @@ class TestSustainWarning:
 
     def test_no_warning_without_sustained(self, make_session, make_character):
         """start_turn should not warn when there are no sustained modifiers."""
-        from _db import require_db
-        from combat_engine import start_turn
+        from lorekit.combat import start_turn
+        from lorekit.db import require_db
 
         db = require_db()
         try:
@@ -238,8 +236,8 @@ class TestSustainWarning:
 
     def test_warning_and_removal_coexist(self, make_session, make_character):
         """Both warn (sustained) and remove (until_next_turn) should work in same start_turn."""
-        from _db import require_db
-        from combat_engine import start_turn
+        from lorekit.combat import start_turn
+        from lorekit.db import require_db
 
         db = require_db()
         try:

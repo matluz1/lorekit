@@ -1,0 +1,187 @@
+{
+  "_comment": "d20 Hero SRD conditions and damage track — from the d20 Hero SRD (OGL)",
+
+  "degrees_of_success": {
+    "formula": "floor((check_result - dc) / 5) + 1",
+    "note": "Check >= DC = 1 degree of success. Each +5 above DC = +1 degree. Check < DC = 1 degree of failure. Each -5 below DC = +1 degree of failure."
+  },
+
+  "damage_resistance": {
+    "check": "d20 + Toughness",
+    "dc": "15 + damage_rank",
+    "results": {
+      "success": {
+        "degrees": 0,
+        "effect": "No effect"
+      },
+      "failure_1": {
+        "degrees": 1,
+        "margin": "1-4",
+        "effect": "-1 cumulative penalty to further Toughness checks"
+      },
+      "failure_2": {
+        "degrees": 2,
+        "margin": "5-9",
+        "effect": "Dazed until end of next turn AND -1 cumulative Toughness penalty"
+      },
+      "failure_3": {
+        "degrees": 3,
+        "margin": "10-14",
+        "effect": "Staggered AND -1 cumulative Toughness penalty. If already staggered, Incapacitated."
+      },
+      "failure_4": {
+        "degrees": 4,
+        "margin": "15+",
+        "effect": "Incapacitated"
+      }
+    },
+    "cumulative_penalty_note": "The -1 penalties to Toughness are cumulative. Three failed checks with 1 degree each = total -3 penalty.",
+    "escalation": {
+      "incapacitated_again": "If an incapacitated target fails another Damage resistance check, they become dying.",
+      "dying_again": "If a dying target fails another Damage resistance check, they are dead."
+    }
+  },
+
+  "basic_conditions": {
+    "compelled": {
+      "name": "Compelled",
+      "effect": "Limited to free actions and a single standard action per turn chosen by the controller"
+    },
+    "controlled": {
+      "name": "Controlled",
+      "effect": "No free will; all actions dictated by controller"
+    },
+    "dazed": {
+      "name": "Dazed",
+      "effect": "Limited to free actions and a single standard action per turn"
+    },
+    "debilitated": {
+      "name": "Debilitated",
+      "effect": "One or more abilities reduced below -5"
+    },
+    "defenseless": {
+      "name": "Defenseless",
+      "effect": "Active defense bonuses are 0. Attackers can make routine checks. Hits are treated as critical hits."
+    },
+    "disabled": {
+      "name": "Disabled",
+      "effect": "-5 circumstance penalty on checks"
+    },
+    "fatigued": {
+      "name": "Fatigued",
+      "effect": "Hindered. Recovers after 1 hour of rest."
+    },
+    "hindered": {
+      "name": "Hindered",
+      "effect": "Half normal speed (-1 speed rank)"
+    },
+    "immobile": {
+      "name": "Immobile",
+      "effect": "No movement speed; cannot move from current position"
+    },
+    "impaired": {
+      "name": "Impaired",
+      "effect": "-2 circumstance penalty on checks"
+    },
+    "normal": {
+      "name": "Normal",
+      "effect": "No conditions; unharmed and unaffected"
+    },
+    "stunned": {
+      "name": "Stunned",
+      "effect": "Cannot take any actions, including free actions"
+    },
+    "transformed": {
+      "name": "Transformed",
+      "effect": "Some or all traits altered by an outside agency. Character point total cannot increase."
+    },
+    "unaware": {
+      "name": "Unaware",
+      "effect": "Completely unaware of surroundings; unable to make interaction or Perception checks"
+    },
+    "vulnerable": {
+      "name": "Vulnerable",
+      "effect": "Active defenses halved (round up final value)"
+    },
+    "weakened": {
+      "name": "Weakened",
+      "effect": "Temporarily lost character points in a trait"
+    }
+  },
+
+  "combined_conditions": {
+    "asleep": {
+      "name": "Asleep",
+      "components": ["defenseless", "stunned", "unaware"],
+      "note": "Essentially helpless. Wakes from damage or sudden stimulus."
+    },
+    "blind": {
+      "name": "Blind",
+      "components": ["hindered", "unaware_visual", "vulnerable"],
+      "note": "Cannot see; visually unaware"
+    },
+    "bound": {
+      "name": "Bound",
+      "components": ["defenseless", "immobile", "impaired"],
+      "note": "Physically restrained and unable to move"
+    },
+    "deaf": {
+      "name": "Deaf",
+      "components": ["unaware_auditory"],
+      "note": "Cannot hear; affects interaction"
+    },
+    "dying": {
+      "name": "Dying",
+      "components": ["incapacitated"],
+      "note": "Near death. Fortitude check DC 15 each round; failure = death. Stabilize with Treatment DC 15."
+    },
+    "entranced": {
+      "name": "Entranced",
+      "components": ["stunned"],
+      "note": "Fascinated; takes no actions but not helpless. Ends on threat or hostile action."
+    },
+    "exhausted": {
+      "name": "Exhausted",
+      "components": ["impaired", "hindered"],
+      "note": "Worse than fatigued"
+    },
+    "incapacitated": {
+      "name": "Incapacitated",
+      "components": ["defenseless", "stunned", "unaware"],
+      "note": "Knocked out; unable to act"
+    },
+    "paralyzed": {
+      "name": "Paralyzed",
+      "components": ["defenseless", "immobile", "stunned"],
+      "note": "Physically unable to move but may still be aware (unlike incapacitated)"
+    },
+    "prone": {
+      "name": "Prone",
+      "components": ["hindered"],
+      "effect": "-5 circumstance penalty on close attack checks. Opponents get +5 close attack bonus. +5 bonus vs ranged attacks.",
+      "note": "Lying on ground; stand up costs move action (or free with Instant Up)"
+    },
+    "restrained": {
+      "name": "Restrained",
+      "components": ["hindered", "vulnerable"],
+      "note": "Partially held; can still act but with difficulty"
+    },
+    "staggered": {
+      "name": "Staggered",
+      "components": ["dazed", "hindered"],
+      "note": "Limited actions and slowed. Second stagger = incapacitated."
+    },
+    "surprised": {
+      "name": "Surprised",
+      "components": ["stunned", "vulnerable"],
+      "note": "Caught off guard; lasts until first action"
+    }
+  },
+
+  "affliction_conditions_by_degree": {
+    "_note": "When building an Affliction, choose one condition from each degree. Resistance: Fortitude or Will vs DC 10 + rank.",
+    "first_degree": ["dazed", "entranced", "fatigued", "hindered", "impaired", "vulnerable"],
+    "second_degree": ["compelled", "defenseless", "disabled", "exhausted", "immobile", "prone", "stunned"],
+    "third_degree": ["asleep", "controlled", "incapacitated", "paralyzed", "transformed", "unaware"]
+  }
+}

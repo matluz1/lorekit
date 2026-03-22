@@ -2,7 +2,7 @@
 
 import re
 
-from mcp_server import (
+from lorekit.server import (
     story_add_act,
     story_advance,
     story_set,

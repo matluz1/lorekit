@@ -1,14 +1,11 @@
 """Tests for the end_turn duration ticking engine."""
 
 import os
-import sys
 from unittest.mock import patch
 
 import pytest
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "core"))
-
-from combat_engine import end_turn
+from lorekit.combat import end_turn
 
 FIXTURES = os.path.join(os.path.dirname(__file__), "fixtures")
 TEST_SYSTEM = os.path.join(FIXTURES, "test_system")
@@ -27,7 +24,7 @@ def _setup_character(db, make_session, make_character, set_attr, name="Fighter")
     ]:
         set_attr(db, cid, "stat", key, val)
 
-    from rules_engine import rules_calc
+    from lorekit.rules import rules_calc
 
     rules_calc(db, cid, TEST_SYSTEM)
 
@@ -37,8 +34,8 @@ def _setup_character(db, make_session, make_character, set_attr, name="Fighter")
 class TestDecrementBehavior:
     def test_decrement_ticks_down(self, make_session, make_character):
         """Rounds modifier decrements from 3 to 2."""
-        from _db import require_db
-        from character import set_attr
+        from lorekit.character import set_attr
+        from lorekit.db import require_db
 
         db = require_db()
         try:
@@ -69,8 +66,8 @@ class TestDecrementBehavior:
 
     def test_decrement_expires_at_zero(self, make_session, make_character):
         """Modifier with duration=1 expires (removed) after decrement."""
-        from _db import require_db
-        from character import set_attr
+        from lorekit.character import set_attr
+        from lorekit.db import require_db
 
         db = require_db()
         try:
@@ -101,8 +98,8 @@ class TestDecrementBehavior:
 
     def test_encounter_duration_not_ticked(self, make_session, make_character):
         """Encounter-duration modifiers are NOT ticked by end_turn."""
-        from _db import require_db
-        from character import set_attr
+        from lorekit.character import set_attr
+        from lorekit.db import require_db
 
         db = require_db()
         try:
@@ -133,8 +130,8 @@ class TestDecrementBehavior:
 
     def test_multiple_modifiers_mixed(self, make_session, make_character):
         """Multiple modifiers: one ticks, one expires, one untouched."""
-        from _db import require_db
-        from character import set_attr
+        from lorekit.character import set_attr
+        from lorekit.db import require_db
 
         db = require_db()
         try:
@@ -186,8 +183,8 @@ class TestDecrementBehavior:
 class TestCheckBehavior:
     def test_check_save_success_removes(self, make_session, make_character):
         """Save-ends modifier: successful save removes the modifier."""
-        from _db import require_db
-        from character import set_attr
+        from lorekit.character import set_attr
+        from lorekit.db import require_db
 
         db = require_db()
         try:
@@ -222,8 +219,8 @@ class TestCheckBehavior:
 
     def test_check_save_failure_keeps(self, make_session, make_character):
         """Save-ends modifier: failed save keeps the modifier."""
-        from _db import require_db
-        from character import set_attr
+        from lorekit.character import set_attr
+        from lorekit.db import require_db
 
         db = require_db()
         try:
@@ -257,8 +254,8 @@ class TestCheckBehavior:
 
     def test_check_missing_save_metadata_skipped(self, make_session, make_character):
         """Save-ends modifier without save_stat/save_dc is skipped."""
-        from _db import require_db
-        from character import set_attr
+        from lorekit.character import set_attr
+        from lorekit.db import require_db
 
         db = require_db()
         try:
@@ -284,8 +281,8 @@ class TestCheckBehavior:
 class TestRecompute:
     def test_expired_modifier_triggers_recompute(self, make_session, make_character):
         """When a modifier expires, derived stats are recomputed."""
-        from _db import require_db
-        from character import set_attr
+        from lorekit.character import set_attr
+        from lorekit.db import require_db
 
         db = require_db()
         try:
@@ -302,7 +299,7 @@ class TestRecompute:
             db.commit()
 
             # First, recompute with the buff active
-            from rules_engine import rules_calc
+            from lorekit.rules import rules_calc
 
             rules_calc(db, cid, TEST_SYSTEM)
 
@@ -333,8 +330,8 @@ class TestRecompute:
 class TestNoModifiers:
     def test_no_modifiers(self, make_session, make_character):
         """End turn with no active modifiers."""
-        from _db import require_db
-        from character import set_attr
+        from lorekit.character import set_attr
+        from lorekit.db import require_db
 
         db = require_db()
         try:
@@ -350,8 +347,8 @@ class TestNoModifiers:
 class TestNoEndTurnConfig:
     def test_no_config_in_pack(self, make_session, make_character):
         """System pack without end_turn config returns informative message."""
-        from _db import require_db
-        from character import set_attr
+        from lorekit.character import set_attr
+        from lorekit.db import require_db
 
         db = require_db()
         try:
@@ -385,9 +382,9 @@ class TestNoEndTurnConfig:
 class TestStartTurn:
     def test_removes_until_next_turn_modifiers(self, make_session, make_character):
         """start_turn removes modifiers with duration_type until_next_turn."""
-        from _db import require_db
-        from character import set_attr
-        from combat_engine import start_turn
+        from lorekit.character import set_attr
+        from lorekit.combat import start_turn
+        from lorekit.db import require_db
 
         db = require_db()
         try:
@@ -415,9 +412,9 @@ class TestStartTurn:
 
     def test_skips_other_duration_types(self, make_session, make_character):
         """start_turn leaves rounds and encounter modifiers untouched."""
-        from _db import require_db
-        from character import set_attr
-        from combat_engine import start_turn
+        from lorekit.character import set_attr
+        from lorekit.combat import start_turn
+        from lorekit.db import require_db
 
         db = require_db()
         try:
@@ -450,9 +447,9 @@ class TestStartTurn:
 
     def test_no_config_returns_empty(self, make_session, make_character):
         """System pack without start_turn config returns empty string."""
-        from _db import require_db
-        from character import set_attr
-        from combat_engine import start_turn
+        from lorekit.character import set_attr
+        from lorekit.combat import start_turn
+        from lorekit.db import require_db
 
         db = require_db()
         try:
@@ -478,16 +475,16 @@ class TestStartTurn:
 
     def test_triggers_recompute(self, make_session, make_character):
         """Removing until_next_turn modifier triggers stat recompute."""
-        from _db import require_db
-        from character import set_attr
-        from combat_engine import start_turn
+        from lorekit.character import set_attr
+        from lorekit.combat import start_turn
+        from lorekit.db import require_db
 
         db = require_db()
         try:
             sid, cid = _setup_character(db, make_session, make_character, set_attr)
 
             # Get baseline defense
-            from rules_engine import rules_calc
+            from lorekit.rules import rules_calc
 
             rules_calc(db, cid, TEST_SYSTEM)
             base_def = db.execute(

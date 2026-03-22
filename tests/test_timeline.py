@@ -6,7 +6,7 @@ import pytest
 
 pytest.importorskip("sqlite_vec")
 
-from mcp_server import (  # noqa: E402
+from lorekit.server import (  # noqa: E402
     recall_search,
     session_meta_get,
     session_meta_set,

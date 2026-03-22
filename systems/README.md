@@ -11,4 +11,4 @@ LICENSE file within that system's directory.
 | Directory | System                       | License  |
 |-----------|------------------------------|----------|
 | pf2e      | Pathfinder 2e (Remaster)     | ORC      |
-| mm3e      | Mutants & Masterminds 3e     | OGL 1.0a |
+| mm3e      | d20 Hero SRD (3e)            | OGL 1.0a |

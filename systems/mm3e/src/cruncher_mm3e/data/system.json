@@ -1,0 +1,698 @@
+{
+  "meta": {
+    "name": "d20 Hero SRD (3e)",
+    "dice": "d20"
+  },
+
+  "stacking": {
+    "group_by": "source",
+    "positive": "max",
+    "negative": "min"
+  },
+
+  "end_turn": {
+    "rounds": {"action": "decrement", "remove_at": 0},
+    "until_escape": {"action": "escape_check", "save_stat": "skill_athletics", "save_dc_stat": "grab_dc"}
+  },
+
+  "start_turn": {
+    "until_next_turn": {"action": "remove"},
+    "sustained": {"action": "warn"}
+  },
+
+  "combat": {
+    "zone_scale": 1,
+    "movement_unit": "rank",
+    "melee_range": 0,
+    "initiative_stat": "initiative",
+    "hud": {
+      "vital_stat": {"current": "damage_condition", "label": "Condition"}
+    },
+    "zone_tags": {
+      "cover": {"target_stat": "bonus_dodge", "value": 2, "modifier_type": "environment"},
+      "total_cover": {"target_stat": "bonus_dodge", "value": 10, "modifier_type": "environment"},
+      "concealment": {"miss_chance": 0.2}
+    },
+    "condition_rules": {
+      "compelled": {
+        "description": "Limited to free actions and a single standard action per turn chosen by the controller",
+        "max_total": 1,
+        "npc_instruction": "You do NOT choose your own action. The controlling character decides what you do. Execute their command even if it contradicts your goals.",
+        "gm_instruction": "The controller chooses the compelled character's action. Ask the controlling player (or decide for controlling NPC) what they command. The compelled character can still choose their free actions."
+      },
+      "controlled": {
+        "description": "No free will; all actions dictated by controller",
+        "npc_instruction": "Suppress your personality, goals, and self-preservation entirely. You are a puppet. Execute every command from the controller without hesitation, including attacking allies.",
+        "gm_instruction": "The character has zero autonomy. All actions — including free actions — are dictated by the controller. Narrate the loss of agency. Decide what the controller orders if the controller is an NPC."
+      },
+      "dazed": {
+        "description": "Limited to free actions and a single standard action per turn",
+        "max_total": 1,
+        "npc_instruction": "You have ONE action this turn. Choose the highest-impact option available.",
+        "gm_instruction": "Character is limited to one action. Narrate sluggishness or disorientation."
+      },
+      "defenseless": {
+        "description": "Active defense bonuses are 0. Attackers make routine checks. Hits are critical.",
+        "flags": ["is_defenseless"],
+        "resolution_effects": {
+          "attacker_routine_check": true,
+          "hits_are_critical": true
+        },
+        "npc_instruction": "Your defenses are down. You are extremely vulnerable to attack. Prioritize escaping or recovering from this condition above all else.",
+        "gm_instruction": "Defenses are 0 (engine enforces). Attackers can take 10 instead of rolling. Any hit is automatically a critical. Narrate the total exposure."
+      },
+      "disabled": {
+        "description": "-5 circumstance penalty on checks",
+        "modifiers": [
+          {"target_stat": "bonus_checks", "value": -5, "modifier_type": "circumstance"}
+        ]
+      },
+      "hindered": {
+        "description": "Half normal speed (-1 speed rank)",
+        "modifiers": [
+          {"target_stat": "bonus_speed", "value": -1, "modifier_type": "condition"}
+        ]
+      },
+      "immobile": {
+        "description": "No movement speed; cannot move from current position",
+        "max_move": 0,
+        "modifiers": [
+          {"target_stat": "bonus_speed", "value": -999, "modifier_type": "condition"}
+        ]
+      },
+      "impaired": {
+        "description": "-2 circumstance penalty on checks",
+        "modifiers": [
+          {"target_stat": "bonus_checks", "value": -2, "modifier_type": "circumstance"}
+        ]
+      },
+      "stunned": {
+        "description": "Cannot take any actions, including free actions",
+        "max_total": 0,
+        "cancels_duration_types": ["sustained", "concentration"],
+        "npc_instruction": "You CANNOT act at all — not even free actions. Your turn is skipped.",
+        "gm_instruction": "Character cannot take any actions. Skip their turn. Sustained powers drop automatically."
+      },
+      "unaware": {
+        "description": "Completely unaware of surroundings; unable to make interaction or Perception checks",
+        "flags": ["is_unaware"]
+      },
+      "vulnerable": {
+        "description": "Active defenses halved (round up final value)",
+        "flags": ["is_vulnerable"],
+        "npc_instruction": "Your defenses are halved. You are significantly easier to hit. Consider defensive actions or repositioning.",
+        "gm_instruction": "Defenses halved (engine enforces via formula). Narrate the compromised guard or exposure."
+      },
+      "grab": {
+        "description": "Immobilized — speed 0 and dodge is reduced",
+        "max_move": 0,
+        "modifiers": [
+          {"target_stat": "bonus_dodge", "value": -2, "modifier_type": "circumstance"},
+          {"target_stat": "bonus_speed", "value": -999, "modifier_type": "circumstance"}
+        ]
+      },
+      "blind": {
+        "description": "Cannot see. Hindered, visually unaware, vulnerable.",
+        "components": ["hindered", "vulnerable", "unaware"],
+        "npc_instruction": "You CANNOT see. Do not reference anything visual. Target enemies by sound (accept that you may miss or target the wrong location). All targets have concealment from you.",
+        "gm_instruction": "Character cannot use visual information. Adjudicate whether non-visual senses can compensate. Apply concealment to all attack targets."
+      },
+      "bound": {
+        "description": "Physically restrained and unable to move",
+        "components": ["defenseless", "immobile", "impaired"]
+      },
+      "entranced": {
+        "description": "Fascinated; takes no actions. Ends on threat or hostile action.",
+        "components": ["stunned"],
+        "npc_instruction": "You are captivated and cannot act voluntarily. Do nothing. If you are attacked or an ally shakes you, the trance breaks.",
+        "gm_instruction": "Character is frozen in fascination. An obvious threat (attack, fire, danger) breaks the trance automatically. An ally can break it with an interaction check (DC 10 + effect rank). Narrate the fixation."
+      },
+      "exhausted": {
+        "description": "Worse than fatigued — impaired and hindered",
+        "components": ["impaired", "hindered"]
+      },
+      "incapacitated": {
+        "description": "Knocked out; unable to act",
+        "max_total": 0,
+        "components": ["defenseless", "stunned", "unaware"],
+        "gm_instruction": "Character is completely out of the fight. All component conditions (defenseless, stunned, unaware) apply."
+      },
+      "staggered": {
+        "description": "Limited to one standard or move action, half speed",
+        "max_total": 1,
+        "components": ["dazed", "hindered"],
+        "npc_instruction": "You have ONE action this turn and half speed. Choose the highest-impact option available.",
+        "gm_instruction": "Character is limited to one action and half speed. Second stagger = incapacitated."
+      },
+      "prone": {
+        "description": "Lying on ground. -5 close attacks, opponents +5 close / -5 ranged against you.",
+        "components": ["hindered"],
+        "extra_modifiers": [
+          {"target_stat": "bonus_close_attack", "value": -5, "modifier_type": "circumstance"}
+        ],
+        "resolution_effects": {
+          "attacker_bonus": {"melee": 5, "ranged": -5}
+        },
+        "npc_instruction": "You are on the ground. Standing costs a move action. While prone, your close attacks take -5 and enemies in melee get +5 against you, but ranged attacks against you take -5. Decide: stand up or stay prone.",
+        "gm_instruction": "Character is on the ground. Standing up costs a move action. Apply -5 to character's close attacks and +5 to opponents' close attacks. Ranged attacks against prone target take -5."
+      },
+      "paralyzed": {
+        "description": "Physically unable to move but may still be aware",
+        "components": ["defenseless", "immobile", "stunned"],
+        "gm_instruction": "Character is physically unable to move. Mental actions only (if any). Adjudicate whether mental-only actions are available."
+      },
+      "restrained": {
+        "description": "Partially held; can still act but with difficulty",
+        "components": ["hindered", "vulnerable"]
+      },
+      "surprised": {
+        "description": "Caught off guard; lasts until first action",
+        "components": ["stunned", "vulnerable"],
+        "gm_instruction": "Character is caught off guard. Stunned and vulnerable until their first action."
+      },
+      "asleep": {
+        "description": "Essentially helpless. Wakes from damage or sudden stimulus.",
+        "components": ["defenseless", "stunned", "unaware"],
+        "gm_instruction": "Character is asleep. Wakes from damage or sudden loud stimulus. All component conditions apply."
+      },
+      "deaf": {
+        "description": "Cannot hear. Auditorily unaware.",
+        "components": ["unaware"],
+        "npc_instruction": "You CANNOT hear. Do not react to sounds, verbal commands, or spoken warnings. Communicate only through gestures or visual signals.",
+        "gm_instruction": "Character cannot hear. Verbal communication fails. Surprise attacks from behind are more likely."
+      },
+      "dying": {
+        "description": "Near death. Fortitude check DC 15 each round; failure = death.",
+        "components": ["incapacitated"],
+        "npc_instruction": "You are unconscious and dying. You cannot act or make decisions.",
+        "gm_instruction": "Character makes a Fortitude check (DC 15) at the start of each round. Success: stable. Failure: one step closer to death — three cumulative failures = dead. An ally can stabilize with Treatment check (DC 15) or Healing effect."
+      }
+    },
+    "combined_conditions": {
+      "staggered":    { "components": ["dazed", "hindered"] },
+      "exhausted":    { "components": ["impaired", "hindered"] },
+      "incapacitated": { "components": ["defenseless", "stunned", "unaware"] },
+      "bound":        { "components": ["defenseless", "immobile", "impaired"] },
+      "paralyzed":    { "components": ["defenseless", "immobile", "stunned"] },
+      "restrained":   { "components": ["hindered", "vulnerable"] },
+      "surprised":    { "components": ["stunned", "vulnerable"] },
+      "asleep":       { "components": ["defenseless", "stunned", "unaware"] },
+      "blind":        { "components": ["hindered", "vulnerable", "unaware"] },
+      "deaf":         { "components": ["unaware"] },
+      "dying":        { "components": ["incapacitated"] },
+      "entranced":    { "components": ["stunned"] },
+      "prone":        { "components": ["hindered"], "extra_modifiers": [
+        {"target_stat": "bonus_close_attack", "value": -5, "modifier_type": "circumstance"}
+      ]}
+    },
+    "condition_thresholds": [
+      {"attribute": "damage_condition", "min": 2, "condition": "dazed"},
+      {"attribute": "damage_condition", "min": 3, "condition": "staggered"},
+      {"attribute": "damage_condition", "min": 4, "condition": "incapacitated"}
+    ]
+  },
+
+  "defaults": {
+    "str": 0, "sta": 0, "dex": 0, "agl": 0,
+    "fgt": 0, "int": 0, "awe": 0, "pre": 0,
+
+    "power_level": 10,
+
+    "ranks_close_attack": 0,
+    "ranks_ranged_attack": 0,
+    "ranks_close_combat": 0,
+    "ranks_ranged_combat": 0,
+
+    "ranks_dodge": 0,
+    "ranks_parry": 0,
+    "ranks_fortitude": 0,
+    "ranks_will": 0,
+    "ranks_toughness": 0,
+
+    "bonus_dodge": 0,
+    "bonus_parry": 0,
+    "bonus_fortitude": 0,
+    "bonus_will": 0,
+    "bonus_toughness": 0,
+
+    "bonus_close_attack": 0,
+    "bonus_ranged_attack": 0,
+    "bonus_close_damage": 0,
+    "bonus_ranged_damage": 0,
+
+    "bonus_initiative": 0,
+    "bonus_speed": 0,
+    "bonus_checks": 0,
+
+    "is_defenseless": 0,
+    "is_vulnerable": 0,
+    "is_unaware": 0,
+
+    "ranks_acrobatics": 0,
+    "ranks_athletics": 0,
+    "ranks_deception": 0,
+    "ranks_expertise": 0,
+    "ranks_insight": 0,
+    "ranks_intimidation": 0,
+    "ranks_investigation": 0,
+    "ranks_perception": 0,
+    "ranks_persuasion": 0,
+    "ranks_sleight_of_hand": 0,
+    "ranks_stealth": 0,
+    "ranks_technology": 0,
+    "ranks_treatment": 0,
+    "ranks_vehicles": 0,
+
+    "bonus_acrobatics": 0,
+    "bonus_athletics": 0,
+    "bonus_deception": 0,
+    "bonus_expertise": 0,
+    "bonus_insight": 0,
+    "bonus_intimidation": 0,
+    "bonus_investigation": 0,
+    "bonus_perception": 0,
+    "bonus_persuasion": 0,
+    "bonus_sleight_of_hand": 0,
+    "bonus_stealth": 0,
+    "bonus_technology": 0,
+    "bonus_treatment": 0,
+    "bonus_vehicles": 0,
+
+    "adv_close_attack": 0,
+    "adv_ranged_attack": 0,
+    "adv_defensive_roll": 0,
+    "adv_improved_initiative": 0,
+    "adv_evasion": 0,
+    "adv_improved_critical": 0,
+    "adv_equipment": 0,
+
+    "effect_protection": 0,
+    "effect_enhanced_dodge": 0,
+    "effect_enhanced_parry": 0,
+    "effect_enhanced_fortitude": 0,
+    "effect_enhanced_will": 0,
+    "effect_enhanced_str": 0,
+    "effect_enhanced_sta": 0,
+    "effect_enhanced_dex": 0,
+    "effect_enhanced_agl": 0,
+    "effect_enhanced_fgt": 0,
+    "effect_enhanced_int": 0,
+    "effect_enhanced_awe": 0,
+    "effect_enhanced_pre": 0,
+
+    "damage_penalty": 0,
+
+    "weapon_close_damage": 0,
+    "weapon_ranged_damage": 0,
+    "weapon_strength_based": 0
+  },
+
+  "derived": {
+    "effective_str": "str + effect_enhanced_str",
+    "effective_sta": "sta + effect_enhanced_sta",
+    "effective_dex": "dex + effect_enhanced_dex",
+    "effective_agl": "agl + effect_enhanced_agl",
+    "effective_fgt": "fgt + effect_enhanced_fgt",
+    "effective_int": "int + effect_enhanced_int",
+    "effective_awe": "awe + effect_enhanced_awe",
+    "effective_pre": "pre + effect_enhanced_pre",
+
+    "dodge": "if(is_defenseless, 0, if(is_vulnerable, floor((effective_agl + ranks_dodge + bonus_dodge + effect_enhanced_dodge) / 2), effective_agl + ranks_dodge + bonus_dodge + effect_enhanced_dodge))",
+    "parry": "if(is_defenseless, 0, if(is_vulnerable, floor((effective_fgt + ranks_parry + bonus_parry + effect_enhanced_parry) / 2), effective_fgt + ranks_parry + bonus_parry + effect_enhanced_parry))",
+    "fortitude": "effective_sta + ranks_fortitude + bonus_fortitude + effect_enhanced_fortitude",
+    "will": "effective_awe + ranks_will + bonus_will + effect_enhanced_will",
+    "toughness": "effective_sta + ranks_toughness + bonus_toughness + effect_protection + adv_defensive_roll",
+
+    "initiative": "effective_agl + adv_improved_initiative * 4 + bonus_initiative",
+
+    "close_attack": "effective_fgt + adv_close_attack + bonus_close_attack",
+    "ranged_attack": "effective_dex + adv_ranged_attack + bonus_ranged_attack",
+
+    "grab_dc": "effective_str + 10",
+
+    "unarmed_damage": "effective_str + bonus_close_damage",
+    "close_damage": "max(unarmed_damage, weapon_close_damage + if(weapon_strength_based, effective_str, 0))",
+    "ranged_damage": "max(0, weapon_ranged_damage + bonus_ranged_damage)",
+
+    "skill_acrobatics": "effective_agl + ranks_acrobatics + bonus_acrobatics",
+    "skill_athletics": "effective_str + ranks_athletics + bonus_athletics",
+    "skill_deception": "effective_pre + ranks_deception + bonus_deception",
+    "skill_expertise": "effective_int + ranks_expertise + bonus_expertise",
+    "skill_insight": "effective_awe + ranks_insight + bonus_insight",
+    "skill_intimidation": "effective_pre + ranks_intimidation + bonus_intimidation",
+    "skill_investigation": "effective_int + ranks_investigation + bonus_investigation",
+    "skill_perception": "effective_awe + ranks_perception + bonus_perception",
+    "skill_persuasion": "effective_pre + ranks_persuasion + bonus_persuasion",
+    "skill_sleight_of_hand": "effective_dex + ranks_sleight_of_hand + bonus_sleight_of_hand",
+    "skill_stealth": "effective_agl + ranks_stealth + bonus_stealth",
+    "skill_technology": "effective_int + ranks_technology + bonus_technology",
+    "skill_treatment": "effective_int + ranks_treatment + bonus_treatment",
+    "skill_vehicles": "effective_dex + ranks_vehicles + bonus_vehicles",
+
+    "equipment_points": "adv_equipment * 5",
+
+    "damage_resistance": "toughness - damage_penalty",
+
+    "pl_attack_dodge": "close_attack + dodge",
+    "pl_attack_parry": "close_attack + parry",
+    "pl_ranged_dodge": "ranged_attack + dodge",
+    "pl_dodge_toughness": "dodge + toughness",
+    "pl_parry_toughness": "parry + toughness",
+    "pl_fortitude_will": "fortitude + will",
+    "pl_limit": "power_level * 2",
+    "skill_cap": "power_level + 10"
+  },
+
+  "constraints": {
+    "pl_dodge_toughness": "pl_dodge_toughness <= pl_limit",
+    "pl_parry_toughness": "pl_parry_toughness <= pl_limit",
+    "pl_fortitude_will": "pl_fortitude_will <= pl_limit",
+    "skill_acrobatics_cap": "skill_acrobatics <= skill_cap",
+    "skill_athletics_cap": "skill_athletics <= skill_cap",
+    "skill_deception_cap": "skill_deception <= skill_cap",
+    "skill_expertise_cap": "skill_expertise <= skill_cap",
+    "skill_insight_cap": "skill_insight <= skill_cap",
+    "skill_intimidation_cap": "skill_intimidation <= skill_cap",
+    "skill_investigation_cap": "skill_investigation <= skill_cap",
+    "skill_perception_cap": "skill_perception <= skill_cap",
+    "skill_persuasion_cap": "skill_persuasion <= skill_cap",
+    "skill_sleight_of_hand_cap": "skill_sleight_of_hand <= skill_cap",
+    "skill_stealth_cap": "skill_stealth <= skill_cap",
+    "skill_technology_cap": "skill_technology <= skill_cap",
+    "skill_treatment_cap": "skill_treatment <= skill_cap",
+    "skill_vehicles_cap": "skill_vehicles <= skill_cap"
+  },
+
+  "resolution": {
+    "type": "degree",
+    "defense_dc_offset": 10,
+    "resistance_stat": "damage_resistance",
+    "dc_base": 15,
+    "routine_value": 10,
+    "critical": {
+      "natural": 20,
+      "effect_rank_bonus": 5,
+      "threshold_stat": "adv_improved_critical"
+    },
+    "on_failure": {
+      "1": {"increment": {"damage_penalty": 1}, "set_max": {"damage_condition": 1}},
+      "2": {"increment": {"damage_penalty": 1}, "set_max": {"damage_condition": 2}, "label": "dazed"},
+      "3": {"increment": {"damage_penalty": 1}, "set_max": {"damage_condition": 3}, "label": "staggered"},
+      "4": {"set_max": {"damage_condition": 4}, "label": "incapacitated"}
+    }
+  },
+
+  "outcome_tables": {
+    "damage_degrees": {
+      "success": "no_effect",
+      "1": {"increment": {"damage_penalty": 1}, "set_max": {"damage_condition": 1}},
+      "2": {"increment": {"damage_penalty": 1}, "set_max": {"damage_condition": 2}, "label": "dazed"},
+      "3": {"increment": {"damage_penalty": 1}, "set_max": {"damage_condition": 3}, "label": "staggered"},
+      "4": {"set_max": {"damage_condition": 4}, "label": "incapacitated"}
+    },
+    "affliction_degrees": {
+      "success": "no_effect",
+      "1": {"label": "{degree_1_condition}"},
+      "2": {"label": "{degree_2_condition}"},
+      "3": {"label": "{degree_3_condition}"}
+    },
+    "weaken_degrees": {
+      "success": "no_effect",
+      "1": {"weaken_ranks": 1},
+      "2": {"weaken_ranks": 2},
+      "3": {"weaken_ranks": 3},
+      "4": {"weaken_ranks": 4}
+    },
+    "nullify_degrees": {
+      "success": "no_effect",
+      "1": {"label": "effect suppressed for 1 round"},
+      "2": {"label": "effect nullified"},
+      "3": {"label": "effect nullified, all of descriptor nullified"}
+    }
+  },
+
+  "combat_options": {
+    "power_attack": {
+      "description": "Trade attack for damage (-N attack, +N damage)",
+      "trade": {"from": "close_attack", "to": "close_damage"},
+      "max": 5
+    },
+    "all_out_attack": {
+      "description": "Gain attack bonus, lose defense until next turn (+N attack, -N dodge/parry)",
+      "trade": {"to": "close_attack"},
+      "apply_modifiers": [
+        {"source": "all_out_attack", "target_stat": "bonus_dodge", "negate": true, "modifier_type": "debuff", "duration_type": "until_next_turn"},
+        {"source": "all_out_attack", "target_stat": "bonus_parry", "negate": true, "modifier_type": "debuff", "duration_type": "until_next_turn"}
+      ],
+      "max": 5
+    },
+    "accurate_attack": {
+      "description": "Trade damage for attack (+N attack, -N damage)",
+      "trade": {"from": "close_damage", "to": "close_attack"},
+      "max": 5
+    },
+    "defensive_attack": {
+      "description": "Trade attack for defense (-N attack, +N dodge)",
+      "trade": {"from": "close_attack", "to": "dodge"},
+      "max": 5
+    }
+  },
+
+  "actions": {
+    "close_attack": {
+      "attack_stat": "close_attack",
+      "defense_stat": "parry",
+      "range": "melee",
+      "damage_rank_stat": "close_damage",
+      "cap": {"sum": ["attack_stat", "close_damage"], "max_stat": "pl_limit"}
+    },
+    "ranged_attack": {
+      "attack_stat": "ranged_attack",
+      "defense_stat": "dodge",
+      "range": "ranged",
+      "range_stat": "weapon_range",
+      "damage_rank_stat": "ranged_damage",
+      "cap": {"sum": ["attack_stat", "ranged_damage"], "max_stat": "pl_limit"}
+    },
+    "grab": {
+      "attack_stat": "close_attack",
+      "defense_stat": "parry",
+      "range": "melee",
+      "on_hit": {
+        "apply_modifiers": [
+          {"source": "grab", "target_stat": "bonus_dodge", "value": 0, "modifier_type": "condition", "duration_type": "until_escape"}
+        ]
+      }
+    },
+    "move_object": {
+      "attack_stat": "close_attack",
+      "defense_stat": "dodge",
+      "range": "melee",
+      "on_hit": {
+        "push": 1,
+        "push_direction": "away"
+      }
+    },
+    "setup_deception": {
+      "attack_stat": "skill_deception",
+      "defense_stat": "skill_insight",
+      "range": "melee",
+      "contested": true,
+      "on_hit": {
+        "apply_modifiers": [
+          {"source": "vulnerable", "target_stat": "bonus_dodge", "value": 0, "modifier_type": "condition", "duration_type": "next_attack_received"}
+        ]
+      }
+    },
+    "setup_intimidation": {
+      "attack_stat": "skill_intimidation",
+      "defense_stat": "skill_insight",
+      "range": "melee",
+      "contested": true,
+      "on_hit": {
+        "apply_modifiers": [
+          {"source": "vulnerable", "target_stat": "bonus_dodge", "value": 0, "modifier_type": "condition", "duration_type": "next_attack_received"}
+        ]
+      }
+    }
+  },
+
+  "scales": {
+    "duration": ["instant", "concentration", "sustained", "continuous", "permanent"],
+    "range": ["personal", "close", "ranged", "perception"],
+    "action": ["standard", "move", "free", "reaction", "none"]
+  },
+
+  "pipeline": [
+    {"stage": "per_rank", "formula": "if(base_cost_per_rank + sum_extras + sum_flaws >= 1, (base_cost_per_rank + sum_extras + sum_flaws) * ranks, max(1, per(ranks, max(1, 2 - (base_cost_per_rank + sum_extras + sum_flaws)))))"},
+    {"stage": "flat", "formula": "max(1, prev + sum_flat)"},
+    {"stage": "removable", "formula": "if(removable > 0, max(1, prev - per(prev, 5) * removable), prev)"}
+  ],
+
+  "build": {
+    "budget": {
+      "total": "power_level * 15"
+    },
+    "ability": {
+      "keys": ["str", "sta", "dex", "agl", "fgt", "int", "awe", "pre"],
+      "cost_per_rank": 2
+    },
+    "defense": {
+      "keys": ["ranks_dodge", "ranks_parry", "ranks_fortitude", "ranks_will"],
+      "cost_per_rank": 1
+    },
+    "skill": {
+      "keys": [
+        "ranks_acrobatics", "ranks_athletics", "ranks_deception",
+        "ranks_expertise", "ranks_insight", "ranks_intimidation",
+        "ranks_investigation", "ranks_perception", "ranks_persuasion",
+        "ranks_sleight_of_hand", "ranks_stealth", "ranks_technology",
+        "ranks_treatment", "ranks_vehicles"
+      ],
+      "cost_per_rank": 0.5,
+      "round": "ceil"
+    },
+    "advantage": {
+      "source": "advantages.json",
+      "select": "multiple",
+      "cost_per_rank": 1,
+      "effects": true,
+      "ability_category": "advantage"
+    },
+    "power": {
+      "effect_source": "effects.json",
+      "modifier_source": "modifiers.json",
+      "ability_category": "power",
+      "pipeline": true,
+      "feeds": true
+    },
+    "array": {
+      "alternate_cost": 1,
+      "dynamic_cost": 2
+    },
+    "equipment_melee": {
+      "source": "equipment.json",
+      "select": "equipped",
+      "catalog_path": "melee_weapons",
+      "writes": {
+        "weapon_close_damage": "ranks",
+        "weapon_damage_type": "damage_type",
+        "weapon_strength_based": "strength_based",
+        "weapon_critical": "critical"
+      }
+    },
+    "equipment_ranged": {
+      "source": "equipment.json",
+      "select": "equipped",
+      "catalog_path": "ranged_weapons",
+      "writes": {
+        "weapon_ranged_damage": "ranks",
+        "weapon_damage_type": "damage_type",
+        "weapon_critical": "critical"
+      }
+    },
+    "equipment_armor": {
+      "source": "equipment.json",
+      "select": "equipped",
+      "catalog_path": "armor",
+      "writes": {
+        "effect_protection": "toughness"
+      }
+    },
+    "equipment_shield": {
+      "source": "equipment.json",
+      "select": "equipped",
+      "catalog_path": "shields",
+      "writes": {
+        "bonus_dodge": "dodge_bonus",
+        "bonus_parry": "parry_bonus"
+      }
+    },
+    "sub_budget": {
+      "equipment": {
+        "source_attribute": "adv_equipment",
+        "points_per_rank": 5
+      }
+    }
+  },
+
+  "templates": {
+    "source": "sample_powers.json",
+    "ability_category": "power"
+  },
+
+  "rest": {
+    "short": {
+      "reset_uses": ["per_encounter"],
+      "clear_duration_types": ["encounter"]
+    },
+    "long": {
+      "reset_uses": ["per_day", "per_encounter"],
+      "clear_duration_types": ["encounter", "rounds", "save_ends"],
+      "time_advance": {"amount": 8, "unit": "hours"}
+    }
+  },
+
+  "intent": {
+    "steps": {
+      "move": {
+        "field": "move_to",
+        "field_type": "zone",
+        "multi": true,
+        "executor": "movement"
+      },
+      "action": {
+        "executor": "resolve_action",
+        "fields": {
+          "action": { "type": "action_name", "nullable": true },
+          "targets": { "type": "characters", "nullable": true }
+        }
+      }
+    },
+    "default_sequence": ["move", "action"],
+    "sequence_rules": {
+      "max_per_step": { "move": 1, "action": 1 },
+      "max_total": 2
+    },
+    "extra_fields": {
+      "narration": { "type": "text", "nullable": true },
+      "combat_options": { "type": "list", "nullable": true, "item_schema": {"name": "string", "value": "number"} }
+    },
+    "rules": [
+      "sequence defines execution order — reorder steps as tactics demand",
+      "Most turns use at most one move and one action",
+      "action MUST be one of the available actions — NOT an ability name",
+      "action/targets/move_to can all be null (narrative-only turn)",
+      "melee actions require the target to be in the SAME zone — move first if needed",
+      "ranged actions require the target to be within weapon range"
+    ]
+  },
+
+  "encounter_templates": {
+    "city_street": {
+      "zones": [
+        {"name": "Rooftop", "tags": ["cover"]},
+        {"name": "Street", "tags": []},
+        {"name": "Alley", "tags": ["cover"]}
+      ],
+      "adjacency": [["Rooftop", "Street", 1], ["Street", "Alley", 1]]
+    },
+    "open_field": {
+      "zones": [
+        {"name": "North", "tags": []},
+        {"name": "Center", "tags": []},
+        {"name": "South", "tags": []}
+      ],
+      "adjacency": [["North", "Center", 1], ["Center", "South", 1]]
+    },
+    "warehouse": {
+      "zones": [
+        {"name": "Loading Dock", "tags": []},
+        {"name": "Floor", "tags": []},
+        {"name": "Catwalks", "tags": ["cover"]},
+        {"name": "Office", "tags": ["total_cover"]}
+      ],
+      "adjacency": [["Loading Dock", "Floor", 1], ["Floor", "Catwalks", 1], ["Floor", "Office", 1]]
+    }
+  }
+}

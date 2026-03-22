@@ -7,12 +7,9 @@ execute_combat_turn (schema-driven sequencing, error handling).
 
 import json
 import os
-import sys
 from unittest.mock import patch
 
 import pytest
-
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "core"))
 
 TEST_SYSTEM = os.path.join(os.path.dirname(__file__), "fixtures", "test_system")
 
@@ -46,8 +43,8 @@ INTENT_SCHEMA = _load_intent_schema()
 
 def _make_fighter(db, session_id, make_character, name, char_type="npc", **overrides):
     """Create a character for the test system with basic combat stats."""
-    from character import set_attr
-    from rules_engine import rules_calc
+    from lorekit.character import set_attr
+    from lorekit.rules import rules_calc
 
     cid = make_character(session_id, name=name, char_type=char_type)
     defaults = {"str": "18", "dex": "14", "con": "12", "base_attack": "5", "hit_die_avg": "6"}
@@ -63,7 +60,7 @@ def _make_fighter(db, session_id, make_character, name, char_type="npc", **overr
 
 def _start_encounter(db, session_id, characters, zones, placements, teams=None):
     """Start an encounter with given zones and placements, optionally setting teams."""
-    from encounter import start_encounter
+    from lorekit.encounter import start_encounter
 
     start_encounter(
         db,
@@ -118,7 +115,7 @@ def _get_zone(db, session_id, character_id):
 
 class TestParseCombatIntent:
     def test_parses_json_block(self):
-        from npc_combat import parse_combat_intent
+        from lorekit.npc.combat import parse_combat_intent
 
         response = """Here's my plan:
 ```json
@@ -138,7 +135,7 @@ class TestParseCombatIntent:
         assert intent["narration"] == "I charge forward!"
 
     def test_parses_bare_json(self):
-        from npc_combat import parse_combat_intent
+        from lorekit.npc.combat import parse_combat_intent
 
         response = '{"action": "ranged_attack", "targets": ["Villain"], "move_to": null}'
         intent = parse_combat_intent(response, schema=INTENT_SCHEMA)
@@ -148,14 +145,14 @@ class TestParseCombatIntent:
 
     def test_normalizes_target_string_to_list(self):
         """Old-style 'target' string is normalized to 'targets' list."""
-        from npc_combat import parse_combat_intent
+        from lorekit.npc.combat import parse_combat_intent
 
         response = '{"action": "close_attack", "target": "Hero"}'
         intent = parse_combat_intent(response, schema=INTENT_SCHEMA)
         assert intent["targets"] == ["Hero"]
 
     def test_filters_invalid_sequence_steps(self):
-        from npc_combat import parse_combat_intent
+        from lorekit.npc.combat import parse_combat_intent
 
         response = (
             '{"sequence": ["move", "attack_power", "action", "dance"], "action": "melee_attack", "targets": ["X"]}'
@@ -164,7 +161,7 @@ class TestParseCombatIntent:
         assert intent["sequence"] == ["move", "action"]
 
     def test_fallback_narrative_only(self):
-        from npc_combat import parse_combat_intent
+        from lorekit.npc.combat import parse_combat_intent
 
         response = "I look around warily, assessing the situation."
         intent = parse_combat_intent(response, schema=INTENT_SCHEMA)
@@ -174,7 +171,7 @@ class TestParseCombatIntent:
         assert intent["narration"] == response
 
     def test_null_action_treated_as_none(self):
-        from npc_combat import parse_combat_intent
+        from lorekit.npc.combat import parse_combat_intent
 
         response = '{"action": null, "targets": null, "move_to": "Alley"}'
         intent = parse_combat_intent(response, schema=INTENT_SCHEMA)
@@ -182,7 +179,7 @@ class TestParseCombatIntent:
         assert intent["move_to"] == "Alley"
 
     def test_empty_string_action_treated_as_none(self):
-        from npc_combat import parse_combat_intent
+        from lorekit.npc.combat import parse_combat_intent
 
         response = '{"action": "", "targets": [], "move_to": ""}'
         intent = parse_combat_intent(response, schema=INTENT_SCHEMA)
@@ -191,7 +188,7 @@ class TestParseCombatIntent:
         assert intent["move_to"] is None
 
     def test_multi_move_list(self):
-        from npc_combat import parse_combat_intent
+        from lorekit.npc.combat import parse_combat_intent
 
         response = '{"sequence": ["move", "action", "move"], "action": "melee_attack", "targets": ["X"], "move_to": ["Near", "Far"]}'
         intent = parse_combat_intent(response, schema=INTENT_SCHEMA)
@@ -200,7 +197,7 @@ class TestParseCombatIntent:
 
     def test_without_schema_uses_defaults(self):
         """Without schema, default valid steps are move and action."""
-        from npc_combat import parse_combat_intent
+        from lorekit.npc.combat import parse_combat_intent
 
         response = '{"sequence": ["move", "action"], "action": "strike", "targets": ["Hero"]}'
         intent = parse_combat_intent(response)
@@ -216,8 +213,8 @@ class TestParseCombatIntent:
 class TestBuildCombatContext:
     def test_includes_all_actions(self, make_session, make_character):
         """Context string must list every action from the system pack."""
-        from _db import require_db
-        from npc_combat import build_combat_context
+        from lorekit.db import require_db
+        from lorekit.npc.combat import build_combat_context
 
         db = require_db()
         try:
@@ -243,8 +240,8 @@ class TestBuildCombatContext:
 
     def test_lists_enemies_and_allies_by_team(self, make_session, make_character):
         """Characters on the same team appear as allies, others as enemies."""
-        from _db import require_db
-        from npc_combat import build_combat_context
+        from lorekit.db import require_db
+        from lorekit.npc.combat import build_combat_context
 
         db = require_db()
         try:
@@ -276,8 +273,8 @@ class TestBuildCombatContext:
             db.close()
 
     def test_includes_zone_names_and_tags(self, make_session, make_character):
-        from _db import require_db
-        from npc_combat import build_combat_context
+        from lorekit.db import require_db
+        from lorekit.npc.combat import build_combat_context
 
         db = require_db()
         try:
@@ -304,8 +301,8 @@ class TestBuildCombatContext:
 
     def test_includes_npc_abilities(self, make_session, make_character):
         """NPC abilities should appear in the context."""
-        from _db import require_db
-        from npc_combat import build_combat_context
+        from lorekit.db import require_db
+        from lorekit.npc.combat import build_combat_context
 
         db = require_db()
         try:
@@ -337,9 +334,9 @@ class TestBuildCombatContext:
 
     def test_shows_relative_health(self, make_session, make_character):
         """HP-based health shows wound level."""
-        from _db import require_db
-        from character import set_attr
-        from npc_combat import _get_relative_health, build_combat_context
+        from lorekit.character import set_attr
+        from lorekit.db import require_db
+        from lorekit.npc.combat import _get_relative_health, build_combat_context
 
         db = require_db()
         try:
@@ -374,9 +371,9 @@ class TestBuildCombatContext:
 
 class TestExecuteAction:
     def test_melee_hit(self, make_session, make_character):
-        from _db import require_db
-        from character import set_attr
-        from npc_combat import execute_combat_turn
+        from lorekit.character import set_attr
+        from lorekit.db import require_db
+        from lorekit.npc.combat import execute_combat_turn
 
         db = require_db()
         try:
@@ -406,9 +403,9 @@ class TestExecuteAction:
             db.close()
 
     def test_melee_miss(self, make_session, make_character):
-        from _db import require_db
-        from character import set_attr
-        from npc_combat import execute_combat_turn
+        from lorekit.character import set_attr
+        from lorekit.db import require_db
+        from lorekit.npc.combat import execute_combat_turn
 
         db = require_db()
         try:
@@ -438,8 +435,8 @@ class TestExecuteAction:
 
     def test_contested_hit_applies_modifiers(self, make_session, make_character):
         """Grapple win applies combat_state modifiers to target."""
-        from _db import require_db
-        from npc_combat import execute_combat_turn
+        from lorekit.db import require_db
+        from lorekit.npc.combat import execute_combat_turn
 
         db = require_db()
         try:
@@ -474,8 +471,8 @@ class TestExecuteAction:
 
     def test_contested_miss_no_modifiers(self, make_session, make_character):
         """Grapple loss applies no modifiers."""
-        from _db import require_db
-        from npc_combat import execute_combat_turn
+        from lorekit.db import require_db
+        from lorekit.npc.combat import execute_combat_turn
 
         db = require_db()
         try:
@@ -517,9 +514,9 @@ class TestExecuteAction:
 class TestExecuteMovement:
     def test_move_then_attack(self, make_session, make_character):
         """NPC moves to target's zone then attacks."""
-        from _db import require_db
-        from character import set_attr
-        from npc_combat import execute_combat_turn
+        from lorekit.character import set_attr
+        from lorekit.db import require_db
+        from lorekit.npc.combat import execute_combat_turn
 
         db = require_db()
         try:
@@ -555,9 +552,9 @@ class TestExecuteMovement:
 
     def test_attack_then_move(self, make_session, make_character):
         """NPC attacks then repositions (Move-by Action pattern)."""
-        from _db import require_db
-        from character import set_attr
-        from npc_combat import execute_combat_turn
+        from lorekit.character import set_attr
+        from lorekit.db import require_db
+        from lorekit.npc.combat import execute_combat_turn
 
         db = require_db()
         try:
@@ -593,9 +590,9 @@ class TestExecuteMovement:
 
     def test_multi_move(self, make_session, make_character):
         """NPC with max_move_steps=2 moves through multiple zones in sequence."""
-        from _db import require_db
-        from character import set_attr
-        from npc_combat import execute_combat_turn
+        from lorekit.character import set_attr
+        from lorekit.db import require_db
+        from lorekit.npc.combat import execute_combat_turn
 
         db = require_db()
         try:
@@ -638,8 +635,8 @@ class TestExecuteMovement:
 class TestExecuteErrorHandling:
     def test_unknown_action_reports_error(self, make_session, make_character):
         """NPC uses an invalid action name → error line, not crash."""
-        from _db import require_db
-        from npc_combat import execute_combat_turn
+        from lorekit.db import require_db
+        from lorekit.npc.combat import execute_combat_turn
 
         db = require_db()
         try:
@@ -665,8 +662,8 @@ class TestExecuteErrorHandling:
 
     def test_missing_target_reports_error(self, make_session, make_character):
         """Target name doesn't match any character → error line."""
-        from _db import require_db
-        from npc_combat import execute_combat_turn
+        from lorekit.db import require_db
+        from lorekit.npc.combat import execute_combat_turn
 
         db = require_db()
         try:
@@ -692,8 +689,8 @@ class TestExecuteErrorHandling:
 
     def test_action_without_target_skipped(self, make_session, make_character):
         """Action specified but no target → skip with message."""
-        from _db import require_db
-        from npc_combat import execute_combat_turn
+        from lorekit.db import require_db
+        from lorekit.npc.combat import execute_combat_turn
 
         db = require_db()
         try:
@@ -719,8 +716,8 @@ class TestExecuteErrorHandling:
 
     def test_narrative_only_turn(self, make_session, make_character):
         """No action and no movement → just advance turn."""
-        from _db import require_db
-        from npc_combat import execute_combat_turn
+        from lorekit.db import require_db
+        from lorekit.npc.combat import execute_combat_turn
 
         db = require_db()
         try:
@@ -752,8 +749,8 @@ class TestExecuteErrorHandling:
 
     def test_melee_out_of_range_reported(self, make_session, make_character):
         """Melee from a different zone without moving first → error."""
-        from _db import require_db
-        from npc_combat import execute_combat_turn
+        from lorekit.db import require_db
+        from lorekit.npc.combat import execute_combat_turn
 
         db = require_db()
         try:
@@ -787,8 +784,8 @@ class TestExecuteErrorHandling:
 class TestSequenceValidation:
     def test_excess_move_dropped(self, make_session, make_character):
         """Normal NPC: max_move=1, extra move step dropped."""
-        from _db import require_db
-        from npc_combat import _validate_sequence
+        from lorekit.db import require_db
+        from lorekit.npc.combat import _validate_sequence
 
         db = require_db()
         try:
@@ -807,9 +804,9 @@ class TestSequenceValidation:
 
     def test_character_override_allows_extra_move(self, make_session, make_character):
         """NPC with max_move_steps=2 can double-move."""
-        from _db import require_db
-        from character import set_attr
-        from npc_combat import _validate_sequence
+        from lorekit.character import set_attr
+        from lorekit.db import require_db
+        from lorekit.npc.combat import _validate_sequence
 
         db = require_db()
         try:
@@ -829,9 +826,9 @@ class TestSequenceValidation:
 
     def test_max_total_enforced(self, make_session, make_character):
         """Sequence truncated to max_total (expanded by character overrides)."""
-        from _db import require_db
-        from character import set_attr
-        from npc_combat import _validate_sequence
+        from lorekit.character import set_attr
+        from lorekit.db import require_db
+        from lorekit.npc.combat import _validate_sequence
 
         db = require_db()
         try:
@@ -879,8 +876,8 @@ class TestSequenceValidation:
 class TestUtilityAction:
     def test_teleport_ally(self, make_session, make_character):
         """NPC moves self and teleports ally via utility action (move + on_use relocate)."""
-        from _db import require_db
-        from npc_combat import execute_combat_turn
+        from lorekit.db import require_db
+        from lorekit.npc.combat import execute_combat_turn
 
         db = require_db()
         try:

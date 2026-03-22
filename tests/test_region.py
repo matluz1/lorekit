@@ -2,7 +2,7 @@
 
 import re
 
-from mcp_server import (
+from lorekit.server import (
     region_create,
     region_list,
     region_update,

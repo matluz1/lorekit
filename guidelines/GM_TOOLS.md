@@ -867,7 +867,7 @@ any system pack without hardcoded knowledge.
 
 **Output (section="actions"):**
 ```
-SYSTEM: Mutants & Masterminds 3e
+SYSTEM: d20 Hero SRD (3e)
 Dice: d20
 
 ACTIONS:

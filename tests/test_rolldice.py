@@ -1,6 +1,6 @@
 """Tests for dice rolling."""
 
-from mcp_server import roll_dice
+from lorekit.server import roll_dice
 
 # -- Happy Path --
 
@@ -129,12 +129,9 @@ def test_keep_one():
 
 def test_natural_value_single_die():
     """Single die roll returns the natural value."""
-    import os
-    import sys
     from unittest.mock import patch
 
-    sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "core"))
-    from rolldice import roll_expr
+    from cruncher.dice import roll_expr
 
     with patch("secrets.randbelow", return_value=19):  # 19+1=20
         result = roll_expr("d20")
@@ -144,12 +141,9 @@ def test_natural_value_single_die():
 
 def test_natural_value_with_modifier():
     """Natural value is unaffected by modifier."""
-    import os
-    import sys
     from unittest.mock import patch
 
-    sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "core"))
-    from rolldice import roll_expr
+    from cruncher.dice import roll_expr
 
     with patch("secrets.randbelow", return_value=19):
         result = roll_expr("d20+5")
@@ -159,11 +153,7 @@ def test_natural_value_with_modifier():
 
 def test_natural_value_multi_die_is_none():
     """Multi-die roll returns natural=None."""
-    import os
-    import sys
-
-    sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "core"))
-    from rolldice import roll_expr
+    from cruncher.dice import roll_expr
 
     result = roll_expr("3d6")
     assert result["natural"] is None
@@ -171,11 +161,7 @@ def test_natural_value_multi_die_is_none():
 
 def test_natural_value_keep_highest_is_none():
     """Keep-highest roll returns natural=None."""
-    import os
-    import sys
-
-    sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "core"))
-    from rolldice import roll_expr
+    from cruncher.dice import roll_expr
 
     result = roll_expr("4d6kh3")
     assert result["natural"] is None

@@ -1,3 +1,21 @@
+[project]
+name = "lorekit"
+version = "0.1.0"
+description = "MCP-based TTRPG game engine"
+requires-python = ">=3.13"
+license = "Apache-2.0"
+dependencies = [
+    "cruncher",
+    "mcp",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/lorekit"]
+
 [tool.ruff]
 target-version = "py313"
 line-length = 120
@@ -12,7 +30,7 @@ ignore = [
 ]
 
 [tool.ruff.lint.isort]
-known-first-party = ["core", "mcp_server"]
+known-first-party = ["lorekit", "cruncher"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

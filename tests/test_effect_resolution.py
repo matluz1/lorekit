@@ -3,13 +3,11 @@
 import json
 import math
 import os
-import sys
 
+import cruncher_mm3e
 import pytest
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "core"))
-
-MM3E_SYSTEM = os.path.join(os.path.dirname(__file__), "..", "systems", "mm3e")
+MM3E_SYSTEM = cruncher_mm3e.pack_path()
 
 
 # ---------------------------------------------------------------------------
@@ -39,7 +37,7 @@ def _load_effects():
 class TestPerRankEffects:
     def test_growth_rank4_str(self):
         """Growth rank 4: str +1 per rank → +4."""
-        from build_engine import BuildResult, process_build
+        from cruncher.build import BuildResult, process_build
 
         char_attrs = {"stat": {"power_level": "10"}}
         abilities = [_power_ability("Growth", {"effect": "growth", "ranks": 4})]
@@ -48,7 +46,7 @@ class TestPerRankEffects:
 
     def test_growth_rank4_intimidation(self):
         """Growth rank 4: intimidation +1 per 2 ranks → +2."""
-        from build_engine import process_build
+        from cruncher.build import process_build
 
         char_attrs = {"stat": {"power_level": "10"}}
         abilities = [_power_ability("Growth", {"effect": "growth", "ranks": 4})]
@@ -57,7 +55,7 @@ class TestPerRankEffects:
 
     def test_growth_rank4_dodge(self):
         """Growth rank 4: dodge -1 per 2 ranks → -2."""
-        from build_engine import process_build
+        from cruncher.build import process_build
 
         char_attrs = {"stat": {"power_level": "10"}}
         abilities = [_power_ability("Growth", {"effect": "growth", "ranks": 4})]
@@ -66,7 +64,7 @@ class TestPerRankEffects:
 
     def test_growth_rank3_speed(self):
         """Growth rank 3: speed +1 per 8 ranks → 0 (3 < 8)."""
-        from build_engine import process_build
+        from cruncher.build import process_build
 
         char_attrs = {"stat": {"power_level": "10"}}
         abilities = [_power_ability("Growth", {"effect": "growth", "ranks": 3})]
@@ -75,7 +73,7 @@ class TestPerRankEffects:
 
     def test_growth_rank8_speed(self):
         """Growth rank 8: speed +1 per 8 ranks → +1."""
-        from build_engine import process_build
+        from cruncher.build import process_build
 
         char_attrs = {"stat": {"power_level": "10"}}
         abilities = [_power_ability("Growth", {"effect": "growth", "ranks": 8})]
@@ -84,7 +82,7 @@ class TestPerRankEffects:
 
     def test_shrinking_rank4_stealth(self):
         """Shrinking rank 4: stealth +1 per rank → +4."""
-        from build_engine import process_build
+        from cruncher.build import process_build
 
         char_attrs = {"stat": {"power_level": "10"}}
         abilities = [_power_ability("Shrinking", {"effect": "shrinking", "ranks": 4})]
@@ -93,7 +91,7 @@ class TestPerRankEffects:
 
     def test_shrinking_rank4_strength(self):
         """Shrinking rank 4: strength -1 per 4 ranks → -1."""
-        from build_engine import process_build
+        from cruncher.build import process_build
 
         char_attrs = {"stat": {"power_level": "10"}}
         abilities = [_power_ability("Shrinking", {"effect": "shrinking", "ranks": 4})]
@@ -102,7 +100,7 @@ class TestPerRankEffects:
 
     def test_growth_cost(self):
         """Growth 4: 2/rank → 8 PP (per_rank_effects should not break costing)."""
-        from build_engine import process_build
+        from cruncher.build import process_build
 
         char_attrs = {"stat": {"power_level": "10"}}
         abilities = [_power_ability("Growth", {"effect": "growth", "ranks": 4})]
@@ -191,7 +189,7 @@ class TestResolutionClassification:
 class TestOutcomeTables:
     def test_outcome_tables_loaded(self):
         """SystemPack should load outcome_tables from system.json."""
-        from system_pack import load_system_pack
+        from cruncher.system_pack import load_system_pack
 
         pack = load_system_pack(MM3E_SYSTEM)
         assert "damage_degrees" in pack.outcome_tables
@@ -201,7 +199,7 @@ class TestOutcomeTables:
 
     def test_damage_degrees_structure(self):
         """damage_degrees should have success + 4 failure degrees."""
-        from system_pack import load_system_pack
+        from cruncher.system_pack import load_system_pack
 
         pack = load_system_pack(MM3E_SYSTEM)
         table = pack.outcome_tables["damage_degrees"]
@@ -211,7 +209,7 @@ class TestOutcomeTables:
 
     def test_affliction_degrees_variable_refs(self):
         """affliction_degrees should use {variable} references for per-effect conditions."""
-        from system_pack import load_system_pack
+        from cruncher.system_pack import load_system_pack
 
         pack = load_system_pack(MM3E_SYSTEM)
         table = pack.outcome_tables["affliction_degrees"]
@@ -221,7 +219,7 @@ class TestOutcomeTables:
 
     def test_effect_outcome_tables_exist(self):
         """Every outcome_table referenced by effects.json must exist in system.json."""
-        from system_pack import load_system_pack
+        from cruncher.system_pack import load_system_pack
 
         pack = load_system_pack(MM3E_SYSTEM)
         effects = _load_effects()

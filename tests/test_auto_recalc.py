@@ -7,11 +7,9 @@ needing to call rules_calc manually.
 
 import json
 import os
-import sys
 
+import cruncher_mm3e
 import pytest
-
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "core"))
 
 FIXTURES = os.path.join(os.path.dirname(__file__), "fixtures")
 TEST_SYSTEM = os.path.join(FIXTURES, "test_system")
@@ -47,7 +45,7 @@ def rules_session(make_session, tmp_path):
     Symlinks systems/test_system so try_rules_calc can resolve it.
     """
     sid = make_session()
-    from _db import require_db
+    from lorekit.db import require_db
 
     db = require_db()
 
@@ -104,7 +102,7 @@ def _setup_character(db, cid):
         },
     )
     # Run initial rules_calc to populate derived stats
-    from rules_engine import rules_calc
+    from lorekit.rules import rules_calc
 
     rules_calc(db, cid, TEST_SYSTEM)
 
@@ -113,9 +111,8 @@ class TestCombatModifierAutoRecalc:
     """combat_modifier add/remove/clear auto-recalc derived stats."""
 
     def test_add_recalcs(self, rules_session, make_character):
-        from _db import require_db
-
-        from mcp_server import combat_modifier
+        from lorekit.db import require_db
+        from lorekit.server import combat_modifier
 
         db = require_db()
         cid = make_character(rules_session, name="Fighter")
@@ -143,9 +140,8 @@ class TestCombatModifierAutoRecalc:
         db2.close()
 
     def test_remove_recalcs(self, rules_session, make_character):
-        from _db import require_db
-
-        from mcp_server import combat_modifier
+        from lorekit.db import require_db
+        from lorekit.server import combat_modifier
 
         db = require_db()
         cid = make_character(rules_session, name="Fighter")
@@ -176,9 +172,8 @@ class TestCombatModifierAutoRecalc:
         db2.close()
 
     def test_clear_recalcs(self, rules_session, make_character):
-        from _db import require_db
-
-        from mcp_server import combat_modifier
+        from lorekit.db import require_db
+        from lorekit.server import combat_modifier
 
         db = require_db()
         cid = make_character(rules_session, name="Fighter")
@@ -210,8 +205,8 @@ class TestEncounterMoveAutoRecalc:
     """move_character auto-recalcs after terrain modifier changes."""
 
     def test_move_to_cover_zone(self, rules_session, make_character):
-        from _db import require_db
-        from encounter import move_character, start_encounter
+        from lorekit.db import require_db
+        from lorekit.encounter import move_character, start_encounter
 
         db = require_db()
         cid = make_character(rules_session, name="Fighter")
@@ -233,8 +228,8 @@ class TestEncounterMoveAutoRecalc:
         db.close()
 
     def test_move_out_of_cover_zone(self, rules_session, make_character):
-        from _db import require_db
-        from encounter import move_character, start_encounter
+        from lorekit.db import require_db
+        from lorekit.encounter import move_character, start_encounter
 
         db = require_db()
         cid = make_character(rules_session, name="Fighter")
@@ -259,8 +254,8 @@ class TestEncounterZoneUpdateAutoRecalc:
     """update_zone_tags auto-recalcs for all characters in the zone."""
 
     def test_add_cover_to_zone(self, rules_session, make_character):
-        from _db import require_db
-        from encounter import start_encounter, update_zone_tags
+        from lorekit.db import require_db
+        from lorekit.encounter import start_encounter, update_zone_tags
 
         db = require_db()
         cid = make_character(rules_session, name="Fighter")
@@ -286,8 +281,8 @@ class TestEncounterStartAutoRecalc:
     """start_encounter auto-recalcs when placing in terrain zones."""
 
     def test_placement_in_cover_zone(self, rules_session, make_character):
-        from _db import require_db
-        from encounter import start_encounter
+        from lorekit.db import require_db
+        from lorekit.encounter import start_encounter
 
         db = require_db()
         cid = make_character(rules_session, name="Fighter")
@@ -309,8 +304,8 @@ class TestEncounterEndAutoRecalc:
     """end_encounter auto-recalcs after clearing modifiers."""
 
     def test_end_clears_and_recalcs(self, rules_session, make_character):
-        from _db import require_db
-        from encounter import end_encounter, start_encounter
+        from lorekit.db import require_db
+        from lorekit.encounter import end_encounter, start_encounter
 
         db = require_db()
         cid = make_character(rules_session, name="Fighter")
@@ -340,16 +335,16 @@ class TestApplyOnHitAutoRecalc:
 
     def test_grapple_applies_modifier_and_recalcs(self, rules_session, make_character):
         """Grapple applies -2 bonus_defense to defender, derived defense updates."""
-        from _db import require_db
-        from combat_engine import resolve_action
-        from encounter import start_encounter
+        from lorekit.combat import resolve_action
+        from lorekit.db import require_db
+        from lorekit.encounter import start_encounter
 
         db = require_db()
         attacker = make_character(rules_session, name="Fighter")
         defender = make_character(rules_session, name="Goblin")
         _setup_character(db, attacker)
         _setup_character(db, defender)
-        from rules_engine import rules_calc
+        from lorekit.rules import rules_calc
 
         rules_calc(db, attacker, TEST_SYSTEM)
         rules_calc(db, defender, TEST_SYSTEM)
@@ -393,14 +388,13 @@ class TestCharacterViewAfterModifier:
     """character_view shows correct (fresh) stats after combat_modifier."""
 
     def test_view_reflects_modifier(self, rules_session, make_character):
-        from _db import require_db
-
-        from mcp_server import character_view, combat_modifier
+        from lorekit.db import require_db
+        from lorekit.server import character_view, combat_modifier
 
         db = require_db()
         cid = make_character(rules_session, name="Fighter")
         _setup_character(db, cid)
-        from rules_engine import rules_calc
+        from lorekit.rules import rules_calc
 
         rules_calc(db, cid, TEST_SYSTEM)
 
@@ -427,9 +421,8 @@ class TestFullCombatIntegration:
     """Full GM combat flow through MCP tool functions with auto-recalc at every step."""
 
     def test_full_combat_flow(self, rules_session, make_character):
-        from _db import require_db
-
-        from mcp_server import (
+        from lorekit.db import require_db
+        from lorekit.server import (
             combat_modifier,
             encounter_advance_turn,
             encounter_end,
@@ -444,7 +437,7 @@ class TestFullCombatIntegration:
         _setup_character(db, npc)
         _set_attrs(db, pc, {"weapon_damage_die": "1d6", "current_hp": 20})
         _set_attrs(db, npc, {"weapon_damage_die": "1d4", "current_hp": 15})
-        from rules_engine import rules_calc
+        from lorekit.rules import rules_calc
 
         rules_calc(db, pc, TEST_SYSTEM)
         rules_calc(db, npc, TEST_SYSTEM)
@@ -534,7 +527,7 @@ class TestFullCombatIntegrationMM3e:
     def mm3e_session(self, make_session, tmp_path):
         """Create a session with rules_system=mm3e."""
         sid = make_session()
-        from _db import require_db
+        from lorekit.db import require_db
 
         db = require_db()
         db.execute(
@@ -547,7 +540,7 @@ class TestFullCombatIntegrationMM3e:
 
     def _setup_mm3e_char(self, db, cid, fgt=4, agl=2, str_=4, sta=4):
         """Set M&M3e base stats and compute derived."""
-        mm3e_path = os.path.join(os.path.dirname(__file__), "..", "systems", "mm3e")
+        mm3e_path = cruncher_mm3e.pack_path()
         for key, val in {
             "fgt": str(fgt),
             "agl": str(agl),
@@ -566,14 +559,13 @@ class TestFullCombatIntegrationMM3e:
                 (cid, key, val),
             )
         db.commit()
-        from rules_engine import rules_calc
+        from lorekit.rules import rules_calc
 
         rules_calc(db, cid, mm3e_path)
 
     def test_mm3e_degree_combat_flow(self, mm3e_session, make_character):
-        from _db import require_db
-
-        from mcp_server import (
+        from lorekit.db import require_db
+        from lorekit.server import (
             combat_modifier,
             encounter_advance_turn,
             encounter_end,
@@ -667,10 +659,9 @@ class TestAdvanceTurnAutoEndTurn:
     """advance_turn automatically calls end_turn on the previous character."""
 
     def test_modifiers_tick_on_advance(self, rules_session, make_character):
-        from _db import require_db
-        from encounter import advance_turn, start_encounter
-
-        from mcp_server import combat_modifier
+        from lorekit.db import require_db
+        from lorekit.encounter import advance_turn, start_encounter
+        from lorekit.server import combat_modifier
 
         db = require_db()
         c1 = make_character(rules_session, name="Fighter")
@@ -717,8 +708,8 @@ class TestAdvanceTurnAutoEndTurn:
 
     def test_advance_without_system_still_works(self, make_session, make_character):
         """Sessions without rules_system skip end_turn gracefully."""
-        from _db import require_db
-        from encounter import advance_turn, start_encounter
+        from lorekit.db import require_db
+        from lorekit.encounter import advance_turn, start_encounter
 
         db = require_db()
         sid = make_session()
@@ -748,8 +739,8 @@ class TestInitiativeAutoRoll:
     """encounter_start with initiative='auto' rolls d20 + derived stat."""
 
     def test_auto_roll_produces_valid_order(self, rules_session, make_character):
-        from _db import require_db
-        from encounter import start_encounter
+        from lorekit.db import require_db
+        from lorekit.encounter import start_encounter
 
         db = require_db()
         c1 = make_character(rules_session, name="Fighter")
@@ -789,8 +780,8 @@ class TestInitiativeAutoRoll:
         db.close()
 
     def test_auto_roll_requires_placements(self, rules_session, make_character):
-        from _db import LoreKitError, require_db
-        from encounter import start_encounter
+        from lorekit.db import LoreKitError, require_db
+        from lorekit.encounter import start_encounter
 
         db = require_db()
         zones = [{"name": "Arena"}]
@@ -800,8 +791,8 @@ class TestInitiativeAutoRoll:
         db.close()
 
     def test_manual_override_still_works(self, rules_session, make_character):
-        from _db import require_db
-        from encounter import start_encounter
+        from lorekit.db import require_db
+        from lorekit.encounter import start_encounter
 
         db = require_db()
         c1 = make_character(rules_session, name="Fighter")
@@ -836,8 +827,8 @@ class TestCombatHUD:
     """encounter_status shows zone-grouped HUD with vitals and modifiers."""
 
     def test_hud_shows_hp(self, rules_session, make_character):
-        from _db import require_db
-        from encounter import get_status, start_encounter
+        from lorekit.db import require_db
+        from lorekit.encounter import get_status, start_encounter
 
         db = require_db()
         cid = make_character(rules_session, name="Fighter")
@@ -845,7 +836,7 @@ class TestCombatHUD:
         # max_hp = hit_die_avg(6) * level(1) + con_mod(1) * level(1) = 7
         # Set current_hp to 5 (wounded)
         _set_attrs(db, cid, {"current_hp": 5})
-        from rules_engine import rules_calc
+        from lorekit.rules import rules_calc
 
         rules_calc(db, cid, TEST_SYSTEM)
 
@@ -861,10 +852,9 @@ class TestCombatHUD:
         db.close()
 
     def test_hud_shows_modifiers(self, rules_session, make_character):
-        from _db import require_db
-        from encounter import get_status, start_encounter
-
-        from mcp_server import combat_modifier
+        from lorekit.db import require_db
+        from lorekit.encounter import get_status, start_encounter
+        from lorekit.server import combat_modifier
 
         db = require_db()
         cid = make_character(rules_session, name="Fighter")
@@ -891,8 +881,8 @@ class TestCombatHUD:
 
     def test_hud_without_config(self, make_session, make_character):
         """Graceful fallback when no hud config exists."""
-        from _db import require_db
-        from encounter import get_status, start_encounter
+        from lorekit.db import require_db
+        from lorekit.encounter import get_status, start_encounter
 
         db = require_db()
         sid = make_session()
@@ -912,8 +902,8 @@ class TestCombatHUD:
         db.close()
 
     def test_hud_current_turn_marker(self, rules_session, make_character):
-        from _db import require_db
-        from encounter import get_status, start_encounter
+        from lorekit.db import require_db
+        from lorekit.encounter import get_status, start_encounter
 
         db = require_db()
         c1 = make_character(rules_session, name="Fighter")
@@ -941,7 +931,7 @@ class TestNpcCombatTurn:
     """NPC combat turn: context builder, intent parser, orchestrator."""
 
     def test_parse_intent_json_block(self):
-        from npc_combat import parse_combat_intent
+        from lorekit.npc.combat import parse_combat_intent
 
         response = """The orc snarls!
 ```json
@@ -954,7 +944,7 @@ class TestNpcCombatTurn:
         assert intent["narration"] == "Charges forward!"
 
     def test_parse_intent_null_fields(self):
-        from npc_combat import parse_combat_intent
+        from lorekit.npc.combat import parse_combat_intent
 
         response = """```json
 {"action": null, "targets": null, "move_to": null, "narration": "The priest prays silently."}
@@ -966,7 +956,7 @@ class TestNpcCombatTurn:
         assert intent["narration"] == "The priest prays silently."
 
     def test_parse_intent_no_json(self):
-        from npc_combat import parse_combat_intent
+        from lorekit.npc.combat import parse_combat_intent
 
         response = "The goblin shrieks and runs away!"
         intent = parse_combat_intent(response)
@@ -977,9 +967,9 @@ class TestNpcCombatTurn:
 
     def test_sequence_action_before_move(self, rules_session, make_character):
         """sequence ["action", "move"] attacks from current zone, then repositions."""
-        from _db import require_db
-        from encounter import _get_character_zone, _require_active_encounter, _zone_id_to_name, start_encounter
-        from npc_combat import execute_combat_turn
+        from lorekit.db import require_db
+        from lorekit.encounter import _get_character_zone, _require_active_encounter, _zone_id_to_name, start_encounter
+        from lorekit.npc.combat import execute_combat_turn
 
         db = require_db()
         pc = make_character(rules_session, name="Fighter", char_type="pc")
@@ -1018,14 +1008,14 @@ class TestNpcCombatTurn:
 
     def test_multi_move_sequence(self, rules_session, make_character):
         """sequence ["move", "action", "move"] with move_to as list requires max_move_steps=2."""
-        from _db import require_db
-        from encounter import (
+        from lorekit.db import require_db
+        from lorekit.encounter import (
             _get_character_zone,
             _require_active_encounter,
             _zone_id_to_name,
             start_encounter,
         )
-        from npc_combat import execute_combat_turn
+        from lorekit.npc.combat import execute_combat_turn
 
         db = require_db()
         pc = make_character(rules_session, name="Fighter", char_type="pc")
@@ -1066,9 +1056,9 @@ class TestNpcCombatTurn:
         db.close()
 
     def test_build_combat_context(self, rules_session, make_character):
-        from _db import require_db
-        from encounter import start_encounter
-        from npc_combat import build_combat_context
+        from lorekit.db import require_db
+        from lorekit.encounter import start_encounter
+        from lorekit.npc.combat import build_combat_context
 
         db = require_db()
         pc = make_character(rules_session, name="Fighter", char_type="pc")
@@ -1098,9 +1088,9 @@ class TestNpcCombatTurn:
 
     def test_build_combat_context_includes_abilities(self, rules_session, make_character):
         """Combat context includes the NPC's own abilities."""
-        from _db import require_db
-        from encounter import start_encounter
-        from npc_combat import build_combat_context
+        from lorekit.db import require_db
+        from lorekit.encounter import start_encounter
+        from lorekit.npc.combat import build_combat_context
 
         db = require_db()
         pc = make_character(rules_session, name="Fighter", char_type="pc")
@@ -1134,9 +1124,9 @@ class TestNpcCombatTurn:
 
     def test_build_combat_context_with_teams(self, rules_session, make_character):
         """Team labels in placements classify allies vs enemies correctly."""
-        from _db import require_db
-        from encounter import start_encounter
-        from npc_combat import build_combat_context
+        from lorekit.db import require_db
+        from lorekit.encounter import start_encounter
+        from lorekit.npc.combat import build_combat_context
 
         db = require_db()
         pc = make_character(rules_session, name="Fighter", char_type="pc")
@@ -1173,9 +1163,9 @@ class TestNpcCombatTurn:
 
     def test_build_combat_context_no_teams_all_enemies(self, rules_session, make_character):
         """Without team labels, all others listed as enemies."""
-        from _db import require_db
-        from encounter import start_encounter
-        from npc_combat import build_combat_context
+        from lorekit.db import require_db
+        from lorekit.encounter import start_encounter
+        from lorekit.npc.combat import build_combat_context
 
         db = require_db()
         pc = make_character(rules_session, name="Fighter", char_type="pc")
@@ -1209,9 +1199,9 @@ class TestNpcCombatTurn:
 
     def test_execute_narrative_only(self, rules_session, make_character):
         """Narrative-only turn (null intent) still advances initiative."""
-        from _db import require_db
-        from encounter import start_encounter
-        from npc_combat import execute_combat_turn
+        from lorekit.db import require_db
+        from lorekit.encounter import start_encounter
+        from lorekit.npc.combat import execute_combat_turn
 
         db = require_db()
         pc = make_character(rules_session, name="Fighter", char_type="pc")
@@ -1241,9 +1231,9 @@ class TestNpcCombatTurn:
 
     def test_execute_move_and_attack(self, rules_session, make_character):
         """NPC moves and attacks."""
-        from _db import require_db
-        from encounter import start_encounter
-        from npc_combat import execute_combat_turn
+        from lorekit.db import require_db
+        from lorekit.encounter import start_encounter
+        from lorekit.npc.combat import execute_combat_turn
 
         db = require_db()
         pc = make_character(rules_session, name="Fighter", char_type="pc")
@@ -1253,7 +1243,7 @@ class TestNpcCombatTurn:
         # Give both characters weapon damage die for melee_attack
         _set_attrs(db, pc, {"weapon_damage_die": "1d6"})
         _set_attrs(db, npc, {"weapon_damage_die": "1d4"})
-        from rules_engine import rules_calc
+        from lorekit.rules import rules_calc
 
         rules_calc(db, pc, TEST_SYSTEM)
         rules_calc(db, npc, TEST_SYSTEM)
@@ -1285,8 +1275,8 @@ class TestEncounterTemplates:
     """encounter_start with template loads zones/adjacency from system pack."""
 
     def test_template_creates_zones(self, rules_session, make_character):
-        from _db import require_db
-        from encounter import start_encounter
+        from lorekit.db import require_db
+        from lorekit.encounter import start_encounter
 
         db = require_db()
         c1 = make_character(rules_session, name="Fighter")
@@ -1321,8 +1311,8 @@ class TestEncounterTemplates:
         db.close()
 
     def test_template_with_custom_zones_override(self, rules_session, make_character):
-        from _db import require_db
-        from encounter import start_encounter
+        from lorekit.db import require_db
+        from lorekit.encounter import start_encounter
 
         db = require_db()
         c1 = make_character(rules_session, name="Fighter")
@@ -1349,8 +1339,8 @@ class TestEncounterTemplates:
         db.close()
 
     def test_unknown_template_error(self, rules_session, make_character):
-        from _db import require_db
-        from encounter import start_encounter
+        from lorekit.db import require_db
+        from lorekit.encounter import start_encounter
 
         db = require_db()
         c1 = make_character(rules_session, name="Fighter")
@@ -1374,8 +1364,8 @@ class TestRest:
     """rest tool applies system pack rest rules to all PCs."""
 
     def test_short_rest_partial_heal(self, rules_session, make_character):
-        from _db import require_db
-        from rest import rest
+        from lorekit.db import require_db
+        from lorekit.rest import rest
 
         db = require_db()
         cid = make_character(rules_session, name="Fighter")
@@ -1383,7 +1373,7 @@ class TestRest:
         # max_hp = 7 (hit_die_avg=6*1 + con_mod=1*1)
         # short rest restores floor(max_hp / 2) = floor(3.5) = 3
         _set_attrs(db, cid, {"current_hp": 1})
-        from rules_engine import rules_calc
+        from lorekit.rules import rules_calc
 
         rules_calc(db, cid, TEST_SYSTEM)
 
@@ -1403,14 +1393,14 @@ class TestRest:
         db.close()
 
     def test_long_rest_full_heal(self, rules_session, make_character):
-        from _db import require_db
-        from rest import rest
+        from lorekit.db import require_db
+        from lorekit.rest import rest
 
         db = require_db()
         cid = make_character(rules_session, name="Fighter")
         _setup_character(db, cid)
         _set_attrs(db, cid, {"current_hp": 1})
-        from rules_engine import rules_calc
+        from lorekit.rules import rules_calc
 
         rules_calc(db, cid, TEST_SYSTEM)
 
@@ -1420,10 +1410,9 @@ class TestRest:
         db.close()
 
     def test_clears_modifiers(self, rules_session, make_character):
-        from _db import require_db
-        from rest import rest
-
-        from mcp_server import combat_modifier
+        from lorekit.db import require_db
+        from lorekit.rest import rest
+        from lorekit.server import combat_modifier
 
         db = require_db()
         cid = make_character(rules_session, name="Fighter")
@@ -1450,8 +1439,8 @@ class TestRest:
         db.close()
 
     def test_only_affects_pcs(self, rules_session, make_character):
-        from _db import require_db
-        from rest import rest
+        from lorekit.db import require_db
+        from lorekit.rest import rest
 
         db = require_db()
         pc = make_character(rules_session, name="Fighter", char_type="pc")
@@ -1460,7 +1449,7 @@ class TestRest:
         _setup_character(db, npc)
         _set_attrs(db, pc, {"current_hp": 1})
         _set_attrs(db, npc, {"current_hp": 1})
-        from rules_engine import rules_calc
+        from lorekit.rules import rules_calc
 
         rules_calc(db, pc, TEST_SYSTEM)
         rules_calc(db, npc, TEST_SYSTEM)
@@ -1479,8 +1468,8 @@ class TestRest:
         db.close()
 
     def test_invalid_rest_type(self, rules_session, make_character):
-        from _db import require_db
-        from rest import rest
+        from lorekit.db import require_db
+        from lorekit.rest import rest
 
         db = require_db()
         make_character(rules_session, name="Fighter")
@@ -1497,8 +1486,8 @@ class TestCombatSummary:
     """encounter_end generates combat summary with participants and vitals."""
 
     def test_summary_with_defeated(self, rules_session, make_character):
-        from _db import require_db
-        from encounter import end_encounter, start_encounter
+        from lorekit.db import require_db
+        from lorekit.encounter import end_encounter, start_encounter
 
         db = require_db()
         c1 = make_character(rules_session, name="Fighter")
@@ -1530,14 +1519,14 @@ class TestCombatSummary:
         db.close()
 
     def test_summary_with_vitals(self, rules_session, make_character):
-        from _db import require_db
-        from encounter import end_encounter, start_encounter
+        from lorekit.db import require_db
+        from lorekit.encounter import end_encounter, start_encounter
 
         db = require_db()
         cid = make_character(rules_session, name="Fighter")
         _setup_character(db, cid)
         _set_attrs(db, cid, {"current_hp": 3})
-        from rules_engine import rules_calc
+        from lorekit.rules import rules_calc
 
         rules_calc(db, cid, TEST_SYSTEM)
 
@@ -1551,8 +1540,8 @@ class TestCombatSummary:
         db.close()
 
     def test_summary_without_hud_config(self, make_session, make_character):
-        from _db import require_db
-        from encounter import end_encounter, start_encounter
+        from lorekit.db import require_db
+        from lorekit.encounter import end_encounter, start_encounter
 
         db = require_db()
         sid = make_session()
@@ -1575,7 +1564,7 @@ class TestCharacterLookupByName:
     """Tools accept character name instead of numeric ID."""
 
     def test_character_view_by_name(self, make_session, make_character):
-        from mcp_server import character_view
+        from lorekit.server import character_view
 
         sid = make_session()
         cid = make_character(sid, name="Valeria")
@@ -1585,7 +1574,7 @@ class TestCharacterLookupByName:
         assert f"ID: {cid}" in result
 
     def test_case_insensitive(self, make_session, make_character):
-        from mcp_server import character_view
+        from lorekit.server import character_view
 
         sid = make_session()
         make_character(sid, name="Valeria")
@@ -1594,7 +1583,7 @@ class TestCharacterLookupByName:
         assert "Valeria" in result
 
     def test_numeric_passthrough(self, make_session, make_character):
-        from mcp_server import character_view
+        from lorekit.server import character_view
 
         sid = make_session()
         cid = make_character(sid, name="Valeria")
@@ -1603,7 +1592,7 @@ class TestCharacterLookupByName:
         assert "Valeria" in result
 
     def test_numeric_string_passthrough(self, make_session, make_character):
-        from mcp_server import character_view
+        from lorekit.server import character_view
 
         sid = make_session()
         cid = make_character(sid, name="Valeria")
@@ -1612,7 +1601,7 @@ class TestCharacterLookupByName:
         assert "Valeria" in result
 
     def test_not_found(self, make_session, make_character):
-        from mcp_server import character_view
+        from lorekit.server import character_view
 
         sid = make_session()
         make_character(sid, name="Valeria")
@@ -1622,7 +1611,7 @@ class TestCharacterLookupByName:
         assert "not found" in result
 
     def test_ambiguous(self, make_session, make_character):
-        from mcp_server import character_view
+        from lorekit.server import character_view
 
         sid = make_session()
         make_character(sid, name="Goblin")
@@ -1633,7 +1622,7 @@ class TestCharacterLookupByName:
         assert "Ambiguous" in result
 
     def test_combat_modifier_by_name(self, make_session, make_character):
-        from mcp_server import combat_modifier
+        from lorekit.server import combat_modifier
 
         sid = make_session()
         make_character(sid, name="Fighter")
@@ -1651,7 +1640,7 @@ class TestCharacterLookupByName:
         """Verify name resolution works (mock subprocess to avoid LLM call)."""
         from unittest.mock import patch
 
-        from mcp_server import npc_interact
+        from lorekit.server import npc_interact
 
         sid = make_session()
         make_character(sid, name="Bartender", char_type="npc")
@@ -1669,7 +1658,7 @@ class TestNoRecalcWithoutSystem:
     """Sessions without rules_system skip recalc silently."""
 
     def test_combat_modifier_no_system(self, make_session, make_character):
-        from mcp_server import combat_modifier
+        from lorekit.server import combat_modifier
 
         sid = make_session()
         cid = make_character(sid)

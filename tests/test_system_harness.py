@@ -6,11 +6,8 @@ integration test across all of them. Tests the *engine*, not pack content.
 
 import json
 import os
-import sys
 
 import pytest
-
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "core"))
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 FIXTURES = os.path.join(os.path.dirname(__file__), "fixtures")
@@ -35,12 +32,21 @@ def _discover_packs():
         if not os.path.isdir(search_root):
             continue
         for name in sorted(os.listdir(search_root)):
-            cfg_path = os.path.join(search_root, name, "test_config.json")
+            pack_dir = os.path.join(search_root, name)
+            # Check flat layout: systems/<name>/test_config.json
+            cfg_path = os.path.join(pack_dir, "test_config.json")
             if os.path.isfile(cfg_path):
-                system_path = os.path.join(search_root, name)
                 with open(cfg_path) as f:
                     config = json.load(f)
-                packs.append((name, system_path, config))
+                packs.append((name, pack_dir, config))
+                continue
+            # Check package layout: systems/<name>/src/cruncher_<name>/data/test_config.json
+            pkg_data = os.path.join(pack_dir, "src", f"cruncher_{name}", "data")
+            cfg_path = os.path.join(pkg_data, "test_config.json")
+            if os.path.isfile(cfg_path):
+                with open(cfg_path) as f:
+                    config = json.load(f)
+                packs.append((name, pkg_data, config))
     return packs
 
 
@@ -77,7 +83,7 @@ def _setup_from_config(db, cid, config, system_path):
     attrs = dict(config["base_stats"])
     attrs.update(config.get("weapon_attrs", {}))
     _set_attrs(db, cid, attrs)
-    from rules_engine import rules_calc
+    from lorekit.rules import rules_calc
 
     rules_calc(db, cid, system_path)
 
@@ -89,7 +95,7 @@ def _make_rules_session(make_session, pack_name, system_path):
     can resolve systems/<pack_name>.
     """
     sid = make_session()
-    from _db import require_db
+    from lorekit.db import require_db
 
     db = require_db()
 
@@ -120,9 +126,8 @@ class TestFullCombatHarness:
     """Full GM combat flow parametrized across all system packs."""
 
     def test_full_combat_flow(self, pack_name, system_path, config, make_session, make_character):
-        from _db import require_db
-
-        from mcp_server import (
+        from lorekit.db import require_db
+        from lorekit.server import (
             combat_modifier,
             encounter_advance_turn,
             encounter_end,
@@ -142,7 +147,7 @@ class TestFullCombatHarness:
                 vital_val = config.get("vital_start_value", 20)
                 _set_attrs(db, pc, {config["vital_current"]: vital_val})
                 _set_attrs(db, npc, {config["vital_current"]: vital_val})
-            from rules_engine import rules_calc
+            from lorekit.rules import rules_calc
 
             rules_calc(db, pc, system_path)
             rules_calc(db, npc, system_path)
@@ -262,8 +267,8 @@ class TestRestHarness:
     """Rest flow parametrized across all system packs."""
 
     def test_long_rest(self, pack_name, system_path, config, make_session, make_character):
-        from _db import require_db
-        from rest import rest
+        from lorekit.db import require_db
+        from lorekit.rest import rest
 
         system_data = _load_system_json(system_path)
         rest_cfg = system_data.get("rest", {})
@@ -279,7 +284,7 @@ class TestRestHarness:
             vital = config.get("vital_current")
             if vital:
                 _set_attrs(db, pc, {vital: 1})
-            from rules_engine import rules_calc
+            from lorekit.rules import rules_calc
 
             rules_calc(db, pc, system_path)
 
@@ -292,8 +297,8 @@ class TestRestHarness:
                 os.unlink(link_path)
 
     def test_short_rest(self, pack_name, system_path, config, make_session, make_character):
-        from _db import require_db
-        from rest import rest
+        from lorekit.db import require_db
+        from lorekit.rest import rest
 
         system_data = _load_system_json(system_path)
         rest_cfg = system_data.get("rest", {})
@@ -308,7 +313,7 @@ class TestRestHarness:
             vital = config.get("vital_current")
             if vital:
                 _set_attrs(db, pc, {vital: 1})
-            from rules_engine import rules_calc
+            from lorekit.rules import rules_calc
 
             rules_calc(db, pc, system_path)
 
@@ -320,8 +325,8 @@ class TestRestHarness:
                 os.unlink(link_path)
 
     def test_rest_only_affects_pcs(self, pack_name, system_path, config, make_session, make_character):
-        from _db import require_db
-        from rest import rest
+        from lorekit.db import require_db
+        from lorekit.rest import rest
 
         system_data = _load_system_json(system_path)
         if "rest" not in system_data:
@@ -350,7 +355,7 @@ class TestInitiativeAutoRollHarness:
     """Initiative auto-roll using pack's initiative_stat."""
 
     def test_auto_initiative(self, pack_name, system_path, config, make_session, make_character):
-        from mcp_server import encounter_start
+        from lorekit.server import encounter_start
 
         system_data = _load_system_json(system_path)
         combat_cfg = system_data.get("combat", {})
@@ -359,7 +364,7 @@ class TestInitiativeAutoRollHarness:
 
         sid, link_path = _make_rules_session(make_session, pack_name, system_path)
         try:
-            from _db import require_db
+            from lorekit.db import require_db
 
             db = require_db()
             pc = make_character(sid, name="Hero", char_type="pc")
@@ -395,7 +400,7 @@ class TestHudVitalHarness:
     """HUD vital stats using pack's hud config."""
 
     def test_encounter_status_shows_vitals(self, pack_name, system_path, config, make_session, make_character):
-        from mcp_server import encounter_start, encounter_status
+        from lorekit.server import encounter_start, encounter_status
 
         system_data = _load_system_json(system_path)
         hud_cfg = system_data.get("combat", {}).get("hud", {})
@@ -405,7 +410,7 @@ class TestHudVitalHarness:
 
         sid, link_path = _make_rules_session(make_session, pack_name, system_path)
         try:
-            from _db import require_db
+            from lorekit.db import require_db
 
             db = require_db()
             pc = make_character(sid, name="Hero", char_type="pc")
@@ -413,7 +418,7 @@ class TestHudVitalHarness:
             vital = config.get("vital_current")
             if vital:
                 _set_attrs(db, pc, {vital: 10})
-            from rules_engine import rules_calc
+            from lorekit.rules import rules_calc
 
             rules_calc(db, pc, system_path)
             db.close()
@@ -444,7 +449,7 @@ class TestEncounterTemplateHarness:
     """Encounter template using first template in pack's encounter_templates."""
 
     def test_template_start(self, pack_name, system_path, config, make_session, make_character):
-        from mcp_server import encounter_start
+        from lorekit.server import encounter_start
 
         system_data = _load_system_json(system_path)
         templates = system_data.get("encounter_templates", {})
@@ -454,7 +459,7 @@ class TestEncounterTemplateHarness:
         template_name = next(iter(templates))
         sid, link_path = _make_rules_session(make_session, pack_name, system_path)
         try:
-            from _db import require_db
+            from lorekit.db import require_db
 
             db = require_db()
             pc = make_character(sid, name="Hero", char_type="pc")

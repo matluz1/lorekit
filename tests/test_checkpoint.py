@@ -7,7 +7,7 @@ import pytest
 
 pytest.importorskip("sqlite_vec")
 
-from mcp_server import (  # noqa: E402
+from lorekit.server import (  # noqa: E402
     character_build,
     character_sheet_update,
     character_view,
@@ -22,7 +22,7 @@ from mcp_server import (  # noqa: E402
 
 
 def _get_db():
-    from _db import get_db
+    from lorekit.db import get_db
 
     return get_db(os.environ["LOREKIT_DB"])
 
@@ -90,7 +90,7 @@ def test_revert_restores_character_attributes(make_session, make_character):
     # Revert -- attribute should be gone
     turn_revert(session_id=sid)
     view = character_view(character_id=cid)
-    assert "50" not in view
+    assert "hit_points" not in view
 
 
 # -- Revert removes journal entries --
@@ -112,12 +112,12 @@ def test_revert_removes_journal_entries(make_session):
 
 def test_revert_restores_narrative_time(make_session):
     sid = make_session()
-    from mcp_server import time_get, time_set
+    from lorekit.server import time_get, time_set
 
     time_set(session_id=sid, datetime="1347-03-15T08:00")
     turn_save(session_id=sid, narration="Morning.", summary="Morning")
     # Advance time between turns
-    from mcp_server import time_advance
+    from lorekit.server import time_advance
 
     time_advance(session_id=sid, amount=12, unit="hours")
     turn_save(session_id=sid, narration="Evening.", summary="Evening")

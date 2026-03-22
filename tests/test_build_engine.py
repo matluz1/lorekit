@@ -2,15 +2,14 @@
 
 import json
 import os
-import sys
 
+import cruncher_mm3e
+import cruncher_pf2e
 import pytest
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "core"))
+from cruncher.build import BuildResult, process_build
 
-from build_engine import BuildResult, process_build
-
-PF2E_SYSTEM = os.path.join(os.path.dirname(__file__), "..", "systems", "pf2e")
+PF2E_SYSTEM = cruncher_pf2e.pack_path()
 FIXTURES = os.path.join(os.path.dirname(__file__), "fixtures")
 TEST_SYSTEM = os.path.join(FIXTURES, "test_system")
 
@@ -200,7 +199,7 @@ class TestFullBuild:
 # M&M 3e build tests
 # ---------------------------------------------------------------------------
 
-MM3E_SYSTEM = os.path.join(os.path.dirname(__file__), "..", "systems", "mm3e")
+MM3E_SYSTEM = cruncher_mm3e.pack_path()
 
 
 def _power_ability(name, power_json, category="power"):

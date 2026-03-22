@@ -4,7 +4,7 @@ import pytest
 
 pytest.importorskip("sqlite_vec")
 
-from mcp_server import (  # noqa: E402
+from lorekit.server import (  # noqa: E402
     journal_add,
     recall_reindex,
     recall_search,

@@ -2,15 +2,14 @@
 
 import json
 import os
-import sys
 from unittest.mock import patch
 
+import cruncher_mm3e
+import cruncher_pf2e
 import pytest
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "core"))
-
-MM3E_SYSTEM = os.path.join(os.path.dirname(__file__), "..", "systems", "mm3e")
-PF2E_SYSTEM = os.path.join(os.path.dirname(__file__), "..", "systems", "pf2e")
+MM3E_SYSTEM = cruncher_mm3e.pack_path()
+PF2E_SYSTEM = cruncher_pf2e.pack_path()
 
 
 # ---------------------------------------------------------------------------
@@ -24,8 +23,8 @@ def _combat_cfg(system_dir=MM3E_SYSTEM):
 
 
 def _make_character(db, session_id, make_character, name, system_dir=MM3E_SYSTEM, char_type="npc", **stats):
-    from character import set_attr
-    from rules_engine import rules_calc
+    from lorekit.character import set_attr
+    from lorekit.rules import rules_calc
 
     cid = make_character(session_id, name=name, char_type=char_type)
     defaults = {
@@ -46,7 +45,7 @@ def _make_character(db, session_id, make_character, name, system_dir=MM3E_SYSTEM
 
 
 def _start_encounter(db, session_id, characters, zones, placements, system_dir=MM3E_SYSTEM):
-    from encounter import start_encounter
+    from lorekit.encounter import start_encounter
 
     cfg = _combat_cfg(system_dir)
     start_encounter(
@@ -67,8 +66,8 @@ def _start_encounter(db, session_id, characters, zones, placements, system_dir=M
 class TestMissChance:
     def test_miss_chance_converts_hit_to_miss(self, make_session, make_character):
         """When defender has concealment (miss_chance), a hit can become a miss."""
-        from _db import require_db
-        from npc_combat import execute_combat_turn
+        from lorekit.db import require_db
+        from lorekit.npc.combat import execute_combat_turn
 
         db = require_db()
         try:
@@ -92,7 +91,7 @@ class TestMissChance:
             roll_calls = iter([18])  # d20=19
             with (
                 patch("secrets.randbelow", side_effect=roll_calls),
-                patch("combat_engine.random.random", return_value=0.1),
+                patch("lorekit.combat.random.random", return_value=0.1),
             ):
                 lines = execute_combat_turn(db, attacker, sid, intent, cfg, MM3E_SYSTEM)
 
@@ -104,8 +103,8 @@ class TestMissChance:
 
     def test_miss_chance_does_not_affect_actual_miss(self, make_session, make_character):
         """miss_chance should not trigger when the attack already missed."""
-        from _db import require_db
-        from npc_combat import execute_combat_turn
+        from lorekit.db import require_db
+        from lorekit.npc.combat import execute_combat_turn
 
         db = require_db()
         try:
@@ -137,8 +136,8 @@ class TestMissChance:
 
     def test_miss_chance_pass_still_hits(self, make_session, make_character):
         """When the percentile roll exceeds miss_chance, the hit stands."""
-        from _db import require_db
-        from npc_combat import execute_combat_turn
+        from lorekit.db import require_db
+        from lorekit.npc.combat import execute_combat_turn
 
         db = require_db()
         try:
@@ -162,7 +161,7 @@ class TestMissChance:
             roll_calls = iter([18, 4])  # attack d20=19, resist d20=5
             with (
                 patch("secrets.randbelow", side_effect=roll_calls),
-                patch("combat_engine.random.random", return_value=0.5),
+                patch("lorekit.combat.random.random", return_value=0.5),
             ):
                 lines = execute_combat_turn(db, attacker, sid, intent, cfg, MM3E_SYSTEM)
 
@@ -181,7 +180,7 @@ class TestMissChance:
 class TestMaxMove:
     def test_immobile_condition_prevents_movement(self, make_session, make_character):
         """A character with an active immobile condition (max_move: 0) cannot move."""
-        from _db import LoreKitError, require_db
+        from lorekit.db import LoreKitError, require_db
 
         db = require_db()
         try:
@@ -206,7 +205,7 @@ class TestMaxMove:
             )
             db.commit()
 
-            from encounter import move_character
+            from lorekit.encounter import move_character
 
             with pytest.raises(LoreKitError, match="Cannot move.*immobile"):
                 move_character(db, enc_id, cid, "B", combat_cfg=cfg)
@@ -215,7 +214,7 @@ class TestMaxMove:
 
     def test_grab_condition_prevents_movement(self, make_session, make_character):
         """A grabbed character (max_move: 0) cannot move."""
-        from _db import LoreKitError, require_db
+        from lorekit.db import LoreKitError, require_db
 
         db = require_db()
         try:
@@ -240,7 +239,7 @@ class TestMaxMove:
             )
             db.commit()
 
-            from encounter import move_character
+            from lorekit.encounter import move_character
 
             with pytest.raises(LoreKitError, match="Cannot move.*grab"):
                 move_character(db, enc_id, cid, "B", combat_cfg=cfg)
@@ -249,7 +248,7 @@ class TestMaxMove:
 
     def test_normal_movement_still_works(self, make_session, make_character):
         """Without blocking conditions, movement should work normally."""
-        from _db import require_db
+        from lorekit.db import require_db
 
         db = require_db()
         try:
@@ -266,7 +265,7 @@ class TestMaxMove:
             )
             enc_id = db.execute("SELECT id FROM encounter_state WHERE session_id = ?", (sid,)).fetchone()[0]
 
-            from encounter import move_character
+            from lorekit.encounter import move_character
 
             result = move_character(db, enc_id, cid, "B", combat_cfg=cfg)
             assert "MOVED" in result
@@ -282,8 +281,8 @@ class TestMaxMove:
 class TestEscapeCheck:
     def test_escape_check_succeeds_removes_modifier(self, make_session, make_character):
         """Successful escape check removes the until_escape modifier."""
-        from _db import require_db
-        from combat_engine import end_turn
+        from lorekit.combat import end_turn
+        from lorekit.db import require_db
 
         db = require_db()
         try:
@@ -328,8 +327,8 @@ class TestEscapeCheck:
 
     def test_escape_check_fails_keeps_modifier(self, make_session, make_character):
         """Failed escape check keeps the until_escape modifier."""
-        from _db import require_db
-        from combat_engine import end_turn
+        from lorekit.combat import end_turn
+        from lorekit.db import require_db
 
         db = require_db()
         try:

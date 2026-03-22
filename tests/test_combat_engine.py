@@ -2,18 +2,16 @@
 
 import json
 import os
-import sys
 from unittest.mock import patch
 
+import cruncher_mm3e
 import pytest
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "core"))
-
-from combat_engine import resolve_action, resolve_area_action
+from lorekit.combat import resolve_action, resolve_area_action
 
 FIXTURES = os.path.join(os.path.dirname(__file__), "fixtures")
 TEST_SYSTEM = os.path.join(FIXTURES, "test_system")
-MM3E_SYSTEM = os.path.join(os.path.dirname(__file__), "..", "systems", "mm3e")
+MM3E_SYSTEM = cruncher_mm3e.pack_path()
 
 
 def _setup_fighter(db, make_session, make_character, set_attr, name, **overrides):
@@ -36,7 +34,7 @@ def _setup_fighter(db, make_session, make_character, set_attr, name, **overrides
     set_attr(db, cid, "combat", "hit_die_avg", defaults.get("hit_die_avg", "6"))
 
     # Run rules_calc to compute derived stats
-    from rules_engine import rules_calc
+    from lorekit.rules import rules_calc
 
     rules_calc(db, cid, TEST_SYSTEM)
 
@@ -48,8 +46,8 @@ def _setup_fighter(db, make_session, make_character, set_attr, name, **overrides
 
 class TestThresholdHit:
     def test_hit_deals_damage(self, make_session, make_character):
-        from _db import require_db
-        from character import set_attr
+        from lorekit.character import set_attr
+        from lorekit.db import require_db
 
         db = require_db()
         try:
@@ -86,8 +84,8 @@ class TestThresholdHit:
 
 class TestThresholdMiss:
     def test_miss_no_damage(self, make_session, make_character):
-        from _db import require_db
-        from character import set_attr
+        from lorekit.character import set_attr
+        from lorekit.db import require_db
 
         db = require_db()
         try:
@@ -116,8 +114,8 @@ class TestThresholdMiss:
 class TestThresholdHpFallback:
     def test_no_current_hp_uses_max_hp(self, make_session, make_character):
         """If current_hp doesn't exist, initialize from max_hp."""
-        from _db import require_db
-        from character import set_attr
+        from lorekit.character import set_attr
+        from lorekit.db import require_db
 
         db = require_db()
         try:
@@ -139,8 +137,8 @@ class TestThresholdHpFallback:
 class TestDegreeHitResistanceFail:
     def test_degree_hit_with_resistance_failure(self, make_session, make_character):
         """M&M3e: hit + failed resistance → degree of failure with conditions."""
-        from _db import require_db
-        from character import set_attr
+        from lorekit.character import set_attr
+        from lorekit.db import require_db
 
         db = require_db()
         try:
@@ -161,7 +159,7 @@ class TestDegreeHitResistanceFail:
             ]:
                 set_attr(db, atk_id, "stat", key, val)
             # Run calc to get derived
-            from rules_engine import rules_calc
+            from lorekit.rules import rules_calc
 
             rules_calc(db, atk_id, MM3E_SYSTEM)
 
@@ -200,8 +198,8 @@ class TestDegreeHitResistanceFail:
 class TestDegreeNoEffect:
     def test_degree_hit_resistance_success(self, make_session, make_character):
         """M&M3e: hit but resistance succeeds → no effect."""
-        from _db import require_db
-        from character import set_attr
+        from lorekit.character import set_attr
+        from lorekit.db import require_db
 
         db = require_db()
         try:
@@ -220,7 +218,7 @@ class TestDegreeNoEffect:
                 ("pre", "0"),
             ]:
                 set_attr(db, atk_id, "stat", key, val)
-            from rules_engine import rules_calc
+            from lorekit.rules import rules_calc
 
             rules_calc(db, atk_id, MM3E_SYSTEM)
 
@@ -253,8 +251,8 @@ class TestDegreeNoEffect:
 
 class TestUnknownAction:
     def test_unknown_action_raises(self, make_session, make_character):
-        from _db import LoreKitError, require_db
-        from character import set_attr
+        from lorekit.character import set_attr
+        from lorekit.db import LoreKitError, require_db
 
         db = require_db()
         try:
@@ -270,9 +268,9 @@ class TestUnknownAction:
 class TestRangeValidation:
     def test_melee_out_of_range_rejected(self, make_session, make_character):
         """Melee attack across zones is rejected when encounter is active."""
-        from _db import LoreKitError, require_db
-        from character import set_attr
-        from encounter import start_encounter
+        from lorekit.character import set_attr
+        from lorekit.db import LoreKitError, require_db
+        from lorekit.encounter import start_encounter
 
         db = require_db()
         try:
@@ -302,9 +300,9 @@ class TestRangeValidation:
         """Melee attack in same zone proceeds normally."""
         from unittest.mock import patch
 
-        from _db import require_db
-        from character import set_attr
-        from encounter import start_encounter
+        from lorekit.character import set_attr
+        from lorekit.db import require_db
+        from lorekit.encounter import start_encounter
 
         db = require_db()
         try:
@@ -338,7 +336,7 @@ class TestRangeValidation:
 class TestMissingStats:
     def test_missing_attack_stat_raises(self, make_session, make_character):
         """Character without the required attack stat → error."""
-        from _db import LoreKitError, require_db
+        from lorekit.db import LoreKitError, require_db
 
         db = require_db()
         try:
@@ -356,8 +354,8 @@ class TestMissingStats:
 class TestContestedAction:
     def test_grapple_success_applies_modifiers(self, make_session, make_character):
         """Contested grapple: attacker wins → modifiers applied via combat_state."""
-        from _db import require_db
-        from character import set_attr
+        from lorekit.character import set_attr
+        from lorekit.db import require_db
 
         db = require_db()
         try:
@@ -385,8 +383,8 @@ class TestContestedAction:
 
     def test_grapple_failure(self, make_session, make_character):
         """Contested grapple: defender wins → no modifiers applied."""
-        from _db import require_db
-        from character import set_attr
+        from lorekit.character import set_attr
+        from lorekit.db import require_db
 
         db = require_db()
         try:
@@ -406,8 +404,8 @@ class TestContestedAction:
 
     def test_no_damage_action(self, make_session, make_character):
         """Action with on_hit modifiers but no damage_roll skips damage."""
-        from _db import require_db
-        from character import set_attr
+        from lorekit.character import set_attr
+        from lorekit.db import require_db
 
         db = require_db()
         try:
@@ -436,9 +434,9 @@ class TestContestedAction:
 class TestForcedMovement:
     def test_shove_pushes_target(self, make_session, make_character):
         """Shove action pushes target to adjacent zone on success."""
-        from _db import require_db
-        from character import set_attr
-        from encounter import start_encounter
+        from lorekit.character import set_attr
+        from lorekit.db import require_db
+        from lorekit.encounter import start_encounter
 
         db = require_db()
         try:
@@ -481,9 +479,9 @@ class TestForcedMovement:
 
     def test_shove_out_of_range_rejected(self, make_session, make_character):
         """Shove across zones is rejected — melee requires same zone."""
-        from _db import LoreKitError, require_db
-        from character import set_attr
-        from encounter import start_encounter
+        from lorekit.character import set_attr
+        from lorekit.db import LoreKitError, require_db
+        from lorekit.encounter import start_encounter
 
         db = require_db()
         try:
@@ -515,7 +513,7 @@ class TestAreaEffect:
 
     def _setup_encounter(self, db, make_session, make_character, set_attr):
         """Set up 3 fighters in a 3-zone linear encounter: Near ↔ Mid ↔ Far."""
-        from encounter import start_encounter
+        from lorekit.encounter import start_encounter
 
         sid, atk_id = _setup_fighter(db, make_session, make_character, set_attr, "Caster")
         _, t1_id = _setup_fighter(db, make_session, make_character, set_attr, "Target1")
@@ -545,8 +543,8 @@ class TestAreaEffect:
 
     def test_area_radius0_hits_center_zone_only(self, make_session, make_character):
         """radius=0 only hits characters in the center zone."""
-        from _db import require_db
-        from character import set_attr
+        from lorekit.character import set_attr
+        from lorekit.db import require_db
 
         db = require_db()
         try:
@@ -577,8 +575,8 @@ class TestAreaEffect:
 
     def test_area_radius1_hits_adjacent_zones(self, make_session, make_character):
         """radius=1 hits center + adjacent zones."""
-        from _db import require_db
-        from character import set_attr
+        from lorekit.character import set_attr
+        from lorekit.db import require_db
 
         db = require_db()
         try:
@@ -611,8 +609,8 @@ class TestAreaEffect:
 
     def test_area_attacker_excluded_by_default(self, make_session, make_character):
         """Attacker is excluded from area targets by default."""
-        from _db import require_db
-        from character import set_attr
+        from lorekit.character import set_attr
+        from lorekit.db import require_db
 
         db = require_db()
         try:
@@ -641,8 +639,8 @@ class TestAreaEffect:
 
     def test_area_center_self_uses_attacker_zone(self, make_session, make_character):
         """center='self' uses the attacker's zone."""
-        from _db import require_db
-        from character import set_attr
+        from lorekit.character import set_attr
+        from lorekit.db import require_db
 
         db = require_db()
         try:
@@ -672,8 +670,8 @@ class TestAreaEffect:
 
     def test_area_no_encounter_raises(self, make_session, make_character):
         """Area effect without an active encounter raises an error."""
-        from _db import LoreKitError, require_db
-        from character import set_attr
+        from lorekit.character import set_attr
+        from lorekit.db import LoreKitError, require_db
 
         db = require_db()
         try:
@@ -693,9 +691,9 @@ class TestAreaEffect:
 
     def test_area_empty_no_targets(self, make_session, make_character):
         """Area with no targets returns a clean message."""
-        from _db import require_db
-        from character import set_attr
-        from encounter import start_encounter
+        from lorekit.character import set_attr
+        from lorekit.db import require_db
+        from lorekit.encounter import start_encounter
 
         db = require_db()
         try:
@@ -728,8 +726,8 @@ class TestAreaEffect:
 class TestDegreeOnHit:
     def test_mm3e_grab_applies_modifiers(self, make_session, make_character):
         """M&M3e grab: degree action with on_hit modifiers (no resistance check)."""
-        from _db import require_db
-        from character import set_attr
+        from lorekit.character import set_attr
+        from lorekit.db import require_db
 
         db = require_db()
         try:
@@ -748,7 +746,7 @@ class TestDegreeOnHit:
                 ("pre", "0"),
             ]:
                 set_attr(db, atk_id, "stat", key, val)
-            from rules_engine import rules_calc
+            from lorekit.rules import rules_calc
 
             rules_calc(db, atk_id, MM3E_SYSTEM)
 
@@ -804,8 +802,8 @@ class TestDegreeOnHit:
 class TestThresholdCriticalHit:
     def test_natural_20_doubles_damage(self, make_session, make_character):
         """Threshold: natural 20 hit → CRITICAL HIT with damage multiplier."""
-        from _db import require_db
-        from character import set_attr
+        from lorekit.character import set_attr
+        from lorekit.db import require_db
 
         db = require_db()
         try:
@@ -827,8 +825,8 @@ class TestThresholdCriticalHit:
 
     def test_natural_20_miss_upgraded_to_hit(self, make_session, make_character):
         """Threshold: natural 20 that would miss → upgraded to regular hit."""
-        from _db import require_db
-        from character import set_attr
+        from lorekit.character import set_attr
+        from lorekit.db import require_db
 
         db = require_db()
         try:
@@ -849,7 +847,7 @@ class TestThresholdCriticalHit:
             # Actually with dex=30, AC = 10 + 10 = 20. attack=29 hits anyway.
             # Let's set armor bonus high instead.
             set_attr(db, def_id, "stat", "item_bonus_ac", "30")
-            from rules_engine import rules_calc
+            from lorekit.rules import rules_calc
 
             rules_calc(db, def_id, TEST_SYSTEM)
             # Now AC = 10 + 10 + 30 = 50. attack d20(20)+9=29 < 50 → miss normally.
@@ -866,8 +864,8 @@ class TestThresholdCriticalHit:
 
     def test_no_crit_without_natural_20(self, make_session, make_character):
         """Threshold: regular hit (not nat 20) → no critical."""
-        from _db import require_db
-        from character import set_attr
+        from lorekit.character import set_attr
+        from lorekit.db import require_db
 
         db = require_db()
         try:
@@ -891,8 +889,8 @@ class TestThresholdCriticalHit:
 class TestDegreeCriticalHit:
     def test_mm3e_natural_20_adds_effect_rank(self, make_session, make_character):
         """M&M3e degree: natural 20 → +5 effect rank on resistance DC."""
-        from _db import require_db
-        from character import set_attr
+        from lorekit.character import set_attr
+        from lorekit.db import require_db
 
         db = require_db()
         try:
@@ -911,7 +909,7 @@ class TestDegreeCriticalHit:
                 ("pre", "0"),
             ]:
                 set_attr(db, atk_id, "stat", key, val)
-            from rules_engine import rules_calc
+            from lorekit.rules import rules_calc
 
             rules_calc(db, atk_id, MM3E_SYSTEM)
 
@@ -946,8 +944,8 @@ class TestDegreeCriticalHit:
 
     def test_mm3e_no_crit_without_natural_20(self, make_session, make_character):
         """M&M3e degree: regular hit → no effect rank bonus."""
-        from _db import require_db
-        from character import set_attr
+        from lorekit.character import set_attr
+        from lorekit.db import require_db
 
         db = require_db()
         try:
@@ -966,7 +964,7 @@ class TestDegreeCriticalHit:
                 ("pre", "0"),
             ]:
                 set_attr(db, atk_id, "stat", key, val)
-            from rules_engine import rules_calc
+            from lorekit.rules import rules_calc
 
             rules_calc(db, atk_id, MM3E_SYSTEM)
 
@@ -1001,15 +999,17 @@ class TestDegreeCriticalHit:
 class TestRelocateOnHit:
     def test_relocate_moves_target_on_hit(self, make_session, make_character):
         """on_hit relocate moves the target to a named zone."""
-        from _db import require_db
-        from character import set_attr
-        from combat_engine import _apply_on_hit
-        from encounter import (
+        from cruncher.system_pack import SystemPack, load_system_pack
+        from cruncher.types import CharacterData
+        from lorekit.character import set_attr
+        from lorekit.combat import _apply_on_hit
+        from lorekit.db import require_db
+        from lorekit.encounter import (
             _get_character_zone,
             _zone_id_to_name,
             start_encounter,
         )
-        from system_pack import CharacterData, SystemPack, load_character_data, load_system_pack
+        from lorekit.rules import load_character_data
 
         db = require_db()
         try:
@@ -1059,9 +1059,9 @@ class TestRelocateOnHit:
 class TestUtilityAction:
     def test_on_use_relocate_no_roll(self, make_session, make_character):
         """Utility action (no attack_stat) applies on_use effects without rolling."""
-        from _db import require_db
-        from character import set_attr
-        from encounter import (
+        from lorekit.character import set_attr
+        from lorekit.db import require_db
+        from lorekit.encounter import (
             _get_character_zone,
             _zone_id_to_name,
             start_encounter,
@@ -1136,7 +1136,7 @@ def _setup_mm3e_fighter(db, make_session, make_character, set_attr, name):
         ("power_level", "10"),
     ]:
         set_attr(db, cid, "stat", key, val)
-    from rules_engine import rules_calc
+    from lorekit.rules import rules_calc
 
     rules_calc(db, cid, MM3E_SYSTEM)
     return sid, cid
@@ -1147,8 +1147,8 @@ class TestConditionActionLimit:
 
     def test_incapacitated_blocks_action(self, make_session, make_character):
         """A character with damage_condition >= 4 (incapacitated) cannot act."""
-        from _db import LoreKitError, require_db
-        from character import set_attr
+        from lorekit.character import set_attr
+        from lorekit.db import LoreKitError, require_db
 
         db = require_db()
         try:
@@ -1164,8 +1164,8 @@ class TestConditionActionLimit:
 
     def test_stunned_blocks_action(self, make_session, make_character):
         """A character with a 'stunned' combat_state source cannot act."""
-        from _db import LoreKitError, require_db
-        from character import set_attr
+        from lorekit.character import set_attr
+        from lorekit.db import LoreKitError, require_db
 
         db = require_db()
         try:
@@ -1186,8 +1186,8 @@ class TestConditionActionLimit:
 
     def test_dazed_allows_first_action_blocks_second(self, make_session, make_character):
         """Dazed (max_total: 1): first action goes through, second is blocked."""
-        from _db import LoreKitError, require_db
-        from character import set_attr
+        from lorekit.character import set_attr
+        from lorekit.db import LoreKitError, require_db
 
         db = require_db()
         try:
@@ -1210,9 +1210,9 @@ class TestConditionActionLimit:
 
     def test_action_counter_resets_on_advance_turn(self, make_session, make_character):
         """The per-turn action counter resets when advance_turn is called."""
-        from _db import require_db
-        from character import set_attr
-        from encounter import advance_turn
+        from lorekit.character import set_attr
+        from lorekit.db import require_db
+        from lorekit.encounter import advance_turn
 
         db = require_db()
         try:
@@ -1220,7 +1220,7 @@ class TestConditionActionLimit:
             _, def_id = _setup_mm3e_fighter(db, make_session, make_character, set_attr, "Defender")
 
             # Set up encounter
-            from encounter import start_encounter
+            from lorekit.encounter import start_encounter
 
             zones = [{"name": "Arena"}]
             initiative = [{"character_id": atk_id, "roll": 20}, {"character_id": def_id, "roll": 10}]
@@ -1250,8 +1250,8 @@ class TestConditionActionLimit:
 
     def test_healthy_character_not_blocked(self, make_session, make_character):
         """A character with no active conditions can act freely."""
-        from _db import require_db
-        from character import set_attr
+        from lorekit.character import set_attr
+        from lorekit.db import require_db
 
         db = require_db()
         try:
@@ -1277,8 +1277,8 @@ class TestConditionActionLimit:
 class TestCombatOptions:
     def test_expand_named_options(self):
         """Named combat options expand into trade dicts."""
-        from combat_engine import _expand_combat_options
-        from system_pack import load_system_pack
+        from cruncher.system_pack import load_system_pack
+        from lorekit.combat import _expand_combat_options
 
         pack = load_system_pack(MM3E_SYSTEM)
 
@@ -1313,8 +1313,8 @@ class TestCombatOptions:
 
     def test_clamp_to_max(self):
         """Value exceeding max is clamped."""
-        from combat_engine import _expand_combat_options
-        from system_pack import load_system_pack
+        from cruncher.system_pack import load_system_pack
+        from lorekit.combat import _expand_combat_options
 
         pack = load_system_pack(MM3E_SYSTEM)
 
@@ -1324,8 +1324,8 @@ class TestCombatOptions:
 
     def test_optional_from_in_trade(self, make_session, make_character):
         """Trades without 'from' work correctly (only add to 'to' stat)."""
-        from _db import require_db
-        from character import set_attr
+        from lorekit.character import set_attr
+        from lorekit.db import require_db
 
         db = require_db()
         try:
@@ -1346,12 +1346,12 @@ class TestCombatOptions:
                 set_attr(db, atk_id, "stat", key, val)
                 set_attr(db, def_id, "stat", key, val)
 
-            from rules_engine import rules_calc
+            from lorekit.rules import rules_calc
 
             rules_calc(db, atk_id, MM3E_SYSTEM)
             rules_calc(db, def_id, MM3E_SYSTEM)
 
-            from encounter import start_encounter
+            from lorekit.encounter import start_encounter
 
             start_encounter(
                 db,
@@ -1383,8 +1383,8 @@ class TestCombatOptions:
 
     def test_named_options_apply_modifiers(self, make_session, make_character):
         """All-out Attack via named option applies persistent defense penalties."""
-        from _db import require_db
-        from character import set_attr
+        from lorekit.character import set_attr
+        from lorekit.db import require_db
 
         db = require_db()
         try:
@@ -1405,12 +1405,12 @@ class TestCombatOptions:
                 set_attr(db, atk_id, "stat", key, val)
                 set_attr(db, def_id, "stat", key, val)
 
-            from rules_engine import rules_calc
+            from lorekit.rules import rules_calc
 
             rules_calc(db, atk_id, MM3E_SYSTEM)
             rules_calc(db, def_id, MM3E_SYSTEM)
 
-            from encounter import start_encounter
+            from lorekit.encounter import start_encounter
 
             start_encounter(
                 db,

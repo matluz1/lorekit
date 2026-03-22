@@ -6,7 +6,7 @@ import json
 
 
 def test_turn_save_narration_only(make_session):
-    from mcp_server import session_meta_get, timeline_list, turn_save
+    from lorekit.server import session_meta_get, timeline_list, turn_save
 
     sid = make_session()
     result = turn_save(session_id=sid, narration="The forest darkens.", summary="Forest gets dark")
@@ -21,7 +21,7 @@ def test_turn_save_narration_only(make_session):
 
 
 def test_turn_save_player_choice_only(make_session):
-    from mcp_server import timeline_list, turn_save
+    from lorekit.server import timeline_list, turn_save
 
     sid = make_session()
     result = turn_save(session_id=sid, player_choice="I attack the goblin")
@@ -32,7 +32,7 @@ def test_turn_save_player_choice_only(make_session):
 
 
 def test_turn_save_both(make_session):
-    from mcp_server import session_meta_get, timeline_list, turn_save
+    from lorekit.server import session_meta_get, timeline_list, turn_save
 
     sid = make_session()
     result = turn_save(
@@ -51,7 +51,7 @@ def test_turn_save_both(make_session):
 
 
 def test_turn_save_requires_at_least_one():
-    from mcp_server import session_create, turn_save
+    from lorekit.server import session_create, turn_save
 
     session_create(name="Test", setting="Fantasy", system="d20")
     result = turn_save(session_id=1)
@@ -62,7 +62,7 @@ def test_turn_save_requires_at_least_one():
 
 
 def test_character_build_full(make_session):
-    from mcp_server import character_build, character_view
+    from lorekit.server import character_build, character_view
 
     sid = make_session()
     result = character_build(
@@ -102,7 +102,7 @@ def test_character_build_full(make_session):
 
 
 def test_character_build_minimal(make_session):
-    from mcp_server import character_build
+    from lorekit.server import character_build
 
     sid = make_session()
     result = character_build(session=sid, name="Bob", level=1)
@@ -111,7 +111,7 @@ def test_character_build_minimal(make_session):
 
 
 def test_character_build_npc_with_region(make_session, make_region):
-    from mcp_server import character_build, character_view
+    from lorekit.server import character_build, character_view
 
     sid = make_session()
     rid = make_region(sid)
@@ -124,7 +124,7 @@ def test_character_build_npc_with_region(make_session, make_region):
 
 
 def test_character_build_invalid_json():
-    from mcp_server import character_build, session_create
+    from lorekit.server import character_build, session_create
 
     session_create(name="Test", setting="Fantasy", system="d20")
     result = character_build(session=1, name="Bad", level=1, attrs="not json")
@@ -135,7 +135,7 @@ def test_character_build_invalid_json():
 
 
 def test_session_setup_full():
-    from mcp_server import region_list, session_meta_get, session_setup, session_view, story_view
+    from lorekit.server import region_list, session_meta_get, session_setup, session_view, story_view
 
     result = session_setup(
         name="Dark Forest",
@@ -186,7 +186,7 @@ def test_session_setup_full():
 
 
 def test_session_setup_minimal():
-    from mcp_server import session_setup, session_view
+    from lorekit.server import session_setup, session_view
 
     result = session_setup(name="Quick", setting="sci-fi", system="2d6")
     assert "SESSION_CREATED:" in result
@@ -197,7 +197,7 @@ def test_session_setup_minimal():
 
 
 def test_session_setup_invalid_json():
-    from mcp_server import session_setup
+    from lorekit.server import session_setup
 
     result = session_setup(name="Bad", setting="X", system="Y", meta="not json")
     assert "ERROR" in result
@@ -207,7 +207,7 @@ def test_session_setup_invalid_json():
 
 
 def test_session_resume(make_session, make_character):
-    from mcp_server import (
+    from lorekit.server import (
         journal_add,
         region_create,
         session_meta_set,
@@ -245,7 +245,7 @@ def test_session_resume(make_session, make_character):
 
 
 def test_session_resume_no_story(make_session):
-    from mcp_server import session_resume
+    from lorekit.server import session_resume
 
     sid = make_session()
     result = session_resume(session_id=sid)
@@ -257,7 +257,7 @@ def test_session_resume_no_story(make_session):
 
 
 def test_character_sheet_update_attrs(make_session, make_character):
-    from mcp_server import character_sheet_update, character_view
+    from lorekit.server import character_sheet_update, character_view
 
     sid = make_session()
     cid = make_character(sid)
@@ -274,11 +274,11 @@ def test_character_sheet_update_attrs(make_session, make_character):
 
     view = character_view(character_id=cid)
     assert "hp" in view
-    assert "25" in view
+    assert "hp   25" in view
 
 
 def test_character_sheet_update_level_and_items(make_session, make_character):
-    from mcp_server import character_sheet_update, character_view
+    from lorekit.server import character_sheet_update, character_view
 
     sid = make_session()
     cid = make_character(sid)
@@ -296,7 +296,7 @@ def test_character_sheet_update_level_and_items(make_session, make_character):
 
 
 def test_character_sheet_update_remove_items_by_name(make_session, make_character):
-    from mcp_server import character_set_item, character_sheet_update, character_view
+    from lorekit.server import character_set_item, character_sheet_update, character_view
 
     sid = make_session()
     cid = make_character(sid)
@@ -315,7 +315,7 @@ def test_character_sheet_update_remove_items_by_name(make_session, make_characte
 
 
 def test_character_sheet_update_remove_items_by_id(make_session, make_character):
-    from mcp_server import character_set_item, character_sheet_update, character_view
+    from lorekit.server import character_set_item, character_sheet_update, character_view
 
     sid = make_session()
     cid = make_character(sid)
@@ -333,7 +333,7 @@ def test_character_sheet_update_remove_items_by_id(make_session, make_character)
 
 
 def test_character_sheet_update_no_changes(make_session, make_character):
-    from mcp_server import character_sheet_update
+    from lorekit.server import character_sheet_update
 
     sid = make_session()
     cid = make_character(sid)
@@ -342,7 +342,7 @@ def test_character_sheet_update_no_changes(make_session, make_character):
 
 
 def test_character_sheet_update_abilities(make_session, make_character):
-    from mcp_server import character_sheet_update, character_view
+    from lorekit.server import character_sheet_update, character_view
 
     sid = make_session()
     cid = make_character(sid)

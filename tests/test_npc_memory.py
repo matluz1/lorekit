@@ -1,15 +1,9 @@
 """Tests for NPC Memory Architecture."""
 
 import json
-import os
 import re
-import sys
 
 import pytest
-
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, ROOT)
-sys.path.insert(0, os.path.join(ROOT, "core"))
 
 
 def _extract_id(result):
@@ -25,7 +19,7 @@ def make_npc(make_session):
     def _make(name="Test NPC", session_id=None):
         if session_id is None:
             session_id = make_session()
-        from mcp_server import character_build
+        from lorekit.server import character_build
 
         result = character_build(session=session_id, name=name, level=1, type="npc")
         npc_id = _extract_id(result)
@@ -42,7 +36,7 @@ def make_npc(make_session):
 class TestScoreMemories:
     def test_basic_scoring(self):
         """Min-max normalization with different importance values."""
-        from npc_memory import score_memories
+        from lorekit.npc.memory import score_memories
 
         memories = [
             {"importance": 0.9, "last_accessed": None, "created_at": "2026-01-01T00:00:00Z"},
@@ -56,7 +50,7 @@ class TestScoreMemories:
 
     def test_single_memory(self):
         """Single memory edge case — should not crash on min-max normalization."""
-        from npc_memory import score_memories
+        from lorekit.npc.memory import score_memories
 
         memories = [{"importance": 0.5, "last_accessed": None, "created_at": "2026-01-01T00:00:00Z"}]
         results = score_memories(memories, query_embedding=None, narrative_now="")
@@ -66,7 +60,7 @@ class TestScoreMemories:
 
     def test_all_equal_scores(self):
         """All-equal scores should produce equal final scores."""
-        from npc_memory import score_memories
+        from lorekit.npc.memory import score_memories
 
         memories = [
             {"importance": 0.5, "last_accessed": None, "created_at": "2026-01-01T00:00:00Z"},
@@ -77,7 +71,7 @@ class TestScoreMemories:
 
     def test_noise_changes_scores(self):
         """With noise > 0, scores should vary across runs (probabilistic)."""
-        from npc_memory import score_memories
+        from lorekit.npc.memory import score_memories
 
         memories = [
             {"importance": 0.5, "last_accessed": None, "created_at": "2026-01-01T00:00:00Z"},
@@ -92,7 +86,7 @@ class TestScoreMemories:
 
     def test_cosine_similarity(self):
         """Test relevance dimension via cosine similarity."""
-        from npc_memory import score_memories
+        from lorekit.npc.memory import score_memories
 
         memories = [
             {
@@ -115,7 +109,7 @@ class TestScoreMemories:
 
     def test_empty_memories(self):
         """Empty list should return empty."""
-        from npc_memory import score_memories
+        from lorekit.npc.memory import score_memories
 
         assert score_memories([], None, "") == []
 
@@ -130,7 +124,7 @@ class TestNpcMemoryAdd:
         """Add memory, verify in DB, verify embedding created."""
         session_id, npc_id = make_npc()
 
-        from mcp_server import npc_memory_add
+        from lorekit.server import npc_memory_add
 
         result = npc_memory_add(
             session_id=session_id,
@@ -145,7 +139,7 @@ class TestNpcMemoryAdd:
         memory_id = _extract_id(result)
 
         # Verify in DB
-        from _db import require_db
+        from lorekit.db import require_db
 
         db = require_db()
         row = db.execute(
@@ -161,7 +155,7 @@ class TestNpcMemoryAdd:
         """Can add memory by NPC name instead of ID."""
         session_id, npc_id = make_npc(name="Bartender Bob")
 
-        from mcp_server import npc_memory_add
+        from lorekit.server import npc_memory_add
 
         result = npc_memory_add(
             session_id=session_id,
@@ -175,7 +169,7 @@ class TestNpcMemoryAdd:
         """Invalid memory_type should error."""
         session_id, npc_id = make_npc()
 
-        from mcp_server import npc_memory_add
+        from lorekit.server import npc_memory_add
 
         result = npc_memory_add(
             session_id=session_id,
@@ -191,7 +185,7 @@ class TestNpcMemoryAdd:
         sid = make_session()
         pc_id = make_character(sid, name="PC Hero", char_type="pc")
 
-        from mcp_server import npc_memory_add
+        from lorekit.server import npc_memory_add
 
         result = npc_memory_add(session_id=sid, npc_id=pc_id, content="test", narrative_time="")
         assert "ERROR" in result
@@ -209,7 +203,7 @@ class TestCharacterViewNpc:
         session_id, npc_id = make_npc()
 
         # Set core identity
-        from mcp_server import character_sheet_update
+        from lorekit.server import character_sheet_update
 
         result = character_sheet_update(
             character_id=npc_id,
@@ -224,7 +218,7 @@ class TestCharacterViewNpc:
         assert "NPC_CORE_SET" in result
 
         # Add some memories
-        from mcp_server import npc_memory_add
+        from lorekit.server import npc_memory_add
 
         npc_memory_add(
             session_id=session_id,
@@ -241,7 +235,7 @@ class TestCharacterViewNpc:
             narrative_time="day 2",
         )
 
-        from mcp_server import character_view
+        from lorekit.server import character_view
 
         view = character_view(npc_id)
         assert "--- NPC CORE ---" in view
@@ -255,7 +249,7 @@ class TestCharacterViewNpc:
         sid = make_session()
         pc_id = make_character(sid, name="Hero")
 
-        from mcp_server import character_view
+        from lorekit.server import character_view
 
         view = character_view(pc_id)
         assert "--- NPC CORE ---" not in view
@@ -272,7 +266,7 @@ class TestSheetUpdateCore:
         """character_sheet_update with core sets npc_core."""
         session_id, npc_id = make_npc()
 
-        from mcp_server import character_sheet_update
+        from lorekit.server import character_sheet_update
 
         result = character_sheet_update(
             character_id=npc_id,
@@ -281,8 +275,8 @@ class TestSheetUpdateCore:
         assert "NPC_CORE_SET" in result
 
         # Verify in DB
-        from _db import require_db
-        from npc_memory import get_core
+        from lorekit.db import require_db
+        from lorekit.npc.memory import get_core
 
         db = require_db()
         core = get_core(db, session_id, npc_id)
@@ -296,15 +290,15 @@ class TestSheetUpdateCore:
 
         long_text = "x" * 3000
 
-        from mcp_server import character_sheet_update
+        from lorekit.server import character_sheet_update
 
         character_sheet_update(
             character_id=npc_id,
             core=json.dumps({"self_concept": long_text}),
         )
 
-        from _db import require_db
-        from npc_memory import get_core
+        from lorekit.db import require_db
+        from lorekit.npc.memory import get_core
 
         db = require_db()
         core = get_core(db, session_id, npc_id)
@@ -315,7 +309,7 @@ class TestSheetUpdateCore:
         """Setting core twice updates existing row."""
         session_id, npc_id = make_npc()
 
-        from mcp_server import character_sheet_update
+        from lorekit.server import character_sheet_update
 
         character_sheet_update(
             character_id=npc_id,
@@ -326,8 +320,8 @@ class TestSheetUpdateCore:
             core=json.dumps({"self_concept": "version 2", "current_goals": "new goal"}),
         )
 
-        from _db import require_db
-        from npc_memory import get_core
+        from lorekit.db import require_db
+        from lorekit.npc.memory import get_core
 
         db = require_db()
         core = get_core(db, session_id, npc_id)
@@ -346,7 +340,7 @@ class TestBuildWithCore:
         """character_build with core creates npc_core row."""
         sid = make_session()
 
-        from mcp_server import character_build
+        from lorekit.server import character_build
 
         result = character_build(
             session=sid,
@@ -365,8 +359,8 @@ class TestBuildWithCore:
 
         npc_id = _extract_id(result)
 
-        from _db import require_db
-        from npc_memory import get_core
+        from lorekit.db import require_db
+        from lorekit.npc.memory import get_core
 
         db = require_db()
         core = get_core(db, sid, npc_id)
@@ -378,7 +372,7 @@ class TestBuildWithCore:
         """character_build for PC ignores core param."""
         sid = make_session()
 
-        from mcp_server import character_build
+        from lorekit.server import character_build
 
         result = character_build(
             session=sid,
@@ -401,10 +395,10 @@ class TestCheckpointNpcMemory:
         """Snapshot captures npc_memories and npc_core; restore recovers them."""
         session_id, npc_id = make_npc()
 
-        from _db import require_db
+        from lorekit.db import require_db
 
         # Set up core and memories
-        from mcp_server import character_sheet_update, npc_memory_add
+        from lorekit.server import character_sheet_update, npc_memory_add
 
         character_sheet_update(
             character_id=npc_id,
@@ -419,7 +413,7 @@ class TestCheckpointNpcMemory:
         )
 
         # Take snapshot
-        from checkpoint import snapshot_session
+        from lorekit.support.checkpoint import snapshot_session
 
         db = require_db()
         snap = snapshot_session(db, session_id)
@@ -444,7 +438,7 @@ class TestCheckpointNpcMemory:
         count = db.execute("SELECT COUNT(*) FROM npc_memories WHERE session_id = ?", (session_id,)).fetchone()[0]
         assert count == 2
 
-        from checkpoint import restore_snapshot
+        from lorekit.support.checkpoint import restore_snapshot
 
         restore_snapshot(db, session_id, snap)
 
@@ -470,7 +464,7 @@ class TestCheckpointNpcMemory:
 
 def test_score_memories_uses_narrative_time():
     """Recency decays based on narrative hours, not wall-clock."""
-    from npc_memory import score_memories
+    from lorekit.npc.memory import score_memories
 
     # Two memories: one from 1 narrative hour ago, one from 500 hours ago
     memories = [
@@ -487,7 +481,7 @@ def test_score_memories_uses_narrative_time():
 
 def test_score_memories_last_accessed_resets_recency():
     """Accessing a memory resets its recency clock (Park's approach)."""
-    from npc_memory import score_memories
+    from lorekit.npc.memory import score_memories
 
     # Old memory that was recently accessed vs old memory never accessed
     memories = [
@@ -514,7 +508,7 @@ def test_score_memories_falls_back_to_wallclock_without_narrative_now():
     """When narrative_now is empty, falls back to wall-clock (backward compat)."""
     from datetime import datetime, timezone
 
-    from npc_memory import score_memories
+    from lorekit.npc.memory import score_memories
 
     now_str = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     memories = [

@@ -2,7 +2,7 @@
 
 import re
 
-from mcp_server import (
+from lorekit.server import (
     session_create,
     session_list,
     session_meta_get,

@@ -4,7 +4,7 @@ import re
 
 from conftest import _extract_id
 
-from mcp_server import (
+from lorekit.server import (
     character_create,
     character_get_abilities,
     character_get_attr,

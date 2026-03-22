@@ -2,13 +2,10 @@
 
 import json
 import os
-import sys
 
 import pytest
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "core"))
-
-from encounter import (
+from lorekit.encounter import (
     _build_adjacency,
     _shortest_path,
     advance_turn,
@@ -36,7 +33,7 @@ COMBAT_CFG = {
 
 
 def _db():
-    from _db import require_db
+    from lorekit.db import require_db
 
     return require_db()
 
@@ -134,7 +131,7 @@ class TestStartEncounter:
 
             start_encounter(db, sid, zones, initiative)
 
-            from _db import LoreKitError
+            from lorekit.db import LoreKitError
 
             with pytest.raises(LoreKitError, match="already active"):
                 start_encounter(db, sid, zones, initiative)
@@ -298,7 +295,7 @@ class TestMovement:
             start_encounter(db, sid, zones, init, placements=placements)
             enc_id = db.execute("SELECT id FROM encounter_state WHERE session_id = ?", (sid,)).fetchone()[0]
 
-            from _db import LoreKitError
+            from lorekit.db import LoreKitError
 
             with pytest.raises(LoreKitError, match="Cannot reach"):
                 move_character(db, enc_id, c1, "C", movement_budget=1)
@@ -329,7 +326,7 @@ class TestMovement:
             enc_id = db.execute("SELECT id FROM encounter_state WHERE session_id = ?", (sid,)).fetchone()[0]
 
             # Difficult terrain doubles cost: 1 zone * 2 = 2
-            from _db import LoreKitError
+            from lorekit.db import LoreKitError
 
             with pytest.raises(LoreKitError, match="Cannot reach"):
                 move_character(

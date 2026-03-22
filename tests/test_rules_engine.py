@@ -5,18 +5,14 @@ import os
 import secrets
 from unittest.mock import patch
 
+import cruncher_mm3e
+import cruncher_pf2e
 import pytest
-from rules_engine import (
-    CalcResult,
-    CharacterData,
-    SystemPack,
-    load_character_data,
-    load_system_pack,
-    recalculate,
-    rules_calc,
-    rules_check,
-    write_derived,
-)
+
+from cruncher.engine import CalcResult, SystemPack, recalculate
+from cruncher.system_pack import load_system_pack
+from cruncher.types import CharacterData
+from lorekit.rules import load_character_data, rules_calc, rules_check, write_derived
 
 FIXTURES = os.path.join(os.path.dirname(__file__), "fixtures")
 TEST_SYSTEM = os.path.join(FIXTURES, "test_system")
@@ -180,7 +176,7 @@ class TestRecalculate:
 
 class TestDBIntegration:
     def test_write_derived(self, make_session, make_character):
-        from _db import require_db
+        from lorekit.db import require_db
 
         sid = make_session()
         cid = make_character(sid, name="Warrior", level=5)
@@ -201,7 +197,7 @@ class TestDBIntegration:
             db.close()
 
     def test_write_derived_skips_errors(self, make_session, make_character):
-        from _db import require_db
+        from lorekit.db import require_db
 
         sid = make_session()
         cid = make_character(sid)
@@ -214,7 +210,7 @@ class TestDBIntegration:
             db.close()
 
     def test_write_derived_upsert(self, make_session, make_character):
-        from _db import require_db
+        from lorekit.db import require_db
 
         sid = make_session()
         cid = make_character(sid)
@@ -234,8 +230,8 @@ class TestDBIntegration:
             db.close()
 
     def test_load_character_data(self, make_session, make_character):
-        from _db import require_db
-        from character import set_ability, set_attr
+        from lorekit.character import set_ability, set_attr
+        from lorekit.db import require_db
 
         sid = make_session()
         cid = make_character(sid, name="Durão", level=5)
@@ -259,8 +255,8 @@ class TestDBIntegration:
             db.close()
 
     def test_rules_calc_full(self, make_session, make_character):
-        from _db import require_db
-        from character import set_attr
+        from lorekit.character import set_attr
+        from lorekit.db import require_db
 
         sid = make_session()
         cid = make_character(sid, name="Durão", level=5)
@@ -292,7 +288,7 @@ class TestDBIntegration:
             db.close()
 
     def test_rules_calc_no_system(self, make_session, make_character, tmp_path):
-        from _db import require_db
+        from lorekit.db import require_db
 
         sid = make_session()
         cid = make_character(sid)
@@ -309,10 +305,10 @@ class TestDBIntegration:
 
     def test_build_engine_wired_pf2e(self, make_session, make_character):
         """Build engine runs automatically and feeds into derived formulas."""
-        from _db import require_db
-        from character import set_ability, set_attr
+        from lorekit.character import set_ability, set_attr
+        from lorekit.db import require_db
 
-        pf2e = os.path.join(os.path.dirname(__file__), "..", "systems", "pf2e")
+        pf2e = cruncher_pf2e.pack_path()
         sid = make_session()
         cid = make_character(sid, name="Valeros", level=1)
 
@@ -364,10 +360,10 @@ class TestDBIntegration:
 
     def test_build_engine_wired_mm3e(self, make_session, make_character):
         """Build engine runs for M&M3e: budget, abilities, powers."""
-        from _db import require_db
-        from character import set_ability, set_attr
+        from lorekit.character import set_ability, set_attr
+        from lorekit.db import require_db
 
-        mm3e = os.path.join(os.path.dirname(__file__), "..", "systems", "mm3e")
+        mm3e = cruncher_mm3e.pack_path()
         sid = make_session()
         cid = make_character(sid, name="Paragon", level=1)
 
@@ -441,8 +437,8 @@ class TestDBIntegration:
 class TestRulesCheck:
     def test_check_success(self, make_session, make_character):
         """Roll high enough → SUCCESS."""
-        from _db import require_db
-        from character import set_attr
+        from lorekit.character import set_attr
+        from lorekit.db import require_db
 
         sid = make_session()
         cid = make_character(sid, name="Durão", level=5)
@@ -471,8 +467,8 @@ class TestRulesCheck:
 
     def test_check_failure(self, make_session, make_character):
         """Roll too low → FAILURE."""
-        from _db import require_db
-        from character import set_attr
+        from lorekit.character import set_attr
+        from lorekit.db import require_db
 
         sid = make_session()
         cid = make_character(sid, name="Durão", level=5)
@@ -499,7 +495,7 @@ class TestRulesCheck:
 
     def test_check_missing_stat(self, make_session, make_character):
         """Missing derived stat raises error."""
-        from _db import LoreKitError, require_db
+        from lorekit.db import LoreKitError, require_db
 
         sid = make_session()
         cid = make_character(sid, name="Durão", level=5)
@@ -518,10 +514,10 @@ class TestBonusAttrMultiCategory:
     def test_bonus_in_two_categories_not_double_counted(self, make_session, make_character):
         """bonus_melee_attack in both 'stat' and 'combat' should not be summed
         as two separate stacking sources — they represent one base value."""
-        from _db import require_db
-        from character import set_attr
+        from lorekit.character import set_attr
+        from lorekit.db import require_db
 
-        MM3E_SYSTEM = os.path.join(os.path.dirname(__file__), "..", "systems", "mm3e")
+        MM3E_SYSTEM = cruncher_mm3e.pack_path()
 
         db = require_db()
         try:
@@ -566,12 +562,12 @@ class TestBonusAttrMultiCategory:
 class TestBudgetReporting:
     """Budget cost-change diffs and over-budget warnings."""
 
-    MM3E = os.path.join(os.path.dirname(__file__), "..", "systems", "mm3e")
+    MM3E = cruncher_mm3e.pack_path()
 
     def test_cost_changes_on_first_build(self, make_session, make_character):
         """First rules_calc shows cost changes from 0."""
-        from _db import require_db
-        from character import set_attr
+        from lorekit.character import set_attr
+        from lorekit.db import require_db
 
         db = require_db()
         try:
@@ -593,8 +589,8 @@ class TestBudgetReporting:
 
     def test_cost_changes_on_update(self, make_session, make_character):
         """Second rules_calc shows incremental cost change."""
-        from _db import require_db
-        from character import set_attr
+        from lorekit.character import set_attr
+        from lorekit.db import require_db
 
         db = require_db()
         try:
@@ -621,8 +617,8 @@ class TestBudgetReporting:
 
     def test_over_budget_warning(self, make_session, make_character):
         """Over-budget build shows WARNING."""
-        from _db import require_db
-        from character import set_attr
+        from lorekit.character import set_attr
+        from lorekit.db import require_db
 
         db = require_db()
         try:
@@ -650,8 +646,8 @@ class TestBudgetReporting:
 
     def test_no_warning_when_under_budget(self, make_session, make_character):
         """Under-budget build has no WARNING."""
-        from _db import require_db
-        from character import set_attr
+        from lorekit.character import set_attr
+        from lorekit.db import require_db
 
         db = require_db()
         try:

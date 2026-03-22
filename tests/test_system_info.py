@@ -1,20 +1,17 @@
 """Tests for system_info formatting."""
 
-import os
-import sys
+import cruncher_mm3e
+import cruncher_pf2e
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "core"))
+from lorekit.rules import system_info
 
-from system_pack import system_info
-
-SYSTEMS_DIR = os.path.join(os.path.dirname(__file__), "..", "systems")
-MM3E = os.path.join(SYSTEMS_DIR, "mm3e")
-PF2E = os.path.join(SYSTEMS_DIR, "pf2e")
+MM3E = cruncher_mm3e.pack_path()
+PF2E = cruncher_pf2e.pack_path()
 
 
 def test_all_section_mm3e():
     result = system_info(MM3E, "all")
-    assert "Mutants & Masterminds 3e" in result
+    assert "d20 Hero SRD (3e)" in result
     assert "ACTIONS:" in result
     assert "close_attack" in result
     assert "DEFAULTS" in result

@@ -1,15 +1,9 @@
 """Tests for Deterministic Pre-fetch Pipeline."""
 
 import json
-import os
 import re
-import sys
 
 import pytest
-
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, ROOT)
-sys.path.insert(0, os.path.join(ROOT, "core"))
 
 
 def _extract_id(result):
@@ -25,7 +19,7 @@ def make_npc(make_session):
     def _make(name="Test NPC", session_id=None, core=None, aliases=None):
         if session_id is None:
             session_id = make_session()
-        from mcp_server import character_build
+        from lorekit.server import character_build
 
         kwargs = dict(session=session_id, name=name, level=1, type="npc")
         if core:
@@ -58,7 +52,7 @@ def seed_memories(make_npc):
             aliases=["Rod", "the merchant"],
         )
 
-        from mcp_server import npc_memory_add
+        from lorekit.server import npc_memory_add
 
         memories = [
             ("The hero saved my village from bandits", 0.9, "experience", '["Hero", "Village"]'),
@@ -93,7 +87,7 @@ class TestCharacterAliases:
     def test_build_with_aliases(self, make_session):
         """character_build with aliases creates alias rows."""
         sid = make_session()
-        from mcp_server import character_build
+        from lorekit.server import character_build
 
         result = character_build(
             session=sid,
@@ -105,7 +99,7 @@ class TestCharacterAliases:
         assert "aliases=2" in result
         npc_id = _extract_id(result)
 
-        from _db import require_db
+        from lorekit.db import require_db
 
         db = require_db()
         aliases = db.execute(
@@ -119,7 +113,7 @@ class TestCharacterAliases:
         """character_sheet_update replaces aliases."""
         session_id, npc_id = make_npc(name="Merchant", aliases=["Merch"])
 
-        from mcp_server import character_sheet_update
+        from lorekit.server import character_sheet_update
 
         result = character_sheet_update(
             character_id=npc_id,
@@ -127,7 +121,7 @@ class TestCharacterAliases:
         )
         assert "ALIASES_SET: 2" in result
 
-        from _db import require_db
+        from lorekit.db import require_db
 
         db = require_db()
         aliases = db.execute(
@@ -142,10 +136,10 @@ class TestCharacterAliases:
         """_resolve_character finds character by alias."""
         session_id, npc_id = make_npc(name="Bartender Bob", aliases=["Bob"])
 
-        from _db import require_db
+        from lorekit.db import require_db
 
         db = require_db()
-        from mcp_server import _resolve_character
+        from lorekit.server import _resolve_character
 
         resolved = _resolve_character(db, "Bob", session_id)
         db.close()
@@ -163,7 +157,7 @@ class TestEntityTagging:
         sid = make_session()
         pc_id = make_character(sid, name="Valeria")
 
-        from mcp_server import turn_save
+        from lorekit.server import turn_save
 
         result = turn_save(
             session_id=sid,
@@ -173,7 +167,7 @@ class TestEntityTagging:
         assert "TIMELINE_ADDED" in result
         tl_id = int(result.split("TIMELINE_ADDED: ")[1].split("\n")[0])
 
-        from _db import require_db
+        from lorekit.db import require_db
 
         db = require_db()
         tags = db.execute(
@@ -188,7 +182,7 @@ class TestEntityTagging:
         sid = make_session()
         pc_id = make_character(sid, name="Valeria")
 
-        from mcp_server import entry_untag, turn_save
+        from lorekit.server import entry_untag, turn_save
 
         turn_save(
             session_id=sid,
@@ -196,7 +190,7 @@ class TestEntityTagging:
             summary="Dragon fight",
         )
 
-        from _db import require_db
+        from lorekit.db import require_db
 
         db = require_db()
         tl_id = db.execute("SELECT MAX(id) FROM timeline WHERE session_id = ?", (sid,)).fetchone()[0]
@@ -232,8 +226,8 @@ class TestEntityExtraction:
         pc_id = make_character(sid, name="Valeria")
         npc_id = make_character(sid, name="Roderick", char_type="npc")
 
-        from _db import require_db
-        from prefetch import extract_entities
+        from lorekit.db import require_db
+        from lorekit.npc.prefetch import extract_entities
 
         db = require_db()
         result = extract_entities(db, sid, "Valeria talks to roderick about the war")
@@ -246,8 +240,8 @@ class TestEntityExtraction:
         """extract_entities finds characters by alias."""
         session_id, npc_id = make_npc(name="Bartender Bob", aliases=["Bob", "the bartender"])
 
-        from _db import require_db
-        from prefetch import extract_entities
+        from lorekit.db import require_db
+        from lorekit.npc.prefetch import extract_entities
 
         db = require_db()
         result = extract_entities(db, session_id, "I want to talk to Bob")
@@ -260,8 +254,8 @@ class TestEntityExtraction:
         sid = make_session()
         region_id = make_region(sid, name="Dragon's Peak")
 
-        from _db import require_db
-        from prefetch import extract_entities
+        from lorekit.db import require_db
+        from lorekit.npc.prefetch import extract_entities
 
         db = require_db()
         result = extract_entities(db, sid, "We should head to Dragon's Peak")
@@ -273,8 +267,8 @@ class TestEntityExtraction:
         """Returns empty when no entities match."""
         sid = make_session()
 
-        from _db import require_db
-        from prefetch import extract_entities
+        from lorekit.db import require_db
+        from lorekit.npc.prefetch import extract_entities
 
         db = require_db()
         result = extract_entities(db, sid, "Hello there")
@@ -295,8 +289,8 @@ class TestPreFetch:
         """assemble_context returns PreFetchResult with context and debug."""
         session_id, npc_id = seed_memories()
 
-        from _db import require_db
-        from prefetch import PreFetchResult, assemble_context
+        from lorekit.db import require_db
+        from lorekit.npc.prefetch import PreFetchResult, assemble_context
 
         db = require_db()
         result = assemble_context(db, session_id, npc_id, "Tell me about the artifact")
@@ -311,8 +305,8 @@ class TestPreFetch:
         """Pre-fetched context includes NPC core identity."""
         session_id, npc_id = seed_memories()
 
-        from _db import require_db
-        from prefetch import assemble_context
+        from lorekit.db import require_db
+        from lorekit.npc.prefetch import assemble_context
 
         db = require_db()
         result = assemble_context(db, session_id, npc_id, "Hello")
@@ -326,8 +320,8 @@ class TestPreFetch:
         """Memories with importance > 0.7 appear in context."""
         session_id, npc_id = seed_memories()
 
-        from _db import require_db
-        from prefetch import assemble_context
+        from lorekit.db import require_db
+        from lorekit.npc.prefetch import assemble_context
 
         db = require_db()
         result = assemble_context(db, session_id, npc_id, "What's new?")
@@ -341,8 +335,8 @@ class TestPreFetch:
         """Mentioning an entity surfaces related memories."""
         session_id, npc_id = seed_memories()
 
-        from _db import require_db
-        from prefetch import assemble_context
+        from lorekit.db import require_db
+        from lorekit.npc.prefetch import assemble_context
 
         db = require_db()
         result = assemble_context(db, session_id, npc_id, "What do you know about Mira?")
@@ -354,8 +348,8 @@ class TestPreFetch:
         """When no entities match, recent memories are included as fallback."""
         session_id, npc_id = seed_memories()
 
-        from _db import require_db
-        from prefetch import assemble_context
+        from lorekit.db import require_db
+        from lorekit.npc.prefetch import assemble_context
 
         db = require_db()
         result = assemble_context(db, session_id, npc_id, "How are you today?")
@@ -369,8 +363,8 @@ class TestPreFetch:
         """Debug dict contains all expected diagnostic fields."""
         session_id, npc_id = seed_memories()
 
-        from _db import require_db
-        from prefetch import assemble_context
+        from lorekit.db import require_db
+        from lorekit.npc.prefetch import assemble_context
 
         db = require_db()
         result = assemble_context(db, session_id, npc_id, "Tell me about the artifact")
@@ -394,8 +388,8 @@ class TestPreFetch:
         """Total tokens should not exceed budget."""
         session_id, npc_id = seed_memories()
 
-        from _db import require_db
-        from prefetch import assemble_context
+        from lorekit.db import require_db
+        from lorekit.npc.prefetch import assemble_context
 
         db = require_db()
         result = assemble_context(db, session_id, npc_id, "Tell me everything", token_budget=500)
@@ -407,8 +401,8 @@ class TestPreFetch:
         """Memories appearing in multiple retrieval paths are not duplicated."""
         session_id, npc_id = seed_memories()
 
-        from _db import require_db
-        from prefetch import assemble_context
+        from lorekit.db import require_db
+        from lorekit.npc.prefetch import assemble_context
 
         db = require_db()
         # "artifact" appears in hot memories AND entity-matched (entities contain "artifact")
@@ -423,8 +417,8 @@ class TestPreFetch:
         """Retrieved memories get their access_count incremented."""
         session_id, npc_id = seed_memories()
 
-        from _db import require_db
-        from prefetch import assemble_context
+        from lorekit.db import require_db
+        from lorekit.npc.prefetch import assemble_context
 
         db = require_db()
         # Check initial access count
@@ -447,8 +441,8 @@ class TestPreFetch:
         """NPC with no memories or core identity returns valid result."""
         session_id, npc_id = make_npc()
 
-        from _db import require_db
-        from prefetch import assemble_context
+        from lorekit.db import require_db
+        from lorekit.npc.prefetch import assemble_context
 
         db = require_db()
         result = assemble_context(db, session_id, npc_id, "Hello stranger")
@@ -462,8 +456,8 @@ class TestPreFetch:
         """Behavioral patterns from npc_core appear in context."""
         session_id, npc_id = seed_memories()
 
-        from _db import require_db
-        from prefetch import assemble_context
+        from lorekit.db import require_db
+        from lorekit.npc.prefetch import assemble_context
 
         db = require_db()
         result = assemble_context(db, session_id, npc_id, "Let's trade")
@@ -476,8 +470,8 @@ class TestPreFetch:
         """Relationships from npc_core appear in context."""
         session_id, npc_id = seed_memories()
 
-        from _db import require_db
-        from prefetch import assemble_context
+        from lorekit.db import require_db
+        from lorekit.npc.prefetch import assemble_context
 
         db = require_db()
         result = assemble_context(db, session_id, npc_id, "Hello")
@@ -490,7 +484,7 @@ class TestPreFetch:
         """Recent timeline entries appear in context."""
         session_id, npc_id = seed_memories()
 
-        from mcp_server import turn_save
+        from lorekit.server import turn_save
 
         turn_save(
             session_id=session_id,
@@ -498,8 +492,8 @@ class TestPreFetch:
             summary="Party arrives at village",
         )
 
-        from _db import require_db
-        from prefetch import assemble_context
+        from lorekit.db import require_db
+        from lorekit.npc.prefetch import assemble_context
 
         db = require_db()
         result = assemble_context(db, session_id, npc_id, "What's happening?")
@@ -519,9 +513,8 @@ class TestNpcPromptIntegration:
         """_build_npc_prompt includes pre-fetched context in system prompt."""
         session_id, npc_id = seed_memories()
 
-        from _db import require_db
-
-        from mcp_server import _build_npc_prompt
+        from lorekit.db import require_db
+        from lorekit.server import _build_npc_prompt
 
         db = require_db()
         import sqlite3
@@ -538,6 +531,6 @@ class TestNpcPromptIntegration:
 
     def test_npc_allowed_tools_empty(self):
         """NPCs should have no allowed tools."""
-        from mcp_server import _NPC_ALLOWED_TOOLS
+        from lorekit.server import _NPC_ALLOWED_TOOLS
 
         assert _NPC_ALLOWED_TOOLS == []

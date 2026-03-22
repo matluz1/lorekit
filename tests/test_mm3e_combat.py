@@ -6,14 +6,12 @@ and damage_penalty tracking — features specific to the M&M3e system pack.
 
 import json
 import os
-import sys
 from unittest.mock import patch
 
+import cruncher_mm3e
 import pytest
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "core"))
-
-MM3E_SYSTEM = os.path.join(os.path.dirname(__file__), "..", "systems", "mm3e")
+MM3E_SYSTEM = cruncher_mm3e.pack_path()
 
 
 # ---------------------------------------------------------------------------
@@ -29,8 +27,8 @@ def _combat_cfg():
 
 def _make_character(db, session_id, make_character, name, char_type="npc", **stats):
     """Create a character with M&M3e stats and run rules_calc."""
-    from character import set_attr
-    from rules_engine import rules_calc
+    from lorekit.character import set_attr
+    from lorekit.rules import rules_calc
 
     cid = make_character(session_id, name=name, char_type=char_type)
     defaults = {
@@ -52,7 +50,7 @@ def _make_character(db, session_id, make_character, name, char_type="npc", **sta
 
 def _start_encounter(db, session_id, characters, zones, placements):
     """Start an encounter with given zones and placements."""
-    from encounter import start_encounter
+    from lorekit.encounter import start_encounter
 
     cfg = _combat_cfg()
     start_encounter(
@@ -73,8 +71,8 @@ def _start_encounter(db, session_id, characters, zones, placements):
 class TestCloseAttack:
     def test_hit_applies_damage_penalty(self, make_session, make_character):
         """Hit + failed resistance → damage_penalty incremented."""
-        from _db import require_db
-        from npc_combat import execute_combat_turn
+        from lorekit.db import require_db
+        from lorekit.npc.combat import execute_combat_turn
 
         db = require_db()
         try:
@@ -113,8 +111,8 @@ class TestCloseAttack:
 
     def test_miss_against_high_dodge(self, make_session, make_character):
         """Low attack vs high dodge → miss, no resistance check."""
-        from _db import require_db
-        from npc_combat import execute_combat_turn
+        from lorekit.db import require_db
+        from lorekit.npc.combat import execute_combat_turn
 
         db = require_db()
         try:
@@ -152,8 +150,8 @@ class TestCloseAttack:
 class TestSetupActions:
     def test_deception_applies_vulnerable(self, make_session, make_character):
         """Deception wins contested roll → vulnerable modifiers on target."""
-        from _db import require_db
-        from npc_combat import execute_combat_turn
+        from lorekit.db import require_db
+        from lorekit.npc.combat import execute_combat_turn
 
         db = require_db()
         try:
@@ -190,8 +188,8 @@ class TestSetupActions:
             db.close()
 
     def test_intimidation_applies_vulnerable(self, make_session, make_character):
-        from _db import require_db
-        from npc_combat import execute_combat_turn
+        from lorekit.db import require_db
+        from lorekit.npc.combat import execute_combat_turn
 
         db = require_db()
         try:
@@ -228,8 +226,8 @@ class TestSetupActions:
 
     def test_contested_miss(self, make_session, make_character):
         """Defender wins → no modifiers applied."""
-        from _db import require_db
-        from npc_combat import execute_combat_turn
+        from lorekit.db import require_db
+        from lorekit.npc.combat import execute_combat_turn
 
         db = require_db()
         try:
@@ -266,8 +264,8 @@ class TestSetupActions:
 
     def test_setup_then_verify_modifiers(self, make_session, make_character):
         """Full cycle: setup applies vulnerable, modifiers exist on target."""
-        from _db import require_db
-        from npc_combat import execute_combat_turn
+        from lorekit.db import require_db
+        from lorekit.npc.combat import execute_combat_turn
 
         db = require_db()
         try:
@@ -338,8 +336,8 @@ class TestSetupActions:
 
 class TestGrab:
     def test_grab_applies_until_escape_modifiers(self, make_session, make_character):
-        from _db import require_db
-        from npc_combat import execute_combat_turn
+        from lorekit.db import require_db
+        from lorekit.npc.combat import execute_combat_turn
 
         db = require_db()
         try:
@@ -393,9 +391,9 @@ class TestGrab:
 class TestActionOverride:
     def test_character_override_used_over_system(self, make_session, make_character):
         """Character with action_override uses it instead of system action."""
-        from _db import require_db
-        from character import set_attr
-        from combat_engine import resolve_action
+        from lorekit.character import set_attr
+        from lorekit.combat import resolve_action
+        from lorekit.db import require_db
 
         db = require_db()
         try:
@@ -435,9 +433,9 @@ class TestActionOverride:
 
     def test_effect_rank_direct(self, make_session, make_character):
         """Action with effect_rank uses it directly instead of damage_rank_stat."""
-        from _db import require_db
-        from character import set_attr
-        from combat_engine import resolve_action
+        from lorekit.character import set_attr
+        from lorekit.combat import resolve_action
+        from lorekit.db import require_db
 
         db = require_db()
         try:
@@ -478,9 +476,9 @@ class TestActionOverride:
 
     def test_resistance_stat_override(self, make_session, make_character):
         """Action with resistance_stat targets fortitude instead of toughness."""
-        from _db import require_db
-        from character import set_attr
-        from combat_engine import resolve_action
+        from lorekit.character import set_attr
+        from lorekit.combat import resolve_action
+        from lorekit.db import require_db
 
         db = require_db()
         try:
@@ -523,9 +521,9 @@ class TestActionOverride:
 
     def test_cap_warning(self, make_session, make_character):
         """Action where attack + effect_rank > cap max_stat shows warning."""
-        from _db import require_db
-        from character import set_attr
-        from combat_engine import resolve_action
+        from lorekit.character import set_attr
+        from lorekit.combat import resolve_action
+        from lorekit.db import require_db
 
         db = require_db()
         try:
@@ -570,9 +568,9 @@ class TestActionOverride:
 
     def test_cap_clean(self, make_session, make_character):
         """Action within cap limits shows no warning."""
-        from _db import require_db
-        from character import set_attr
-        from combat_engine import resolve_action
+        from lorekit.character import set_attr
+        from lorekit.combat import resolve_action
+        from lorekit.db import require_db
 
         db = require_db()
         try:
@@ -605,8 +603,8 @@ class TestActionOverride:
 
     def test_system_action_still_works(self, make_session, make_character):
         """Characters without overrides still use system actions normally."""
-        from _db import require_db
-        from npc_combat import execute_combat_turn
+        from lorekit.db import require_db
+        from lorekit.npc.combat import execute_combat_turn
 
         db = require_db()
         try:

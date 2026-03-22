@@ -1,18 +1,13 @@
 """Tests for core/npc_reflect.py -- NPC async reflection system."""
 
 import json
-import os
 import re
-import sys
 from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
 
 import pytest
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "core"))
-
-from core.npc_reflect import (
+from lorekit.npc.reflect import (
     check_trigger,
     generate_reflection,
     get_unprocessed_memories,
@@ -35,7 +30,7 @@ def make_npc(make_session):
     def _make(name="Test NPC", session_id=None):
         if session_id is None:
             session_id = make_session()
-        from mcp_server import character_build
+        from lorekit.server import character_build
 
         result = character_build(session=session_id, name=name, level=1, type="npc")
         npc_id = _extract_id(result)
@@ -46,7 +41,7 @@ def make_npc(make_session):
 
 def _add_memory(db, session_id, npc_id, content, importance=0.5, memory_type="experience"):
     """Helper to add a memory directly via the module."""
-    import npc_memory
+    import lorekit.npc.memory as npc_memory
 
     return npc_memory.add_memory(
         db, session_id, npc_id, content, importance, memory_type, entities=[], narrative_time=""
@@ -62,7 +57,7 @@ class TestCheckTrigger:
     def test_trigger_below_threshold(self, make_npc):
         """NPC with low-importance memories should not trigger."""
         session_id, npc_id = make_npc()
-        from _db import require_db
+        from lorekit.db import require_db
 
         db = require_db()
         try:
@@ -76,7 +71,7 @@ class TestCheckTrigger:
     def test_trigger_above_threshold(self, make_npc):
         """NPC with high-importance memories summing > 15.0 should trigger."""
         session_id, npc_id = make_npc()
-        from _db import require_db
+        from lorekit.db import require_db
 
         db = require_db()
         try:
@@ -89,7 +84,7 @@ class TestCheckTrigger:
     def test_trigger_excludes_reflections(self, make_npc):
         """Existing reflection memories shouldn't count toward threshold."""
         session_id, npc_id = make_npc()
-        from _db import require_db
+        from lorekit.db import require_db
 
         db = require_db()
         try:
@@ -106,7 +101,7 @@ class TestCheckTrigger:
     def test_trigger_only_counts_since_last_reflection(self, make_npc):
         """Memories before the last reflection should be excluded."""
         session_id, npc_id = make_npc()
-        from _db import require_db
+        from lorekit.db import require_db
 
         db = require_db()
         try:
@@ -210,11 +205,11 @@ CANNED_REFLECTION_OUTPUT = """[REFLECTIONS]
 
 
 class TestGenerateReflection:
-    @patch("core.npc_reflect._call_llm", return_value=CANNED_REFLECTION_OUTPUT)
+    @patch("lorekit.npc.reflect._call_llm", return_value=CANNED_REFLECTION_OUTPUT)
     def test_stores_memories(self, mock_llm, make_npc):
         """Reflections stored as memories with memory_type='reflection'."""
         session_id, npc_id = make_npc()
-        from _db import require_db
+        from lorekit.db import require_db
 
         db = require_db()
         try:
@@ -240,11 +235,11 @@ class TestGenerateReflection:
         finally:
             db.close()
 
-    @patch("core.npc_reflect._call_llm", return_value=CANNED_REFLECTION_OUTPUT)
+    @patch("lorekit.npc.reflect._call_llm", return_value=CANNED_REFLECTION_OUTPUT)
     def test_updates_core(self, mock_llm, make_npc):
         """Behavioral rules merged into core; identity updates applied."""
         session_id, npc_id = make_npc()
-        from _db import require_db
+        from lorekit.db import require_db
 
         db = require_db()
         try:
@@ -252,7 +247,7 @@ class TestGenerateReflection:
                 _add_memory(db, session_id, npc_id, f"Event {i}", importance=0.8)
 
             # Set existing behavioral patterns
-            import npc_memory
+            import lorekit.npc.memory as npc_memory
 
             npc_memory.set_core(db, session_id, npc_id, behavioral_patterns="- Be cautious with strangers")
 
@@ -265,11 +260,11 @@ class TestGenerateReflection:
         finally:
             db.close()
 
-    @patch("core.npc_reflect._call_llm")
+    @patch("lorekit.npc.reflect._call_llm")
     def test_no_memories_early_return(self, mock_llm, make_npc):
         """NPC with zero unprocessed memories → no LLM call."""
         session_id, npc_id = make_npc()
-        from _db import require_db
+        from lorekit.db import require_db
 
         db = require_db()
         try:
@@ -281,13 +276,12 @@ class TestGenerateReflection:
 
 
 class TestReflectAll:
-    @patch("core.npc_reflect._call_llm", return_value=CANNED_REFLECTION_OUTPUT)
+    @patch("lorekit.npc.reflect._call_llm", return_value=CANNED_REFLECTION_OUTPUT)
     def test_skips_below_threshold(self, mock_llm, make_session):
         """reflect_all with mixed NPCs only triggers for those above threshold."""
         sid = make_session()
-        from _db import require_db
-
-        from mcp_server import character_build
+        from lorekit.db import require_db
+        from lorekit.server import character_build
 
         # Create two NPCs
         npc1_id = _extract_id(character_build(session=sid, name="Active NPC", level=1, type="npc"))
@@ -308,13 +302,12 @@ class TestReflectAll:
         finally:
             db.close()
 
-    @patch("core.npc_reflect._call_llm", return_value=CANNED_REFLECTION_OUTPUT)
+    @patch("lorekit.npc.reflect._call_llm", return_value=CANNED_REFLECTION_OUTPUT)
     def test_session_end_threshold_zero(self, mock_llm, make_session):
         """threshold=0.0 reflects on all NPCs with any memories."""
         sid = make_session()
-        from _db import require_db
-
-        from mcp_server import character_build
+        from lorekit.db import require_db
+        from lorekit.server import character_build
 
         npc1_id = _extract_id(character_build(session=sid, name="NPC1", level=1, type="npc"))
         npc2_id = _extract_id(character_build(session=sid, name="NPC2", level=1, type="npc"))
@@ -339,7 +332,7 @@ class TestPruneMemories:
     def test_prune_old_unimportant_unaccessed(self, make_npc):
         """Memories matching all 3 criteria are pruned."""
         session_id, npc_id = make_npc()
-        from _db import require_db
+        from lorekit.db import require_db
 
         db = require_db()
         try:
@@ -368,7 +361,7 @@ class TestPruneMemories:
     def test_prune_spares_important(self, make_npc):
         """Old + unaccessed but high importance → kept."""
         session_id, npc_id = make_npc()
-        from _db import require_db
+        from lorekit.db import require_db
 
         db = require_db()
         try:
@@ -388,7 +381,7 @@ class TestPruneMemories:
     def test_prune_spares_accessed(self, make_npc):
         """Old + low importance but accessed → kept."""
         session_id, npc_id = make_npc()
-        from _db import require_db
+        from lorekit.db import require_db
 
         db = require_db()
         try:
@@ -412,11 +405,11 @@ class TestPruneMemories:
 
 
 class TestAutoTriggers:
-    @patch("npc_reflect.reflect_all", return_value="REFLECTIONS: Reflected on 1 NPCs (NPC: 2 insights).")
+    @patch("lorekit.npc.reflect.reflect_all", return_value="REFLECTIONS: Reflected on 1 NPCs (NPC: 2 insights).")
     def test_time_advance_triggers_reflection(self, mock_reflect, make_session):
         """Advancing > 7 days triggers reflect_all."""
         sid = make_session()
-        from mcp_server import session_meta_set, time_advance
+        from lorekit.server import session_meta_set, time_advance
 
         # Need narrative time set first
         session_meta_set(session_id=sid, key="narrative_time", value="1347-03-15T14:00")
@@ -428,22 +421,22 @@ class TestAutoTriggers:
         call_kwargs = mock_reflect.call_args
         assert "10 days have passed" in call_kwargs.kwargs.get("context_hint", call_kwargs[1].get("context_hint", ""))
 
-    @patch("npc_reflect.reflect_all")
+    @patch("lorekit.npc.reflect.reflect_all")
     def test_time_advance_no_trigger_small_skip(self, mock_reflect, make_session):
         """Advancing 2 hours should not trigger reflection."""
         sid = make_session()
-        from mcp_server import session_meta_set, time_advance
+        from lorekit.server import session_meta_set, time_advance
 
         session_meta_set(session_id=sid, key="narrative_time", value="1347-03-15T14:00")
 
         result = time_advance(session_id=sid, amount=2, unit="hours")
         mock_reflect.assert_not_called()
 
-    @patch("npc_reflect.reflect_all", return_value="REFLECTIONS: Reflected on 1 NPCs.")
+    @patch("lorekit.npc.reflect.reflect_all", return_value="REFLECTIONS: Reflected on 1 NPCs.")
     def test_session_update_finished_triggers(self, mock_reflect, make_session):
         """Status='finished' triggers reflect_all with threshold=0.0."""
         sid = make_session()
-        from mcp_server import session_update
+        from lorekit.server import session_update
 
         result = session_update(session_id=sid, status="finished")
         mock_reflect.assert_called_once()
@@ -451,11 +444,11 @@ class TestAutoTriggers:
         # threshold should be 0.0
         assert call_args.kwargs.get("threshold", call_args[1].get("threshold")) == 0.0
 
-    @patch("npc_reflect.reflect_all")
+    @patch("lorekit.npc.reflect.reflect_all")
     def test_session_update_active_no_trigger(self, mock_reflect, make_session):
         """Status='active' should not trigger reflection."""
         sid = make_session()
-        from mcp_server import session_update
+        from lorekit.server import session_update
 
         session_update(session_id=sid, status="active")
         mock_reflect.assert_not_called()

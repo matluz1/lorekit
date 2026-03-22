@@ -2,7 +2,7 @@
 
 import re
 
-from mcp_server import (
+from lorekit.server import (
     journal_add,
     journal_list,
     journal_search,

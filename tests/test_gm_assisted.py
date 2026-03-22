@@ -2,18 +2,16 @@
 
 import json
 import os
-import sys
 
+import cruncher_mm3e
 import pytest
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "core"))
-
-MM3E_SYSTEM = os.path.join(os.path.dirname(__file__), "..", "systems", "mm3e")
+MM3E_SYSTEM = cruncher_mm3e.pack_path()
 
 
 def _make_character(db, session_id, make_character, name, char_type="npc", **stats):
-    from character import set_attr
-    from rules_engine import rules_calc
+    from lorekit.character import set_attr
+    from lorekit.rules import rules_calc
 
     cid = make_character(session_id, name=name, char_type=char_type)
     for key, val in {
@@ -35,8 +33,8 @@ def _make_character(db, session_id, make_character, name, char_type="npc", **sta
 class TestGmHints:
     def test_gm_assisted_effect_returns_hints(self, make_session, make_character):
         """Calling resolve_action with a gm_assisted effect returns hints instead of error."""
-        from _db import require_db
-        from combat_engine import resolve_action
+        from lorekit.combat import resolve_action
+        from lorekit.db import require_db
 
         db = require_db()
         try:
@@ -54,8 +52,8 @@ class TestGmHints:
 
     def test_gm_hints_include_check_info(self, make_session, make_character):
         """Illusion gm_hints should include check type and DC formula."""
-        from _db import require_db
-        from combat_engine import resolve_action
+        from lorekit.combat import resolve_action
+        from lorekit.db import require_db
 
         db = require_db()
         try:
@@ -72,8 +70,8 @@ class TestGmHints:
 
     def test_unknown_action_still_errors(self, make_session, make_character):
         """A truly unknown action (not in actions or effects) should still error."""
-        from _db import LoreKitError, require_db
-        from combat_engine import resolve_action
+        from lorekit.combat import resolve_action
+        from lorekit.db import LoreKitError, require_db
 
         db = require_db()
         try:
@@ -88,8 +86,8 @@ class TestGmHints:
 
     def test_non_gm_assisted_effect_still_errors(self, make_session, make_character):
         """An engine-resolved effect used as action name should error (not return hints)."""
-        from _db import LoreKitError, require_db
-        from combat_engine import resolve_action
+        from lorekit.combat import resolve_action
+        from lorekit.db import LoreKitError, require_db
 
         db = require_db()
         try:

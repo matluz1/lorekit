@@ -3,7 +3,8 @@
 import math
 
 import pytest
-from rules_formulas import (
+
+from cruncher.formulas import (
     FormulaContext,
     FormulaError,
     calc,

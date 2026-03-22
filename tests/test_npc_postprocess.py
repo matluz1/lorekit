@@ -1,15 +1,10 @@
 """Tests for core/npc_postprocess.py -- NPC response post-processing pipeline."""
 
 import json
-import os
-import sys
 
 import pytest
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "core"))
-
-from core.npc_postprocess import parse_npc_metadata, process_npc_response
+from lorekit.npc.postprocess import parse_npc_metadata, process_npc_response
 
 # ---------------------------------------------------------------------------
 # parse_npc_metadata -- parser tests

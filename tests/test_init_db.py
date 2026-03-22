@@ -3,7 +3,7 @@
 import os
 import sqlite3
 
-from mcp_server import init_db
+from lorekit.server import init_db
 
 
 def test_init_db_creates_file():

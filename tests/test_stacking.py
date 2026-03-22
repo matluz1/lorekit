@@ -1,13 +1,8 @@
 """Tests for the modifier stacking resolver."""
 
-import os
-import sys
-
 import pytest
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "core"))
-
-from rules_stacking import (
+from cruncher.stacking import (
     DecomposedModifier,
     ModifierEntry,
     StackingPolicy,

@@ -1,9 +1,13 @@
-data/
+/data/
 __pycache__/
 .venv/
 .pytest_cache/
+.ruff_cache/
 .coverage
 .export/
 stories/
 tui/node_modules/
 tui/dist/
+*.egg-info/
+dist/
+build/

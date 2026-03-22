@@ -1,23 +1,36 @@
 # LoreKit
 
 Tabletop RPG toolkit for AI agents. Tracks everything needed to run full
-campaigns -- characters, sessions, story arcs, regions, and more.
+campaigns — characters, sessions, story arcs, regions, and more.
 
-All mechanical crunch is handled deterministically by the engine so the AI
-never has to guess numbers. The GM agent reads `guidelines/GM_GUIDE.md` and
-runs the adventure; NPCs are spawned as independent agents with their own
-context and tool set.
+All mechanical crunch is handled deterministically by the
+[cruncher](cruncher/) engine so the AI never has to guess numbers. The GM
+agent reads `guidelines/GM_GUIDE.md` and runs the adventure; NPCs are spawned
+as independent agents with their own context and memory.
+
+## Packages
+
+This repo ships two Python packages:
+
+| Package | Path | Description |
+|---------|------|-------------|
+| **cruncher** | `cruncher/` | Standalone, zero-dependency TTRPG rules engine. Pure computation — formulas, stacking, character building, stat derivation, dice. |
+| **lorekit** | `src/lorekit/` | Full MCP game engine. Session management, characters, combat orchestration, NPC agents, narrative tracking, semantic search. Depends on cruncher. |
+
+System packs (`systems/`) are data, not code — they ship separately from both
+packages.
 
 ## Requirements
 
-- Python 3.13
-- An AI agent with MCP support
+- Python 3.13+
+- An AI agent with MCP support (e.g. Claude Code)
 
 ## Setup
 
 ```bash
 python3.13 -m venv .venv
-.venv/bin/pip install -r requirements.txt
+source .venv/bin/activate
+pip install -e cruncher/ -e .
 ```
 
 The MCP server is configured in `.mcp.json`. On first use, the agent calls
@@ -26,15 +39,18 @@ The MCP server is configured in `.mcp.json`. On first use, the agent calls
 ## Development
 
 ```bash
-.venv/bin/pip install -r requirements-dev.txt
+pip install -r requirements-dev.txt
 pre-commit install
 ```
 
 ## Testing
 
 ```bash
-.venv/bin/pytest tests/
+pytest tests/
 ```
+
+740 tests covering both packages, all system packs, and the full MCP tool
+surface.
 
 ## Playing
 
@@ -45,16 +61,64 @@ npx tsx tui/src/index.tsx opus
 The TUI launches the GM agent, which reads `guidelines/GM_GUIDE.md` and takes
 it from there. All game tools are provided through the MCP server.
 
+## Project Structure
+
+```
+lorekit/
+├── cruncher/                 Pure rules engine (pip install cruncher)
+│   └── src/cruncher/
+│       ├── formulas.py       Expression parser + evaluator
+│       ├── stacking.py       Modifier stacking resolution
+│       ├── system_pack.py    SystemPack loader (JSON → dataclass)
+│       ├── engine.py         Derived stat computation (topo-sorted)
+│       ├── build.py          Data-driven character construction
+│       ├── dice.py           Tabletop dice notation
+│       └── types.py          CharacterData, error types
+│
+├── src/lorekit/              Full game engine (pip install lorekit)
+│   ├── server.py             MCP server — 40+ tools for the GM agent
+│   ├── rules.py              DB glue: load → cruncher → write back
+│   ├── combat.py             Action resolution, conditions, turn lifecycle
+│   ├── encounter.py          Zone-based positioning, movement, initiative
+│   ├── rest.py               Rest rules orchestration
+│   ├── character.py          Character CRUD
+│   ├── db.py                 SQLite schema, migrations, utilities
+│   ├── npc/                  NPC agent subsystem
+│   │   ├── memory.py         Park+ACT-R memory scoring
+│   │   ├── combat.py         NPC combat decision orchestration
+│   │   ├── reflect.py        LLM-driven reflection generation
+│   │   ├── prefetch.py       Deterministic context assembly
+│   │   └── postprocess.py    Response parsing + state extraction
+│   ├── narrative/            Session & story state
+│   │   ├── session.py, story.py, timeline.py, journal.py
+│   │   ├── time.py           Narrative clock
+│   │   └── region.py         Hierarchical regions
+│   └── support/              Persistence & search
+│       ├── checkpoint.py     Full-state undo/redo
+│       ├── export.py         Human-readable session export
+│       ├── recall.py         Hybrid semantic + keyword search
+│       └── vectordb.py       sqlite-vec embeddings
+│
+├── systems/                  Game system packs (JSON, separate licensing)
+│   ├── pf2e/                 Pathfinder 2e Remaster (ORC)
+│   └── mm3e/                 d20 Hero SRD 3e (OGL 1.0a)
+│
+├── guidelines/               Agent guidelines (GM, NPC, shared)
+├── tests/                    740 tests
+├── tui/                      Terminal UI (TypeScript/React/Ink)
+└── data/game.db              SQLite database (created by init_db)
+```
+
 ## Game Systems
 
 LoreKit ships with two system packs under `systems/`:
 
 | Directory | System                   | License  |
 |-----------|--------------------------|----------|
-| `pf2e`    | Pathfinder 2e Remaster   | ORC      |
-| `mm3e`    | Mutants & Masterminds 3e | OGL 1.0a |
+| `pf2e`    | Pathfinder 2e Remaster             | ORC      |
+| `mm3e`    | d20 Hero SRD (3e)                  | OGL 1.0a |
 
-System packs are pure JSON. The rules engine is zero-knowledge: it only knows
+System packs are pure JSON. The rules engine is domain-agnostic: it only knows
 variables, formulas, tables, and constraints. All domain logic lives in the
 system pack files and the data-driven build engine.
 
@@ -66,17 +130,3 @@ pytest warning.
 **System data is NOT covered by the project's Apache 2.0 license.** Each
 system's data is governed by its own license, found in the `LICENSE` file
 within that system's directory.
-
-## File Overview
-
-| Path | Purpose |
-|------|---------|
-| `guidelines/` | Agent guidelines (GM, NPC, shared) and tool references |
-| `mcp_server.py` | MCP server -- primary interface to all game tools |
-| `.mcp.json` | MCP server configuration (stdio, for the GM agent) |
-| `.npc_mcp.json` | MCP server configuration (HTTP, for NPC agents) |
-| `core/` | Game engine modules (session, character, rules, dice, etc.) |
-| `systems/` | Game system packs (JSON definitions for PF2e, M&M3e) |
-| `tests/` | Pytest test suite |
-| `tui/` | Terminal UI (TypeScript/React/Ink) |
-| `data/game.db` | SQLite database with vector embeddings (created by `init_db`) |

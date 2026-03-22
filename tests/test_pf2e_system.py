@@ -3,7 +3,7 @@
 Validates that the PF2e system pack loads correctly and produces
 accurate derived stats for various class/level combinations.
 
-Note: The rules engine is zero-knowledge. Class proficiency values
+Note: The rules engine is domain-agnostic. Class proficiency values
 (prof_*), hp_per_level, and key_ability_mod are character attributes
 set by the build engine. Tests set them directly to match what the
 build engine would write from class progression tables.
@@ -12,19 +12,15 @@ build engine would write from class progression tables.
 import json
 import math
 import os
-import sys
 
+import cruncher_pf2e
 import pytest
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "core"))
+from cruncher.engine import recalculate
+from cruncher.system_pack import load_system_pack
+from cruncher.types import CharacterData
 
-from rules_engine import (
-    CharacterData,
-    load_system_pack,
-    recalculate,
-)
-
-PF2E_SYSTEM = os.path.join(os.path.dirname(__file__), "..", "systems", "pf2e")
+PF2E_SYSTEM = cruncher_pf2e.pack_path()
 
 
 def _load_class_profs(class_name: str, level: int) -> dict[str, str]:
