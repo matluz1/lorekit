@@ -3,7 +3,7 @@ import { Box, Text, useInput } from "ink";
 import chalk from "chalk";
 
 const DISPLAY_THROTTLE_MS = 50;
-const MAX_INPUT_LENGTH = 10000;
+const MAX_INPUT_LENGTH = 50000;
 
 interface InputProps {
   onSubmit: (text: string) => void;
@@ -126,20 +126,35 @@ export const Input = React.memo(function Input({
     );
   }
 
-  // ── Render with fake cursor (array join, not string concat) ──
+  // ── Render a window around the cursor (avoids redrawing entire buffer) ──
   const { text, cursor } = display;
   let rendered: string;
   if (text.length === 0) {
     rendered = chalk.inverse(" ");
   } else {
-    const parts: string[] = new Array(text.length + 1);
+    // For large inputs, only render a window around the cursor
+    const WINDOW = 200;
+    let start = 0;
+    let end = text.length;
+    let prefix = "";
+    let suffix = "";
+    if (text.length > WINDOW) {
+      start = Math.max(0, cursor - WINDOW + 40);
+      end = Math.min(text.length, start + WINDOW);
+      if (start > 0) prefix = "…";
+      if (end < text.length) suffix = "…";
+    }
+
+    const parts: string[] = new Array(end - start + 3);
     let pi = 0;
-    for (let i = 0; i < text.length; i++) {
+    if (prefix) parts[pi++] = prefix;
+    for (let i = start; i < end; i++) {
       parts[pi++] = i === cursor ? chalk.inverse(text[i]!) : text[i]!;
     }
     if (cursor >= text.length) {
       parts[pi++] = chalk.inverse(" ");
     }
+    if (suffix) parts[pi++] = suffix;
     rendered = parts.slice(0, pi).join("");
   }
 
