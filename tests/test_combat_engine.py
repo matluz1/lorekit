@@ -11,6 +11,7 @@ from lorekit.combat import resolve_action, resolve_area_action
 
 FIXTURES = os.path.join(os.path.dirname(__file__), "fixtures")
 TEST_SYSTEM = os.path.join(FIXTURES, "test_system")
+TEST_SYSTEM_AREA = os.path.join(FIXTURES, "test_system_area")
 MM3E_SYSTEM = cruncher_mm3e.pack_path()
 
 
@@ -1447,5 +1448,346 @@ class TestCombatOptions:
             for m in mods:
                 assert m[2] == -5  # negated value
                 assert m[3] == "until_next_turn"
+        finally:
+            db.close()
+
+
+# ---------------------------------------------------------------------------
+# Area avoidance tests (degree resolution with area config)
+# ---------------------------------------------------------------------------
+
+
+def _setup_area_fighter(db, make_session, make_character, set_attr, name, **overrides):
+    """Create a character for the area-avoidance test system (degree resolution)."""
+    sid = make_session()
+    cid = make_character(sid, name=name, level=1)
+    defaults = {
+        "fgt": "6",
+        "agl": "2",
+        "sta": "2",
+        "dodge": "8",
+        "parry": "6",
+        "toughness": "8",
+        "close_damage": "10",
+        "adv_evasion": "0",
+    }
+    defaults.update(overrides)
+
+    for key, val in defaults.items():
+        set_attr(db, cid, "stat", key, val)
+
+    from lorekit.rules import rules_calc
+
+    rules_calc(db, cid, TEST_SYSTEM_AREA)
+
+    return sid, cid
+
+
+class TestAreaAvoidance:
+    """Area avoidance check — dodge check before resolution, with rank halving."""
+
+    def _setup_encounter(self, db, make_session, make_character, set_attr, **target_overrides):
+        """Set up attacker + target in a 2-zone encounter using the area test system."""
+        from lorekit.encounter import start_encounter
+
+        sid, atk_id = _setup_area_fighter(db, make_session, make_character, set_attr, "Blaster")
+        _, tgt_id = _setup_area_fighter(
+            db,
+            make_session,
+            make_character,
+            set_attr,
+            "Target",
+            **target_overrides,
+        )
+
+        sess_id = db.execute("SELECT session_id FROM characters WHERE id = ?", (atk_id,)).fetchone()[0]
+
+        start_encounter(
+            db,
+            sess_id,
+            [{"name": "Near"}, {"name": "Far"}],
+            [
+                {"character_id": atk_id, "roll": 20},
+                {"character_id": tgt_id, "roll": 10},
+            ],
+            placements=[
+                {"character_id": atk_id, "zone": "Near"},
+                {"character_id": tgt_id, "zone": "Far"},
+            ],
+            combat_cfg={"zone_scale": 30, "movement_unit": "ft", "melee_range": 0, "zone_tags": {}},
+        )
+        return sess_id, atk_id, tgt_id
+
+    def test_avoidance_success_halves_rank(self, make_session, make_character):
+        """Successful avoidance check halves the effect rank."""
+        from lorekit.character import set_attr
+        from lorekit.db import require_db
+
+        db = require_db()
+        try:
+            _, atk_id, tgt_id = self._setup_encounter(
+                db,
+                make_session,
+                make_character,
+                set_attr,
+            )
+
+            # close_damage=10, so DC = 10+10 = 20
+            # Target dodge=8, area_dodge=8 (no evasion)
+            # Avoidance roll: 19+1=20 (nat roll 19 → randbelow(20)=19 → d20=20)
+            #   20 + 8 = 28 >= DC 20 → SUCCESS, rank 10 → 5
+            # Resistance roll: any value (we just need it to run)
+            roll_calls = iter(
+                [
+                    19,  # avoidance check: d20 roll (20 - 1 internally)
+                    4,  # resistance check: d20 roll
+                ]
+            )
+            with patch("secrets.randbelow", side_effect=roll_calls):
+                output = resolve_area_action(
+                    db,
+                    atk_id,
+                    "blast",
+                    TEST_SYSTEM_AREA,
+                    center_zone="Far",
+                    radius=0,
+                )
+
+            assert "AREA AVOIDANCE" in output
+            assert "SUCCESS" in output
+            assert "10 → 5" in output
+            assert "auto-hit" in output
+            # Resistance DC should be 15 + 5 (halved rank) = 20
+            assert "vs DC 20" in output
+        finally:
+            db.close()
+
+    def test_avoidance_failure_full_rank(self, make_session, make_character):
+        """Failed avoidance check uses full effect rank."""
+        from lorekit.character import set_attr
+        from lorekit.db import require_db
+
+        db = require_db()
+        try:
+            _, atk_id, tgt_id = self._setup_encounter(
+                db,
+                make_session,
+                make_character,
+                set_attr,
+            )
+
+            # Avoidance roll: 1 (nat 1 → randbelow(20)=0 → d20=1)
+            #   1 + 8 = 9 < DC 20 → FAILED
+            # Resistance roll: any
+            roll_calls = iter(
+                [
+                    0,  # avoidance check: d20=1
+                    4,  # resistance check
+                ]
+            )
+            with patch("secrets.randbelow", side_effect=roll_calls):
+                output = resolve_area_action(
+                    db,
+                    atk_id,
+                    "blast",
+                    TEST_SYSTEM_AREA,
+                    center_zone="Far",
+                    radius=0,
+                )
+
+            assert "FAILED" in output
+            assert "full effect" in output
+            assert "auto-hit" in output
+            # Resistance DC should be 15 + 10 (full rank) = 25
+            assert "vs DC 25" in output
+        finally:
+            db.close()
+
+    def test_auto_hit_skips_attack_roll(self, make_session, make_character):
+        """With skip_attack_roll=true, no attack roll is made."""
+        from lorekit.character import set_attr
+        from lorekit.db import require_db
+
+        db = require_db()
+        try:
+            _, atk_id, tgt_id = self._setup_encounter(
+                db,
+                make_session,
+                make_character,
+                set_attr,
+            )
+
+            # Only 2 rolls needed: avoidance + resistance (no attack roll)
+            roll_calls = iter([0, 4])
+            with patch("secrets.randbelow", side_effect=roll_calls):
+                output = resolve_area_action(
+                    db,
+                    atk_id,
+                    "blast",
+                    TEST_SYSTEM_AREA,
+                    center_zone="Far",
+                    radius=0,
+                )
+
+            assert "auto-hit (area effect)" in output
+            # No "ATTACK: d20" line — the attack is auto-hit
+            assert "d20(" not in output.split("auto-hit")[1].split("RESISTANCE")[0]
+        finally:
+            db.close()
+
+    def test_evasion_bonus_via_derived_stat(self, make_session, make_character):
+        """Evasion rank 1 adds +2 to area_dodge via derived formula."""
+        from lorekit.character import set_attr
+        from lorekit.db import require_db
+
+        db = require_db()
+        try:
+            # Target has evasion rank 1 → area_dodge = dodge + 2 = 10
+            _, atk_id, tgt_id = self._setup_encounter(
+                db,
+                make_session,
+                make_character,
+                set_attr,
+                adv_evasion="1",
+            )
+
+            # close_damage=10, DC=20
+            # Target area_dodge=10 (dodge 8 + evasion 2)
+            # Avoidance roll: d20=10, total = 10+10 = 20 >= DC 20 → SUCCESS
+            roll_calls = iter([9, 4])  # 9+1=10 for avoidance, then resistance
+            with patch("secrets.randbelow", side_effect=roll_calls):
+                output = resolve_area_action(
+                    db,
+                    atk_id,
+                    "blast",
+                    TEST_SYSTEM_AREA,
+                    center_zone="Far",
+                    radius=0,
+                )
+
+            assert "SUCCESS" in output
+            assert "+ 10" in output  # area_dodge = 10
+
+            # Without evasion (area_dodge=8), same roll would fail: 10+8=18 < 20
+            # So the evasion bonus is the difference maker
+        finally:
+            db.close()
+
+    def test_evasion_rank2_gives_plus5(self, make_session, make_character):
+        """Evasion rank 2 adds +5 to area_dodge via derived formula."""
+        from lorekit.character import set_attr
+        from lorekit.db import require_db
+
+        db = require_db()
+        try:
+            # Target has evasion rank 2 → area_dodge = dodge + 5 = 13
+            _, atk_id, tgt_id = self._setup_encounter(
+                db,
+                make_session,
+                make_character,
+                set_attr,
+                adv_evasion="2",
+            )
+
+            # area_dodge=13
+            # Avoidance roll: d20=7, total = 7+13 = 20 >= DC 20 → SUCCESS
+            roll_calls = iter([6, 4])  # 6+1=7 for avoidance, then resistance
+            with patch("secrets.randbelow", side_effect=roll_calls):
+                output = resolve_area_action(
+                    db,
+                    atk_id,
+                    "blast",
+                    TEST_SYSTEM_AREA,
+                    center_zone="Far",
+                    radius=0,
+                )
+
+            assert "SUCCESS" in output
+            assert "+ 13" in output  # area_dodge = 13
+        finally:
+            db.close()
+
+    def test_no_area_config_unchanged(self, make_session, make_character):
+        """Systems without area config behave exactly as before (attack roll happens)."""
+        from lorekit.character import set_attr
+        from lorekit.db import require_db
+        from lorekit.encounter import start_encounter
+
+        db = require_db()
+        try:
+            sid, atk_id = _setup_fighter(db, make_session, make_character, set_attr, "Caster")
+            _, t1_id = _setup_fighter(db, make_session, make_character, set_attr, "Target1")
+            set_attr(db, t1_id, "combat", "current_hp", "35")
+
+            sess_id = db.execute("SELECT session_id FROM characters WHERE id = ?", (atk_id,)).fetchone()[0]
+
+            start_encounter(
+                db,
+                sess_id,
+                [{"name": "Near"}, {"name": "Mid"}],
+                [{"character_id": atk_id, "roll": 20}, {"character_id": t1_id, "roll": 10}],
+                placements=[
+                    {"character_id": atk_id, "zone": "Near"},
+                    {"character_id": t1_id, "zone": "Mid"},
+                ],
+                combat_cfg={"zone_scale": 30, "movement_unit": "ft", "melee_range": 0, "zone_tags": {}},
+            )
+
+            # Standard test system: attack roll + damage roll (no area config)
+            roll_calls = iter([17, 5])
+            with patch("secrets.randbelow", side_effect=roll_calls):
+                output = resolve_area_action(
+                    db,
+                    atk_id,
+                    "fireball",
+                    TEST_SYSTEM,
+                    center_zone="Mid",
+                    radius=0,
+                )
+
+            assert "AREA AVOIDANCE" not in output
+            assert "auto-hit" not in output
+            assert "HIT!" in output
+        finally:
+            db.close()
+
+    def test_minimum_rank_enforced(self, make_session, make_character):
+        """When effect rank is low, halving respects minimum_rank."""
+        from lorekit.character import set_attr
+        from lorekit.db import require_db
+
+        db = require_db()
+        try:
+            # close_damage=1 → effect rank 1, DC=11
+            # Halved: floor(1*0.5) = 0, but minimum_rank=1 → stays at 1
+            _, atk_id, tgt_id = self._setup_encounter(
+                db,
+                make_session,
+                make_character,
+                set_attr,
+                close_damage="1",  # override attacker's close_damage too
+            )
+            # Override attacker's close_damage to 1
+            set_attr(db, atk_id, "stat", "close_damage", "1")
+            from lorekit.rules import rules_calc
+
+            rules_calc(db, atk_id, TEST_SYSTEM_AREA)
+
+            # Avoidance roll: d20=20 (auto success), resistance: any
+            roll_calls = iter([19, 4])
+            with patch("secrets.randbelow", side_effect=roll_calls):
+                output = resolve_area_action(
+                    db,
+                    atk_id,
+                    "blast",
+                    TEST_SYSTEM_AREA,
+                    center_zone="Far",
+                    radius=0,
+                )
+
+            assert "SUCCESS" in output
+            assert "1 → 1" in output  # halved but clamped to minimum
+            # Resistance DC = 15 + 1 = 16
+            assert "vs DC 16" in output
         finally:
             db.close()

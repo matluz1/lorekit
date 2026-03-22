@@ -1034,6 +1034,17 @@ def _resolve_threshold(
         else:
             margin = def_total - atk_total
             lines.append(f"MISS! ({defender.name} resists by {margin})")
+    elif action_def.get("_auto_hit"):
+        # Area auto-hit: skip attack roll entirely
+        lines = [
+            f"ACTION: {attacker.name} → {defender.name}",
+            "ATTACK: auto-hit (area effect)",
+        ]
+        hit = True
+        is_crit = False
+
+        on_hit = action_def.get("on_hit", {})
+        _apply_on_hit(db, pack, attacker, defender, on_hit, lines, is_crit=False, margin=0, options=options)
     else:
         attack_bonus = _get_derived(attacker, attack_stat)
         defense_value = _get_derived(defender, defense_stat)
@@ -1159,6 +1170,16 @@ def _resolve_degree(
         lines.append(f"DEFENDER: {pack.dice}({def_roll}) + {def_bonus} ({defense_stat}) = {def_total}")
         hit = atk_total >= def_total
         is_natural_crit = _is_crit(crit_cfg, atk_natural, attacker)
+    elif action_def.get("_auto_hit"):
+        # Area auto-hit: skip attack roll entirely
+        lines = [
+            f"ACTION: {attacker.name} → {defender.name}",
+            "ATTACK: auto-hit (area effect)",
+        ]
+        attack_total = 0
+        defense_dc = 0
+        hit = True
+        is_natural_crit = False
     else:
         attack_bonus = _get_derived(attacker, attack_stat)
         defense_value = _get_derived(defender, defense_stat)
@@ -1571,6 +1592,79 @@ def start_turn(db, character_id: int, pack_dir: str) -> str:
 
 
 # ---------------------------------------------------------------------------
+# Area avoidance helpers
+# ---------------------------------------------------------------------------
+
+
+def _get_area_effect_rank(attacker: CharacterData, action_def: dict, trade_adj: dict[str, int]) -> int:
+    """Determine the effect rank for area avoidance DC calculation.
+
+    Mirrors the logic in _resolve_degree for effect_rank vs damage_rank_stat,
+    and applies trade adjustments (e.g. Power Attack) so the DC reflects
+    the full rank before any avoidance halving.
+    """
+    effect_rank_direct = action_def.get("effect_rank")
+    if effect_rank_direct is not None:
+        return int(effect_rank_direct)
+    damage_rank_stat = action_def.get("damage_rank_stat")
+    if damage_rank_stat:
+        rank = _get_derived(attacker, damage_rank_stat)
+        if damage_rank_stat in trade_adj:
+            rank += trade_adj[damage_rank_stat]
+        return rank
+    return 0
+
+
+def _area_avoidance_check(
+    pack: SystemPack,
+    attacker: CharacterData,
+    defender: CharacterData,
+    action_def: dict,
+    avoidance_cfg: dict,
+    trade_adj: dict[str, int],
+) -> dict:
+    """Run an area avoidance check for one target.
+
+    Returns {"lines": [...], "action_def": possibly-modified action_def}.
+    On success the returned action_def has effect_rank overridden
+    (with damage_rank_stat removed to prevent double trade adjustment).
+    """
+    check_stat = avoidance_cfg["check_stat"]
+    dc_base = avoidance_cfg.get("dc_base", 10)
+
+    effect_rank = _get_area_effect_rank(attacker, action_def, trade_adj)
+    dc = dc_base + effect_rank
+
+    check_bonus = _get_derived(defender, check_stat)
+    roll_result = roll_expr(pack.dice)
+    roll_val = roll_result["total"]
+    check_total = roll_val + check_bonus
+
+    lines = [
+        f"AREA AVOIDANCE ({defender.name}): "
+        f"{pack.dice}({roll_val}) + {check_bonus} ({check_stat}) = {check_total} vs DC {dc}",
+    ]
+
+    modified_def = dict(action_def)
+
+    if check_total >= dc:
+        on_success = avoidance_cfg.get("on_success", {})
+        multiplier = on_success.get("rank_multiplier")
+        if multiplier is not None:
+            minimum = on_success.get("minimum_rank", 1)
+            reduced = max(minimum, math.floor(effect_rank * multiplier))
+            lines.append(f"  SUCCESS — effect rank {effect_rank} → {reduced}")
+            modified_def["effect_rank"] = reduced
+            modified_def.pop("damage_rank_stat", None)
+        else:
+            lines.append("  SUCCESS")
+    else:
+        lines.append(f"  FAILED — full effect (rank {effect_rank})")
+
+    return {"lines": lines, "action_def": modified_def}
+
+
+# ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
 
@@ -1633,16 +1727,52 @@ def resolve_area_action(
 
     opts = _expand_combat_options(pack, options or {})
     resolution_type = pack.resolution.get("type", "threshold")
+    area_cfg = pack.resolution.get("area")
+
+    # Pre-compute trade adjustments for area avoidance DC calculation
+    trade_adj: dict[str, int] = {}
+    for trade in opts.get("trade", []):
+        trade_val = trade["value"]
+        from_stat = trade.get("from")
+        if from_stat:
+            trade_adj[from_stat] = trade_adj.get(from_stat, 0) - trade_val
+        trade_adj[trade["to"]] = trade_adj.get(trade["to"], 0) + trade_val
 
     results = []
     for tid in target_ids:
         defender = load_character_data(db, tid)
+
+        effective_action_def = dict(action_def)
+        avoidance_lines: list[str] = []
+
+        if area_cfg:
+            avoidance = area_cfg.get("avoidance")
+            if avoidance:
+                av_result = _area_avoidance_check(
+                    pack,
+                    attacker,
+                    defender,
+                    effective_action_def,
+                    avoidance,
+                    trade_adj,
+                )
+                avoidance_lines = av_result["lines"]
+                effective_action_def = av_result["action_def"]
+
+            if area_cfg.get("skip_attack_roll"):
+                effective_action_def = dict(effective_action_def)
+                effective_action_def["_auto_hit"] = True
+
         if resolution_type == "threshold":
-            result = _resolve_threshold(db, pack, attacker, defender, action_def, opts)
+            result = _resolve_threshold(db, pack, attacker, defender, effective_action_def, opts)
         elif resolution_type == "degree":
-            result = _resolve_degree(db, pack, attacker, defender, action_def, opts)
+            result = _resolve_degree(db, pack, attacker, defender, effective_action_def, opts)
         else:
             raise LoreKitError(f"Unknown resolution type: {resolution_type}")
+
+        if avoidance_lines:
+            result = "\n".join(avoidance_lines) + "\n" + result
+
         results.append(result)
 
     # Area action counts as one action for condition tracking

@@ -351,6 +351,8 @@
 
     "equipment_points": "adv_equipment * 5",
 
+    "area_dodge": "dodge + if(adv_evasion >= 2, 5, if(adv_evasion >= 1, 2, 0))",
+
     "damage_resistance": "toughness - damage_penalty",
 
     "pl_attack_dodge": "close_attack + dodge",
@@ -399,6 +401,14 @@
       "2": {"increment": {"damage_penalty": 1}, "set_max": {"damage_condition": 2}, "label": "dazed"},
       "3": {"increment": {"damage_penalty": 1}, "set_max": {"damage_condition": 3}, "label": "staggered"},
       "4": {"set_max": {"damage_condition": 4}, "label": "incapacitated"}
+    },
+    "area": {
+      "skip_attack_roll": true,
+      "avoidance": {
+        "check_stat": "area_dodge",
+        "dc_base": 10,
+        "on_success": {"rank_multiplier": 0.5, "minimum_rank": 1}
+      }
     }
   },
 

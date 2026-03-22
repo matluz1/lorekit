@@ -1,0 +1,71 @@
+{
+  "meta": {
+    "name": "Test System (Area)",
+    "dice": "d20"
+  },
+  "defaults": {
+    "str": 10,
+    "dex": 10,
+    "fgt": 0,
+    "agl": 0,
+    "sta": 0,
+    "dodge": 0,
+    "parry": 0,
+    "toughness": 0,
+    "area_dodge": 0,
+    "damage_penalty": 0,
+    "damage_condition": 0,
+    "close_damage": 0,
+    "adv_evasion": 0,
+    "adv_improved_critical": 0,
+    "bonus_initiative": 0
+  },
+  "derived": {
+    "damage_resistance": "toughness - damage_penalty",
+    "close_attack": "fgt",
+    "area_dodge": "dodge + if(adv_evasion >= 2, 5, if(adv_evasion >= 1, 2, 0))"
+  },
+  "constraints": {},
+  "combat": {
+    "zone_scale": 30,
+    "movement_unit": "ft",
+    "melee_range": 0,
+    "initiative_stat": "agl",
+    "zone_tags": {}
+  },
+  "resolution": {
+    "type": "degree",
+    "defense_dc_offset": 10,
+    "resistance_stat": "damage_resistance",
+    "dc_base": 15,
+    "critical": {
+      "natural": 20,
+      "effect_rank_bonus": 5,
+      "threshold_stat": "adv_improved_critical"
+    },
+    "on_failure": {
+      "1": {"increment": {"damage_penalty": 1}, "set_max": {"damage_condition": 1}},
+      "2": {"increment": {"damage_penalty": 1}, "set_max": {"damage_condition": 2}},
+      "3": {"increment": {"damage_penalty": 1}, "set_max": {"damage_condition": 3}},
+      "4": {"set_max": {"damage_condition": 4}}
+    },
+    "area": {
+      "skip_attack_roll": true,
+      "avoidance": {
+        "check_stat": "area_dodge",
+        "dc_base": 10,
+        "on_success": {"rank_multiplier": 0.5, "minimum_rank": 1}
+      }
+    }
+  },
+  "actions": {
+    "blast": {
+      "attack_stat": "close_attack",
+      "defense_stat": "dodge",
+      "range": "ranged",
+      "damage_rank_stat": "close_damage"
+    }
+  },
+  "end_turn": {},
+  "start_turn": {}
+}
