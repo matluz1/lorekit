@@ -1,6 +1,5 @@
-import React, { useState, useEffect, type ReactNode } from "react";
+import React, { useState, useEffect, useMemo, type ReactNode } from "react";
 import { Box, Text } from "ink";
-
 
 export interface ChatMessage {
   role: "gm" | "player" | "system";
@@ -13,13 +12,14 @@ interface ChatProps {
   isStreaming: boolean;
 }
 
+const MAX_VISIBLE_MESSAGES = 80;
+
 /**
  * Parse inline markdown (bold, italic, bold-italic) into Ink <Text> nodes.
  * Handles ***bold italic***, **bold**, and *italic*.
  */
 function parseInline(text: string, baseColor?: string): ReactNode[] {
   const nodes: ReactNode[] = [];
-  // Match ***…***, **…**, or *…* (non-greedy, no nesting)
   const re = /(\*{1,3})((?:(?!\1).)+?)\1/g;
   let last = 0;
 
@@ -47,7 +47,35 @@ function parseInline(text: string, baseColor?: string): ReactNode[] {
   return nodes.length > 0 ? nodes : [<Text key={0} color={baseColor}>{text}</Text>];
 }
 
-/** Slow spinner — 2 frames at 960ms, like Claude Code. */
+/** Memoized single message row. */
+const MessageRow = React.memo(function MessageRow({
+  msg,
+  isLast,
+}: {
+  msg: ChatMessage;
+  isLast: boolean;
+}) {
+  return (
+    <Box marginBottom={isLast ? 0 : 1}>
+      {msg.role === "player" ? (
+        <Text>
+          <Text color="cyan" bold>
+            {">"}{" "}
+          </Text>
+          <Text>{msg.content}</Text>
+        </Text>
+      ) : msg.role === "system" ? (
+        <Text color="yellow" dimColor italic>
+          {msg.content}
+        </Text>
+      ) : (
+        <Text>{parseInline(msg.content, "green")}</Text>
+      )}
+    </Box>
+  );
+});
+
+/** Slow spinner — 2 frames at 960ms. */
 const SPINNER_FRAMES = ["⠂", "⠐"];
 function SlowSpinner() {
   const [frame, setFrame] = useState(0);
@@ -58,30 +86,34 @@ function SlowSpinner() {
   return <Text color="yellow">{SPINNER_FRAMES[frame]}</Text>;
 }
 
-export function Chat({
+export const Chat = React.memo(function Chat({
   messages,
   streamingText,
   isStreaming,
 }: ChatProps) {
+  // Only render the last N messages to keep layout cost bounded
+  const visible = useMemo(
+    () => messages.slice(-MAX_VISIBLE_MESSAGES),
+    [messages]
+  );
+
+  const truncated = messages.length > MAX_VISIBLE_MESSAGES;
+
   return (
     <Box flexDirection="column">
-      {messages.map((msg, i) => (
-        <Box key={i} marginBottom={i < messages.length - 1 ? 1 : 0}>
-          {msg.role === "player" ? (
-            <Text>
-              <Text color="cyan" bold>
-                {">"}{" "}
-              </Text>
-              <Text>{msg.content}</Text>
-            </Text>
-          ) : msg.role === "system" ? (
-            <Text color="yellow" dimColor italic>
-              {msg.content}
-            </Text>
-          ) : (
-            <Text>{parseInline(msg.content, "green")}</Text>
-          )}
+      {truncated && (
+        <Box marginBottom={1}>
+          <Text dimColor italic>
+            ({messages.length - MAX_VISIBLE_MESSAGES} earlier messages hidden)
+          </Text>
         </Box>
+      )}
+      {visible.map((msg, i) => (
+        <MessageRow
+          key={messages.length - visible.length + i}
+          msg={msg}
+          isLast={i === visible.length - 1 && !isStreaming}
+        />
       ))}
       {isStreaming && (
         <Box>
@@ -94,4 +126,4 @@ export function Chat({
       )}
     </Box>
   );
-}
+});

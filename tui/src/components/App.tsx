@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef, useEffect } from "react";
+import React, { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { Box, Text, useApp } from "ink";
 import { Chat, type ChatMessage } from "./Chat.js";
 import { Input } from "./Input.js";
@@ -48,6 +48,12 @@ export function App({
   const [isStreaming, setIsStreaming] = useState(false);
   const agentRef = useRef<AgentProcess | null>(null);
 
+  // Ref mirror so handleSubmit never goes stale
+  const isStreamingRef = useRef(false);
+  useEffect(() => {
+    isStreamingRef.current = isStreaming;
+  }, [isStreaming]);
+
   // ── Tool call tracking ────────────────────────────────
   const [toolCalls, setToolCalls] = useState<ToolCallEntry[]>([]);
   const [npcToolCalls, setNpcToolCalls] = useState<NpcToolCallEntry[]>([]);
@@ -89,10 +95,10 @@ export function App({
     streamFlushRef.current = null;
   }, []);
 
-  // ── GM submit ─────────────────────────────────────────
+  // ── GM submit (stable ref — no deps on isStreaming) ───
   const handleSubmit = useCallback(
     async (text: string) => {
-      if (!agentRef.current || isStreaming) return;
+      if (!agentRef.current || isStreamingRef.current) return;
 
       if (text.toLowerCase() === "/quit") {
         agentRef.current.stop();
@@ -145,12 +151,10 @@ export function App({
               { name: chunk.content, ts: Date.now() },
             ]);
           } else if (chunk.type === "tool_result") {
-            // Surface tool errors as system messages
             setMessages((prev) => [
               ...prev,
               { role: "system", content: `Tool error: ${chunk.content}` },
             ]);
-            // Mark the last tool call as failed
             setToolCalls((prev) => {
               if (prev.length === 0) return prev;
               const updated = [...prev];
@@ -161,7 +165,6 @@ export function App({
               return updated;
             });
           } else if (chunk.type === "npc_tool_use") {
-            // content is "NpcName:tool1,tool2"
             const [npcName, toolsCsv] = chunk.content.split(":");
             if (npcName && toolsCsv) {
               const tools = toolsCsv.split(",");
@@ -200,20 +203,21 @@ export function App({
         setIsStreaming(false);
       }
     },
-    [isStreaming, exit]
+    [exit]
   );
 
   // Build toast line from current tool calls
-  const toastParts: string[] = [];
-  for (const tc of toolCalls) {
-    const name = shortToolName(tc.name);
-    toastParts.push(tc.error ? `✗ ${name}` : `✓ ${name}`);
-  }
-  for (const ntc of npcToolCalls) {
-    toastParts.push(`${ntc.npcName} → ${shortToolName(ntc.toolName)}`);
-  }
-
-  const showToast = toolCalls.length > 0 || npcToolCalls.length > 0;
+  const toastLine = useMemo(() => {
+    const parts: string[] = [];
+    for (const tc of toolCalls) {
+      const name = shortToolName(tc.name);
+      parts.push(tc.error ? `✗ ${name}` : `✓ ${name}`);
+    }
+    for (const ntc of npcToolCalls) {
+      parts.push(`${ntc.npcName} → ${shortToolName(ntc.toolName)}`);
+    }
+    return parts.length > 0 ? parts.join(" · ") : null;
+  }, [toolCalls, npcToolCalls]);
 
   return (
     <Box flexDirection="column">
@@ -239,11 +243,9 @@ export function App({
       </Box>
 
       {/* Tool toast */}
-      {showToast && (
+      {toastLine && (
         <Box paddingX={1}>
-          <Text dimColor>
-            {toastParts.join(" · ")}
-          </Text>
+          <Text dimColor>{toastLine}</Text>
         </Box>
       )}
 
