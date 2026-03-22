@@ -488,6 +488,54 @@ def _get_action_def(pack: SystemPack, char: CharacterData, action: str) -> dict:
     raise LoreKitError(f"Unknown action '{action}'. Available: {', '.join(available)}")
 
 
+def _get_gm_hints(pack: SystemPack, action: str) -> str | None:
+    """Look up gm_hints for a gm_assisted effect from effects.json.
+
+    Returns a formatted hint string, or None if the action is not a
+    recognized gm_assisted effect.
+    """
+    import json as _json
+    import os
+
+    effects_path = os.path.join(pack.pack_dir, "effects.json")
+    if not os.path.isfile(effects_path):
+        return None
+
+    with open(effects_path) as f:
+        effects_data = _json.load(f)
+
+    effect_def = effects_data.get(action)
+    if not isinstance(effect_def, dict):
+        return None
+    if effect_def.get("resolution") != "gm_assisted":
+        return None
+
+    lines = [f"GM-ASSISTED EFFECT: {effect_def.get('name', action)}"]
+    lines.append(f"  Type: {effect_def.get('type', 'unknown')}")
+    lines.append(f"  Action: {effect_def.get('action', 'standard')}")
+    lines.append(f"  Range: {effect_def.get('range', 'close')}")
+    lines.append(f"  Duration: {effect_def.get('duration', 'instant')}")
+
+    if effect_def.get("resistance"):
+        lines.append(f"  Resistance: {effect_def['resistance']}")
+
+    note = effect_def.get("note")
+    if note:
+        lines.append(f"  Note: {note}")
+
+    hints = effect_def.get("gm_hints", {})
+    if hints:
+        lines.append("  ---")
+        if "check_type" in hints:
+            lines.append(f"  Check: {hints['check_type']}")
+        if "dc_formula" in hints:
+            lines.append(f"  DC: {hints['dc_formula']}")
+        for rule in hints.get("key_rules", []):
+            lines.append(f"  Rule: {rule}")
+
+    return "\n".join(lines)
+
+
 def _get_attr_str(char: CharacterData, stat: str) -> str:
     """Read a string attribute (e.g., weapon_damage_die). Checks build then all."""
     build = char.attributes.get("build", {})
@@ -1633,7 +1681,16 @@ def resolve_action(
 
     create_checkpoint(db, attacker.session_id)
 
-    action_def = _get_action_def(pack, attacker, action)
+    # Check if action is a gm_assisted effect before looking up action defs
+    try:
+        action_def = _get_action_def(pack, attacker, action)
+    except LoreKitError:
+        # Fall back to effects.json for gm_assisted resolution
+        hints = _get_gm_hints(pack, action)
+        if hints:
+            return hints
+        raise  # re-raise original error if no hints found
+
     opts = _expand_combat_options(pack, options or {})
 
     # Validate defender is in the active encounter
