@@ -16,4 +16,4 @@ known-first-party = ["core", "mcp_server"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "--cov=core --cov=mcp_server.py --cov-report=term-missing --no-header -q"
+addopts = "--no-header -q"
