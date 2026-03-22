@@ -15,7 +15,8 @@
   },
 
   "end_turn": {
-    "rounds": {"action": "decrement", "remove_at": 0}
+    "rounds": {"action": "decrement", "remove_at": 0},
+    "until_escape": {"action": "escape_check", "save_stat": "skill_athletics", "save_dc_stat": "grab_dc"}
   },
 
   "combat": {
@@ -148,7 +149,9 @@
     "skill_thievery": "dex_mod + if(prof_thievery > 0, prof_thievery + level, 0) + bonus_thievery",
 
     "melee_attack": "str_mod + if(prof_simple_weapons > 0, prof_simple_weapons + level, 0) + bonus_melee_attack",
-    "ranged_attack": "dex_mod + if(prof_simple_weapons > 0, prof_simple_weapons + level, 0) + bonus_ranged_attack"
+    "ranged_attack": "dex_mod + if(prof_simple_weapons > 0, prof_simple_weapons + level, 0) + bonus_ranged_attack",
+
+    "grab_dc": "class_dc"
   },
 
   "resolution": {

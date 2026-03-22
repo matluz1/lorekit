@@ -11,7 +11,8 @@
   },
 
   "end_turn": {
-    "rounds": {"action": "decrement", "remove_at": 0}
+    "rounds": {"action": "decrement", "remove_at": 0},
+    "until_escape": {"action": "escape_check", "save_stat": "skill_athletics", "save_dc_stat": "grab_dc"}
   },
 
   "start_turn": {
@@ -324,6 +325,8 @@
 
     "close_attack": "effective_fgt + adv_close_attack + bonus_close_attack",
     "ranged_attack": "effective_dex + adv_ranged_attack + bonus_ranged_attack",
+
+    "grab_dc": "effective_str + 10",
 
     "unarmed_damage": "effective_str + bonus_close_damage",
     "close_damage": "max(unarmed_damage, weapon_close_damage + if(weapon_strength_based, effective_str, 0))",

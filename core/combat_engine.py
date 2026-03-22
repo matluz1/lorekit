@@ -16,6 +16,7 @@ derived stats when modifiers expire.
 from __future__ import annotations
 
 import math
+import random
 from typing import Any
 
 from _db import LoreKitError
@@ -322,7 +323,7 @@ def _get_defender_resolution_effects(
     defender_id: int,
     pack: SystemPack,
 ) -> dict:
-    """Collect resolution_effects from all active conditions on the defender.
+    """Collect resolution_effects from active conditions and zone tags.
 
     Returns a merged dict of resolution effects. Supported keys are
     system-defined; the engine recognises:
@@ -335,31 +336,51 @@ def _get_defender_resolution_effects(
     condition_rules = combat_cfg.get("condition_rules", {})
     combined_conditions = combat_cfg.get("combined_conditions", {})
     thresholds = combat_cfg.get("condition_thresholds")
-    if not condition_rules:
-        return {}
-
-    active = get_active_conditions(db, defender_id, condition_rules, thresholds)
-    expanded, _ = expand_conditions(active, condition_rules, combined_conditions)
 
     merged: dict = {}
-    for cond_name in expanded:
-        cdef = condition_rules.get(cond_name, {})
-        if not isinstance(cdef, dict):
-            continue
-        effects = cdef.get("resolution_effects", {})
-        for key, val in effects.items():
-            if key == "attacker_bonus" and isinstance(val, dict):
-                # Additive per range type — stack bonuses
-                existing = merged.setdefault("attacker_bonus", {})
-                for range_type, bonus in val.items():
-                    existing[range_type] = existing.get(range_type, 0) + bonus
-            elif key == "miss_chance":
-                # Take highest miss chance
-                merged[key] = max(merged.get(key, 0.0), val)
-            else:
-                # Boolean flags — any True wins
-                if val:
-                    merged[key] = True
+
+    # Collect from condition resolution_effects
+    if condition_rules:
+        active = get_active_conditions(db, defender_id, condition_rules, thresholds)
+        expanded, _ = expand_conditions(active, condition_rules, combined_conditions)
+
+        for cond_name in expanded:
+            cdef = condition_rules.get(cond_name, {})
+            if not isinstance(cdef, dict):
+                continue
+            effects = cdef.get("resolution_effects", {})
+            for key, val in effects.items():
+                if key == "attacker_bonus" and isinstance(val, dict):
+                    existing = merged.setdefault("attacker_bonus", {})
+                    for range_type, bonus in val.items():
+                        existing[range_type] = existing.get(range_type, 0) + bonus
+                elif key == "miss_chance":
+                    merged[key] = max(merged.get(key, 0.0), val)
+                else:
+                    if val:
+                        merged[key] = True
+
+    # Collect miss_chance from defender's zone tags
+    zone_tags_cfg = combat_cfg.get("zone_tags", {})
+    if zone_tags_cfg:
+        zone_row = db.execute(
+            "SELECT z.tags FROM encounter_zones z "
+            "JOIN character_zone cz ON cz.zone_id = z.id "
+            "WHERE cz.character_id = ?",
+            (defender_id,),
+        ).fetchone()
+        if zone_row and zone_row[0]:
+            import json as _json
+
+            try:
+                tags = _json.loads(zone_row[0]) if isinstance(zone_row[0], str) else zone_row[0]
+            except (ValueError, TypeError):
+                tags = []
+            for tag in tags:
+                tag_cfg = zone_tags_cfg.get(tag, {})
+                zone_miss = tag_cfg.get("miss_chance")
+                if zone_miss is not None:
+                    merged["miss_chance"] = max(merged.get("miss_chance", 0.0), zone_miss)
 
     return merged
 
@@ -928,6 +949,17 @@ def _resolve_threshold(
         if hit and res_effects.get("hits_are_critical"):
             is_crit = True
 
+        # Miss chance (e.g. concealment) — percentile roll converts hit to miss
+        miss_chance = res_effects.get("miss_chance", 0.0)
+        if hit and miss_chance > 0.0:
+            miss_roll = random.random()
+            if miss_roll < miss_chance:
+                hit = False
+                is_crit = False
+                lines.append(
+                    f"MISS CHANCE: {miss_chance * 100:.0f}% — roll {miss_roll * 100:.1f}% — concealment causes miss!"
+                )
+
         if hit:
             margin = atk_total - def_total
             if is_crit:
@@ -967,6 +999,17 @@ def _resolve_threshold(
                 hit = True  # miss upgraded to hit
         if hit and res_effects.get("hits_are_critical"):
             is_crit = True
+
+        # Miss chance (e.g. concealment) — percentile roll converts hit to miss
+        miss_chance = res_effects.get("miss_chance", 0.0)
+        if hit and miss_chance > 0.0:
+            miss_roll = random.random()
+            if miss_roll < miss_chance:
+                hit = False
+                is_crit = False
+                lines.append(
+                    f"MISS CHANCE: {miss_chance * 100:.0f}% — roll {miss_roll * 100:.1f}% — concealment causes miss!"
+                )
 
         if hit:
             margin = attack_total - defense_value
@@ -1095,6 +1138,17 @@ def _resolve_degree(
     # Resolution effect: hits_are_critical (e.g. defenseless)
     if hit and res_effects.get("hits_are_critical"):
         is_natural_crit = True  # treat as crit for effect rank bonus
+
+    # Miss chance (e.g. concealment) — percentile roll converts hit to miss
+    miss_chance = res_effects.get("miss_chance", 0.0)
+    if hit and miss_chance > 0.0:
+        miss_roll = random.random()
+        if miss_roll < miss_chance:
+            hit = False
+            is_natural_crit = False
+            lines.append(
+                f"MISS CHANCE: {miss_chance * 100:.0f}% — roll {miss_roll * 100:.1f}% — concealment causes miss!"
+            )
 
     if hit:
         # Compute margin for on_hit effects (e.g. value_min_margin)
@@ -1256,7 +1310,7 @@ def end_turn(db, character_id: int, pack_dir: str) -> str:
     # Load all active combat_state rows for this character
     rows = db.execute(
         "SELECT id, source, target_stat, value, duration_type, duration, "
-        "save_stat, save_dc FROM combat_state WHERE character_id = ?",
+        "save_stat, save_dc, applied_by FROM combat_state WHERE character_id = ?",
         (character_id,),
     ).fetchall()
 
@@ -1266,7 +1320,7 @@ def end_turn(db, character_id: int, pack_dir: str) -> str:
     lines = [f"END TURN: {char.name}"]
     removed_any = False
 
-    for row_id, source, target_stat, value, dur_type, duration, save_stat, save_dc in rows:
+    for row_id, source, target_stat, value, dur_type, duration, save_stat, save_dc, applied_by in rows:
         tick_cfg = pack.end_turn.get(dur_type)
         if tick_cfg is None:
             continue  # duration type not configured for ticking
@@ -1325,6 +1379,51 @@ def end_turn(db, character_id: int, pack_dir: str) -> str:
                     (row_id,),
                 )
                 lines.append(f"    REMOVED: {source} ({target_stat} {value:+d})")
+                removed_any = True
+
+        elif action == "escape_check":
+            # Roll character's escape stat vs the source's DC stat
+            escape_stat = tick_cfg.get("save_stat")
+            dc_stat = tick_cfg.get("save_dc_stat")
+            if not escape_stat or not dc_stat:
+                lines.append(f"  SKIPPED: {source} — missing save_stat/save_dc_stat in end_turn config")
+                continue
+
+            derived = char.attributes.get("derived", {})
+            bonus_str = derived.get(escape_stat)
+            if bonus_str is None:
+                lines.append(f"  SKIPPED: {source} — escape stat '{escape_stat}' not found")
+                continue
+
+            bonus = int(bonus_str)
+
+            # Look up DC from the applied_by character's derived stats
+            dc_val = 0
+            if applied_by:
+                source_char = load_character_data(db, applied_by)
+                source_derived = source_char.attributes.get("derived", {})
+                dc_str = source_derived.get(dc_stat)
+                if dc_str is not None:
+                    dc_val = int(dc_str)
+
+            result = roll_expr(pack.dice)
+            roll_val = result["total"]
+            total = roll_val + bonus
+            success = total >= dc_val
+
+            outcome_str = "ESCAPED" if success else "HELD"
+            lines.append(
+                f"  ESCAPE: {source} — {escape_stat} "
+                f"{pack.dice}({roll_val}) + {bonus} = {total} vs {dc_stat} {dc_val} "
+                f"→ {outcome_str}"
+            )
+
+            if success:
+                db.execute(
+                    "DELETE FROM combat_state WHERE id = ?",
+                    (row_id,),
+                )
+                lines.append(f"    FREED: {source} ({target_stat} {value:+d}) — removed")
                 removed_any = True
 
     db.commit()

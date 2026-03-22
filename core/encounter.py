@@ -732,6 +732,21 @@ def move_character(
     zone_scale = cfg.get("zone_scale", 1)
     movement_unit = cfg.get("movement_unit", "zone")
 
+    # Check if active conditions prevent movement (e.g. immobile, grab → max_move: 0)
+    condition_rules = cfg.get("condition_rules", {})
+    if condition_rules:
+        from combat_engine import expand_conditions, get_active_conditions
+
+        thresholds = cfg.get("condition_thresholds")
+        combined = cfg.get("combined_conditions", {})
+        active = get_active_conditions(db, character_id, condition_rules, thresholds)
+        expanded, _ = expand_conditions(active, condition_rules, combined)
+        for cond_name in expanded:
+            cdef = condition_rules.get(cond_name, {})
+            if isinstance(cdef, dict) and cdef.get("max_move") == 0:
+                cname = _char_name(db, character_id)
+                raise LoreKitError(f"Cannot move: {cname} is {cond_name} (max_move: 0)")
+
     # Resolve target zone
     target_zid = _zone_name_to_id(db, encounter_id, target_zone)
 
