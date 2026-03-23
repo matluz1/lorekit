@@ -2893,6 +2893,62 @@ def encounter_end(session_id: int) -> str:
 
 
 @mcp.tool()
+def encounter_join(
+    character_id: int | str,
+    zone: str,
+    team: str = "",
+    initiative_roll: int = 0,
+) -> str:
+    """Add a character to an active encounter mid-combat (summon, reinforcement).
+
+    Inserts the character into initiative order, places in the specified zone,
+    and applies terrain modifiers. The character acts on their next turn.
+
+    character_id: numeric ID or character name.
+    zone: name of the zone to place the character in.
+    team: optional team name for ally/enemy grouping.
+    initiative_roll: initiative value for ordering (default 0 = after current turn).
+    """
+    from lorekit.db import LoreKitError, require_db
+
+    db = require_db()
+    try:
+        session_id = _session_for_character(db, _resolve_character(db, character_id))
+        character_id = _resolve_character(db, character_id)
+        combat_cfg = _load_combat_cfg(db, session_id)
+        from lorekit.encounter import join_encounter
+
+        return join_encounter(db, session_id, character_id, zone, team, initiative_roll, combat_cfg)
+    except LoreKitError as e:
+        return f"ERROR: {e}"
+    finally:
+        db.close()
+
+
+@mcp.tool()
+def encounter_leave(character_id: int | str) -> str:
+    """Remove a character from an active encounter (dismissed summon, death, retreat).
+
+    Removes from initiative order, clears zone placement, removes
+    encounter-duration modifiers and terrain modifiers.
+    """
+    from lorekit.db import LoreKitError, require_db
+
+    db = require_db()
+    try:
+        character_id = _resolve_character(db, character_id)
+        session_id = _session_for_character(db, character_id)
+        combat_cfg = _load_combat_cfg(db, session_id)
+        from lorekit.encounter import leave_encounter
+
+        return leave_encounter(db, session_id, character_id, combat_cfg)
+    except LoreKitError as e:
+        return f"ERROR: {e}"
+    finally:
+        db.close()
+
+
+@mcp.tool()
 def encounter_zone_update(session_id: int, zone_name: str, tags: str) -> str:
     """Modify zone tags mid-combat (fire spreads, wall collapses, Darkness cast).
 
