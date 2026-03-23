@@ -333,6 +333,12 @@ def rules_calc(db, character_id: int, pack_dir: str) -> str:
             over = build_result.budget_spent - build_result.budget_total
             lines.append(f"WARNING: Over budget by {int(over)} points!")
 
+    # Surface build warnings (uncosted abilities, missing sources, etc.)
+    if build_result and build_result.warnings:
+        lines.append("BUILD WARNINGS:")
+        for w in build_result.warnings:
+            lines.append(f"  {w}")
+
     return "\n".join(lines)
 
 

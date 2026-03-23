@@ -279,6 +279,11 @@ def _process_pipeline(
                 if stat_prefix:
                     base = re.sub(r"_?\d+$", "", ability_name.lower().replace(" ", "_").replace("-", "_"))
                     covered_stat_keys.add(f"{stat_prefix}{base}")
+            else:
+                result.warnings.append(
+                    f"⚠ UNCOSTED: ability '{ability_name}' (category: {ability_category}) "
+                    f"has no structured data and no explicit cost — 0 pts assumed"
+                )
             continue
 
         # Skip alternates — their cost is handled by _process_arrays
@@ -291,6 +296,10 @@ def _process_pipeline(
             cost = power_data["cost"]
         else:
             cost = 0
+            result.warnings.append(
+                f"⚠ UNCOSTED: ability '{ability_name}' (category: {ability_category}) "
+                f"has structured data but no 'effect' or 'cost' field — 0 pts assumed"
+            )
 
         total_cost += cost
         if cost and ability_name:
