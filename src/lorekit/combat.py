@@ -1104,13 +1104,13 @@ def _fire_damage_triggers(
             )
             db.commit()
             lines.append(
-                f"CONCENTRATION BROKEN: {save_stat} "
+                f"DAMAGE TRIGGER [{dur_type}] BROKEN: {save_stat} "
                 f"{pack.dice}({result['total']}) + {bonus} = {total} vs DC {dc} — FAILED, {dur_type} effects lost"
             )
             _sync_and_recalc(db, defender_id, pack, lines)
         else:
             lines.append(
-                f"CONCENTRATION HELD: {save_stat} "
+                f"DAMAGE TRIGGER [{dur_type}] HELD: {save_stat} "
                 f"{pack.dice}({result['total']}) + {bonus} = {total} vs DC {dc} — SUCCESS"
             )
 
@@ -1970,9 +1970,9 @@ def _resolve_degree(
         db.commit()
         lines.append(f"HOMING: attack will retry on {attacker.name}'s next turn ({retries} attempt(s) left)")
 
-    # Contagious: copy contagious modifiers from defender to attacker on melee
-    if hit and action_def.get("range") == "melee":
-        _check_contagious(db, pack, attacker, defender, lines)
+    # Contagious: copy contagious modifiers from defender to attacker on contact
+    if hit:
+        _check_contagious(db, pack, attacker, defender, action_def, lines)
 
     lines.extend(trade_mod_lines)
     return "\n".join(lines)
@@ -1988,10 +1988,17 @@ def _check_contagious(
     pack: SystemPack,
     attacker: CharacterData,
     defender: CharacterData,
+    action_def: dict,
     lines: list[str],
 ) -> None:
-    """Copy contagious modifiers from defender to attacker on melee contact."""
+    """Copy contagious modifiers from defender to attacker on contact.
+
+    Each contagious modifier declares its own ``spread_range`` in metadata
+    (defaults to ``"melee"``). The action's range must match for spreading.
+    """
     import json as _json
+
+    action_range = action_def.get("range", "")
 
     rows = db.execute(
         "SELECT source, target_stat, modifier_type, value, bonus_type, "
@@ -2006,6 +2013,11 @@ def _check_contagious(
         except (ValueError, TypeError):
             continue
         if not metadata.get("contagious"):
+            continue
+
+        # Check if action range matches the spread requirement
+        spread_range = metadata.get("spread_range", "melee")
+        if spread_range != "any" and action_range != spread_range:
             continue
 
         new_source = f"contagious:{source}"

@@ -1,4 +1,4 @@
-"""Tests for combat engine extensions (F1-F10 + Phase 2 features).
+"""Tests for combat engine extensions.
 
 Covers: per-action outcome tables, resource counters, remove_conditions,
 modify_attribute, pre-resolution filters, character tags, extended ticks,
@@ -75,7 +75,7 @@ def _start_encounter(db, session_id, characters, placements):
 
 
 # ===========================================================================
-# F1: Per-Action Outcome Tables
+# Per-Action Outcome Tables
 # ===========================================================================
 
 
@@ -142,7 +142,7 @@ class TestOutcomeTableDispatch:
 
 
 # ===========================================================================
-# F5: Resource Counters
+# Resource Counters
 # ===========================================================================
 
 
@@ -222,7 +222,7 @@ class TestResourceCounters:
 
 
 # ===========================================================================
-# F8: Remove Conditions + Modify Attribute
+# Remove Conditions + Modify Attribute
 # ===========================================================================
 
 
@@ -302,7 +302,7 @@ class TestModifyAttribute:
 
 
 # ===========================================================================
-# F2: Pre-Resolution Filters
+# Pre-Resolution Filters
 # ===========================================================================
 
 
@@ -371,7 +371,7 @@ class TestImmunity:
 
 
 # ===========================================================================
-# F6: Character Resolution Tags (Minion Rules)
+# Character Resolution Tags (Minion Rules)
 # ===========================================================================
 
 
@@ -404,7 +404,7 @@ class TestMinionRules:
 
 
 # ===========================================================================
-# F3: Extended Tick Actions
+# Extended Tick Actions
 # ===========================================================================
 
 
@@ -469,7 +469,7 @@ class TestAutoSaveTick:
 
 
 # ===========================================================================
-# F4: On-Damage Triggers
+# On-Damage Triggers
 # ===========================================================================
 
 
@@ -503,13 +503,13 @@ class TestConcentrationBreak:
 
             if "HIT!" in output and "DEGREE OF FAILURE:" in output:
                 # Degree 1 doesn't incapacitate, so concentration trigger should fire
-                assert "CONCENTRATION" in output
+                assert "DAMAGE TRIGGER [concentration]" in output
         finally:
             db.close()
 
 
 # ===========================================================================
-# F9: Multiattack DC Bonus
+# Multiattack DC Bonus
 # ===========================================================================
 
 
@@ -555,7 +555,7 @@ class TestMultiattack:
 
 
 # ===========================================================================
-# F10: Cumulative Degree Tracking
+# Cumulative Degree Tracking
 # ===========================================================================
 
 
@@ -625,7 +625,7 @@ class TestCumulativeDegree:
 
 
 # ===========================================================================
-# F7: Defensive Roll formula fix
+# Defensive Roll formula fix
 # ===========================================================================
 
 
@@ -713,7 +713,7 @@ class TestApplyDegreeEffect:
 
 
 # ===========================================================================
-# Phase 2 Features: Reactions, Team Attack, Join/Leave, Power Toggle,
+# Reactions, Team Attack, Join/Leave, Power Toggle,
 # Alternate Switching, Homing, Contagious
 # ===========================================================================
 
