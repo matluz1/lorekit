@@ -504,5 +504,52 @@
     "dc_formula": "rank + 10",
     "outcome_table": "weaken_degrees",
     "note": "Reduce target trait. Degrees of failure determine ranks lost. Target chooses which trait is affected unless specified."
+  },
+
+  "_environmental": {
+    "_comment": "Environmental hazards — not purchasable powers, but GM reference for resolving environmental effects.",
+
+    "fall_damage": {
+      "name": "Falling Damage",
+      "type": "environmental",
+      "resolution": "gm_assisted",
+      "action": "none",
+      "range": "personal",
+      "duration": "instant",
+      "resistance": "toughness",
+      "dc_formula": "distance_rank + 15",
+      "outcome_table": "damage_degrees",
+      "gm_hints": {
+        "check_type": "Toughness resistance check",
+        "dc_formula": "15 + distance rank (use ranks_measures_labels table)",
+        "key_rules": [
+          "Look up fall distance in the ranks & measures table to find the rank",
+          "30 ft = rank 0, 60 ft = rank 1, 120 ft = rank 2, 250 ft = rank 3, 500 ft = rank 4",
+          "Resolve as standard Damage effect at that rank vs Toughness",
+          "Characters with Immunity (falling damage) are unaffected",
+          "Flight or Safe Fall (Movement effect) can negate or reduce fall damage"
+        ]
+      },
+      "note": "Falling deals Damage equal to the distance rank. Use the Ranks & Measures table: 120 ft = rank 2 (DC 17), 500 ft = rank 4 (DC 19)."
+    },
+    "suffocation": {
+      "name": "Suffocation",
+      "type": "environmental",
+      "resolution": "gm_assisted",
+      "action": "none",
+      "range": "personal",
+      "duration": "sustained",
+      "resistance": "fortitude",
+      "gm_hints": {
+        "check_type": "Fortitude check each round",
+        "dc_formula": "10 + 1 per previous check",
+        "key_rules": [
+          "Characters can hold breath for 1 round per rank of Stamina",
+          "After that, Fortitude check DC 10 each round, +1 per previous check",
+          "Failure: exhausted then incapacitated then dying"
+        ]
+      },
+      "note": "Breathing deprivation. Fortitude checks begin after holding breath limit (STA rank rounds)."
+    }
   }
 }
