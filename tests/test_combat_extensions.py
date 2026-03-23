@@ -1101,3 +1101,173 @@ class TestMetadataColumn:
             assert json.loads(row[0])["test"] is True
         finally:
             db.close()
+
+
+# ===========================================================================
+# MCP Wiring: combat_modifier activate/deactivate/switch_alternate
+# ===========================================================================
+
+
+def _setup_mm3e_session(db, sid):
+    """Register MM3E as the rules_system for a session."""
+    import os
+
+    pack_name = "mm3e"
+    systems_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "systems")
+    link_path = os.path.join(systems_dir, pack_name)
+    if not os.path.exists(link_path):
+        os.symlink(MM3E_SYSTEM, link_path)
+
+    db.execute(
+        "INSERT OR REPLACE INTO session_meta (session_id, key, value) VALUES (?, 'rules_system', ?)",
+        (sid, pack_name),
+    )
+    db.commit()
+
+
+class TestCombatModifierActivate:
+    def test_activate_via_mcp(self, make_session, make_character):
+        """combat_modifier action=activate activates a sustained power."""
+        from lorekit.db import require_db
+        from lorekit.server import combat_modifier
+
+        db = require_db()
+        try:
+            sid = make_session()
+            _setup_mm3e_session(db, sid)
+            hero = _make_mm3e_char(db, sid, make_character, "Grower")
+
+            db.execute(
+                "INSERT INTO character_abilities (character_id, name, description, category) "
+                "VALUES (?, 'Growth', ?, 'power')",
+                (
+                    hero,
+                    json.dumps(
+                        {
+                            "on_activate": {
+                                "apply_modifiers": [
+                                    {
+                                        "source": "growth",
+                                        "target_stat": "bonus_str",
+                                        "value": 4,
+                                        "duration_type": "sustained",
+                                    },
+                                ]
+                            }
+                        }
+                    ),
+                ),
+            )
+            db.commit()
+        finally:
+            db.close()
+
+        output = combat_modifier(character_id=hero, action="activate", source="Growth")
+        assert "ACTIVATE: Growth" in output
+
+    def test_deactivate_via_mcp(self, make_session, make_character):
+        """combat_modifier action=deactivate removes sustained modifiers."""
+        from lorekit.db import require_db
+        from lorekit.server import combat_modifier
+
+        db = require_db()
+        try:
+            sid = make_session()
+            _setup_mm3e_session(db, sid)
+            hero = _make_mm3e_char(db, sid, make_character, "Grower")
+
+            db.execute(
+                "INSERT INTO character_abilities (character_id, name, description, category) "
+                "VALUES (?, 'Growth', ?, 'power')",
+                (
+                    hero,
+                    json.dumps(
+                        {
+                            "on_activate": {
+                                "apply_modifiers": [
+                                    {
+                                        "source": "growth",
+                                        "target_stat": "bonus_str",
+                                        "value": 4,
+                                        "duration_type": "sustained",
+                                    },
+                                ]
+                            }
+                        }
+                    ),
+                ),
+            )
+            db.commit()
+        finally:
+            db.close()
+
+        combat_modifier(character_id=hero, action="activate", source="Growth")
+        output = combat_modifier(character_id=hero, action="deactivate", source="Growth")
+        assert "DEACTIVATE: Growth" in output
+        assert "removed" in output
+
+
+class TestAutoRegisterReactions:
+    def test_reaction_registered_at_encounter_start(self, make_session, make_character):
+        """Abilities with reaction metadata auto-register at encounter start."""
+        from lorekit.db import require_db
+        from lorekit.server import encounter_start
+
+        db = require_db()
+        try:
+            sid = make_session()
+            _setup_mm3e_session(db, sid)
+            tank = _make_mm3e_char(db, sid, make_character, "Tank", char_type="pc")
+            villain = _make_mm3e_char(db, sid, make_character, "Villain")
+
+            # Give tank an ability with reaction metadata
+            db.execute(
+                "INSERT INTO character_abilities (character_id, name, description, category) "
+                "VALUES (?, 'Interpose', ?, 'advantage')",
+                (
+                    tank,
+                    json.dumps(
+                        {
+                            "reaction": {
+                                "source": "interpose",
+                                "hook": "before_attack",
+                                "effect": "substitute_defender",
+                                "range_zones": 0,
+                            }
+                        }
+                    ),
+                ),
+            )
+            db.commit()
+        finally:
+            db.close()
+
+        output = encounter_start(
+            session_id=sid,
+            zones='[{"name": "Arena"}]',
+            initiative="auto",
+            placements=json.dumps(
+                [
+                    {"character_id": tank, "zone": "Arena"},
+                    {"character_id": villain, "zone": "Arena"},
+                ]
+            ),
+        )
+
+        assert "REACTION REGISTERED" in output
+        assert "interpose" in output
+
+        # Verify the combat_state row exists
+        db = require_db()
+        try:
+            row = db.execute(
+                "SELECT metadata FROM combat_state "
+                "WHERE character_id = ? AND source = 'interpose' AND duration_type = 'reaction'",
+                (tank,),
+            ).fetchone()
+            assert row is not None
+            meta = json.loads(row[0])
+            assert meta["hook"] == "before_attack"
+            assert meta["effect"] == "substitute_defender"
+        finally:
+            db.close()

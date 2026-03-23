@@ -72,6 +72,83 @@ def _resolve_character(db, identifier, session_id: int | None = None) -> int:
     raise LoreKitError(f"Ambiguous name '{name}' — matches: {options}")
 
 
+def _auto_register_reactions(db, session_id: int) -> list[str]:
+    """Scan encounter participants for abilities with reaction metadata.
+
+    For each ability that has a ``"reaction"`` field in its JSON description,
+    insert a combat_state row with ``duration_type = 'reaction'`` so the
+    engine's ``_check_reactions()`` can find it during resolution.
+    """
+    import json
+
+    # Get all characters in the encounter
+    enc = db.execute(
+        "SELECT id, initiative_order FROM encounter_state WHERE session_id = ? AND status = 'active'",
+        (session_id,),
+    ).fetchone()
+    if not enc:
+        return []
+
+    init_order = json.loads(enc[1])
+    lines = []
+
+    for char_id in init_order:
+        abilities = db.execute(
+            "SELECT name, description FROM character_abilities WHERE character_id = ?",
+            (char_id,),
+        ).fetchall()
+
+        char_name = db.execute("SELECT name FROM characters WHERE id = ?", (char_id,)).fetchone()
+        char_name = char_name[0] if char_name else f"#{char_id}"
+
+        for ability_name, desc_str in abilities:
+            try:
+                desc = json.loads(desc_str)
+            except (ValueError, TypeError):
+                continue
+
+            reaction = desc.get("reaction")
+            if not reaction or not isinstance(reaction, dict):
+                continue
+
+            source = reaction.get("source", ability_name.lower().replace(" ", "_"))
+            hook = reaction.get("hook", "before_attack")
+            effect = reaction.get("effect", "substitute_defender")
+            metadata = json.dumps(
+                {
+                    "hook": hook,
+                    "effect": effect,
+                    **{k: v for k, v in reaction.items() if k not in ("source", "hook", "effect")},
+                }
+            )
+
+            db.execute(
+                "INSERT INTO combat_state "
+                "(character_id, source, target_stat, modifier_type, value, "
+                "duration_type, duration, metadata) "
+                "VALUES (?, ?, '_reaction', 'reaction', 0, 'reaction', 1, ?) "
+                "ON CONFLICT(character_id, source, target_stat) DO UPDATE SET "
+                "metadata = excluded.metadata, duration = excluded.duration",
+                (char_id, source, metadata),
+            )
+            lines.append(f"REACTION REGISTERED: {char_name} — {source} ({hook}/{effect})")
+
+    if lines:
+        db.commit()
+
+    return lines
+
+
+def _session_for_character(db, character_id: int) -> int:
+    """Look up the session_id for a character."""
+    from lorekit.db import LoreKitError
+
+    row = db.execute("SELECT session_id FROM characters WHERE id = ?", (character_id,)).fetchone()
+    if not row:
+        raise LoreKitError(f"Character {character_id} not found")
+    return row[0]
+
+
 def _run_with_db(fn, *args, **kwargs):
     """Get a DB connection, call fn(db, ...), close DB."""
     from lorekit.db import LoreKitError, require_db
@@ -2285,18 +2362,24 @@ def combat_modifier(
     duration: int = 0,
     save_stat: str = "",
     save_dc: int = 0,
+    metadata: str = "",
 ) -> str:
     """Manage transient combat modifiers on a character.
 
     character_id: numeric ID or character name (case-insensitive).
-    action: "add", "list", "remove", or "clear".
+    action: "add", "list", "remove", "clear", "activate", "deactivate",
+            or "switch_alternate".
 
-    add — apply a transient modifier (pre-combat buffs, environmental effects,
-    GM fiat). Requires source, target_stat, value, duration_type.
-    Optional save_stat/save_dc for save-ends duration types.
+    add — apply a transient modifier. Requires source, target_stat, value.
+      Optional metadata (JSON) for reactions/triggers/contagious flags.
     list — show all active modifiers on the character.
     remove — remove a modifier by source name.
-    clear — remove all encounter/rounds/concentration modifiers (end of combat).
+    clear — remove all encounter/rounds/concentration modifiers.
+    activate — activate a sustained power by ability name (source=ability name).
+      Reads on_activate.apply_modifiers from the ability JSON.
+    deactivate — deactivate a sustained power (source=ability name).
+    switch_alternate — switch active power in array (source=array name,
+      target_stat=alternate name to activate).
     """
     from lorekit.db import LoreKitError, require_db
 
@@ -2306,15 +2389,17 @@ def combat_modifier(
         if action == "add":
             if not source or not target_stat:
                 return "ERROR: 'add' requires source and target_stat"
+            meta_val = metadata or None
             db.execute(
                 "INSERT INTO combat_state "
                 "(character_id, source, target_stat, modifier_type, value, "
-                "bonus_type, duration_type, duration, save_stat, save_dc) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) "
+                "bonus_type, duration_type, duration, save_stat, save_dc, metadata) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) "
                 "ON CONFLICT(character_id, source, target_stat) DO UPDATE SET "
                 "value = excluded.value, bonus_type = excluded.bonus_type, "
                 "duration_type = excluded.duration_type, duration = excluded.duration, "
-                "save_stat = excluded.save_stat, save_dc = excluded.save_dc",
+                "save_stat = excluded.save_stat, save_dc = excluded.save_dc, "
+                "metadata = excluded.metadata",
                 (
                     character_id,
                     source,
@@ -2326,6 +2411,7 @@ def combat_modifier(
                     duration or None,
                     save_stat or None,
                     save_dc or None,
+                    meta_val,
                 ),
             )
             db.commit()
@@ -2387,8 +2473,35 @@ def combat_modifier(
                 result += _sync_condition_modifiers_for(db, character_id)
             return result
 
+        elif action == "activate":
+            if not source:
+                return "ERROR: 'activate' requires source (ability name)"
+            system_path = _resolve_system_path_for_session(db, _session_for_character(db, character_id))
+            from lorekit.combat import activate_power
+
+            return activate_power(db, character_id, source, system_path)
+
+        elif action == "deactivate":
+            if not source:
+                return "ERROR: 'deactivate' requires source (ability name)"
+            system_path = _resolve_system_path_for_session(db, _session_for_character(db, character_id))
+            from lorekit.combat import deactivate_power
+
+            return deactivate_power(db, character_id, source, system_path)
+
+        elif action == "switch_alternate":
+            if not source or not target_stat:
+                return "ERROR: 'switch_alternate' requires source (array name) and target_stat (alternate name)"
+            system_path = _resolve_system_path_for_session(db, _session_for_character(db, character_id))
+            from lorekit.combat import switch_alternate
+
+            return switch_alternate(db, character_id, source, target_stat, system_path)
+
         else:
-            return f"ERROR: Unknown action '{action}'. Use add, list, remove, or clear."
+            return (
+                f"ERROR: Unknown action '{action}'. "
+                "Use add, list, remove, clear, activate, deactivate, or switch_alternate."
+            )
 
     except LoreKitError as e:
         return f"ERROR: {e}"
@@ -2621,7 +2734,7 @@ def encounter_start(
 
         from lorekit.encounter import start_encounter
 
-        return start_encounter(
+        result = start_encounter(
             db,
             session_id,
             zones_list,
@@ -2632,6 +2745,13 @@ def encounter_start(
             template=template,
             pack_dir=system_path,
         )
+
+        # Auto-register reactions from character abilities
+        reaction_lines = _auto_register_reactions(db, session_id)
+        if reaction_lines:
+            result += "\n" + "\n".join(reaction_lines)
+
+        return result
     except LoreKitError as e:
         return f"ERROR: {e}"
     finally:
