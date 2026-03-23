@@ -25,6 +25,9 @@
     "movement_unit": "rank",
     "melee_range": 0,
     "initiative_stat": "initiative",
+    "damage_triggers": {
+      "concentration": {"save_stat": "will", "dc_formula": "max(10, floor(damage_rank / 2))"}
+    },
     "hud": {
       "vital_stat": {"current": "damage_condition", "label": "Condition"}
     },
@@ -102,6 +105,18 @@
         "flags": ["is_vulnerable"],
         "npc_instruction": "Your defenses are halved. You are significantly easier to hit. Consider defensive actions or repositioning.",
         "gm_instruction": "Defenses halved (engine enforces via formula). Narrate the compromised guard or exposure."
+      },
+      "concealment": {
+        "description": "Partially hidden — 50% miss chance against attacks",
+        "resolution_effects": {"miss_chance": 0.5},
+        "npc_instruction": "You are partially concealed. Enemies have a 50% miss chance when attacking you.",
+        "gm_instruction": "Apply 50% miss chance to attacks against this character (engine enforces automatically)."
+      },
+      "total_concealment": {
+        "description": "Fully hidden — attacks require guessing location, 50% miss chance",
+        "resolution_effects": {"miss_chance": 0.5},
+        "npc_instruction": "You are fully concealed. Enemies cannot see you and must guess your location.",
+        "gm_instruction": "Attacker must guess target's location. If correct, 50% miss chance still applies."
       },
       "grab": {
         "description": "Immobilized — speed 0 and dodge is reduced",
@@ -321,7 +336,7 @@
     "parry": "if(is_defenseless, 0, if(is_vulnerable, floor((effective_fgt + ranks_parry + bonus_parry + effect_enhanced_parry) / 2), effective_fgt + ranks_parry + bonus_parry + effect_enhanced_parry))",
     "fortitude": "effective_sta + ranks_fortitude + bonus_fortitude + effect_enhanced_fortitude",
     "will": "effective_awe + ranks_will + bonus_will + effect_enhanced_will",
-    "toughness": "effective_sta + ranks_toughness + bonus_toughness + effect_protection + adv_defensive_roll",
+    "toughness": "effective_sta + ranks_toughness + bonus_toughness + effect_protection + if(is_defenseless, 0, if(is_vulnerable, 0, adv_defensive_roll))",
 
     "initiative": "effective_agl + adv_improved_initiative * 4 + bonus_initiative",
 
@@ -409,6 +424,13 @@
         "dc_base": 10,
         "on_success": {"rank_multiplier": 0.5, "minimum_rank": 1}
       }
+    },
+    "pre_resolution": {
+      "impervious": {"attribute_prefix": "impervious_"},
+      "immunity_tags": {"attribute_prefix": "immunity_", "match_field": "descriptor"}
+    },
+    "character_tags": {
+      "minion": {"min_failure_degree": 4}
     }
   },
 
@@ -527,6 +549,9 @@
           {"source": "vulnerable", "target_stat": "bonus_dodge", "value": 0, "modifier_type": "condition", "duration_type": "next_attack_received"}
         ]
       }
+    },
+    "stand_up": {
+      "on_use": {"remove_conditions": ["prone"]}
     }
   },
 

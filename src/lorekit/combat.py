@@ -558,6 +558,26 @@ def _write_attr(db, character_id: int, key: str, value: Any) -> None:
     db.commit()
 
 
+def _read_resource(db, character_id: int, key: str) -> int:
+    """Read a resource value from character_attributes (category='resource')."""
+    row = db.execute(
+        "SELECT value FROM character_attributes WHERE character_id = ? AND category = 'resource' AND key = ?",
+        (character_id, key),
+    ).fetchone()
+    return int(row[0]) if row else 0
+
+
+def _write_resource(db, character_id: int, key: str, value: int) -> None:
+    """Write a resource value to character_attributes (category='resource')."""
+    db.execute(
+        "INSERT INTO character_attributes (character_id, category, key, value) "
+        "VALUES (?, 'resource', ?, ?) "
+        "ON CONFLICT(character_id, category, key) DO UPDATE SET value = excluded.value",
+        (character_id, key, str(value)),
+    )
+    db.commit()
+
+
 def _expand_combat_options(pack: SystemPack, options: dict) -> dict:
     """Expand named combat options into trade dicts.
 
@@ -691,6 +711,55 @@ def _ensure_current_hp(db, defender: CharacterData) -> int:
 
 
 # ---------------------------------------------------------------------------
+# Degree-effect application — reusable by degree resolution and tick actions
+# ---------------------------------------------------------------------------
+
+
+def _apply_degree_effect(
+    db,
+    char: CharacterData,
+    effect: dict,
+    lines: list[str],
+) -> None:
+    """Apply a single degree-effect entry (increment, set, set_max, label).
+
+    Used by degree-of-failure resolution and tick actions (auto_save, worsen).
+    """
+    # Apply increments from degree table
+    increment = effect.get("increment")
+    if increment and isinstance(increment, dict):
+        for stat, value in increment.items():
+            try:
+                current = _get_derived(char, stat)
+            except LoreKitError:
+                current = 0
+            new_val = current + value
+            _write_attr(db, char.character_id, stat, new_val)
+            lines.append(f"{stat}: {current} → {new_val}")
+
+    # Apply direct attribute writes
+    set_attrs = effect.get("set")
+    if set_attrs and isinstance(set_attrs, dict):
+        for stat, value in set_attrs.items():
+            _write_attr(db, char.character_id, stat, value)
+
+    # Apply set_max: only write if new value exceeds current
+    set_max_attrs = effect.get("set_max")
+    if set_max_attrs and isinstance(set_max_attrs, dict):
+        for stat, value in set_max_attrs.items():
+            try:
+                current = _get_derived(char, stat)
+            except LoreKitError:
+                current = 0
+            if value > current:
+                _write_attr(db, char.character_id, stat, value)
+
+    label = effect.get("label")
+    if label:
+        lines.append(f"CONDITION: {label}")
+
+
+# ---------------------------------------------------------------------------
 # On-hit effects — shared by all resolution types
 # ---------------------------------------------------------------------------
 
@@ -722,6 +791,73 @@ def _apply_on_hit(
     total damage is multiplied accordingly.
     """
     options = options or {}
+    # --- Resource spend ---
+    spend = on_hit.get("spend_resource")
+    if spend:
+        res_key = spend["key"]
+        cost = spend.get("cost", 1)
+        current = _read_resource(db, attacker.character_id, res_key)
+        if current < cost:
+            raise LoreKitError(f"Not enough {res_key}: have {current}, need {cost}")
+        _write_resource(db, attacker.character_id, res_key, current - cost)
+        lines.append(f"RESOURCE: {res_key} {current} → {current - cost}")
+
+    # --- Resource earn ---
+    earn = on_hit.get("earn_resource")
+    if earn:
+        res_key = earn["key"]
+        amount = earn.get("amount", 1)
+        target = earn.get("target", "attacker")
+        char_id = defender.character_id if target == "defender" else attacker.character_id
+        current = _read_resource(db, char_id, res_key)
+        _write_resource(db, char_id, res_key, current + amount)
+        lines.append(f"RESOURCE: {res_key} {current} → {current + amount}")
+
+    # --- Remove conditions ---
+    remove_conds = on_hit.get("remove_conditions")
+    if remove_conds and isinstance(remove_conds, list):
+        for cond in remove_conds:
+            source_key = f"cond:{cond}"
+            deleted = db.execute(
+                "DELETE FROM combat_state WHERE character_id = ? AND source = ?",
+                (defender.character_id, source_key),
+            )
+            if deleted.rowcount > 0:
+                lines.append(f"CONDITION REMOVED: {cond}")
+
+        # Also clear threshold attributes that map to removed conditions
+        combat_cfg = pack.combat or {}
+        thresholds = combat_cfg.get("condition_thresholds", [])
+        for thresh in thresholds:
+            if thresh.get("condition") in remove_conds:
+                attr_key = thresh.get("attribute")
+                if attr_key:
+                    _write_attr(db, defender.character_id, attr_key, 0)
+                    lines.append(f"RESET: {attr_key} → 0")
+
+        db.commit()
+        _sync_and_recalc(db, defender.character_id, pack, lines)
+
+    # --- Modify attribute ---
+    mod_attr = on_hit.get("modify_attribute")
+    if mod_attr and isinstance(mod_attr, dict):
+        floor_map = on_hit.get("floor", {})
+        ceiling_map = on_hit.get("ceiling", {})
+        for attr_key, delta in mod_attr.items():
+            try:
+                current = _get_derived(defender, attr_key)
+            except LoreKitError:
+                current = 0
+            new_val = current + int(delta)
+            if attr_key in floor_map:
+                new_val = max(int(floor_map[attr_key]), new_val)
+            if attr_key in ceiling_map:
+                new_val = min(int(ceiling_map[attr_key]), new_val)
+            _write_attr(db, defender.character_id, attr_key, new_val)
+            lines.append(f"MODIFIED: {attr_key} {current} → {new_val}")
+        db.commit()
+        _sync_and_recalc(db, defender.character_id, pack, lines)
+
     # --- Damage ---
     damage_info = on_hit.get("damage_roll")
     subtract_target = on_hit.get("subtract_from")
@@ -755,6 +891,9 @@ def _apply_on_hit(
         new_val = current - total_damage
         _write_attr(db, defender.character_id, subtract_target, new_val)
         lines.append(f"{subtract_target}: {current} → {new_val}")
+
+        # Fire on-damage triggers (e.g. concentration break)
+        _fire_damage_triggers(db, pack, defender.character_id, total_damage, lines)
 
     # --- Apply modifiers (combat_state rows) ---
     modifiers = on_hit.get("apply_modifiers")
@@ -893,6 +1032,143 @@ def _apply_on_hit(
         else:
             if zone_field:
                 lines.append(f"RELOCATE SKIPPED: no zone specified in '{zone_field}'")
+
+
+# ---------------------------------------------------------------------------
+# On-damage triggers — concentration break, etc.
+# ---------------------------------------------------------------------------
+
+
+def _fire_damage_triggers(
+    db,
+    pack: SystemPack,
+    defender_id: int,
+    damage_rank: int | None,
+    lines: list[str],
+) -> None:
+    """Check damage_triggers config and fire any matching triggers.
+
+    Called after damage/degree application. For each configured trigger,
+    checks if the defender has active modifiers with the matching
+    duration_type, then rolls a save. On failure, removes those modifiers.
+    """
+    triggers = pack.combat.get("damage_triggers")
+    if not triggers:
+        return
+
+    # Get defender's active duration_types
+    active_rows = db.execute(
+        "SELECT DISTINCT duration_type FROM combat_state WHERE character_id = ?",
+        (defender_id,),
+    ).fetchall()
+    active_types = {row[0] for row in active_rows}
+
+    for dur_type, trigger_cfg in triggers.items():
+        if dur_type not in active_types:
+            continue
+
+        save_stat = trigger_cfg.get("save_stat")
+        if not save_stat:
+            continue
+
+        # Compute DC: either fixed or formula-based
+        dc = trigger_cfg.get("dc", 10)
+        if damage_rank is not None:
+            dc_formula = trigger_cfg.get("dc_formula")
+            if dc_formula == "max(10, floor(damage_rank / 2))":
+                dc = max(10, damage_rank // 2)
+            elif dc_formula:
+                # Generic: try simple eval with damage_rank
+                try:
+                    dc = int(
+                        eval(
+                            dc_formula,
+                            {"__builtins__": {}},
+                            {"damage_rank": damage_rank, "max": max, "min": min, "floor": math.floor},
+                        )
+                    )
+                except Exception:
+                    pass
+
+        char = load_character_data(db, defender_id)
+        derived = char.attributes.get("derived", {})
+        bonus = int(derived.get(save_stat, 0))
+        result = roll_expr(pack.dice)
+        total = result["total"] + bonus
+        success = total >= dc
+
+        if not success:
+            db.execute(
+                "DELETE FROM combat_state WHERE character_id = ? AND duration_type = ?",
+                (defender_id, dur_type),
+            )
+            db.commit()
+            lines.append(
+                f"CONCENTRATION BROKEN: {save_stat} "
+                f"{pack.dice}({result['total']}) + {bonus} = {total} vs DC {dc} — FAILED, {dur_type} effects lost"
+            )
+            _sync_and_recalc(db, defender_id, pack, lines)
+        else:
+            lines.append(
+                f"CONCENTRATION HELD: {save_stat} "
+                f"{pack.dice}({result['total']}) + {bonus} = {total} vs DC {dc} — SUCCESS"
+            )
+
+
+# ---------------------------------------------------------------------------
+# Pre-resolution filters — immunity, impervious
+# ---------------------------------------------------------------------------
+
+
+def _check_pre_resolution(
+    pack: SystemPack,
+    defender: CharacterData,
+    action_def: dict,
+    damage_rank: int | None,
+    lines: list[str],
+) -> str | None:
+    """Check pre-resolution filters. Returns 'immune'|'impervious'|None.
+
+    Reads ``resolution.pre_resolution`` from the system pack for:
+    - immunity_tags: if defender has ``{prefix}{descriptor}`` attribute ≥ 1,
+      skip entire resolution.
+    - impervious: if defender has ``{prefix}{resistance_stat}`` attribute
+      and ``damage_rank ≤ floor(stat / 2)``, skip resistance roll.
+    """
+    pre_res = pack.resolution.get("pre_resolution")
+    if not pre_res:
+        return None
+
+    # Immunity check: defender attribute prefix match against action descriptor
+    immunity_cfg = pre_res.get("immunity_tags")
+    if immunity_cfg:
+        prefix = immunity_cfg["attribute_prefix"]
+        match_field = immunity_cfg["match_field"]
+        descriptor = action_def.get(match_field)
+        if descriptor:
+            key = f"{prefix}{descriptor}"
+            for cat_attrs in defender.attributes.values():
+                if key in cat_attrs and int(cat_attrs[key]) > 0:
+                    lines.append(f"IMMUNE: {defender.name} is immune to {descriptor}")
+                    return "immune"
+
+    # Impervious check: if damage_rank <= floor(stat / 2), auto-succeed
+    if damage_rank is not None:
+        impervious_cfg = pre_res.get("impervious")
+        if impervious_cfg:
+            prefix = impervious_cfg["attribute_prefix"]
+            resistance_stat = action_def.get("resistance_stat", pack.resolution.get("resistance_stat", ""))
+            stat_key = f"{prefix}{resistance_stat}"
+            try:
+                stat_val = _get_derived(defender, stat_key)
+                threshold = stat_val // 2
+                if damage_rank <= threshold:
+                    lines.append(f"IMPERVIOUS: rank {damage_rank} ≤ {stat_key} {stat_val}÷2 = {threshold}")
+                    return "impervious"
+            except LoreKitError:
+                pass
+
+    return None
 
 
 # ---------------------------------------------------------------------------
@@ -1125,6 +1401,17 @@ def _resolve_degree(
     dc_offset = resolution.get("defense_dc_offset", 10)
     crit_cfg = resolution.get("critical")
 
+    # Pre-resolution: immunity check (before any rolls)
+    pre_res_result = _check_pre_resolution(
+        pack,
+        defender,
+        action_def,
+        damage_rank=None,
+        lines=[],
+    )
+    if pre_res_result == "immune":
+        return f"ACTION: {attacker.name} → {defender.name}\nIMMUNE: {defender.name} is immune to {action_def.get('descriptor', 'this effect')}"
+
     # Apply trade options (e.g. power_attack: -N attack / +N damage)
     trade_adj: dict[str, int] = {}
     trade_mod_lines: list[str] = []
@@ -1275,12 +1562,37 @@ def _resolve_degree(
             if damage_rank_stat and damage_rank_stat in trade_adj:
                 damage_rank += trade_adj[damage_rank_stat]
 
+            # Multiattack DC bonus: higher hit margin → higher resistance DC
+            multiattack_cfg = action_def.get("multiattack")
+            if multiattack_cfg and isinstance(multiattack_cfg, dict):
+                thresholds = multiattack_cfg.get("dc_bonus_thresholds", [])
+                ma_bonus = 0
+                for t in sorted(thresholds, key=lambda x: x["margin"], reverse=True):
+                    if hit_margin >= t["margin"]:
+                        ma_bonus = t["bonus"]
+                        break
+                if ma_bonus:
+                    damage_rank += ma_bonus
+                    lines.append(f"MULTIATTACK: hit margin {hit_margin} → +{ma_bonus} effect rank (now {damage_rank})")
+
             # Apply critical effect_rank_bonus (e.g. mm3e nat 20 → +5 effect rank)
             if is_natural_crit:
                 effect_rank_bonus = crit_cfg.get("effect_rank_bonus", 0)
                 if effect_rank_bonus:
                     damage_rank += effect_rank_bonus
                     lines.append(f"CRITICAL! Effect rank +{effect_rank_bonus} (rank {damage_rank})")
+
+            # Pre-resolution: impervious check (after damage_rank is finalized)
+            pre_res_result = _check_pre_resolution(
+                pack,
+                defender,
+                action_def,
+                damage_rank=damage_rank,
+                lines=lines,
+            )
+            if pre_res_result == "impervious":
+                lines.append("RESULT: No effect (impervious)")
+                return "\n".join(lines)
 
             resistance_bonus = _get_derived(defender, resistance_stat)
             resist_result = roll_expr(pack.dice)
@@ -1300,46 +1612,63 @@ def _resolve_degree(
                 degree = 1 + math.floor(margin_fail / degree_step)
                 degree = max(1, min(degree, 4))
 
-                on_failure = resolution.get("on_failure", {})
-                effect = on_failure.get(str(degree), {})
+                # Character resolution tags (e.g. minion → escalate to max degree)
+                char_tags_cfg = resolution.get("character_tags", {})
+                for tag_name, tag_rules in char_tags_cfg.items():
+                    tag_key = tag_name if tag_name.startswith("is_") else f"is_{tag_name}"
+                    for cat_attrs in defender.attributes.values():
+                        if tag_key in cat_attrs and int(cat_attrs[tag_key]) > 0:
+                            min_deg = tag_rules.get("min_failure_degree")
+                            if min_deg is not None and degree < min_deg:
+                                lines.append(f"TAG [{tag_name}]: degree escalated {degree} → {min_deg}")
+                                degree = min_deg
+                            break
+
+                # Cumulative degree tracking: stack degrees across hits
+                if action_def.get("cumulative"):
+                    action_name = action_def.get("_action_name", "affliction")
+                    track_key = f"_cumulative_degree_{action_name}"
+                    try:
+                        current_degree = _get_derived(defender, track_key)
+                    except LoreKitError:
+                        current_degree = 0
+                    max_degree = action_def.get("max_degree", 4)
+                    new_degree = min(current_degree + degree, max_degree)
+                    if current_degree > 0:
+                        lines.append(f"CUMULATIVE: previous degree {current_degree} + {degree} = {new_degree}")
+                    degree = new_degree
+                    _write_attr(db, defender.character_id, track_key, degree)
+
+                # Look up per-action outcome table, fall back to global on_failure
+                outcome_table_name = action_def.get("outcome_table")
+                if outcome_table_name and outcome_table_name in pack.outcome_tables:
+                    outcome_table = pack.outcome_tables[outcome_table_name]
+                else:
+                    outcome_table = resolution.get("on_failure", {})
+
+                effect = dict(outcome_table.get(str(degree), {}))
+
+                # Resolve template variables from action_def.degrees
+                # e.g. "{degree_1_condition}" → "dazed" from degrees: {"1": "dazed"}
+                degrees_map = action_def.get("degrees", {})
+                if degrees_map:
+                    for key, val in list(effect.items()):
+                        if isinstance(val, str) and "{" in val:
+                            for deg_key, choice in degrees_map.items():
+                                placeholder = f"{{degree_{deg_key}_condition}}"
+                                if placeholder in val:
+                                    resolved = choice if isinstance(choice, str) else choice[0]
+                                    val = val.replace(placeholder, resolved)
+                            effect[key] = val
 
                 lines.append(f"DEGREE OF FAILURE: {degree}")
-
-                # Apply increments from degree table
-                increment = effect.get("increment")
-                if increment and isinstance(increment, dict):
-                    for stat, value in increment.items():
-                        try:
-                            current = _get_derived(defender, stat)
-                        except LoreKitError:
-                            current = 0
-                        new_val = current + value
-                        _write_attr(db, defender.character_id, stat, new_val)
-                        lines.append(f"{stat}: {current} → {new_val}")
-
-                # Apply direct attribute writes from degree table
-                set_attrs = effect.get("set")
-                if set_attrs and isinstance(set_attrs, dict):
-                    for stat, value in set_attrs.items():
-                        _write_attr(db, defender.character_id, stat, value)
-
-                # Apply set_max: only write if new value exceeds current
-                set_max_attrs = effect.get("set_max")
-                if set_max_attrs and isinstance(set_max_attrs, dict):
-                    for stat, value in set_max_attrs.items():
-                        try:
-                            current = _get_derived(defender, stat)
-                        except LoreKitError:
-                            current = 0
-                        if value > current:
-                            _write_attr(db, defender.character_id, stat, value)
-
-                label = effect.get("label")
-                if label:
-                    lines.append(f"CONDITION: {label}")
+                _apply_degree_effect(db, defender, effect, lines)
 
                 # Sync condition modifiers after damage/stat changes
                 _sync_and_recalc(db, defender.character_id, pack, lines)
+
+                # Fire on-damage triggers (e.g. concentration break)
+                _fire_damage_triggers(db, pack, defender.character_id, damage_rank, lines)
         else:
             # No resistance check — apply on_hit effects directly
             on_hit = action_def.get("on_hit", {})
@@ -1505,6 +1834,66 @@ def end_turn(db, character_id: int, pack_dir: str) -> str:
                 )
                 lines.append(f"    FREED: {source} ({target_stat} {value:+d}) — removed")
                 removed_any = True
+
+        elif action == "modify_attribute":
+            attr_key = tick_cfg.get("attribute")
+            if not attr_key:
+                continue
+            delta = tick_cfg.get("delta", -1)
+            floor_val = tick_cfg.get("floor")
+            ceiling_val = tick_cfg.get("ceiling")
+            try:
+                current = _get_derived(char, attr_key)
+            except LoreKitError:
+                current = 0
+            new_val = current + delta
+            if floor_val is not None:
+                new_val = max(int(floor_val), new_val)
+            if ceiling_val is not None:
+                new_val = min(int(ceiling_val), new_val)
+            if new_val != current:
+                _write_attr(db, character_id, attr_key, new_val)
+                lines.append(f"  TICK: {source} — {attr_key}: {current} → {new_val}")
+                removed_any = True  # trigger recalc
+
+        elif action == "auto_save":
+            save_stat_cfg = tick_cfg.get("save_stat")
+            dc_cfg = tick_cfg.get("dc", 15)
+            if not save_stat_cfg:
+                lines.append(f"  SKIPPED: {source} — missing save_stat in auto_save config")
+                continue
+
+            derived = char.attributes.get("derived", {})
+            bonus = int(derived.get(save_stat_cfg, 0))
+            result = roll_expr(pack.dice)
+            total = result["total"] + bonus
+            success = total >= dc_cfg
+
+            lines.append(
+                f"  AUTO-SAVE: {source} — {save_stat_cfg} "
+                f"{pack.dice}({result['total']}) + {bonus} = {total} vs DC {dc_cfg} "
+                f"→ {'SUCCESS' if success else 'FAILURE'}"
+            )
+
+            outcome = tick_cfg.get("on_success", {}) if success else tick_cfg.get("on_failure", {})
+            if outcome:
+                _apply_degree_effect(db, char, outcome, lines)
+                removed_any = True  # trigger recalc
+
+        elif action == "worsen":
+            track_attr = tick_cfg.get("attribute", f"{source}_degree")
+            max_degree = tick_cfg.get("max_degree", 3)
+            try:
+                current = _get_derived(char, track_attr)
+            except LoreKitError:
+                current = 0
+            if current < max_degree:
+                new_val = current + 1
+                _write_attr(db, character_id, track_attr, new_val)
+                lines.append(f"  WORSENED: {source} — {track_attr}: {current} → {new_val}")
+                removed_any = True  # trigger recalc
+            else:
+                lines.append(f"  WORSENED: {source} — already at max degree {max_degree}")
 
     db.commit()
 
@@ -1703,6 +2092,7 @@ def resolve_area_action(
     create_checkpoint(db, attacker.session_id)
 
     action_def = _get_action_def(pack, attacker, action)
+    action_def.setdefault("_action_name", action)
 
     enc = _get_active_encounter(db, attacker.session_id)
     if enc is None:
@@ -1808,6 +2198,7 @@ def resolve_action(
     # Check if action is a gm_assisted effect before looking up action defs
     try:
         action_def = _get_action_def(pack, attacker, action)
+        action_def.setdefault("_action_name", action)
     except LoreKitError:
         # Fall back to effects.json for gm_assisted resolution
         hints = _get_gm_hints(pack, action)
