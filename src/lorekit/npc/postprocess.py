@@ -151,21 +151,22 @@ def process_npc_response(db, session_id, npc_id, full_text, npc_name, narrative_
     if state_changes:
         _apply_state_changes(db, session_id, npc_id, state_changes)
 
-    # Always store an interaction summary as safety net
-    summary_content = f"[{npc_name} interaction] {narrative[:150]}"
-    try:
-        npc_memory.add_memory(
-            db,
-            session_id,
-            npc_id,
-            content=summary_content,
-            importance=0.7,
-            memory_type="experience",
-            entities=[],
-            narrative_time=narrative_time,
-        )
-    except Exception:
-        pass
+    # Store interaction summary as safety net only if NPC didn't declare memories
+    if not memories:
+        summary_content = f"[{npc_name} interaction] {narrative[:150]}"
+        try:
+            npc_memory.add_memory(
+                db,
+                session_id,
+                npc_id,
+                content=summary_content,
+                importance=0.7,
+                memory_type="experience",
+                entities=[],
+                narrative_time=narrative_time,
+            )
+        except Exception:
+            pass
 
     return narrative
 

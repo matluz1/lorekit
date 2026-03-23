@@ -198,8 +198,8 @@ class TestProcessNpcResponse:
         assert "[MEMORIES]" not in result
 
         rows = db.execute("SELECT * FROM npc_memories WHERE npc_id = 10").fetchall()
-        # 1 parsed memory + 1 interaction summary = 2
-        assert len(rows) == 2
+        # 1 parsed memory only (safety-net skipped when [MEMORIES] present)
+        assert len(rows) == 1
 
     def test_state_changes_stored(self, db):
         text = 'Fine.\n\n[STATE_CHANGES]\n- emotional_state: "annoyed"\n'
