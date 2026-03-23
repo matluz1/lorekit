@@ -1209,6 +1209,135 @@ def end_encounter(db, session_id: int, combat_cfg: dict | None = None) -> str:
     return "\n".join(lines)
 
 
+def add_zone(
+    db,
+    encounter_id: int,
+    name: str,
+    tags: list[str] | None = None,
+    adjacent_to: list[dict] | None = None,
+) -> str:
+    """Add a new zone to an active encounter mid-combat.
+
+    Creates the zone, establishes adjacency edges, and returns a summary.
+    Used for dynamically created terrain (collapsing floor reveals basement,
+    teleporting characters to a pocket dimension, aerial combat, etc.).
+
+    adjacent_to: list of ``{"zone": "name", "weight": 1}`` dicts declaring
+      which existing zones the new zone connects to. Defaults to no connections
+      (isolated zone — useful for pocket dimensions or aerial).
+    """
+    # Verify zone name doesn't already exist
+    existing = db.execute(
+        "SELECT id FROM encounter_zones WHERE encounter_id = ? AND name = ?",
+        (encounter_id, name),
+    ).fetchone()
+    if existing:
+        raise LoreKitError(f"Zone '{name}' already exists in this encounter")
+
+    tag_list = tags or []
+    zcur = db.execute(
+        "INSERT INTO encounter_zones (encounter_id, name, tags) VALUES (?, ?, ?)",
+        (encounter_id, name, json.dumps(tag_list)),
+    )
+    new_zone_id = zcur.lastrowid
+
+    # Establish adjacency
+    edges_created = 0
+    for edge in adjacent_to or []:
+        neighbor_name = edge.get("zone")
+        weight = edge.get("weight", 1)
+        if not neighbor_name:
+            continue
+        try:
+            neighbor_id = _zone_name_to_id(db, encounter_id, neighbor_name)
+        except LoreKitError:
+            continue
+        db.execute(
+            "INSERT INTO zone_adjacency (zone_a, zone_b, weight) VALUES (?, ?, ?)",
+            (new_zone_id, neighbor_id, weight),
+        )
+        edges_created += 1
+
+    db.commit()
+
+    lines = [f"ZONE CREATED: {name}"]
+    if tag_list:
+        lines.append(f"  Tags: {tag_list}")
+    if edges_created:
+        neighbors = [e["zone"] for e in (adjacent_to or []) if e.get("zone")]
+        lines.append(f"  Adjacent to: {', '.join(neighbors)}")
+    else:
+        lines.append("  Isolated (no adjacency)")
+
+    return "\n".join(lines)
+
+
+def remove_zone(
+    db,
+    encounter_id: int,
+    zone_name: str,
+    evacuate_to: str | None = None,
+    combat_cfg: dict | None = None,
+) -> str:
+    """Remove a zone from an active encounter mid-combat.
+
+    Moves any characters in the zone to ``evacuate_to`` (required if zone
+    has occupants), removes adjacency edges, terrain modifiers, and the
+    zone itself.
+
+    Used for collapsing terrain, closing portals, etc.
+    """
+    zone_id = _zone_name_to_id(db, encounter_id, zone_name)
+    cfg = combat_cfg or {}
+
+    # Check for occupants
+    occupants = db.execute(
+        "SELECT character_id FROM character_zone WHERE encounter_id = ? AND zone_id = ?",
+        (encounter_id, zone_id),
+    ).fetchall()
+
+    lines = [f"ZONE REMOVED: {zone_name}"]
+
+    if occupants:
+        if not evacuate_to:
+            raise LoreKitError(f"Zone '{zone_name}' has {len(occupants)} character(s) — specify evacuate_to zone name")
+
+        evac_id = _zone_name_to_id(db, encounter_id, evacuate_to)
+
+        for (cid,) in occupants:
+            # Remove old terrain modifiers
+            _remove_zone_terrain(db, cid, zone_name)
+            # Move to evacuation zone
+            db.execute(
+                "UPDATE character_zone SET zone_id = ? WHERE encounter_id = ? AND character_id = ?",
+                (evac_id, encounter_id, cid),
+            )
+            # Apply new terrain modifiers
+            _apply_zone_terrain(db, cid, evac_id, evacuate_to, cfg)
+
+        cnames = [_char_name(db, c[0]) for c in occupants]
+        lines.append(f"  Evacuated to {evacuate_to}: {', '.join(cnames)}")
+
+    # Remove adjacency edges
+    db.execute(
+        "DELETE FROM zone_adjacency WHERE zone_a = ? OR zone_b = ?",
+        (zone_id, zone_id),
+    )
+
+    # Remove the zone
+    db.execute("DELETE FROM encounter_zones WHERE id = ?", (zone_id,))
+    db.commit()
+
+    # Recalc evacuated characters
+    if occupants:
+        from lorekit.rules import try_rules_calc
+
+        for (cid,) in occupants:
+            try_rules_calc(db, cid)
+
+    return "\n".join(lines)
+
+
 def update_zone_tags(
     db,
     encounter_id: int,

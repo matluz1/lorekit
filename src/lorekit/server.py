@@ -2976,6 +2976,69 @@ def encounter_zone_update(session_id: int, zone_name: str, tags: str) -> str:
         db.close()
 
 
+@mcp.tool()
+def encounter_zone_add(
+    session_id: int,
+    zone_name: str,
+    tags: str = "[]",
+    adjacent_to: str = "[]",
+) -> str:
+    """Create a new zone mid-combat (pocket dimension, aerial, collapsing floor reveals basement).
+
+    zone_name: name for the new zone.
+    tags: JSON array — ["cover", "difficult_terrain"]
+    adjacent_to: JSON array — [{"zone": "Arena", "weight": 1}, ...]
+      Declares which existing zones connect to the new one. Empty = isolated.
+    """
+    import json
+
+    from lorekit.db import LoreKitError, require_db
+
+    db = require_db()
+    try:
+        from lorekit.encounter import _require_active_encounter, add_zone
+
+        enc_id, _, _, _ = _require_active_encounter(db, session_id)
+        tag_list = json.loads(tags) if tags else []
+        adj_list = json.loads(adjacent_to) if adjacent_to else []
+
+        return add_zone(db, enc_id, zone_name, tags=tag_list, adjacent_to=adj_list)
+    except LoreKitError as e:
+        return f"ERROR: {e}"
+    finally:
+        db.close()
+
+
+@mcp.tool()
+def encounter_zone_remove(
+    session_id: int,
+    zone_name: str,
+    evacuate_to: str = "",
+) -> str:
+    """Remove a zone mid-combat (portal closes, terrain collapses).
+
+    Moves any occupants to evacuate_to zone (required if zone has characters).
+    Removes all adjacency edges and terrain modifiers.
+
+    zone_name: zone to remove.
+    evacuate_to: zone to move occupants to (required if zone is occupied).
+    """
+    from lorekit.db import LoreKitError, require_db
+
+    db = require_db()
+    try:
+        from lorekit.encounter import _require_active_encounter, remove_zone
+
+        enc_id, _, _, _ = _require_active_encounter(db, session_id)
+        combat_cfg = _load_combat_cfg(db, session_id)
+
+        return remove_zone(db, enc_id, zone_name, evacuate_to=evacuate_to or None, combat_cfg=combat_cfg)
+    except LoreKitError as e:
+        return f"ERROR: {e}"
+    finally:
+        db.close()
+
+
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------

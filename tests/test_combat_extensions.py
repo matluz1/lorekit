@@ -1104,6 +1104,92 @@ class TestMetadataColumn:
 
 
 # ===========================================================================
+# Mid-Combat Zone Management
+# ===========================================================================
+
+
+class TestAddZone:
+    def test_add_zone_mid_combat(self, make_session, make_character):
+        """A new zone can be created mid-encounter with adjacency."""
+        from lorekit.db import require_db
+        from lorekit.encounter import _require_active_encounter, add_zone
+
+        db = require_db()
+        try:
+            sid = make_session()
+            hero = _make_mm3e_char(db, sid, make_character, "Hero")
+            _start_encounter(db, sid, [hero], [hero])
+
+            enc_id, _, _, _ = _require_active_encounter(db, sid)
+            output = add_zone(db, enc_id, "Sky", tags=["open_air"], adjacent_to=[{"zone": "Arena", "weight": 1}])
+
+            assert "ZONE CREATED: Sky" in output
+            assert "Adjacent to: Arena" in output
+
+            # Verify zone exists
+            row = db.execute(
+                "SELECT name FROM encounter_zones WHERE encounter_id = ? AND name = 'Sky'",
+                (enc_id,),
+            ).fetchone()
+            assert row is not None
+
+            # Verify adjacency
+            sky_id = db.execute(
+                "SELECT id FROM encounter_zones WHERE encounter_id = ? AND name = 'Sky'",
+                (enc_id,),
+            ).fetchone()[0]
+            arena_id = db.execute(
+                "SELECT id FROM encounter_zones WHERE encounter_id = ? AND name = 'Arena'",
+                (enc_id,),
+            ).fetchone()[0]
+            edge = db.execute(
+                "SELECT weight FROM zone_adjacency WHERE zone_a = ? AND zone_b = ?",
+                (sky_id, arena_id),
+            ).fetchone()
+            assert edge is not None
+        finally:
+            db.close()
+
+
+class TestRemoveZone:
+    def test_remove_zone_evacuates(self, make_session, make_character):
+        """Removing a zone evacuates occupants to the target zone."""
+        from lorekit.db import require_db
+        from lorekit.encounter import _require_active_encounter, add_zone, move_character, remove_zone
+
+        db = require_db()
+        try:
+            sid = make_session()
+            hero = _make_mm3e_char(db, sid, make_character, "Hero")
+            _start_encounter(db, sid, [hero], [hero])
+
+            enc_id, _, _, _ = _require_active_encounter(db, sid)
+
+            # Create Sky zone and move hero there
+            add_zone(db, enc_id, "Sky", adjacent_to=[{"zone": "Arena", "weight": 1}])
+            move_character(db, enc_id, hero, "Sky")
+
+            # Remove Sky, evacuate to Arena
+            output = remove_zone(db, enc_id, "Sky", evacuate_to="Arena")
+
+            assert "ZONE REMOVED: Sky" in output
+            assert "Evacuated to Arena" in output
+
+            # Verify hero is in Arena
+            arena_id = db.execute(
+                "SELECT id FROM encounter_zones WHERE encounter_id = ? AND name = 'Arena'",
+                (enc_id,),
+            ).fetchone()[0]
+            cz = db.execute(
+                "SELECT zone_id FROM character_zone WHERE encounter_id = ? AND character_id = ?",
+                (enc_id, hero),
+            ).fetchone()
+            assert cz[0] == arena_id
+        finally:
+            db.close()
+
+
+# ===========================================================================
 # MCP Wiring: combat_modifier activate/deactivate/switch_alternate
 # ===========================================================================
 
