@@ -1116,6 +1116,213 @@ def _fire_damage_triggers(
 
 
 # ---------------------------------------------------------------------------
+# Reaction system — interrupt hooks in resolution pipeline
+# ---------------------------------------------------------------------------
+
+
+def _check_reactions(
+    db,
+    pack: SystemPack,
+    hook_name: str,
+    attacker: CharacterData,
+    defender: CharacterData,
+    action_def: dict,
+    lines: list[str],
+) -> dict:
+    """Check for reaction combat_state entries matching the named hook.
+
+    Reactions are combat_state rows with ``duration_type`` in
+    ('reaction', 'triggered') and a JSON ``metadata`` column declaring
+    which hook they respond to and what effect they produce.
+
+    Returns a dict of context modifications:
+    - ``new_defender_id``: substitute defender (Interpose)
+    - ``defense_override``: replace defense value (Deflect)
+    - ``free_attack``: reactor gets a free counter-attack
+    """
+    import json as _json
+
+    reactions_cfg = pack.combat.get("reactions", {})
+    hook_cfg = reactions_cfg.get(hook_name, {})
+    if not hook_cfg:
+        return {}
+
+    rows = db.execute(
+        "SELECT id, character_id, source, duration_type, duration, metadata "
+        "FROM combat_state "
+        "WHERE duration_type IN ('reaction', 'triggered') AND duration > 0 AND metadata IS NOT NULL",
+    ).fetchall()
+
+    if not rows:
+        return {}
+
+    modifications = {}
+
+    for row_id, reactor_id, source, dur_type, duration, metadata_str in rows:
+        try:
+            metadata = _json.loads(metadata_str)
+        except (ValueError, TypeError):
+            continue
+
+        if metadata.get("hook") != hook_name:
+            continue
+
+        effect_name = metadata.get("effect")
+        if effect_name not in hook_cfg:
+            continue
+
+        effect_cfg = hook_cfg[effect_name]
+        scope = effect_cfg.get("scope", "self_targeted")
+
+        # Scope filter
+        if scope == "ally_targeted":
+            if reactor_id == attacker.character_id or reactor_id == defender.character_id:
+                continue
+            team_row = db.execute(
+                "SELECT cz1.team FROM character_zone cz1 "
+                "JOIN character_zone cz2 ON cz1.encounter_id = cz2.encounter_id "
+                "WHERE cz1.character_id = ? AND cz2.character_id = ? "
+                "AND cz1.team != '' AND cz1.team = cz2.team",
+                (reactor_id, defender.character_id),
+            ).fetchone()
+            if not team_row:
+                continue
+        elif scope == "self_targeted":
+            if reactor_id != defender.character_id:
+                continue
+
+        # Range check if required
+        if effect_cfg.get("check") == "range":
+            from lorekit.encounter import _build_adjacency, _get_active_encounter, _shortest_path
+
+            enc = _get_active_encounter(db, attacker.session_id)
+            if enc:
+                enc_id = enc[0]
+                reactor_zone = db.execute(
+                    "SELECT zone_id FROM character_zone WHERE encounter_id = ? AND character_id = ?",
+                    (enc_id, reactor_id),
+                ).fetchone()
+                defender_zone = db.execute(
+                    "SELECT zone_id FROM character_zone WHERE encounter_id = ? AND character_id = ?",
+                    (enc_id, defender.character_id),
+                ).fetchone()
+                if reactor_zone and defender_zone:
+                    adj = _build_adjacency(db, enc_id)
+                    dist = _shortest_path(adj, reactor_zone[0], defender_zone[0])
+                    max_range = metadata.get("range_zones", 1)
+                    if dist is not None and dist > max_range:
+                        continue
+
+        # Dispatch effect
+        reactor_name = db.execute("SELECT name FROM characters WHERE id = ?", (reactor_id,)).fetchone()
+        reactor_name = reactor_name[0] if reactor_name else f"#{reactor_id}"
+
+        if effect_name == "substitute_defender":
+            lines.append(f"REACTION [{source}]: {reactor_name} interposes for {defender.name}!")
+            modifications["new_defender_id"] = reactor_id
+        elif effect_name == "use_reactor_stat":
+            stat_name = metadata.get("stat", "deflect")
+            try:
+                reactor_char = load_character_data(db, reactor_id)
+                stat_val = _get_derived(reactor_char, stat_name)
+                lines.append(f"REACTION [{source}]: {reactor_name} deflects! Using {stat_name} ({stat_val}) as defense")
+                modifications["defense_override"] = stat_val
+            except LoreKitError:
+                continue
+        elif effect_name == "counter_attack":
+            counter_action = metadata.get("counter_action", "close_attack")
+            lines.append(f"REACTION [{source}]: {reactor_name} counter-attacks!")
+            modifications["free_attack"] = {
+                "reactor_id": reactor_id,
+                "target_id": attacker.character_id,
+                "action": counter_action,
+            }
+
+        # Consume
+        if dur_type == "triggered":
+            db.execute("DELETE FROM combat_state WHERE id = ?", (row_id,))
+        else:
+            db.execute("UPDATE combat_state SET duration = duration - 1 WHERE id = ?", (row_id,))
+        db.commit()
+
+        break  # One reaction per hook per resolution
+
+    return modifications
+
+
+# ---------------------------------------------------------------------------
+# Team/combined attack — assistants boost a single attack
+# ---------------------------------------------------------------------------
+
+
+def _apply_team_bonus(
+    db,
+    pack: SystemPack,
+    attacker: CharacterData,
+    options: dict,
+    lines: list[str],
+) -> tuple[int, int]:
+    """Compute team attack bonuses from assistants.
+
+    Returns (attack_bonus, dc_bonus) to add to the attack roll and damage rank.
+    Consumes each assistant's action for the turn.
+    """
+    assistants = options.get("assistants")
+    if not assistants:
+        return 0, 0
+
+    team_cfg = pack.combat.get("team_attack")
+    if not team_cfg:
+        return 0, 0
+
+    bonus_per = team_cfg.get("attack_bonus_per", 2)
+    max_bonus = team_cfg.get("max_attack_bonus", 5)
+    dc_per = team_cfg.get("dc_bonus_per", 1)
+    same_zone = team_cfg.get("requires_same_zone", True)
+
+    valid_count = 0
+    for aid in assistants:
+        if aid == attacker.character_id:
+            continue
+        # Check that assistant hasn't used their action
+        try:
+            _check_condition_action_limit(db, aid, pack)
+        except LoreKitError:
+            lines.append(f"TEAM: assistant #{aid} cannot act — skipped")
+            continue
+
+        # Optionally check same zone
+        if same_zone:
+            from lorekit.encounter import _get_active_encounter
+
+            enc = _get_active_encounter(db, attacker.session_id)
+            if enc:
+                enc_id = enc[0]
+                atk_zone = db.execute(
+                    "SELECT zone_id FROM character_zone WHERE encounter_id = ? AND character_id = ?",
+                    (enc_id, attacker.character_id),
+                ).fetchone()
+                ast_zone = db.execute(
+                    "SELECT zone_id FROM character_zone WHERE encounter_id = ? AND character_id = ?",
+                    (enc_id, aid),
+                ).fetchone()
+                if atk_zone and ast_zone and atk_zone[0] != ast_zone[0]:
+                    lines.append(f"TEAM: assistant #{aid} not in same zone — skipped")
+                    continue
+
+        valid_count += 1
+        _increment_turn_actions(db, aid)
+
+    if valid_count == 0:
+        return 0, 0
+
+    atk_bonus = min(valid_count * bonus_per, max_bonus)
+    dc_bonus = valid_count * dc_per
+    lines.append(f"TEAM ATTACK: {valid_count} assistant(s) → +{atk_bonus} attack, +{dc_bonus} DC")
+    return atk_bonus, dc_bonus
+
+
+# ---------------------------------------------------------------------------
 # Pre-resolution filters — immunity, impervious
 # ---------------------------------------------------------------------------
 
@@ -1425,6 +1632,14 @@ def _resolve_degree(
     # Apply persistent trade cost modifiers to the attacker (e.g. All-out Attack penalties)
     _apply_trade_modifiers(db, attacker, options, trade_mod_lines)
 
+    # Team/combined attack bonus
+    team_atk_bonus, team_dc_bonus = _apply_team_bonus(db, pack, attacker, options, trade_mod_lines)
+
+    # Reaction hook: before_attack (e.g. Interpose — substitute defender)
+    reaction_mods = _check_reactions(db, pack, "before_attack", attacker, defender, action_def, trade_mod_lines)
+    if reaction_mods.get("new_defender_id"):
+        defender = load_character_data(db, reaction_mods["new_defender_id"])
+
     # Gather resolution effects from defender's active conditions
     res_effects = _get_defender_resolution_effects(db, defender.character_id, pack)
     use_routine = res_effects.get("attacker_routine_check", False)
@@ -1434,6 +1649,9 @@ def _resolve_degree(
     range_type = action_def.get("range")
     atk_bonus_map = res_effects.get("attacker_bonus", {})
     cond_atk_bonus = atk_bonus_map.get(range_type, 0) if range_type else 0
+
+    # Reaction hook: replace_defense (e.g. Deflect — use reactor stat as defense)
+    defense_mods = _check_reactions(db, pack, "replace_defense", attacker, defender, action_def, trade_mod_lines)
 
     if action_def.get("contested"):
         atk_roll, atk_total, def_total, def_roll, def_bonus, atk_natural = _contested_roll(
@@ -1451,6 +1669,10 @@ def _resolve_degree(
         if cond_atk_bonus:
             atk_total += cond_atk_bonus
             atk_bonus += cond_atk_bonus
+        # Apply team attack bonus
+        if team_atk_bonus:
+            atk_total += team_atk_bonus
+            atk_bonus += team_atk_bonus
 
         lines = [f"ACTION: {attacker.name} → {defender.name}"]
         lines.append(f"ATTACKER: {pack.dice}({atk_roll}) + {atk_bonus} ({attack_stat}) = {atk_total}")
@@ -1469,7 +1691,7 @@ def _resolve_degree(
         is_natural_crit = False
     else:
         attack_bonus = _get_derived(attacker, attack_stat)
-        defense_value = _get_derived(defender, defense_stat)
+        defense_value = defense_mods.get("defense_override", _get_derived(defender, defense_stat))
 
         # Apply trade to attack bonus
         if attack_stat in trade_adj:
@@ -1477,6 +1699,9 @@ def _resolve_degree(
         # Apply condition-based attack bonus
         if cond_atk_bonus:
             attack_bonus += cond_atk_bonus
+        # Apply team attack bonus
+        if team_atk_bonus:
+            attack_bonus += team_atk_bonus
 
         # Routine check: use routine_value instead of rolling (e.g. defenseless target)
         if use_routine:
@@ -1574,6 +1799,11 @@ def _resolve_degree(
                 if ma_bonus:
                     damage_rank += ma_bonus
                     lines.append(f"MULTIATTACK: hit margin {hit_margin} → +{ma_bonus} effect rank (now {damage_rank})")
+
+            # Apply team attack DC bonus
+            if team_dc_bonus:
+                damage_rank += team_dc_bonus
+                lines.append(f"TEAM DC BONUS: +{team_dc_bonus} effect rank (now {damage_rank})")
 
             # Apply critical effect_rank_bonus (e.g. mm3e nat 20 → +5 effect rank)
             if is_natural_crit:
@@ -1673,6 +1903,22 @@ def _resolve_degree(
             # No resistance check — apply on_hit effects directly
             on_hit = action_def.get("on_hit", {})
             _apply_on_hit(db, pack, attacker, defender, on_hit, lines, margin=hit_margin, options=options)
+        # Reaction hook: after_hit
+        after_hit_mods = _check_reactions(db, pack, "after_hit", attacker, defender, action_def, lines)
+        if after_hit_mods.get("free_attack"):
+            fa = after_hit_mods["free_attack"]
+            try:
+                counter_result = resolve_action(
+                    db,
+                    fa["reactor_id"],
+                    fa["target_id"],
+                    fa["action"],
+                    pack.pack_dir,
+                    options={"free_action": True},
+                )
+                lines.append(counter_result)
+            except LoreKitError as e:
+                lines.append(f"COUNTER FAILED: {e}")
     else:
         lines.append("MISS!")
         if not action_def.get("contested"):
@@ -1682,8 +1928,112 @@ def _resolve_degree(
             margin = def_total - atk_total
             lines.append(f"{defender.name} resists by {margin}")
 
+        # Reaction hook: after_miss
+        after_miss_mods = _check_reactions(db, pack, "after_miss", attacker, defender, action_def, lines)
+        if after_miss_mods.get("free_attack"):
+            fa = after_miss_mods["free_attack"]
+            try:
+                counter_result = resolve_action(
+                    db,
+                    fa["reactor_id"],
+                    fa["target_id"],
+                    fa["action"],
+                    pack.pack_dir,
+                    options={"free_action": True},
+                )
+                lines.append(counter_result)
+            except LoreKitError as e:
+                lines.append(f"COUNTER FAILED: {e}")
+
+    # Homing: on miss, defer re-attack to attacker's next turn
+    if not hit and action_def.get("homing"):
+        import json as _json
+
+        homing_ranks = action_def.get("homing")
+        retries = homing_ranks if isinstance(homing_ranks, int) else 1
+        action_name = action_def.get("_action_name", "unknown")
+        metadata = _json.dumps(
+            {
+                "action": action_name,
+                "target_id": defender.character_id,
+                "retries_left": retries,
+            }
+        )
+        db.execute(
+            "INSERT INTO combat_state "
+            "(character_id, source, target_stat, modifier_type, value, "
+            "duration_type, applied_by, metadata) "
+            "VALUES (?, ?, '_deferred', 'deferred', 0, 'deferred_homing', ?, ?) "
+            "ON CONFLICT(character_id, source, target_stat) DO UPDATE SET metadata = excluded.metadata",
+            (attacker.character_id, f"homing:{action_name}", defender.character_id, metadata),
+        )
+        db.commit()
+        lines.append(f"HOMING: attack will retry on {attacker.name}'s next turn ({retries} attempt(s) left)")
+
+    # Contagious: copy contagious modifiers from defender to attacker on melee
+    if hit and action_def.get("range") == "melee":
+        _check_contagious(db, pack, attacker, defender, lines)
+
     lines.extend(trade_mod_lines)
     return "\n".join(lines)
+
+
+# ---------------------------------------------------------------------------
+# Contagious modifier spreading
+# ---------------------------------------------------------------------------
+
+
+def _check_contagious(
+    db,
+    pack: SystemPack,
+    attacker: CharacterData,
+    defender: CharacterData,
+    lines: list[str],
+) -> None:
+    """Copy contagious modifiers from defender to attacker on melee contact."""
+    import json as _json
+
+    rows = db.execute(
+        "SELECT source, target_stat, modifier_type, value, bonus_type, "
+        "duration_type, duration, save_stat, save_dc, metadata "
+        "FROM combat_state WHERE character_id = ? AND metadata IS NOT NULL",
+        (defender.character_id,),
+    ).fetchall()
+
+    for source, target_stat, mod_type, value, bonus_type, dur_type, duration, save_stat, save_dc, meta_str in rows:
+        try:
+            metadata = _json.loads(meta_str)
+        except (ValueError, TypeError):
+            continue
+        if not metadata.get("contagious"):
+            continue
+
+        new_source = f"contagious:{source}"
+        db.execute(
+            "INSERT INTO combat_state "
+            "(character_id, source, target_stat, modifier_type, value, bonus_type, "
+            "duration_type, duration, save_stat, save_dc, metadata) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) "
+            "ON CONFLICT(character_id, source, target_stat) DO NOTHING",
+            (
+                attacker.character_id,
+                new_source,
+                target_stat,
+                mod_type,
+                value,
+                bonus_type,
+                dur_type,
+                duration,
+                save_stat,
+                save_dc,
+                meta_str,
+            ),
+        )
+        lines.append(f"CONTAGIOUS: {attacker.name} contracted {source} from {defender.name}")
+
+    db.commit()
+    if rows:
+        _sync_and_recalc(db, attacker.character_id, pack, lines)
 
 
 # ---------------------------------------------------------------------------
@@ -1930,7 +2280,8 @@ def start_turn(db, character_id: int, pack_dir: str) -> str:
         return ""
 
     rows = db.execute(
-        "SELECT id, source, target_stat, value, duration_type FROM combat_state WHERE character_id = ?",
+        "SELECT id, source, target_stat, value, duration_type, duration, metadata "
+        "FROM combat_state WHERE character_id = ?",
         (character_id,),
     ).fetchall()
 
@@ -1944,7 +2295,7 @@ def start_turn(db, character_id: int, pack_dir: str) -> str:
     # Collect warnings by duration_type
     warn_items: dict[str, list[str]] = {}
 
-    for row_id, source, target_stat, value, dur_type in rows:
+    for row_id, source, target_stat, value, dur_type, duration, metadata in rows:
         tick_cfg = pack.start_turn.get(dur_type)
         if tick_cfg is None:
             continue
@@ -1959,6 +2310,60 @@ def start_turn(db, character_id: int, pack_dir: str) -> str:
 
         elif action == "warn":
             warn_items.setdefault(dur_type, []).append(f"{source} ({target_stat} {value:+d})")
+
+        elif action == "replenish":
+            # Reset reaction uses (e.g. reaction duration back to 1)
+            reset_to = tick_cfg.get("reset_to", 1)
+            if duration < reset_to:
+                db.execute(
+                    "UPDATE combat_state SET duration = ? WHERE id = ?",
+                    (reset_to, row_id),
+                )
+                lines.append(f"  REPLENISHED: {source} (reaction ready)")
+                has_output = True
+
+        elif action == "retry_action":
+            # Homing: retry a deferred attack
+            import json as _json
+
+            try:
+                meta = _json.loads(metadata) if metadata else None
+            except (ValueError, TypeError):
+                meta = None
+            if not meta:
+                continue
+
+            retry_action = meta.get("action")
+            retry_target = meta.get("target_id")
+            retries_left = meta.get("retries_left", 1)
+
+            if retry_action and retry_target:
+                lines.append(f"  HOMING RETRY: {source} → re-attacking")
+                try:
+                    result = resolve_action(
+                        db,
+                        character_id,
+                        retry_target,
+                        retry_action,
+                        pack_dir,
+                        options={"free_action": True},
+                    )
+                    lines.append(f"    {result}")
+                    hit_retry = "HIT" in result
+                except LoreKitError as e:
+                    lines.append(f"    RETRY FAILED: {e}")
+                    hit_retry = False
+
+                if hit_retry or retries_left <= 1:
+                    db.execute("DELETE FROM combat_state WHERE id = ?", (row_id,))
+                    removed_any = True
+                else:
+                    meta["retries_left"] = retries_left - 1
+                    db.execute(
+                        "UPDATE combat_state SET metadata = ? WHERE id = ?",
+                        (_json.dumps(meta), row_id),
+                    )
+                has_output = True
 
     # Emit sustain warnings
     for dur_type, items in warn_items.items():
@@ -2169,6 +2574,190 @@ def resolve_area_action(
     _increment_turn_actions(db, attacker_id)
 
     return "\n---\n".join(results)
+
+
+# ---------------------------------------------------------------------------
+# Power toggle — activate/deactivate sustained powers
+# ---------------------------------------------------------------------------
+
+
+def activate_power(db, character_id: int, ability_name: str, pack_dir: str) -> str:
+    """Activate a sustained power, inserting its declared modifiers.
+
+    Reads the ability's JSON description for ``on_activate.apply_modifiers``,
+    inserts them as combat_state rows with ``duration_type = "sustained"``,
+    and re-runs rules_calc to recompute derived stats.
+    """
+    import json as _json
+
+    from lorekit.rules import load_character_data, rules_calc
+
+    char = load_character_data(db, character_id)
+    pack = load_system_pack(pack_dir)
+
+    # Find the ability
+    row = db.execute(
+        "SELECT description FROM character_abilities WHERE character_id = ? AND name = ?",
+        (character_id, ability_name),
+    ).fetchone()
+    if not row:
+        raise LoreKitError(f"Ability '{ability_name}' not found on {char.name}")
+
+    try:
+        desc = _json.loads(row[0])
+    except (ValueError, TypeError):
+        raise LoreKitError(f"Ability '{ability_name}' has no structured data")
+
+    on_activate = desc.get("on_activate", {})
+    modifiers = on_activate.get("apply_modifiers", [])
+    if not modifiers:
+        raise LoreKitError(f"Ability '{ability_name}' has no on_activate.apply_modifiers")
+
+    lines = [f"ACTIVATE: {ability_name}"]
+    source_prefix = ability_name.lower().replace(" ", "_")
+
+    for mod in modifiers:
+        source = mod.get("source", source_prefix)
+        target_stat = mod["target_stat"]
+        value = mod.get("value", 0)
+        mod_type = mod.get("modifier_type", "buff")
+        dur_type = mod.get("duration_type", "sustained")
+        bonus_type = mod.get("bonus_type")
+
+        db.execute(
+            "INSERT INTO combat_state "
+            "(character_id, source, target_stat, modifier_type, value, bonus_type, duration_type) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?) "
+            "ON CONFLICT(character_id, source, target_stat) DO UPDATE SET "
+            "value = excluded.value",
+            (character_id, source, target_stat, mod_type, value, bonus_type, dur_type),
+        )
+        lines.append(f"  {source} → {target_stat} {value:+d} ({dur_type})")
+
+    db.commit()
+    recomp = rules_calc(db, character_id, pack_dir)
+    for line in recomp.split("\n"):
+        if line.startswith("  ") and "→" in line:
+            lines.append(f"  RECOMPUTED: {line.strip()}")
+
+    _sync_and_recalc(db, character_id, pack, lines)
+    return "\n".join(lines)
+
+
+def deactivate_power(db, character_id: int, ability_name: str, pack_dir: str) -> str:
+    """Deactivate a sustained power, removing its modifiers.
+
+    Deletes combat_state rows whose source matches the ability name pattern,
+    then re-runs rules_calc.
+    """
+    from lorekit.rules import load_character_data, rules_calc
+
+    char = load_character_data(db, character_id)
+    pack = load_system_pack(pack_dir)
+    source_prefix = ability_name.lower().replace(" ", "_")
+
+    deleted = db.execute(
+        "DELETE FROM combat_state WHERE character_id = ? AND source = ?",
+        (character_id, source_prefix),
+    ).rowcount
+
+    if deleted == 0:
+        return f"DEACTIVATE: {ability_name} — no active modifiers found"
+
+    db.commit()
+    lines = [f"DEACTIVATE: {ability_name} — {deleted} modifier(s) removed"]
+
+    recomp = rules_calc(db, character_id, pack_dir)
+    for line in recomp.split("\n"):
+        if line.startswith("  ") and "→" in line:
+            lines.append(f"  RECOMPUTED: {line.strip()}")
+
+    _sync_and_recalc(db, character_id, pack, lines)
+    return "\n".join(lines)
+
+
+# ---------------------------------------------------------------------------
+# Alternate effect switching
+# ---------------------------------------------------------------------------
+
+
+def switch_alternate(db, character_id: int, array_name: str, alternate_name: str, pack_dir: str) -> str:
+    """Switch the active alternate in a power array.
+
+    Deactivates the current alternate's action_override, activates the new
+    one, updates the active_alternate tracker, and re-runs rules_calc.
+    """
+    import json as _json
+
+    from lorekit.rules import load_character_data, rules_calc
+
+    char = load_character_data(db, character_id)
+
+    # Find all abilities in this array
+    rows = db.execute(
+        "SELECT name, description FROM character_abilities WHERE character_id = ?",
+        (character_id,),
+    ).fetchall()
+
+    # Find the primary and all alternates
+    alternates = {}
+    primary_name = None
+    for name, desc_str in rows:
+        try:
+            desc = _json.loads(desc_str)
+        except (ValueError, TypeError):
+            continue
+        if desc.get("array_of") == array_name:
+            alternates[name] = desc
+        if name == array_name:
+            primary_name = name
+            alternates[name] = desc
+
+    if not alternates:
+        raise LoreKitError(f"No alternates found for array '{array_name}'")
+
+    if alternate_name not in alternates:
+        available = ", ".join(sorted(alternates.keys()))
+        raise LoreKitError(f"'{alternate_name}' not in array '{array_name}'. Available: {available}")
+
+    lines = [f"SWITCH ALTERNATE: {array_name} → {alternate_name}"]
+
+    # Deactivate current: remove all action_overrides from array members
+    for name in alternates:
+        key = name.lower().replace(" ", "_")
+        db.execute(
+            "DELETE FROM character_attributes WHERE character_id = ? AND category = 'action_override' AND key = ?",
+            (character_id, key),
+        )
+
+    # Activate new: write its action_override if it has one
+    new_desc = alternates[alternate_name]
+    action_data = new_desc.get("action")
+    if action_data:
+        key = action_data.get("key", alternate_name.lower().replace(" ", "_"))
+        db.execute(
+            "INSERT INTO character_attributes (character_id, category, key, value) "
+            "VALUES (?, 'action_override', ?, ?) "
+            "ON CONFLICT(character_id, category, key) DO UPDATE SET value = excluded.value",
+            (character_id, key, _json.dumps(action_data)),
+        )
+        lines.append(f"  Action registered: {key}")
+
+    # Track active alternate
+    db.execute(
+        "INSERT INTO character_attributes (character_id, category, key, value) "
+        "VALUES (?, 'active_alternate', ?, ?) "
+        "ON CONFLICT(character_id, category, key) DO UPDATE SET value = excluded.value",
+        (character_id, array_name, alternate_name),
+    )
+
+    db.commit()
+    recomp = rules_calc(db, character_id, pack_dir)
+    for line in recomp.split("\n"):
+        if line.startswith("  ") and "→" in line:
+            lines.append(f"  RECOMPUTED: {line.strip()}")
+
+    return "\n".join(lines)
 
 
 def resolve_action(

@@ -1,8 +1,10 @@
-"""Tests for combat engine extensions (F1-F10).
+"""Tests for combat engine extensions (F1-F10 + Phase 2 features).
 
 Covers: per-action outcome tables, resource counters, remove_conditions,
 modify_attribute, pre-resolution filters, character tags, extended ticks,
-on-damage triggers, multiattack DC bonus, cumulative degree tracking.
+on-damage triggers, multiattack DC bonus, cumulative degree tracking,
+reactions, team attack, join/leave encounter, power toggle, alternate switching,
+homing, contagious.
 """
 
 import json
@@ -16,8 +18,11 @@ from lorekit.combat import (
     _apply_degree_effect,
     _check_pre_resolution,
     _fire_damage_triggers,
+    activate_power,
+    deactivate_power,
     end_turn,
     resolve_action,
+    switch_alternate,
 )
 
 MM3E_SYSTEM = cruncher_mm3e.pack_path()
@@ -703,5 +708,396 @@ class TestApplyDegreeEffect:
 
             assert "damage_penalty: 1 → 2" in "\n".join(lines)
             assert "CONDITION: dazed" in "\n".join(lines)
+        finally:
+            db.close()
+
+
+# ===========================================================================
+# Phase 2 Features: Reactions, Team Attack, Join/Leave, Power Toggle,
+# Alternate Switching, Homing, Contagious
+# ===========================================================================
+
+
+class TestReactionInterpose:
+    def test_interpose_substitutes_defender(self, make_session, make_character):
+        """Interpose reaction swaps the defender to the reactor."""
+        from lorekit.character import set_attr
+        from lorekit.db import require_db
+
+        db = require_db()
+        try:
+            sid = make_session()
+            atk = _make_mm3e_char(db, sid, make_character, "Villain", fgt="10")
+            target = _make_mm3e_char(db, sid, make_character, "Squishy", sta="0")
+            tank = _make_mm3e_char(db, sid, make_character, "Tank", sta="10")
+            _start_encounter(db, sid, [atk, target, tank], [atk, target, tank])
+
+            # Set teams
+            db.execute(
+                "UPDATE character_zone SET team = 'heroes' WHERE character_id IN (?, ?)",
+                (target, tank),
+            )
+            db.execute(
+                "UPDATE character_zone SET team = 'villains' WHERE character_id = ?",
+                (atk,),
+            )
+            db.commit()
+
+            # Give tank an interpose reaction
+            db.execute(
+                "INSERT INTO combat_state "
+                "(character_id, source, target_stat, modifier_type, value, duration_type, duration, metadata) "
+                "VALUES (?, 'interpose', '_reaction', 'reaction', 0, 'reaction', 1, ?)",
+                (tank, json.dumps({"hook": "before_attack", "effect": "substitute_defender", "range_zones": 0})),
+            )
+            db.commit()
+
+            # Attack the squishy target — tank should interpose
+            roll_calls = iter([14, 0])
+            with patch("secrets.randbelow", side_effect=roll_calls):
+                output = resolve_action(db, atk, target, "close_attack", MM3E_SYSTEM)
+
+            assert "REACTION [interpose]" in output
+            assert "Tank" in output  # Tank's name should appear
+        finally:
+            db.close()
+
+
+class TestReactionDeflect:
+    def test_deflect_replaces_defense(self, make_session, make_character):
+        """Deflect reaction replaces defense stat with reactor's stat."""
+        from lorekit.character import set_attr
+        from lorekit.db import require_db
+
+        db = require_db()
+        try:
+            sid = make_session()
+            atk = _make_mm3e_char(db, sid, make_character, "Attacker", fgt="6")
+            dfn = _make_mm3e_char(db, sid, make_character, "Deflector")
+            _start_encounter(db, sid, [atk, dfn], [atk, dfn])
+
+            # Give defender a high deflect stat
+            set_attr(db, dfn, "derived", "deflect_rank", "15")
+
+            # Set up deflect reaction
+            db.execute(
+                "INSERT INTO combat_state "
+                "(character_id, source, target_stat, modifier_type, value, duration_type, duration, metadata) "
+                "VALUES (?, 'deflect', '_reaction', 'reaction', 0, 'reaction', 1, ?)",
+                (dfn, json.dumps({"hook": "replace_defense", "effect": "use_reactor_stat", "stat": "deflect_rank"})),
+            )
+            db.commit()
+
+            # Attack — defense should use deflect_rank (15) instead of parry
+            roll_calls = iter([14])
+            with patch("secrets.randbelow", side_effect=roll_calls):
+                output = resolve_action(db, atk, dfn, "close_attack", MM3E_SYSTEM)
+
+            assert "REACTION [deflect]" in output
+            assert "deflect_rank" in output
+        finally:
+            db.close()
+
+
+class TestTeamAttack:
+    def test_team_bonus_applied(self, make_session, make_character):
+        """Assistants add attack and DC bonus."""
+        from lorekit.db import require_db
+
+        db = require_db()
+        try:
+            sid = make_session()
+            atk = _make_mm3e_char(db, sid, make_character, "Leader", fgt="6")
+            ast1 = _make_mm3e_char(db, sid, make_character, "Helper1")
+            dfn = _make_mm3e_char(db, sid, make_character, "Target")
+            _start_encounter(db, sid, [atk, ast1, dfn], [atk, ast1, dfn])
+
+            # Attack with assistant
+            roll_calls = iter([14, 0])
+            with patch("secrets.randbelow", side_effect=roll_calls):
+                output = resolve_action(
+                    db,
+                    atk,
+                    dfn,
+                    "close_attack",
+                    MM3E_SYSTEM,
+                    options={"assistants": [ast1]},
+                )
+
+            assert "TEAM ATTACK:" in output
+        finally:
+            db.close()
+
+
+class TestJoinEncounter:
+    def test_join_mid_combat(self, make_session, make_character):
+        """A character can join an active encounter mid-combat."""
+        from lorekit.db import require_db
+        from lorekit.encounter import join_encounter
+
+        db = require_db()
+        try:
+            sid = make_session()
+            hero = _make_mm3e_char(db, sid, make_character, "Hero")
+            villain = _make_mm3e_char(db, sid, make_character, "Villain")
+            _start_encounter(db, sid, [hero, villain], [hero, villain])
+
+            # Create a new character to join
+            summon = _make_mm3e_char(db, sid, make_character, "Summon")
+
+            cfg = _combat_cfg()
+            output = join_encounter(db, sid, summon, "Arena", team="heroes", combat_cfg=cfg)
+
+            assert "JOINED ENCOUNTER" in output
+            assert "Summon" in output
+
+            # Verify character is in initiative order
+            enc = db.execute(
+                "SELECT initiative_order FROM encounter_state WHERE session_id = ? AND status = 'active'",
+                (sid,),
+            ).fetchone()
+            init_order = json.loads(enc[0])
+            assert summon in init_order
+        finally:
+            db.close()
+
+
+class TestLeaveEncounter:
+    def test_leave_mid_combat(self, make_session, make_character):
+        """A character can leave an active encounter."""
+        from lorekit.db import require_db
+        from lorekit.encounter import leave_encounter
+
+        db = require_db()
+        try:
+            sid = make_session()
+            hero = _make_mm3e_char(db, sid, make_character, "Hero")
+            minion = _make_mm3e_char(db, sid, make_character, "Minion")
+            _start_encounter(db, sid, [hero, minion], [hero, minion])
+
+            output = leave_encounter(db, sid, minion)
+
+            assert "LEFT ENCOUNTER" in output
+            assert "Minion" in output
+
+            # Verify removed from initiative
+            enc = db.execute(
+                "SELECT initiative_order FROM encounter_state WHERE session_id = ? AND status = 'active'",
+                (sid,),
+            ).fetchone()
+            init_order = json.loads(enc[0])
+            assert minion not in init_order
+        finally:
+            db.close()
+
+
+class TestPowerToggle:
+    def test_activate_inserts_modifiers(self, make_session, make_character):
+        """activate_power inserts sustained modifiers from ability JSON."""
+        from lorekit.db import require_db
+
+        db = require_db()
+        try:
+            sid = make_session()
+            hero = _make_mm3e_char(db, sid, make_character, "Grower")
+
+            # Add ability with on_activate
+            db.execute(
+                "INSERT INTO character_abilities (character_id, name, description, category) "
+                "VALUES (?, 'Growth', ?, 'power')",
+                (
+                    hero,
+                    json.dumps(
+                        {
+                            "on_activate": {
+                                "apply_modifiers": [
+                                    {
+                                        "source": "growth",
+                                        "target_stat": "bonus_str",
+                                        "value": 4,
+                                        "duration_type": "sustained",
+                                    },
+                                    {
+                                        "source": "growth",
+                                        "target_stat": "bonus_sta",
+                                        "value": 4,
+                                        "duration_type": "sustained",
+                                    },
+                                ]
+                            }
+                        }
+                    ),
+                ),
+            )
+            db.commit()
+
+            output = activate_power(db, hero, "Growth", MM3E_SYSTEM)
+
+            assert "ACTIVATE: Growth" in output
+
+            # Verify modifiers inserted
+            rows = db.execute(
+                "SELECT target_stat, value FROM combat_state WHERE character_id = ? AND source = 'growth'",
+                (hero,),
+            ).fetchall()
+            assert len(rows) == 2
+        finally:
+            db.close()
+
+    def test_deactivate_removes_modifiers(self, make_session, make_character):
+        """deactivate_power removes the sustained modifiers."""
+        from lorekit.db import require_db
+
+        db = require_db()
+        try:
+            sid = make_session()
+            hero = _make_mm3e_char(db, sid, make_character, "Grower")
+
+            db.execute(
+                "INSERT INTO character_abilities (character_id, name, description, category) "
+                "VALUES (?, 'Growth', ?, 'power')",
+                (
+                    hero,
+                    json.dumps(
+                        {
+                            "on_activate": {
+                                "apply_modifiers": [
+                                    {
+                                        "source": "growth",
+                                        "target_stat": "bonus_str",
+                                        "value": 4,
+                                        "duration_type": "sustained",
+                                    },
+                                ]
+                            }
+                        }
+                    ),
+                ),
+            )
+            db.commit()
+
+            activate_power(db, hero, "Growth", MM3E_SYSTEM)
+            output = deactivate_power(db, hero, "Growth", MM3E_SYSTEM)
+
+            assert "DEACTIVATE: Growth" in output
+            assert "1 modifier(s) removed" in output
+
+            rows = db.execute(
+                "SELECT COUNT(*) FROM combat_state WHERE character_id = ? AND source = 'growth'",
+                (hero,),
+            ).fetchone()
+            assert rows[0] == 0
+        finally:
+            db.close()
+
+
+class TestHoming:
+    def test_homing_defers_on_miss(self, make_session, make_character):
+        """Action with homing=true creates deferred_homing row on miss."""
+        from lorekit.character import set_attr
+        from lorekit.db import require_db
+
+        db = require_db()
+        try:
+            sid = make_session()
+            atk = _make_mm3e_char(db, sid, make_character, "Archer", fgt="2")
+            dfn = _make_mm3e_char(db, sid, make_character, "Dodger", agl="10", ranks_dodge="5")
+            _start_encounter(db, sid, [atk, dfn], [atk, dfn])
+
+            # Action with homing
+            action_def = json.dumps(
+                {
+                    "attack_stat": "close_attack",
+                    "defense_stat": "parry",
+                    "range": "melee",
+                    "damage_rank_stat": "close_damage",
+                    "homing": 1,
+                }
+            )
+            set_attr(db, atk, "action_override", "homing_blast", action_def)
+
+            # d20=1 → guaranteed miss against high dodge
+            roll_calls = iter([0])
+            with patch("secrets.randbelow", side_effect=roll_calls):
+                output = resolve_action(db, atk, dfn, "homing_blast", MM3E_SYSTEM)
+
+            assert "MISS!" in output
+            assert "HOMING:" in output
+
+            # Verify deferred row exists
+            row = db.execute(
+                "SELECT metadata FROM combat_state WHERE character_id = ? AND duration_type = 'deferred_homing'",
+                (atk,),
+            ).fetchone()
+            assert row is not None
+        finally:
+            db.close()
+
+
+class TestContagious:
+    def test_contagious_spreads_on_melee(self, make_session, make_character):
+        """Contagious modifier copies from defender to attacker on melee hit."""
+        from lorekit.db import require_db
+
+        db = require_db()
+        try:
+            sid = make_session()
+            atk = _make_mm3e_char(db, sid, make_character, "Attacker", fgt="10")
+            dfn = _make_mm3e_char(db, sid, make_character, "Infected")
+            _start_encounter(db, sid, [atk, dfn], [atk, dfn])
+
+            # Give defender a contagious modifier
+            db.execute(
+                "INSERT INTO combat_state "
+                "(character_id, source, target_stat, modifier_type, value, "
+                "duration_type, save_stat, save_dc, metadata) "
+                "VALUES (?, 'plague', 'bonus_fortitude', 'condition', -2, "
+                "'save_ends', 'fortitude', 15, ?)",
+                (dfn, json.dumps({"contagious": True})),
+            )
+            db.commit()
+
+            # Attack and hit → contagious should spread
+            roll_calls = iter([19, 0])  # big hit, failed resistance
+            with patch("secrets.randbelow", side_effect=roll_calls):
+                output = resolve_action(db, atk, dfn, "close_attack", MM3E_SYSTEM)
+
+            if "HIT!" in output:
+                assert "CONTAGIOUS:" in output
+
+                # Verify attacker got the modifier
+                row = db.execute(
+                    "SELECT source FROM combat_state WHERE character_id = ? AND source LIKE 'contagious:%'",
+                    (atk,),
+                ).fetchone()
+                assert row is not None
+        finally:
+            db.close()
+
+
+class TestMetadataColumn:
+    def test_metadata_column_exists(self, make_session, make_character):
+        """combat_state table has the metadata column."""
+        from lorekit.db import require_db
+
+        db = require_db()
+        try:
+            # Insert a row with metadata
+            sid = make_session()
+            hero = _make_mm3e_char(db, sid, make_character, "Hero")
+            db.execute(
+                "INSERT INTO combat_state "
+                "(character_id, source, target_stat, modifier_type, value, duration_type, metadata) "
+                "VALUES (?, 'test', 'test_stat', 'buff', 1, 'encounter', ?)",
+                (hero, json.dumps({"test": True})),
+            )
+            db.commit()
+
+            row = db.execute(
+                "SELECT metadata FROM combat_state WHERE character_id = ? AND source = 'test'",
+                (hero,),
+            ).fetchone()
+            assert row is not None
+            assert json.loads(row[0])["test"] is True
         finally:
             db.close()

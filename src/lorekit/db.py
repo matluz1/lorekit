@@ -128,6 +128,7 @@ CREATE TABLE IF NOT EXISTS combat_state (
     save_stat      TEXT,
     save_dc        INTEGER,
     applied_by     INTEGER REFERENCES characters(id),
+    metadata       TEXT,
     created_at     TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
     UNIQUE(character_id, source, target_stat)
 );
@@ -269,6 +270,7 @@ ADD_COLUMN_MIGRATIONS = [
     ("character_abilities", "cost", "ALTER TABLE character_abilities ADD COLUMN cost REAL NOT NULL DEFAULT 0"),
     ("characters", "gender", "ALTER TABLE characters ADD COLUMN gender TEXT NOT NULL DEFAULT ''"),
     ("combat_state", "applied_by", "ALTER TABLE combat_state ADD COLUMN applied_by INTEGER REFERENCES characters(id)"),
+    ("combat_state", "metadata", "ALTER TABLE combat_state ADD COLUMN metadata TEXT"),
 ]
 
 DROP_COLUMN_MIGRATIONS = [
@@ -514,6 +516,8 @@ _CASCADE_MIGRATIONS = {
             duration       INTEGER,
             save_stat      TEXT,
             save_dc        INTEGER,
+            applied_by     INTEGER REFERENCES characters(id),
+            metadata       TEXT,
             created_at     TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
             UNIQUE(character_id, source, target_stat)
         )""",
@@ -529,6 +533,8 @@ _CASCADE_MIGRATIONS = {
             "duration",
             "save_stat",
             "save_dc",
+            "applied_by",
+            "metadata",
             "created_at",
         ],
     ),

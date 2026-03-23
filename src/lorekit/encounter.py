@@ -955,6 +955,146 @@ def advance_turn(db, session_id: int, combat_cfg: dict | None = None) -> str:
     return "\n".join(lines)
 
 
+def join_encounter(
+    db,
+    session_id: int,
+    character_id: int,
+    zone_name: str,
+    team: str = "",
+    initiative_roll: int = 0,
+    combat_cfg: dict | None = None,
+) -> str:
+    """Add a character to an active encounter mid-combat.
+
+    Inserts the character into the initiative order (sorted by roll),
+    places them in the specified zone, and applies terrain modifiers.
+    Used for summoned creatures, reinforcements, etc.
+    """
+    from lorekit.rules import try_rules_calc
+
+    enc = _require_active_encounter(db, session_id)
+    enc_id, current_round, init_order_json, current_turn = enc
+    init_order = json.loads(init_order_json)
+
+    if character_id in init_order:
+        raise LoreKitError(f"Character {character_id} is already in this encounter")
+
+    # Find the zone
+    zone_row = db.execute(
+        "SELECT id FROM encounter_zones WHERE encounter_id = ? AND name = ?",
+        (enc_id, zone_name),
+    ).fetchone()
+    if not zone_row:
+        available = [
+            r[0] for r in db.execute("SELECT name FROM encounter_zones WHERE encounter_id = ?", (enc_id,)).fetchall()
+        ]
+        raise LoreKitError(f"Zone '{zone_name}' not found. Available: {', '.join(available)}")
+
+    zone_id = zone_row[0]
+
+    # Insert into character_zone
+    db.execute(
+        "INSERT INTO character_zone (encounter_id, character_id, zone_id, team) VALUES (?, ?, ?, ?)",
+        (enc_id, character_id, zone_id, team),
+    )
+
+    # Insert into initiative order (after current turn position)
+    insert_pos = current_turn + 1
+    init_order.insert(insert_pos, character_id)
+    db.execute(
+        "UPDATE encounter_state SET initiative_order = ? WHERE id = ?",
+        (json.dumps(init_order), enc_id),
+    )
+
+    db.commit()
+
+    # Apply zone terrain modifiers
+    if combat_cfg:
+        _apply_zone_terrain(db, character_id, zone_id, zone_name, combat_cfg)
+        db.commit()
+
+    try_rules_calc(db, character_id)
+
+    char_name = db.execute("SELECT name FROM characters WHERE id = ?", (character_id,)).fetchone()[0]
+    return f"JOINED ENCOUNTER: {char_name} placed in {zone_name} (team: {team or 'none'})"
+
+
+def leave_encounter(
+    db,
+    session_id: int,
+    character_id: int,
+    combat_cfg: dict | None = None,
+) -> str:
+    """Remove a character from an active encounter.
+
+    Removes from initiative order, clears zone placement, removes
+    encounter-duration combat modifiers and terrain modifiers.
+    If it's the character's turn, auto-advances.
+    """
+    from lorekit.rules import try_rules_calc
+
+    enc = _require_active_encounter(db, session_id)
+    enc_id, current_round, init_order_json, current_turn = enc
+    init_order = json.loads(init_order_json)
+
+    if character_id not in init_order:
+        raise LoreKitError(f"Character {character_id} is not in this encounter")
+
+    char_name = db.execute("SELECT name FROM characters WHERE id = ?", (character_id,)).fetchone()[0]
+
+    # Check if it's this character's turn
+    is_current = init_order[current_turn] == character_id
+    char_index = init_order.index(character_id)
+
+    # Remove zone terrain modifiers
+    zone_row = db.execute(
+        "SELECT ez.name FROM character_zone cz "
+        "JOIN encounter_zones ez ON cz.zone_id = ez.id "
+        "WHERE cz.encounter_id = ? AND cz.character_id = ?",
+        (enc_id, character_id),
+    ).fetchone()
+    if zone_row:
+        _remove_zone_terrain(db, character_id, zone_row[0])
+
+    # Remove from character_zone
+    db.execute(
+        "DELETE FROM character_zone WHERE encounter_id = ? AND character_id = ?",
+        (enc_id, character_id),
+    )
+
+    # Remove encounter-duration combat_state rows
+    db.execute(
+        "DELETE FROM combat_state WHERE character_id = ? AND duration_type IN "
+        "('encounter', 'rounds', 'concentration', 'reaction')",
+        (character_id,),
+    )
+
+    # Remove from initiative order
+    init_order.remove(character_id)
+
+    # Adjust current_turn if needed
+    new_turn = current_turn
+    if char_index < current_turn:
+        new_turn = current_turn - 1
+    elif is_current and init_order:
+        new_turn = min(current_turn, len(init_order) - 1)
+
+    db.execute(
+        "UPDATE encounter_state SET initiative_order = ?, current_turn = ? WHERE id = ?",
+        (json.dumps(init_order), new_turn, enc_id),
+    )
+
+    db.commit()
+    try_rules_calc(db, character_id)
+
+    result = f"LEFT ENCOUNTER: {char_name} removed"
+    if is_current and init_order:
+        result += " (was current turn — auto-advancing)"
+        # Auto-advance will happen on next encounter_advance_turn call
+
+    return result
+
+
 def end_encounter(db, session_id: int, combat_cfg: dict | None = None) -> str:
     """End the active encounter with combat summary.
 

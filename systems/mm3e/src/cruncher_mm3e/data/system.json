@@ -17,7 +17,9 @@
 
   "start_turn": {
     "until_next_turn": {"action": "remove"},
-    "sustained": {"action": "warn"}
+    "sustained": {"action": "warn"},
+    "reaction": {"action": "replenish", "reset_to": 1},
+    "deferred_homing": {"action": "retry_action"}
   },
 
   "combat": {
@@ -27,6 +29,36 @@
     "initiative_stat": "initiative",
     "damage_triggers": {
       "concentration": {"save_stat": "will", "dc_formula": "max(10, floor(damage_rank / 2))"}
+    },
+    "reactions": {
+      "before_attack": {
+        "substitute_defender": {
+          "description": "Reactor takes the hit instead of the original target (Interpose)",
+          "check": "range",
+          "scope": "ally_targeted"
+        }
+      },
+      "replace_defense": {
+        "use_reactor_stat": {
+          "description": "Reactor's stat replaces defender's defense (Deflect)",
+          "scope": "self_targeted"
+        }
+      },
+      "after_hit": {
+        "counter_attack": {
+          "description": "Reactor gets a free counter-attack (Weapon Bind/Break)",
+          "scope": "self_targeted"
+        }
+      }
+    },
+    "team_attack": {
+      "attack_bonus_per": 2,
+      "max_attack_bonus": 5,
+      "dc_bonus_per": 1,
+      "requires_same_zone": true
+    },
+    "alternate_switching": {
+      "action_cost": "free"
     },
     "hud": {
       "vital_stat": {"current": "damage_condition", "label": "Condition"}
