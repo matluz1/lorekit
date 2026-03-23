@@ -185,8 +185,9 @@ def _process_budget(rules: dict, char_attrs: dict[str, dict[str, str]], system_d
 
     try:
         result.budget_total = calc(total_formula, ctx)
-    except Exception:
+    except Exception as e:
         result.budget_total = 0
+        result.warnings.append(f"⚠ BUDGET: formula '{total_formula}' failed — {e}. Defaulting to 0.")
 
 
 # ---------------------------------------------------------------------------
@@ -291,7 +292,15 @@ def _process_pipeline(
             continue
 
         if power_data.get("effect"):
-            cost = _compute_pipeline_cost(power_data, effects_data, modifiers_data, pipeline, modifier_groups)
+            cost = _compute_pipeline_cost(
+                power_data,
+                effects_data,
+                modifiers_data,
+                pipeline,
+                modifier_groups,
+                warnings=result.warnings,
+                ability_name=ability_name,
+            )
         elif "cost" in power_data:
             cost = power_data["cost"]
         else:
@@ -365,6 +374,8 @@ def _compute_pipeline_cost(
     modifiers_data: dict,
     pipeline: list[dict],
     modifier_groups: list[dict],
+    warnings: list[str] | None = None,
+    ability_name: str = "",
 ) -> float:
     """Compute cost using pipeline stages.
 
@@ -400,7 +411,15 @@ def _compute_pipeline_cost(
         total = sum(source.get(k, {}).get("cost", default_cost) for k in data.get(ability_key, []))
         pipeline_vars[pipeline_var] = pipeline_vars.get(pipeline_var, 0) + total
 
-    return _run_pipeline(pipeline, base_cost, ranks, pipeline_vars, data.get("removable", 0))
+    return _run_pipeline(
+        pipeline,
+        base_cost,
+        ranks,
+        pipeline_vars,
+        data.get("removable", 0),
+        warnings=warnings,
+        ability_name=ability_name,
+    )
 
 
 def _run_pipeline(
@@ -409,6 +428,8 @@ def _run_pipeline(
     ranks: int,
     pipeline_vars: dict[str, float],
     removable: int,
+    warnings: list[str] | None = None,
+    ability_name: str = "",
 ) -> float:
     """Run pipeline stages using the formula evaluator."""
     from cruncher.formulas import FormulaContext, calc
@@ -423,11 +444,15 @@ def _run_pipeline(
     prev = 0
     for stage in pipeline:
         formula = stage.get("formula", "0")
+        stage_name = stage.get("stage", "?")
         ctx = FormulaContext(values={**ctx_values, "prev": prev})
         try:
             prev = calc(formula, ctx)
-        except Exception:
-            pass
+        except Exception as e:
+            if warnings is not None:
+                warnings.append(
+                    f"⚠ PIPELINE: stage '{stage_name}' failed for '{ability_name}' — {e}. Using previous value."
+                )
 
     return prev
 
@@ -602,6 +627,7 @@ def _process_source(
     # Regular sources
     full_path = os.path.join(pack_dir, source_pattern)
     if not os.path.isfile(full_path):
+        result.warnings.append(f"⚠ SOURCE: file '{source_pattern}' not found for category '{category}'")
         return
 
     source_data = _load_json(full_path)
@@ -614,6 +640,9 @@ def _process_source(
         selected_key = selected_key.lower().replace(" ", "_")
         item = source_data.get(selected_key)
         if not item:
+            result.warnings.append(
+                f"⚠ SOURCE: '{selected_key}' not found in '{source_pattern}' for category '{category}'"
+            )
             return
         if has_writes:
             _apply_writes(rules["writes"], item, result)
@@ -675,8 +704,15 @@ def _apply_progressions(progressions_path: str, source_data: dict, level: int, r
     tables = source_data.get("tables", {})
     for var_name, table_key in prog_map.items():
         table = tables.get(table_key)
-        if table and isinstance(table, list) and level <= len(table):
-            result.attributes[var_name] = table[level - 1]
+        if not table or not isinstance(table, list):
+            result.warnings.append(f"⚠ PROGRESSION: table '{table_key}' not found for '{var_name}'")
+            continue
+        if level > len(table):
+            result.warnings.append(
+                f"⚠ PROGRESSION: level {level} exceeds table '{table_key}' (max {len(table)}) for '{var_name}'"
+            )
+            continue
+        result.attributes[var_name] = table[level - 1]
 
 
 def _apply_effects(

@@ -307,6 +307,13 @@ def rules_calc(db, character_id: int, pack_dir: str) -> str:
             else:
                 lines.append(f"  {stat}: {old} → {new}")
 
+    # Report errored derived stats (formula evaluation failures)
+    errored = {k: v for k, v in result.derived.items() if isinstance(v, str) and v.startswith("ERROR:")}
+    if errored:
+        lines.append("⚠ FORMULA ERRORS:")
+        for stat, err in errored.items():
+            lines.append(f"  {stat}: {err}")
+
     if result.violations:
         lines.append("VIOLATIONS:")
         for v in result.violations:
