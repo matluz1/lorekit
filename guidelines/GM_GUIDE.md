@@ -222,8 +222,15 @@ who would know them. This keeps NPC knowledge isolated and accurate.
 
 ### Journal
 
-The journal is an optional notepad for GM-only notes -- player preferences,
-reminders, planning notes. It is **not** for in-game events (use timeline).
+The journal records significant events: combat outcomes, discoveries, decisions,
+and GM notes. NPCs automatically see journal entries they were part of — combat
+summaries tag all participants, so fighters learn what happened without manual
+memory injection.
+
+Use `scope` to control visibility:
+- `"participants"` (default) — only tagged characters see it
+- `"all"` — public knowledge (announcements, world events)
+- `"gm"` — hidden from all NPCs (secrets, plot hooks, planning notes)
 
 Use the journal to record **recurring relationship dynamics** between
 characters. Patterns that emerge across many scenes -- rivalries, running jokes,
@@ -303,6 +310,18 @@ interactions automatically — no GM action needed beyond the trigger.
 
 Old, unimportant, never-accessed memories (> 38 days, importance < 0.3) are
 pruned during reflection to keep memory manageable.
+
+### NPC Memory
+
+Do **not** use `npc_memory_add` for in-game events. NPCs automatically learn
+about events they participated in through scoped timeline and journal entries.
+When you next call `npc_interact`, the NPC will see what happened and form its
+own memories with personal framing.
+
+Use `npc_memory_add` **only** for:
+- Backstory from before the game began
+- Off-screen events between sessions
+- Retcons or corrections
 
 ---
 
