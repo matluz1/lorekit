@@ -60,14 +60,23 @@ def main():
 
 
 def create(
-    db, session_id: int, name: str, level: int, char_type: str = "pc", region_id: int = 0, gender: str = ""
+    db,
+    session_id: int,
+    name: str,
+    level: int,
+    char_type: str = "pc",
+    region_id: int = 0,
+    gender: str = "",
+    prefetch: int = -1,
 ) -> str:
     if char_type not in ("pc", "npc"):
         raise LoreKitError("type must be pc or npc")
+    if prefetch == -1:
+        prefetch = 1 if char_type == "pc" else 0
     region_val = region_id if region_id else None
     cur = db.execute(
-        "INSERT INTO characters (session_id, name, gender, level, type, region_id) VALUES (?, ?, ?, ?, ?, ?)",
-        (session_id, name, gender, level, char_type, region_val),
+        "INSERT INTO characters (session_id, name, gender, level, type, prefetch, region_id) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        (session_id, name, gender, level, char_type, prefetch, region_val),
     )
     db.commit()
     return f"CHARACTER_CREATED: {cur.lastrowid}"

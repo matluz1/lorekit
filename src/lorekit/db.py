@@ -31,6 +31,7 @@ CREATE TABLE IF NOT EXISTS characters (
     level       INTEGER NOT NULL DEFAULT 1,
     status      TEXT    NOT NULL DEFAULT 'alive',
     type        TEXT    NOT NULL DEFAULT 'pc',
+    prefetch    INTEGER NOT NULL DEFAULT 0,
     region_id   INTEGER REFERENCES regions(id) ON DELETE SET NULL,
     created_at  TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
 );
@@ -277,6 +278,7 @@ ADD_COLUMN_MIGRATIONS = [
     ("timeline", "scope", "ALTER TABLE timeline ADD COLUMN scope TEXT NOT NULL DEFAULT 'participants'"),
     ("journal", "scope", "ALTER TABLE journal ADD COLUMN scope TEXT NOT NULL DEFAULT 'participants'"),
     ("checkpoints", "kind", "ALTER TABLE checkpoints ADD COLUMN kind TEXT NOT NULL DEFAULT 'auto'"),
+    ("characters", "prefetch", "ALTER TABLE characters ADD COLUMN prefetch INTEGER NOT NULL DEFAULT 0"),
 ]
 
 DROP_COLUMN_MIGRATIONS = [
@@ -590,7 +592,9 @@ def _run_migrations(db_path):
         if column in cols:
             conn.execute(sql)
             changed = True
+    # Data migration: backfill prefetch=1 for existing PCs
     if changed:
+        conn.execute("UPDATE characters SET prefetch = 1 WHERE type = 'pc' AND prefetch = 0")
         conn.commit()
     conn.close()
 

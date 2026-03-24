@@ -234,7 +234,7 @@ def test_session_resume(make_session, make_character):
     assert "=== METADATA ===" in result
     assert "=== STORY ===" in result
     assert "ACTIVE ACT:" in result
-    assert "=== PLAYER CHARACTERS ===" in result
+    assert "=== CHARACTERS ===" in result
     assert "Hero" in result
     assert "=== REGIONS ===" in result
     assert "Town" in result

@@ -920,6 +920,7 @@ def character_build(
     type: str = "pc",
     gender: str = "",
     region: int = 0,
+    prefetch: int = -1,
     attrs: str = "[]",
     items: str = "[]",
     abilities: str = "[]",
@@ -929,6 +930,9 @@ def character_build(
     """Create a full character in one call: identity + attributes + items + abilities.
 
     gender: character gender (e.g. "female", "male", etc"). Used in prompts for correct pronoun usage.
+    prefetch: whether session_resume should include this character's full sheet.
+      Defaults to true for PCs, false for NPCs. Set to 1 for companion NPCs
+      that should always be visible on resume.
     attrs: JSON array of {"category":"stat","key":"str","value":"16"} objects.
     items: JSON array of {"name":"Sword","desc":"...","qty":1,"equipped":1} objects.
     abilities: JSON array of {"name":"Flame Burst","desc":"...","category":"spell","uses":"1/day"} objects.
@@ -958,7 +962,7 @@ def character_build(
 
     db = require_db()
     try:
-        r = char_create(db, session, name, level, type, region, gender)
+        r = char_create(db, session, name, level, type, region, gender, prefetch)
         char_id = int(r.split(": ")[1])
 
         attr_count = 0
@@ -1312,19 +1316,19 @@ def session_resume(session_id: int) -> str:
         except LoreKitError:
             parts.append("(no story set)")
 
-        parts.append("\n=== PLAYER CHARACTERS ===")
+        parts.append("\n=== CHARACTERS ===")
         db.row_factory = sqlite3.Row
-        pcs = db.execute(
-            "SELECT id FROM characters WHERE session_id = ? AND type = 'pc' ORDER BY id",
+        prefetched = db.execute(
+            "SELECT id FROM characters WHERE session_id = ? AND prefetch = 1 ORDER BY id",
             (session_id,),
         ).fetchall()
         db.row_factory = None
-        if pcs:
-            for pc in pcs:
-                parts.append(char_view(db, pc["id"]))
+        if prefetched:
+            for ch in prefetched:
+                parts.append(char_view(db, ch["id"]))
                 parts.append("")
         else:
-            parts.append("(no PCs)")
+            parts.append("(no characters)")
 
         parts.append("=== REGIONS ===")
         parts.append(region_list_fn(db, session_id))
@@ -1357,6 +1361,7 @@ def character_sheet_update(
     status: str = "",
     gender: str = "",
     region: int = 0,
+    prefetch: int = -1,
     attrs: str = "[]",
     items: str = "[]",
     abilities: str = "[]",
@@ -1368,6 +1373,7 @@ def character_sheet_update(
     """Batch update a character: level/status/region/gender + attributes + items + abilities + remove items/abilities.
 
     gender: character gender (e.g. "female", "male", etc). Used in prompts for correct pronoun usage.
+    prefetch: set to 1 to include this character in session_resume, 0 to exclude. -1 leaves unchanged.
     attrs: JSON array of {"category":"stat","key":"hp","value":"25"} objects.
     items: JSON array of {"name":"Potion","desc":"...","qty":2,"equipped":0} objects.
     abilities: JSON array of {"name":"Shield","desc":"...","category":"spell","uses":"1/day"} objects.
@@ -1405,6 +1411,11 @@ def character_sheet_update(
         if level or status or region or gender:
             r = char_update(db, character_id, level=level, status=status, region_id=region, gender=gender)
             results.append(r)
+
+        if prefetch != -1:
+            db.execute("UPDATE characters SET prefetch = ? WHERE id = ?", (prefetch, character_id))
+            db.commit()
+            results.append(f"PREFETCH: {'on' if prefetch else 'off'}")
 
         attr_count = 0
         for a in attrs_list:

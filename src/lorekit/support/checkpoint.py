@@ -26,12 +26,22 @@ def snapshot_session(db, session_id):
 
     # Characters (full rows — needed to restore characters created then reverted)
     char_rows = db.execute(
-        "SELECT id, name, level, status, type, region_id, created_at FROM characters WHERE session_id = ?",
+        "SELECT id, name, gender, level, status, type, prefetch, region_id, created_at FROM characters WHERE session_id = ?",
         (session_id,),
     ).fetchall()
     char_ids = [r[0] for r in char_rows]
     snap["characters"] = [
-        {"id": r[0], "name": r[1], "level": r[2], "status": r[3], "type": r[4], "region_id": r[5], "created_at": r[6]}
+        {
+            "id": r[0],
+            "name": r[1],
+            "gender": r[2],
+            "level": r[3],
+            "status": r[4],
+            "type": r[5],
+            "prefetch": r[6],
+            "region_id": r[7],
+            "created_at": r[8],
+        }
         for r in char_rows
     ]
 
@@ -404,9 +414,20 @@ def restore_snapshot(db, session_id, snapshot):
         # Characters
         for r in snapshot.get("characters", []):
             db.execute(
-                "INSERT INTO characters (id, session_id, name, level, status, type, region_id, created_at) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-                (r["id"], session_id, r["name"], r["level"], r["status"], r["type"], r["region_id"], r["created_at"]),
+                "INSERT INTO characters (id, session_id, name, gender, level, status, type, prefetch, region_id, created_at) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (
+                    r["id"],
+                    session_id,
+                    r["name"],
+                    r.get("gender", ""),
+                    r["level"],
+                    r["status"],
+                    r["type"],
+                    r.get("prefetch", 1 if r["type"] == "pc" else 0),
+                    r["region_id"],
+                    r["created_at"],
+                ),
             )
 
         # Character attributes
