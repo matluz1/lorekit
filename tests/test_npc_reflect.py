@@ -422,15 +422,15 @@ class TestAutoTriggers:
         assert "10 days have passed" in call_kwargs.kwargs.get("context_hint", call_kwargs[1].get("context_hint", ""))
 
     @patch("lorekit.npc.reflect.reflect_all")
-    def test_time_advance_no_trigger_small_skip(self, mock_reflect, make_session):
-        """Advancing 2 hours should not trigger reflection."""
+    def test_time_advance_small_skip_checks_threshold(self, mock_reflect, make_session):
+        """Any time advance calls reflect_all (threshold gates actual reflection)."""
         sid = make_session()
         from lorekit.server import session_meta_set, time_advance
 
         session_meta_set(session_id=sid, key="narrative_time", value="1347-03-15T14:00")
 
         result = time_advance(session_id=sid, amount=2, unit="hours")
-        mock_reflect.assert_not_called()
+        mock_reflect.assert_called_once()
 
     @patch("lorekit.npc.reflect.reflect_all", return_value="REFLECTIONS: Reflected on 1 NPCs.")
     def test_session_update_finished_triggers(self, mock_reflect, make_session):

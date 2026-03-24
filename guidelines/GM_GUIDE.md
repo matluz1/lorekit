@@ -296,8 +296,9 @@ around it but MUST NOT alter the NPC's actual words.
 NPCs automatically synthesize their accumulated memories into higher-order
 insights through reflection. This happens transparently in two cases:
 
-- **Large timeskips** (>= 7 days via `time_advance`): NPCs whose unprocessed
-  memories exceed the importance threshold reflect on recent events.
+- **Any time advance** (`time_advance`): NPCs whose unprocessed memories
+  exceed the importance threshold reflect automatically. A short rest after
+  a big fight can trigger reflection if enough happened.
 - **Session end** (`session_update(status="finished")`): All NPCs reflect
   regardless of threshold.
 

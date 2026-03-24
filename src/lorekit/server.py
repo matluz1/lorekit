@@ -632,7 +632,7 @@ def time_set(session_id: int, datetime: str) -> str:
 @mcp.tool()
 def time_advance(session_id: int, amount: int, unit: str) -> str:
     """Advance the in-game clock. Units: minutes, hours, days, weeks, months, years.
-    Auto-triggers NPC reflection on large timeskips (>= 7 days)."""
+    Auto-triggers NPC reflection when unprocessed memory importance exceeds threshold."""
     from lorekit.db import LoreKitError, require_db
 
     db = require_db()
@@ -641,12 +641,11 @@ def time_advance(session_id: int, amount: int, unit: str) -> str:
 
         result = advance(db, session_id, amount, unit)
 
-        # Check for large timeskip → auto-reflect
-        hours = _timeskip_hours(amount, unit)
-        if hours >= 168:  # 7 days
-            from lorekit.npc.reflect import reflect_all
+        # Auto-reflect NPCs whose unprocessed memories exceed the importance threshold
+        from lorekit.npc.reflect import reflect_all
 
-            ref_result = reflect_all(db, session_id, context_hint=f"{amount} {unit} have passed in-game")
+        ref_result = reflect_all(db, session_id, context_hint=f"{amount} {unit} have passed in-game")
+        if "0 NPCs" not in ref_result:
             result += f"\n{ref_result}"
 
         return result
