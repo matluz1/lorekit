@@ -209,7 +209,9 @@ def session_view(session_id: int) -> str:
 
 @mcp.tool()
 def session_list(status: str = "") -> str:
-    """List sessions. Optionally filter by status (active/finished)."""
+    """List all sessions. Optionally filter by status (active/finished).
+    Call without arguments first to see all sessions — a finished session
+    can still be resumed for a new adventure arc."""
     from lorekit.narrative.session import list_sessions
 
     return _run_with_db(list_sessions, status)
@@ -217,7 +219,10 @@ def session_list(status: str = "") -> str:
 
 @mcp.tool()
 def session_update(session_id: int, status: str) -> str:
-    """Update session status. Auto-triggers NPC reflection when session is finished."""
+    """Update session status. Auto-triggers NPC reflection when session is finished.
+    WARNING: Only set status to 'finished' when the adventure's story is truly
+    complete. If the player just wants to pause play, do nothing — the session
+    stays active and can be resumed later with session_resume."""
     from lorekit.db import LoreKitError, require_db
 
     db = require_db()

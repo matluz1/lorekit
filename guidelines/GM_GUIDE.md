@@ -52,12 +52,14 @@ player think the game is fair when it isn't.
 
 ## 1. Before You Begin
 
-Check for existing sessions with `session_list`.
+Check for existing sessions with `session_list` (no status filter).
 
-- If there are **active sessions**, ask the player whether they want to
+- If there are **any sessions**, ask the player whether they want to
   **continue an existing session** or **start a new one**.
+  A session can be resumed regardless of status — a finished adventure
+  can continue with a new story arc in the same setting and characters.
 - If the player chooses to continue, go to **Section 4 -- Resuming a session**.
-- If there are no active sessions, continue with section 2 below.
+- If there are no sessions at all, continue with section 2 below.
 
 ---
 
@@ -586,7 +588,18 @@ setting or player has explicitly established a lighter tone.
 
 ## 11. Ending a Session
 
-Mark the session as finished with `session_update(status="finished")`.
+**Pausing play vs finishing the adventure are different things.**
+
+When the player wants to stop playing for now:
+- **Do nothing mechanically.** The session stays active. The player will
+  resume it in a future conversation via `session_resume`.
+- Say goodbye in character if appropriate, but do NOT call `session_update`.
+
+Only mark a session as finished with `session_update(status="finished")` when
+the **adventure's story is truly complete** — the final act is resolved, the
+narrative has reached a natural conclusion, and the player confirms they are
+done with this adventure. Finishing a session triggers NPC reflection and is
+not easily reversible.
 
 Use `export_dump` to dump all session data for narrative rewriting. The
 rewriting guidelines are in `guidelines/REWRITING_GUIDE.md`.
