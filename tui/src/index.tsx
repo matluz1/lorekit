@@ -15,8 +15,7 @@ let systemPrompt: string;
 try {
   const shared = readFileSync(resolve(projectRoot, "guidelines", "SHARED_GUIDE.md"), "utf-8");
   const gm = readFileSync(resolve(projectRoot, "guidelines", "GM_GUIDE.md"), "utf-8");
-  const tools = readFileSync(resolve(projectRoot, "guidelines", "GM_TOOLS.md"), "utf-8");
-  systemPrompt = shared + "\n\n" + gm + "\n\n" + tools;
+  systemPrompt = shared + "\n\n" + gm;
 } catch {
   systemPrompt = "You are a tabletop RPG game master.";
 }

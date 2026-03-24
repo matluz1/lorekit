@@ -1528,7 +1528,7 @@ def _load_npc_guides() -> str:
     project_root = _project_root()
     guidelines_dir = os.path.join(project_root, "guidelines")
     parts = []
-    for fname in ("SHARED_GUIDE.md", "NPC_GUIDE.md", "NPC_TOOLS.md"):
+    for fname in ("SHARED_GUIDE.md", "NPC_GUIDE.md"):
         path = os.path.join(guidelines_dir, fname)
         try:
             with open(path, "r") as f:
