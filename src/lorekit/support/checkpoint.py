@@ -587,8 +587,12 @@ def _set_cursor(db, session_id, checkpoint_id):
         )
 
 
-def create_checkpoint(db, session_id, *, force: bool = False):
-    """Snapshot current state and save as a checkpoint. Returns checkpoint id."""
+def create_checkpoint(db, session_id, *, force: bool = False, kind: str = "auto"):
+    """Snapshot current state and save as a checkpoint. Returns checkpoint id.
+
+    kind: 'turn' for turn_save checkpoints (stable narrative+mechanical boundary),
+          'auto' for combat auto-checkpoints (undo points within a turn).
+    """
     # Branch truncation: if cursor is behind tip, delete future checkpoints
     cursor = _get_cursor(db, session_id)
     if cursor is not None:
@@ -617,8 +621,8 @@ def create_checkpoint(db, session_id, *, force: bool = False):
     snap = snapshot_session(db, session_id)
 
     cur = db.execute(
-        "INSERT INTO checkpoints (session_id, timeline_max_id, journal_max_id, snapshot) VALUES (?, ?, ?, ?)",
-        (session_id, tl_max, jn_max, json.dumps(snap)),
+        "INSERT INTO checkpoints (session_id, timeline_max_id, journal_max_id, snapshot, kind) VALUES (?, ?, ?, ?, ?)",
+        (session_id, tl_max, jn_max, json.dumps(snap), kind),
     )
     new_id = cur.lastrowid
     _set_cursor(db, session_id, new_id)
@@ -663,6 +667,46 @@ def revert_to_previous(db, session_id, steps=1):
     actual_steps = cursor_idx - target_idx
     skipped = f" (skipped {actual_steps - 1})" if actual_steps > 1 else ""
     return f"TURN_REVERTED: restored to checkpoint #{target_id}{skipped}"
+
+
+def restore_to_last_turn(db, session_id):
+    """Roll back to the most recent kind='turn' checkpoint if the cursor is past it.
+
+    Called on session_resume to discard dirty mechanical state left by an
+    interrupted turn (e.g. Ctrl+C after NPC combat but before turn_save).
+    Returns a message if a rollback happened, or None if state was clean.
+    """
+    cursor = _get_cursor(db, session_id)
+    if cursor is None:
+        return None
+
+    # Find the most recent turn checkpoint
+    row = db.execute(
+        "SELECT id FROM checkpoints WHERE session_id = ? AND kind = 'turn' ORDER BY id DESC LIMIT 1",
+        (session_id,),
+    ).fetchone()
+    if row is None:
+        return None
+
+    last_turn_id = row[0]
+    if cursor <= last_turn_id:
+        # Cursor is at or before the last turn checkpoint — no dirty state
+        return None
+
+    # Dirty state detected: auto-checkpoints exist past the last turn checkpoint.
+    # Restore to the turn checkpoint and delete the orphan auto-checkpoints.
+    snapshot_json = db.execute("SELECT snapshot FROM checkpoints WHERE id = ?", (last_turn_id,)).fetchone()[0]
+    snapshot = json.loads(snapshot_json)
+
+    restore_snapshot(db, session_id, snapshot)
+    _set_cursor(db, session_id, last_turn_id)
+    db.execute(
+        "DELETE FROM checkpoints WHERE session_id = ? AND id > ?",
+        (session_id, last_turn_id),
+    )
+    db.commit()
+
+    return f"⚠ RECOVERY: rolled back to last stable checkpoint #{last_turn_id} (discarded uncommitted combat state)"
 
 
 def advance_to_next(db, session_id, steps=1):

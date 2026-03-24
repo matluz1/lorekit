@@ -185,6 +185,7 @@ CREATE TABLE IF NOT EXISTS checkpoints (
     timeline_max_id INTEGER NOT NULL DEFAULT 0,
     journal_max_id  INTEGER NOT NULL DEFAULT 0,
     snapshot        TEXT    NOT NULL,
+    kind            TEXT    NOT NULL DEFAULT 'auto',
     created_at      TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
 );
 
@@ -275,6 +276,7 @@ ADD_COLUMN_MIGRATIONS = [
     ("combat_state", "metadata", "ALTER TABLE combat_state ADD COLUMN metadata TEXT"),
     ("timeline", "scope", "ALTER TABLE timeline ADD COLUMN scope TEXT NOT NULL DEFAULT 'participants'"),
     ("journal", "scope", "ALTER TABLE journal ADD COLUMN scope TEXT NOT NULL DEFAULT 'participants'"),
+    ("checkpoints", "kind", "ALTER TABLE checkpoints ADD COLUMN kind TEXT NOT NULL DEFAULT 'auto'"),
 ]
 
 DROP_COLUMN_MIGRATIONS = [

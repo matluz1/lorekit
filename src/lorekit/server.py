@@ -814,7 +814,7 @@ def turn_save(
             (session_id,),
         ).fetchone()
         if not has_cp:
-            create_checkpoint(db, session_id)
+            create_checkpoint(db, session_id, kind="turn")
 
         results = []
         saved_entries = []  # (source, source_id, text) for entity auto-tagging
@@ -881,7 +881,7 @@ def turn_save(
                 )
 
         # Checkpoint after writing (the "approved" state after this turn)
-        create_checkpoint(db, session_id, force=force)
+        create_checkpoint(db, session_id, force=force, kind="turn")
 
         return "\n".join(results)
     except LoreKitError as e:
@@ -1254,6 +1254,14 @@ def session_resume(session_id: int) -> str:
     db = require_db()
     try:
         parts = []
+
+        # Roll back dirty state from interrupted turns (e.g. Ctrl+C mid-combat)
+        from lorekit.support.checkpoint import restore_to_last_turn
+
+        recovery_msg = restore_to_last_turn(db, session_id)
+        if recovery_msg:
+            parts.append(recovery_msg)
+            parts.append("")
 
         # Active encounter first (so it appears in truncated previews)
         enc_row = db.execute(
