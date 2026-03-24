@@ -1196,12 +1196,26 @@ def end_encounter(db, session_id: int, combat_cfg: dict | None = None) -> str:
     if parts:
         lines.append(f"Cleared: {', '.join(parts)}")
 
-    # Auto-save combat summary to journal
+    # Auto-save combat summary to journal (scoped to participants)
     summary_text = "\n".join(lines)
     try:
         from lorekit.narrative.journal import add as journal_add
 
-        journal_result = journal_add(db, session_id, "combat", summary_text)
+        journal_result = journal_add(db, session_id, "combat", summary_text, scope="participants")
+
+        # Auto-tag all participants as entities on the journal entry
+        try:
+            journal_id = int(journal_result.split(": ")[1])
+            for cid in char_ids:
+                db.execute(
+                    "INSERT OR IGNORE INTO entry_entities (source, source_id, entity_type, entity_id) "
+                    "VALUES (?, ?, ?, ?)",
+                    ("journal", journal_id, "character", cid),
+                )
+            db.commit()
+        except (IndexError, ValueError):
+            pass
+
         lines.append(f"Journal saved: {journal_result}")
     except Exception:
         pass  # journal save is best-effort

@@ -209,16 +209,78 @@ def _get_recent_memories(db, npc_id: int, session_id: int, limit: int = _FALLBAC
     return [_row_to_memory(r) for r in rows]
 
 
-def _get_recent_timeline(db, session_id: int, limit: int = 10) -> list[str]:
-    """Get recent timeline entries as formatted strings."""
-    rows = db.execute(
-        "SELECT entry_type, content, summary FROM timeline WHERE session_id = ? ORDER BY id DESC LIMIT ?",
-        (session_id, limit),
-    ).fetchall()
+def _get_recent_timeline(db, session_id: int, npc_id: int = 0, limit: int = 10) -> list[str]:
+    """Get recent timeline entries visible to this NPC, as formatted strings.
+
+    Scope filtering:
+    - "all" entries are always visible
+    - "participants" entries require the NPC to be tagged in entry_entities
+    - "region" entries require the NPC's region to be tagged in entry_entities
+    - "gm" entries are never visible to NPCs
+    """
+    if not npc_id:
+        # Fallback: no NPC context, show all non-gm entries
+        rows = db.execute(
+            "SELECT entry_type, content, summary FROM timeline "
+            "WHERE session_id = ? AND scope != 'gm' ORDER BY id DESC LIMIT ?",
+            (session_id, limit),
+        ).fetchall()
+    else:
+        npc_region = db.execute("SELECT region_id FROM characters WHERE id = ?", (npc_id,)).fetchone()
+        npc_region_id = npc_region[0] if npc_region and npc_region[0] else 0
+
+        rows = db.execute(
+            """SELECT entry_type, content, summary FROM timeline
+            WHERE session_id = ? AND (
+                scope = 'all'
+                OR (scope = 'participants' AND id IN (
+                    SELECT source_id FROM entry_entities
+                    WHERE source = 'timeline' AND entity_type = 'character' AND entity_id = ?
+                ))
+                OR (scope = 'region' AND id IN (
+                    SELECT source_id FROM entry_entities
+                    WHERE source = 'timeline' AND entity_type = 'region' AND entity_id = ?
+                ))
+            )
+            ORDER BY id DESC LIMIT ?""",
+            (session_id, npc_id, npc_region_id, limit),
+        ).fetchall()
+
     entries = []
     for entry_type, content, summary in reversed(rows):
         text = summary or content[:200]
         entries.append(f"- {text}")
+    return entries
+
+
+def _get_recent_journal(db, session_id: int, npc_id: int, limit: int = 5) -> list[str]:
+    """Get recent journal entries visible to this NPC, as formatted strings.
+
+    Same scope filtering as timeline.
+    """
+    npc_region = db.execute("SELECT region_id FROM characters WHERE id = ?", (npc_id,)).fetchone()
+    npc_region_id = npc_region[0] if npc_region and npc_region[0] else 0
+
+    rows = db.execute(
+        """SELECT entry_type, content FROM journal
+        WHERE session_id = ? AND (
+            scope = 'all'
+            OR (scope = 'participants' AND id IN (
+                SELECT source_id FROM entry_entities
+                WHERE source = 'journal' AND entity_type = 'character' AND entity_id = ?
+            ))
+            OR (scope = 'region' AND id IN (
+                SELECT source_id FROM entry_entities
+                WHERE source = 'journal' AND entity_type = 'region' AND entity_id = ?
+            ))
+        )
+        ORDER BY id DESC LIMIT ?""",
+        (session_id, npc_id, npc_region_id, limit),
+    ).fetchall()
+
+    entries = []
+    for entry_type, content in reversed(rows):
+        entries.append(f"- [{entry_type}] {content[:200]}")
     return entries
 
 
@@ -393,6 +455,24 @@ def _format_timeline(entries: list[str], token_budget: int) -> tuple[str, int]:
     return "\n".join(lines), tokens_used
 
 
+def _format_journal(entries: list[str], token_budget: int) -> tuple[str, int]:
+    """Format journal entries within token budget."""
+    if not entries:
+        return "", 0
+
+    lines = ["## Recent Journal"]
+    tokens_used = _estimate_tokens(lines[0])
+
+    for entry in entries:
+        entry_tokens = _estimate_tokens(entry)
+        if tokens_used + entry_tokens > token_budget:
+            break
+        lines.append(entry)
+        tokens_used += entry_tokens
+
+    return "\n".join(lines), tokens_used
+
+
 # ---------------------------------------------------------------------------
 # Main pipeline
 # ---------------------------------------------------------------------------
@@ -474,29 +554,33 @@ def assemble_context(
     scored = npc_memory.score_memories(all_candidates, query_embedding, narrative_time, noise=noise)
     debug["scored_count"] = len(scored)
 
-    # Timeline context
-    timeline_entries = _get_recent_timeline(db, session_id)
+    # Timeline + journal context (scope-filtered for this NPC)
+    timeline_entries = _get_recent_timeline(db, session_id, npc_id=npc_id)
+    journal_entries = _get_recent_journal(db, session_id, npc_id=npc_id)
 
     # Step 6: Token-budget assembly
     remaining_budget = token_budget - core_tokens
 
-    # Allocate: 70% memories, 30% timeline
-    memory_budget = int(remaining_budget * 0.7)
-    timeline_budget = remaining_budget - memory_budget
+    # Allocate: 60% memories, 25% timeline, 15% journal
+    memory_budget = int(remaining_budget * 0.6)
+    timeline_budget = int(remaining_budget * 0.25)
+    journal_budget = remaining_budget - memory_budget - timeline_budget
 
     memories_text, mem_tokens = _format_memories(scored, memory_budget)
     timeline_text, tl_tokens = _format_timeline(timeline_entries, timeline_budget)
+    journal_text, jn_tokens = _format_journal(journal_entries, journal_budget)
 
     debug["memory_tokens"] = mem_tokens
     debug["timeline_tokens"] = tl_tokens
-    debug["total_tokens"] = core_tokens + mem_tokens + tl_tokens
+    debug["journal_tokens"] = jn_tokens
+    debug["total_tokens"] = core_tokens + mem_tokens + tl_tokens + jn_tokens
 
     # Update access counts for retrieved memories
     retrieved_ids = [m["id"] for m, _ in scored[:50]]  # cap update to top 50
     _update_access_counts(db, retrieved_ids, narrative_time)
 
     # Assemble final context
-    sections = [s for s in (core_text, memories_text, timeline_text) if s]
+    sections = [s for s in (core_text, memories_text, timeline_text, journal_text) if s]
     context = "\n\n".join(sections)
 
     debug["memories_included"] = len([1 for line in memories_text.split("\n") if line.startswith("- ")])

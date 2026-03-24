@@ -52,13 +52,23 @@ def _resolve_narrative_time(db, session_id, explicit_time):
     return row[0] if row else ""
 
 
-def add(db, session_id: int, entry_type: str, content: str, summary: str = "", narrative_time: str = "") -> str:
+def add(
+    db,
+    session_id: int,
+    entry_type: str,
+    content: str,
+    summary: str = "",
+    narrative_time: str = "",
+    scope: str = "participants",
+) -> str:
     if entry_type not in ("narration", "player_choice"):
         raise LoreKitError("type must be narration or player_choice")
+    if scope not in ("gm", "participants", "region", "all"):
+        raise LoreKitError(f"scope must be gm, participants, region, or all — got '{scope}'")
     nt = _resolve_narrative_time(db, session_id, narrative_time)
     cur = db.execute(
-        "INSERT INTO timeline (session_id, entry_type, content, summary, narrative_time) VALUES (?, ?, ?, ?, ?)",
-        (session_id, entry_type, content, summary, nt),
+        "INSERT INTO timeline (session_id, entry_type, content, summary, narrative_time, scope) VALUES (?, ?, ?, ?, ?, ?)",
+        (session_id, entry_type, content, summary, nt, scope),
     )
     db.commit()
     sql_id = cur.lastrowid

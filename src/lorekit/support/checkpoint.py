@@ -230,18 +230,26 @@ def snapshot_session(db, session_id):
 
     # Timeline
     snap["timeline"] = [
-        {"id": r[0], "entry_type": r[1], "content": r[2], "summary": r[3], "narrative_time": r[4], "created_at": r[5]}
+        {
+            "id": r[0],
+            "entry_type": r[1],
+            "content": r[2],
+            "summary": r[3],
+            "narrative_time": r[4],
+            "scope": r[5],
+            "created_at": r[6],
+        }
         for r in db.execute(
-            "SELECT id, entry_type, content, summary, narrative_time, created_at FROM timeline WHERE session_id = ?",
+            "SELECT id, entry_type, content, summary, narrative_time, scope, created_at FROM timeline WHERE session_id = ?",
             (session_id,),
         ).fetchall()
     ]
 
     # Journal
     snap["journal"] = [
-        {"id": r[0], "entry_type": r[1], "content": r[2], "narrative_time": r[3], "created_at": r[4]}
+        {"id": r[0], "entry_type": r[1], "content": r[2], "narrative_time": r[3], "scope": r[4], "created_at": r[5]}
         for r in db.execute(
-            "SELECT id, entry_type, content, narrative_time, created_at FROM journal WHERE session_id = ?",
+            "SELECT id, entry_type, content, narrative_time, scope, created_at FROM journal WHERE session_id = ?",
             (session_id,),
         ).fetchall()
     ]
@@ -506,8 +514,8 @@ def restore_snapshot(db, session_id, snapshot):
         # Timeline
         for r in snapshot.get("timeline", []):
             db.execute(
-                "INSERT INTO timeline (id, session_id, entry_type, content, summary, narrative_time, created_at) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                "INSERT INTO timeline (id, session_id, entry_type, content, summary, narrative_time, scope, created_at) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
                 (
                     r["id"],
                     session_id,
@@ -515,6 +523,7 @@ def restore_snapshot(db, session_id, snapshot):
                     r["content"],
                     r["summary"],
                     r["narrative_time"],
+                    r.get("scope", "participants"),
                     r["created_at"],
                 ),
             )
@@ -524,9 +533,17 @@ def restore_snapshot(db, session_id, snapshot):
         # Journal
         for r in snapshot.get("journal", []):
             db.execute(
-                "INSERT INTO journal (id, session_id, entry_type, content, narrative_time, created_at) "
-                "VALUES (?, ?, ?, ?, ?, ?)",
-                (r["id"], session_id, r["entry_type"], r["content"], r["narrative_time"], r["created_at"]),
+                "INSERT INTO journal (id, session_id, entry_type, content, narrative_time, scope, created_at) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (
+                    r["id"],
+                    session_id,
+                    r["entry_type"],
+                    r["content"],
+                    r["narrative_time"],
+                    r.get("scope", "participants"),
+                    r["created_at"],
+                ),
             )
             index_journal(db, session_id, r["id"], r["entry_type"], r["content"], r["created_at"])
 

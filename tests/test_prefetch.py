@@ -490,6 +490,7 @@ class TestPreFetch:
             session_id=session_id,
             narration="The party arrived at the village gate.",
             summary="Party arrives at village",
+            scope="all",
         )
 
         from lorekit.db import require_db

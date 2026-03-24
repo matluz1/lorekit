@@ -80,6 +80,7 @@ CREATE TABLE IF NOT EXISTS journal (
     entry_type      TEXT    NOT NULL,
     content         TEXT    NOT NULL,
     narrative_time  TEXT    NOT NULL DEFAULT '',
+    scope           TEXT    NOT NULL DEFAULT 'participants',
     created_at      TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
 );
 
@@ -90,6 +91,7 @@ CREATE TABLE IF NOT EXISTS timeline (
     content         TEXT    NOT NULL,
     summary         TEXT    NOT NULL DEFAULT '',
     narrative_time  TEXT    NOT NULL DEFAULT '',
+    scope           TEXT    NOT NULL DEFAULT 'participants',
     created_at      TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
 );
 
@@ -271,6 +273,8 @@ ADD_COLUMN_MIGRATIONS = [
     ("characters", "gender", "ALTER TABLE characters ADD COLUMN gender TEXT NOT NULL DEFAULT ''"),
     ("combat_state", "applied_by", "ALTER TABLE combat_state ADD COLUMN applied_by INTEGER REFERENCES characters(id)"),
     ("combat_state", "metadata", "ALTER TABLE combat_state ADD COLUMN metadata TEXT"),
+    ("timeline", "scope", "ALTER TABLE timeline ADD COLUMN scope TEXT NOT NULL DEFAULT 'participants'"),
+    ("journal", "scope", "ALTER TABLE journal ADD COLUMN scope TEXT NOT NULL DEFAULT 'participants'"),
 ]
 
 DROP_COLUMN_MIGRATIONS = [
@@ -420,9 +424,10 @@ _CASCADE_MIGRATIONS = {
             entry_type      TEXT    NOT NULL,
             content         TEXT    NOT NULL,
             narrative_time  TEXT    NOT NULL DEFAULT '',
+            scope           TEXT    NOT NULL DEFAULT 'participants',
             created_at      TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
         )""",
-        ["id", "session_id", "entry_type", "content", "narrative_time", "created_at"],
+        ["id", "session_id", "entry_type", "content", "narrative_time", "scope", "created_at"],
     ),
     "timeline": (
         """CREATE TABLE timeline (
@@ -432,9 +437,10 @@ _CASCADE_MIGRATIONS = {
             content         TEXT    NOT NULL,
             summary         TEXT    NOT NULL DEFAULT '',
             narrative_time  TEXT    NOT NULL DEFAULT '',
+            scope           TEXT    NOT NULL DEFAULT 'participants',
             created_at      TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
         )""",
-        ["id", "session_id", "entry_type", "content", "summary", "narrative_time", "created_at"],
+        ["id", "session_id", "entry_type", "content", "summary", "narrative_time", "scope", "created_at"],
     ),
     "stories": (
         """CREATE TABLE stories (

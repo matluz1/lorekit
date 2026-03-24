@@ -580,11 +580,18 @@ def turn_advance(session_id: int, steps: int = 1) -> str:
 
 
 @mcp.tool()
-def journal_add(session_id: int, type: str, content: str, narrative_time: str = "") -> str:
-    """Add a journal entry. Types: event, combat, discovery, npc, decision, note. Stamps with current narrative clock unless overridden."""
+def journal_add(session_id: int, type: str, content: str, narrative_time: str = "", scope: str = "participants") -> str:
+    """Add a journal entry. Types: event, combat, discovery, npc, decision, note.
+
+    scope: who can see this entry during NPC interactions.
+      "participants" (default) — only NPCs tagged in the entry's entities.
+      "region" — NPCs in the same region as tagged region entities.
+      "all" — every NPC in the session (public announcements, world events).
+      "gm" — hidden from all NPCs (GM-only notes, secrets, plot hooks).
+    """
     from lorekit.narrative.journal import add
 
-    return _run_with_db(add, session_id, type, content, narrative_time)
+    return _run_with_db(add, session_id, type, content, narrative_time, scope)
 
 
 @mcp.tool()
@@ -766,6 +773,7 @@ def turn_save(
     summary: str = "",
     player_choice: str = "",
     narrative_time: str = "",
+    scope: str = "participants",
     force: bool = False,
 ) -> str:
     """Save a game turn: narration + player choice + last_gm_message in one call.
@@ -776,6 +784,11 @@ def turn_save(
     Always include a summary when providing narration (used for semantic search).
     narrative_time: optional override for the in-game timestamp on these entries.
       If omitted, the current narrative clock is used automatically.
+    scope: who can see these entries during NPC interactions.
+      "participants" (default) — only NPCs tagged in the entry's entities.
+      "region" — NPCs in the same region as tagged region entities.
+      "all" — every NPC in the session (public scenes, announcements).
+      "gm" — hidden from all NPCs (secrets, plot hooks, GM notes).
     Always call turn_save as your last action before the player acts.
     During combat, encounter_advance_turn reminds you when a PC turn begins.
     force: if True and the cursor is behind the tip, delete future checkpoints
@@ -812,7 +825,7 @@ def turn_save(
         # already resolved. If only a player_choice exists (no narration yet),
         # it correctly appears as the last entry, signaling a pending action.
         if player_choice:
-            r = tl_add(db, session_id, "player_choice", player_choice, narrative_time=narrative_time)
+            r = tl_add(db, session_id, "player_choice", player_choice, narrative_time=narrative_time, scope=scope)
             results.append(r)
             try:
                 tl_id = int(r.split(": ")[1])
@@ -821,7 +834,7 @@ def turn_save(
                 pass
 
         if narration:
-            r = tl_add(db, session_id, "narration", narration, summary, narrative_time)
+            r = tl_add(db, session_id, "narration", narration, summary, narrative_time, scope=scope)
             results.append(r)
             try:
                 tl_id = int(r.split(": ")[1])

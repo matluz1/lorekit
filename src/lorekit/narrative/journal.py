@@ -52,11 +52,15 @@ def _resolve_narrative_time(db, session_id, explicit_time):
     return row[0] if row else ""
 
 
-def add(db, session_id: int, entry_type: str, content: str, narrative_time: str = "") -> str:
+def add(
+    db, session_id: int, entry_type: str, content: str, narrative_time: str = "", scope: str = "participants"
+) -> str:
+    if scope not in ("gm", "participants", "region", "all"):
+        raise LoreKitError(f"scope must be gm, participants, region, or all — got '{scope}'")
     nt = _resolve_narrative_time(db, session_id, narrative_time)
     cur = db.execute(
-        "INSERT INTO journal (session_id, entry_type, content, narrative_time) VALUES (?, ?, ?, ?)",
-        (session_id, entry_type, content, nt),
+        "INSERT INTO journal (session_id, entry_type, content, narrative_time, scope) VALUES (?, ?, ?, ?, ?)",
+        (session_id, entry_type, content, nt, scope),
     )
     db.commit()
     sql_id = cur.lastrowid
