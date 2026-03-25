@@ -46,7 +46,7 @@ pre-commit install
 ## Testing
 
 ```bash
-pytest tests/
+pytest tests/ --npc-model=MODEL_NAME
 ```
 
 740 tests covering both packages, all system packs, and the full MCP tool

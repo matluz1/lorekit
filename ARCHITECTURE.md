@@ -952,7 +952,7 @@ Key behavioral rules from SHARED_GUIDE:
 ## Development Setup
 
 **Install:** `pip install -e cruncher/ -e .`
-**Test:** `.venv/bin/pytest tests/ -v` (740+ tests)
+**Test:** `.venv/bin/pytest tests/ -v --npc-model=MODEL_NAME` (810+ tests)
 **Lint:** ruff (via pre-commit hooks)
 
 **Pre-commit hooks** (`.pre-commit-config.yaml`):

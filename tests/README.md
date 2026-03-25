@@ -3,7 +3,7 @@
 Run with:
 
 ```bash
-.venv/bin/pytest tests/
+.venv/bin/pytest tests/ --npc-model=MODEL_NAME
 ```
 
 ## Test categories

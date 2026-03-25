@@ -1636,14 +1636,14 @@ class TestCharacterLookupByName:
         )
         assert "MODIFIER ADDED" in result
 
-    def test_npc_interact_by_name(self, make_session, make_character):
+    def test_npc_interact_by_name(self, make_session, make_character, npc_model):
         """Verify name resolution works (mock subprocess to avoid LLM call)."""
         from unittest.mock import patch
 
         from lorekit.server import npc_interact
 
         sid = make_session()
-        make_character(sid, name="Bartender", char_type="npc")
+        make_character(sid, name="Bartender", char_type="npc", model=npc_model)
 
         # Mock subprocess to return a valid stream-json response
         mock_stdout = '{"type":"result","subtype":"success","result":"Hello traveler!"}\n'

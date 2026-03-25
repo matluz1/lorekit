@@ -6,6 +6,10 @@ import re
 import pytest
 
 
+def pytest_addoption(parser):
+    parser.addoption("--npc-model", default="opus", help="Model name for NPC characters in tests")
+
+
 def pytest_configure(config):
     """Warn about system packs that ship without a test_config.json."""
     systems_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "systems")
@@ -57,17 +61,32 @@ def make_session():
 
 
 @pytest.fixture
+def npc_model(request):
+    """Return the NPC model name from --npc-model CLI flag."""
+    return request.config.getoption("--npc-model")
+
+
+@pytest.fixture
 def make_character():
     """Factory that creates a character and returns its integer ID."""
 
-    def _make(session_id, name="Test Hero", char_type="pc", region=None, level=1):
+    def _make(session_id, name="Test Hero", char_type="pc", region=None, level=1, model=None):
         from lorekit.server import character_create
 
         kwargs = dict(session=session_id, name=name, level=level, type=char_type)
         if region:
             kwargs["region"] = region
         result = character_create(**kwargs)
-        return _extract_id(result)
+        cid = _extract_id(result)
+        if model:
+            from lorekit.character import set_attr
+            from lorekit.db import require_db
+
+            _db = require_db()
+            set_attr(_db, cid, "system", "model", model)
+            _db.commit()
+            _db.close()
+        return cid
 
     return _make
 

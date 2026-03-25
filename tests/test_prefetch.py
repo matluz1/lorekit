@@ -13,10 +13,10 @@ def _extract_id(result):
 
 
 @pytest.fixture
-def make_npc(make_session):
+def make_npc(make_session, npc_model):
     """Factory that creates an NPC and returns (session_id, npc_id)."""
 
-    def _make(name="Test NPC", session_id=None, core=None, aliases=None):
+    def _make(name="Test NPC", session_id=None, core=None, aliases=None, model=None):
         if session_id is None:
             session_id = make_session()
         from lorekit.server import character_build
@@ -28,6 +28,15 @@ def make_npc(make_session):
             kwargs["aliases"] = json.dumps(aliases)
         result = character_build(**kwargs)
         npc_id = _extract_id(result)
+        effective_model = model or npc_model
+        if effective_model:
+            from lorekit.character import set_attr
+            from lorekit.db import require_db
+
+            _db = require_db()
+            set_attr(_db, npc_id, "system", "model", effective_model)
+            _db.commit()
+            _db.close()
         return session_id, npc_id
 
     return _make

@@ -1545,9 +1545,6 @@ def _get_npc_disallowed_tools() -> list[str]:
     return [f"{_MCP_PREFIX}{name}" for name in mcp._tool_manager._tools]
 
 
-_DEFAULT_NPC_MODEL = "opus"
-
-
 def _load_npc_guides() -> str:
     """Load SHARED_GUIDE.md + NPC_GUIDE.md from guidelines/."""
     project_root = _project_root()
@@ -1594,7 +1591,7 @@ def _build_npc_prompt(db, npc_id: int, session_id: int, gm_message: str = "") ->
     ).fetchall()
 
     personality = "a common NPC"
-    model = _DEFAULT_NPC_MODEL
+    model = None
     identity_lines = []
     for a in attrs:
         if a["category"] == "identity" and a["key"] == "personality":
@@ -1603,6 +1600,14 @@ def _build_npc_prompt(db, npc_id: int, session_id: int, gm_message: str = "") ->
             model = a["value"]
         if a["category"] != "system":
             identity_lines.append(f"  {a['key']}: {a['value']}")
+
+    if model is None:
+        from lorekit.db import LoreKitError
+
+        raise LoreKitError(
+            f"No model configured for NPC '{npc_name}' (id {npc_id}) — "
+            "set category='system', key='model' in character_attributes"
+        )
 
     # Inventory
     items = db.execute(
