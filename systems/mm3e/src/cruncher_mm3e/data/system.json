@@ -583,6 +583,10 @@
       "defense_stat": "parry",
       "range": "melee",
       "on_hit": {
+        "resist": {
+          "defender_stat": ["effective_str", "dodge"],
+          "dc_stat": "grab_dc"
+        },
         "apply_modifiers": [
           {"source": "grab", "target_stat": "bonus_dodge", "value": 0, "modifier_type": "condition", "duration_type": "until_escape"}
         ]

@@ -766,14 +766,15 @@ class TestDegreeOnHit:
             rules_calc(db, def_id, MM3E_SYSTEM)
 
             # Attack roll=15 + close_attack(6) = 21 vs DC 10+parry(6) = 16 → HIT
-            # No damage_rank_stat → on_hit effects applied directly (no resistance check)
-            roll_calls = iter([14])  # 14+1=15
+            # On-hit resist: defender rolls vs grab_dc (STR+10); low roll = fail to resist
+            roll_calls = iter([14, 0])  # attack d20=15 → hit, resist d20=1 → fail
             with patch("secrets.randbelow", side_effect=roll_calls):
                 output = resolve_action(db, atk_id, def_id, "grab", MM3E_SYSTEM)
 
             assert "HIT!" in output
             assert "MODIFIER: grab" in output
-            assert "RESISTANCE:" not in output
+            assert "RESIST:" in output
+            assert "FAILED" in output
 
             # The on_hit inserts a marker row (source="grab") which triggers
             # the grab condition; sync_condition_modifiers creates cond:grab rows

@@ -133,8 +133,8 @@ class TestOnHitActions:
             # Give attacker Fast Grab advantage
             set_ability(db, atk, "Fast Grab", "Free grab on melee hit", "advantage")
 
-            # d20=15 → hit close_attack, d20=5 → resist fail, d20=15 → hit grab
-            roll_calls = iter([14, 4, 14])
+            # d20=15 → hit close_attack, d20=5 → resist fail, d20=15 → hit grab, d20=1 → grab resist fail
+            roll_calls = iter([14, 4, 14, 0])
             with patch("secrets.randbelow", side_effect=roll_calls):
                 result = resolve_action(db, atk, dfn, "close_attack", MM3E_SYSTEM)
 
@@ -208,8 +208,8 @@ class TestOnHitActions:
             set_ability(db, atk, "Fast Grab", "Free grab on melee hit", "advantage")
             set_attr(db, atk, "stat", "damage_condition", "2")  # dazed
 
-            # Hit: d20=15, resist fail: d20=5, grab hit: d20=15
-            roll_calls = iter([14, 4, 14])
+            # Hit: d20=15, resist fail: d20=5, grab hit: d20=15, grab resist fail: d20=1
+            roll_calls = iter([14, 4, 14, 0])
             with patch("secrets.randbelow", side_effect=roll_calls):
                 result = resolve_action(db, atk, dfn, "close_attack", MM3E_SYSTEM)
 

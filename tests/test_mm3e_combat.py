@@ -356,7 +356,7 @@ class TestGrab:
 
             intent = {"sequence": ["action"], "action": "grab", "targets": ["Hero"]}
 
-            roll_calls = iter([14])  # d20=15 → hit
+            roll_calls = iter([14, 0])  # d20=15 → hit, resist d20=1 → fail
             with patch("secrets.randbelow", side_effect=roll_calls):
                 lines = execute_combat_turn(db, npc, sid, intent, cfg, MM3E_SYSTEM)
 

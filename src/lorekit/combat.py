@@ -828,6 +828,74 @@ def _char_name_from_id(db, character_id: int) -> str:
     return row[0] if row else f"#{character_id}"
 
 
+def _check_on_hit_resist(
+    db,
+    pack: SystemPack,
+    attacker: CharacterData,
+    defender: CharacterData,
+    resist: dict,
+    lines: list[str],
+) -> bool:
+    """Roll an immediate resistance check for the defender before on_hit effects.
+
+    resist config (from action's on_hit.resist):
+        defender_stat: str or list[str] — stat(s) for the defender's roll (best of, if list)
+        dc_stat: str — attacker stat used as the DC
+        dc_offset: int — added to the DC stat (default from pack.resolution.defense_dc_offset)
+
+    Returns True if the defender resisted (effects should be skipped).
+    """
+    resolution = pack.resolution or {}
+    dc_offset = resist.get("dc_offset", resolution.get("defense_dc_offset", 10))
+
+    # Defender's bonus: best of the listed stats
+    defender_stats = resist.get("defender_stat", [])
+    if isinstance(defender_stats, str):
+        defender_stats = [defender_stats]
+
+    best_bonus = None
+    best_stat = None
+    for stat in defender_stats:
+        try:
+            val = _get_derived(defender, stat)
+            if best_bonus is None or val > best_bonus:
+                best_bonus = val
+                best_stat = stat
+        except LoreKitError:
+            continue
+
+    if best_bonus is None:
+        lines.append("RESIST: no valid defender stat — skipping resistance check")
+        return False
+
+    # Attacker's DC
+    dc_stat = resist.get("dc_stat", "")
+    try:
+        dc_base = _get_derived(attacker, dc_stat) if dc_stat else 0
+    except LoreKitError:
+        dc_base = 0
+    dc = dc_base + dc_offset
+
+    # Roll
+    roll_result = roll_expr(pack.dice)
+    roll_val = roll_result["total"]
+    total = roll_val + best_bonus
+    success = total >= dc
+
+    stat_label = best_stat
+    if len(defender_stats) > 1:
+        stat_label = f"best of {'/'.join(defender_stats)} = {best_stat}"
+
+    outcome = "RESISTED" if success else "FAILED"
+    lines.append(
+        f"RESIST: {defender.name} — {stat_label} "
+        f"{pack.dice}({roll_val}) + {best_bonus} = {total} vs DC {dc} ({dc_stat}+{dc_offset}) "
+        f"→ {outcome}"
+    )
+
+    return success
+
+
 def _apply_on_hit(
     db,
     pack: SystemPack,
@@ -842,6 +910,7 @@ def _apply_on_hit(
     """Apply all declared on_hit effects from an action definition.
 
     Supported effects (all optional, composable):
+    - resist: immediate resistance check; if defender passes, skip remaining effects
     - damage_roll + subtract_from: roll damage dice, subtract from a stat
     - apply_modifiers: insert combat_state rows (on defender or intent_ally)
     - push + push_direction: force-move defender via zone graph
@@ -850,6 +919,14 @@ def _apply_on_hit(
     total damage is multiplied accordingly.
     """
     options = options or {}
+
+    # --- Immediate resistance check (e.g. grab: defender resists before modifiers apply) ---
+    resist = on_hit.get("resist")
+    if resist:
+        resisted = _check_on_hit_resist(db, pack, attacker, defender, resist, lines)
+        if resisted:
+            return
+
     # --- Resource spend ---
     spend = on_hit.get("spend_resource")
     if spend:
