@@ -183,7 +183,7 @@ def _check_switch_limit(db, char, pack) -> None:
 
     row = db.execute(
         "SELECT value FROM character_attributes WHERE character_id = ? AND key = '_switches_this_turn'",
-        (char.id,),
+        (char.character_id,),
     ).fetchone()
     switches_used = int(row[0]) if row else 0
 
@@ -205,14 +205,14 @@ def _increment_switches(db, char) -> None:
 
     row = db.execute(
         "SELECT value FROM character_attributes WHERE character_id = ? AND key = '_switches_this_turn'",
-        (char.id,),
+        (char.character_id,),
     ).fetchone()
     new_val = (int(row[0]) if row else 0) + 1
     db.execute(
         "INSERT INTO character_attributes (character_id, category, key, value) "
         "VALUES (?, 'internal', '_switches_this_turn', ?) "
         "ON CONFLICT(character_id, category, key) DO UPDATE SET value = ?",
-        (char.id, str(new_val), str(new_val)),
+        (char.character_id, str(new_val), str(new_val)),
     )
 
 
