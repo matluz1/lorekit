@@ -53,6 +53,7 @@
 
   "start_turn": {
     "until_next_turn": {"action": "remove"},
+    "readied": {"action": "remove"},
     "sustained": {"action": "warn"},
     "reaction": {"action": "replenish", "reset_to": 1},
     "deferred_homing": {"action": "retry_action"}
@@ -744,7 +745,8 @@
     "clear_duration_types": [
       "encounter", "rounds", "concentration",
       "until_next_turn", "reaction",
-      "next_attack_received", "triggered"
+      "next_attack_received", "triggered",
+      "readied"
     ],
     "reset_attributes": [
       { "category": "active_alternate", "action": "switch_to_base" }

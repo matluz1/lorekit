@@ -2909,6 +2909,128 @@ def encounter_advance_turn(session_id: int) -> str:
 
 
 @mcp.tool()
+def encounter_ready(
+    character_id: int | str,
+    action: str,
+    trigger: str,
+    targets: str = "",
+) -> str:
+    """Ready an action on the current character's turn.
+
+    The character gives up their turn to hold a specified action until a
+    trigger condition occurs. Call encounter_execute_ready when the trigger
+    fires during another character's turn.
+
+    character_id: numeric ID or character name.
+    action: action name to ready (e.g. "grab", "close_attack").
+    trigger: text description of the trigger condition (e.g. "when Quill moves").
+    targets: optional target name or ID for the readied action.
+    """
+    from lorekit.db import LoreKitError, require_db
+
+    db = require_db()
+    try:
+        character_id = _resolve_character(db, character_id)
+        session_id = _session_for_character(db, character_id)
+        system_path = _resolve_system_path_for_session(db, session_id)
+        from lorekit.encounter import ready_action
+
+        result = ready_action(db, session_id, character_id, action, trigger, targets, pack_dir=system_path or None)
+
+        # Auto-advance turn after readying
+        combat_cfg = _load_combat_cfg(db, session_id)
+        from lorekit.encounter import advance_turn
+
+        advance_result = advance_turn(db, session_id, combat_cfg=combat_cfg)
+        return result + "\n\n" + advance_result
+    except LoreKitError as e:
+        return f"ERROR: {e}"
+    finally:
+        db.close()
+
+
+@mcp.tool()
+def encounter_execute_ready(character_id: int | str) -> str:
+    """Fire a character's readied action.
+
+    Called when the trigger condition occurs during another character's turn.
+    Resolves the readied action and consumes it.
+
+    character_id: numeric ID or name of the character whose readied action to fire.
+    """
+    from lorekit.db import LoreKitError, require_db
+
+    db = require_db()
+    try:
+        character_id = _resolve_character(db, character_id)
+        session_id = _session_for_character(db, character_id)
+        system_path = _resolve_system_path_for_session(db, session_id)
+        from lorekit.encounter import execute_ready
+
+        return execute_ready(db, session_id, character_id, pack_dir=system_path or None)
+    except LoreKitError as e:
+        return f"ERROR: {e}"
+    finally:
+        db.close()
+
+
+@mcp.tool()
+def encounter_delay(character_id: int | str) -> str:
+    """Delay the current character's turn.
+
+    Removes the character from initiative order temporarily and advances
+    to the next character. Use encounter_undelay when they want to act.
+
+    character_id: numeric ID or character name.
+    """
+    from lorekit.db import LoreKitError, require_db
+
+    db = require_db()
+    try:
+        character_id = _resolve_character(db, character_id)
+        session_id = _session_for_character(db, character_id)
+        from lorekit.encounter import delay_turn
+
+        result = delay_turn(db, session_id, character_id)
+
+        # Auto-advance turn after delaying
+        combat_cfg = _load_combat_cfg(db, session_id)
+        from lorekit.encounter import advance_turn
+
+        advance_result = advance_turn(db, session_id, combat_cfg=combat_cfg)
+        return result + "\n\n" + advance_result
+    except LoreKitError as e:
+        return f"ERROR: {e}"
+    finally:
+        db.close()
+
+
+@mcp.tool()
+def encounter_undelay(character_id: int | str) -> str:
+    """Insert a delayed character back into initiative and start their turn.
+
+    The character acts immediately, inserted just before the current
+    character in initiative. Their new position persists for subsequent rounds.
+
+    character_id: numeric ID or name of the delayed character.
+    """
+    from lorekit.db import LoreKitError, require_db
+
+    db = require_db()
+    try:
+        character_id = _resolve_character(db, character_id)
+        session_id = _session_for_character(db, character_id)
+        combat_cfg = _load_combat_cfg(db, session_id)
+        from lorekit.encounter import undelay
+
+        return undelay(db, session_id, character_id, combat_cfg=combat_cfg)
+    except LoreKitError as e:
+        return f"ERROR: {e}"
+    finally:
+        db.close()
+
+
+@mcp.tool()
 def encounter_end(session_id: int) -> str:
     """End the active encounter with combat summary.
 

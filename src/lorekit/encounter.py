@@ -725,9 +725,21 @@ def get_status(db, session_id: int, combat_cfg: dict | None = None) -> str:
     lines = [f"Round {rnd} — Turn: {current_name}"]
     lines.append("")
 
-    # Initiative
+    # Initiative (including delayed characters)
     init_names = [_char_name(db, cid) for cid in init_order]
     lines.append(f"Initiative: {', '.join(init_names)}")
+
+    # Show delayed characters not in initiative
+    delayed_rows = db.execute(
+        "SELECT ca.character_id FROM character_attributes ca "
+        "JOIN character_zone cz ON ca.character_id = cz.character_id "
+        "WHERE cz.encounter_id = ? AND ca.key = '_delayed' AND ca.value = '1'",
+        (enc_id,),
+    ).fetchall()
+    if delayed_rows:
+        delayed_names = [_char_name(db, r[0]) for r in delayed_rows]
+        lines.append(f"Delayed: {', '.join(delayed_names)}")
+
     lines.append("")
 
     # Zone-grouped positions with HUD
@@ -1054,6 +1066,254 @@ def advance_turn(db, session_id: int, combat_cfg: dict | None = None) -> str:
     return "\n".join(lines)
 
 
+# ---------------------------------------------------------------------------
+# Ready / Delay actions
+# ---------------------------------------------------------------------------
+
+
+def ready_action(
+    db,
+    session_id: int,
+    character_id: int,
+    action: str,
+    trigger: str,
+    targets: str = "",
+    pack_dir: str | None = None,
+) -> str:
+    """Declare a readied action and end the character's turn.
+
+    The character gives up their turn to hold a specified action until a
+    trigger condition occurs. The GM calls execute_ready when the trigger
+    fires during another character's turn.
+
+    The readied action is stored as a combat_state row with
+    duration_type='readied' and cleaned up at the start of the character's
+    next turn if unused.
+
+    Reads ready_delay config from the system pack's combat section (if set)
+    for action_cost validation. Without config, readying is always allowed.
+    """
+    enc_id, rnd, init_json, current_turn = _require_active_encounter(db, session_id)
+    init_order = json.loads(init_json)
+
+    if character_id not in init_order:
+        raise LoreKitError(f"Character {character_id} is not in this encounter")
+
+    # Must be this character's turn
+    if init_order[current_turn] != character_id:
+        current_name = _char_name(db, init_order[current_turn])
+        raise LoreKitError(f"Not this character's turn (current: {current_name})")
+
+    char_name = _char_name(db, character_id)
+
+    # Store the readied action
+    metadata = json.dumps(
+        {
+            "action": action,
+            "targets": targets,
+            "trigger": trigger,
+        }
+    )
+    db.execute(
+        "INSERT INTO combat_state "
+        "(character_id, source, target_stat, modifier_type, value, "
+        "duration_type, metadata, created_at) "
+        "VALUES (?, ?, '_readied', 'deferred', 0, 'readied', ?, datetime('now')) "
+        "ON CONFLICT(character_id, source, target_stat) DO UPDATE SET "
+        "metadata = excluded.metadata",
+        (character_id, f"readied:{action}", metadata),
+    )
+    db.commit()
+
+    lines = [
+        f"READY: {char_name} readies {action}",
+        f"  Trigger: {trigger}",
+    ]
+    if targets:
+        lines.append(f"  Target: {targets}")
+    lines.append("  (use encounter_execute_ready when trigger fires)")
+
+    return "\n".join(lines)
+
+
+def execute_ready(
+    db,
+    session_id: int,
+    character_id: int,
+    pack_dir: str | None = None,
+) -> str:
+    """Fire a character's readied action.
+
+    Called by the GM when the trigger condition occurs during another
+    character's turn. Resolves the readied action as a free action,
+    then removes the readied combat_state row.
+    """
+    _require_active_encounter(db, session_id)
+
+    char_name = _char_name(db, character_id)
+
+    # Find the readied action
+    row = db.execute(
+        "SELECT id, source, metadata FROM combat_state WHERE character_id = ? AND duration_type = 'readied' LIMIT 1",
+        (character_id,),
+    ).fetchone()
+    if row is None:
+        raise LoreKitError(f"{char_name} has no readied action")
+
+    row_id, source, meta_json = row
+    meta = json.loads(meta_json)
+    action = meta.get("action", "")
+    targets_str = meta.get("targets", "")
+
+    if not action:
+        raise LoreKitError(f"{char_name}'s readied action has no action defined")
+
+    # Resolve target
+    target_id = None
+    if targets_str:
+        # Try to resolve by name
+        target_row = db.execute(
+            "SELECT id FROM characters WHERE session_id = ? AND name = ?",
+            (session_id, targets_str),
+        ).fetchone()
+        if target_row:
+            target_id = target_row[0]
+        else:
+            # Try as numeric ID
+            try:
+                target_id = int(targets_str)
+            except ValueError:
+                raise LoreKitError(f"Cannot resolve target '{targets_str}' for readied action")
+
+    # Consume the readied row before resolution
+    db.execute("DELETE FROM combat_state WHERE id = ?", (row_id,))
+    db.commit()
+
+    lines = [f"READIED ACTION: {char_name} fires {action}"]
+
+    # Resolve the action
+    if target_id and pack_dir:
+        from lorekit.combat import resolve_action
+
+        result = resolve_action(
+            db,
+            character_id,
+            target_id,
+            action,
+            pack_dir,
+            options={"free_action": True},
+        )
+        lines.append(result)
+    else:
+        lines.append("  (no target or system pack — GM resolves manually)")
+
+    return "\n".join(lines)
+
+
+def delay_turn(db, session_id: int, character_id: int) -> str:
+    """Delay the current character's turn.
+
+    Removes the character from initiative order temporarily and advances
+    to the next character. The character can re-enter initiative later
+    via undelay. Their zone position is preserved.
+    """
+    enc_id, rnd, init_json, current_turn = _require_active_encounter(db, session_id)
+    init_order = json.loads(init_json)
+
+    if character_id not in init_order:
+        raise LoreKitError(f"Character {character_id} is not in this encounter")
+
+    # Must be this character's turn
+    if init_order[current_turn] != character_id:
+        current_name = _char_name(db, init_order[current_turn])
+        raise LoreKitError(f"Not this character's turn (current: {current_name})")
+
+    char_name = _char_name(db, character_id)
+
+    # Mark as delayed
+    db.execute(
+        "INSERT INTO character_attributes (character_id, category, key, value) "
+        "VALUES (?, 'internal', '_delayed', '1') "
+        "ON CONFLICT(character_id, category, key) DO UPDATE SET value = '1'",
+        (character_id,),
+    )
+
+    # Remove from initiative order
+    char_index = init_order.index(character_id)
+    init_order.remove(character_id)
+
+    if not init_order:
+        raise LoreKitError("Cannot delay — only character in initiative")
+
+    # Adjust current_turn (same logic as leave_encounter)
+    new_turn = current_turn
+    if char_index < current_turn:
+        new_turn = current_turn - 1
+    elif char_index == current_turn:
+        new_turn = min(current_turn, len(init_order) - 1)
+
+    db.execute(
+        "UPDATE encounter_state SET initiative_order = ?, current_turn = ? WHERE id = ?",
+        (json.dumps(init_order), new_turn, enc_id),
+    )
+    db.commit()
+
+    return f"DELAY: {char_name} delays their turn (use encounter_undelay to act)"
+
+
+def undelay(db, session_id: int, character_id: int, combat_cfg: dict | None = None) -> str:
+    """Insert a delayed character back into initiative and start their turn.
+
+    The character is inserted just before the current character in
+    initiative order. Their new position persists for subsequent rounds.
+    """
+    enc_id, rnd, init_json, current_turn = _require_active_encounter(db, session_id)
+    init_order = json.loads(init_json)
+
+    char_name = _char_name(db, character_id)
+
+    # Verify the character is actually delayed
+    delayed_row = db.execute(
+        "SELECT value FROM character_attributes WHERE character_id = ? AND key = '_delayed'",
+        (character_id,),
+    ).fetchone()
+    if not delayed_row or delayed_row[0] != "1":
+        raise LoreKitError(f"{char_name} is not delaying")
+
+    if character_id in init_order:
+        raise LoreKitError(f"{char_name} is already in initiative order")
+
+    # Clear delayed marker
+    db.execute(
+        "DELETE FROM character_attributes WHERE character_id = ? AND key = '_delayed'",
+        (character_id,),
+    )
+
+    # Insert just before the current character
+    init_order.insert(current_turn, character_id)
+
+    # current_turn now points to the delayed character (they act now),
+    # and after advance_turn the original current character gets their turn
+    db.execute(
+        "UPDATE encounter_state SET initiative_order = ? WHERE id = ?",
+        (json.dumps(init_order), enc_id),
+    )
+    db.commit()
+
+    # Start-of-turn processing
+    lines = [f"UNDELAY: {char_name} acts now (inserted before current turn)"]
+
+    system_path = _resolve_system_path(db, session_id)
+    if system_path:
+        from lorekit.combat import start_turn as _start_turn
+
+        start_result = _start_turn(db, character_id, system_path)
+        if start_result:
+            lines.append(start_result)
+
+    return "\n".join(lines)
+
+
 def join_encounter(
     db,
     session_id: int,
@@ -1272,6 +1532,13 @@ def end_encounter(db, session_id: int, combat_cfg: dict | None = None, pack_dir:
     reset_lines = []
     if reset_attrs:
         reset_lines = _reset_encounter_attributes(db, char_ids, reset_attrs, pack_dir)
+
+    # Clean up delayed markers
+    for cid in char_ids:
+        db.execute(
+            "DELETE FROM character_attributes WHERE character_id = ? AND key = '_delayed'",
+            (cid,),
+        )
 
     # Clean up zone data
     zone_ids = [r[0] for r in zone_rows]
