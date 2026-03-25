@@ -559,8 +559,10 @@ def turn_revert(session_id: int, steps: int = 1) -> str:
     attributes, story, regions, metadata) and removes timeline/journal entries
     created since the target checkpoint.
 
-    steps: how many checkpoints to go back (default 1). Use higher values
-    to skip multiple turns at once instead of reverting one at a time.
+    Jumps directly to turn boundaries — auto-checkpoints created during
+    combat resolution are skipped automatically.
+
+    steps: how many turns to go back (default 1).
     """
     from lorekit.support.checkpoint import revert_to_previous
 
@@ -570,9 +572,9 @@ def turn_revert(session_id: int, steps: int = 1) -> str:
 @mcp.tool()
 def turn_advance(session_id: int, steps: int = 1) -> str:
     """Redo previously reverted turns. Only works if no new action was
-    taken since the revert (future checkpoints still exist).
+    taken since the revert (future turn checkpoints still exist).
 
-    steps: how many checkpoints to go forward (default 1).
+    steps: how many turns to go forward (default 1).
     """
     from lorekit.support.checkpoint import advance_to_next
 

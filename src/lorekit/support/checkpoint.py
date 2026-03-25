@@ -651,41 +651,82 @@ def create_checkpoint(db, session_id, *, force: bool = False, kind: str = "auto"
     return new_id
 
 
-def revert_to_previous(db, session_id, steps=1):
-    """Move cursor back by *steps* checkpoints and restore that state.
+def _find_turn_index(turn_ids: list[int], cursor: int | None) -> int:
+    """Find the index in turn_ids that the cursor is at or just after.
 
-    Checkpoints are preserved (not deleted) so redo is possible.
+    If the cursor sits on a turn checkpoint, return that index.
+    If it sits on an auto-checkpoint between two turns, return the
+    index of the preceding turn checkpoint.
+    If cursor is None or before all turns, return the last index.
+    """
+    if cursor is None:
+        return len(turn_ids) - 1
+    # Exact match — cursor is on a turn checkpoint
+    if cursor in turn_ids:
+        return turn_ids.index(cursor)
+    # Cursor is on an auto-checkpoint — find the preceding turn
+    for i in range(len(turn_ids) - 1, -1, -1):
+        if turn_ids[i] < cursor:
+            return i
+    return len(turn_ids) - 1
+
+
+def _delete_auto_checkpoints_between(db, session_id: int, after_id: int, up_to_id: int | None):
+    """Delete auto-checkpoints (kind != 'turn') in the range (after_id, up_to_id].
+
+    Called after revert to clean up within-turn undo points that are no longer
+    meaningful once the turn boundary is restored.
+    """
+    if up_to_id is None:
+        return
+    db.execute(
+        "DELETE FROM checkpoints WHERE session_id = ? AND kind != 'turn' AND id > ? AND id <= ?",
+        (session_id, after_id, up_to_id),
+    )
+
+
+def revert_to_previous(db, session_id, steps=1):
+    """Move cursor back by *steps* turn checkpoints and restore that state.
+
+    Only kind='turn' checkpoints count as steps — auto-checkpoints (within-turn
+    undo points) are skipped. Turn checkpoints are preserved (not deleted) so
+    redo is possible, but auto-checkpoints between the old and new cursor
+    positions are cleaned up.
+
     Returns a summary string.
     """
-    all_cps = db.execute(
-        "SELECT id FROM checkpoints WHERE session_id = ? ORDER BY id ASC",
+    turn_cps = db.execute(
+        "SELECT id FROM checkpoints WHERE session_id = ? AND kind = 'turn' ORDER BY id ASC",
         (session_id,),
     ).fetchall()
-    cp_ids = [r[0] for r in all_cps]
+    turn_ids = [r[0] for r in turn_cps]
 
-    if len(cp_ids) < 2:
+    if len(turn_ids) < 2:
         raise LoreKitError("Nothing to revert -- not enough checkpoints")
 
     cursor = _get_cursor(db, session_id)
-    if cursor is None or cursor not in cp_ids:
-        cursor = cp_ids[-1]
+    # Find which turn checkpoint the cursor is at or just after
+    current_turn_idx = _find_turn_index(turn_ids, cursor)
 
-    cursor_idx = cp_ids.index(cursor)
-    target_idx = cursor_idx - steps
+    target_idx = current_turn_idx - steps
     if target_idx < 0:
         target_idx = 0
-    if target_idx == cursor_idx:
+    if target_idx == current_turn_idx:
         raise LoreKitError("Nothing to revert -- already at earliest checkpoint")
 
-    target_id = cp_ids[target_idx]
+    target_id = turn_ids[target_idx]
     snapshot_json = db.execute("SELECT snapshot FROM checkpoints WHERE id = ?", (target_id,)).fetchone()[0]
     snapshot = json.loads(snapshot_json)
 
     restore_snapshot(db, session_id, snapshot)
     _set_cursor(db, session_id, target_id)
+
+    # Clean up auto-checkpoints between target and the previous cursor position
+    _delete_auto_checkpoints_between(db, session_id, target_id, cursor)
+
     db.commit()
 
-    actual_steps = cursor_idx - target_idx
+    actual_steps = current_turn_idx - target_idx
     skipped = f" (skipped {actual_steps - 1})" if actual_steps > 1 else ""
     return f"TURN_REVERTED: restored to checkpoint #{target_id}{skipped}"
 
@@ -731,32 +772,31 @@ def restore_to_last_turn(db, session_id):
 
 
 def advance_to_next(db, session_id, steps=1):
-    """Move cursor forward by *steps* checkpoints (redo) and restore that state.
+    """Move cursor forward by *steps* turn checkpoints (redo) and restore that state.
 
-    Only works if future checkpoints exist (no new action since revert).
+    Only kind='turn' checkpoints count as steps. Only works if future turn
+    checkpoints exist (no new action since revert).
     Returns a summary string.
     """
-    all_cps = db.execute(
-        "SELECT id FROM checkpoints WHERE session_id = ? ORDER BY id ASC",
+    turn_cps = db.execute(
+        "SELECT id FROM checkpoints WHERE session_id = ? AND kind = 'turn' ORDER BY id ASC",
         (session_id,),
     ).fetchall()
-    cp_ids = [r[0] for r in all_cps]
+    turn_ids = [r[0] for r in turn_cps]
 
-    if not cp_ids:
+    if not turn_ids:
         raise LoreKitError("Nothing to redo -- no checkpoints")
 
     cursor = _get_cursor(db, session_id)
-    if cursor is None or cursor not in cp_ids:
-        cursor = cp_ids[-1]
+    current_turn_idx = _find_turn_index(turn_ids, cursor)
 
-    cursor_idx = cp_ids.index(cursor)
-    target_idx = cursor_idx + steps
-    if target_idx >= len(cp_ids):
-        target_idx = len(cp_ids) - 1
-    if target_idx == cursor_idx:
+    target_idx = current_turn_idx + steps
+    if target_idx >= len(turn_ids):
+        target_idx = len(turn_ids) - 1
+    if target_idx == current_turn_idx:
         raise LoreKitError("Nothing to redo -- already at latest checkpoint")
 
-    target_id = cp_ids[target_idx]
+    target_id = turn_ids[target_idx]
     snapshot_json = db.execute("SELECT snapshot FROM checkpoints WHERE id = ?", (target_id,)).fetchone()[0]
     snapshot = json.loads(snapshot_json)
 
@@ -764,6 +804,6 @@ def advance_to_next(db, session_id, steps=1):
     _set_cursor(db, session_id, target_id)
     db.commit()
 
-    actual_steps = target_idx - cursor_idx
+    actual_steps = target_idx - current_turn_idx
     skipped = f" (skipped {actual_steps - 1})" if actual_steps > 1 else ""
     return f"TURN_ADVANCED: restored to checkpoint #{target_id}{skipped}"
