@@ -10,7 +10,7 @@ as **data** in system packs.
 └────────────────────────┬────────────────────────────────┘
                          │ tool calls (stdio or HTTP)
 ┌────────────────────────▼────────────────────────────────┐
-│  server.py — 43 MCP tools (FastMCP)                     │
+│  server.py — 49 MCP tools (FastMCP)                     │
 │  (session, character, combat, encounter, NPC, narrative) │
 └────────────────────────┬────────────────────────────────┘
                          │
@@ -303,7 +303,8 @@ characters (id, session_id, name, gender, level, status, type, prefetch, region_
     │
     ├── character_attributes (character_id, category, key, value)  [UNIQUE char+cat+key]
     │   Categories: stat, derived, build, identity, system, internal,
-    │               action_override, movement_mode, condition_flags
+    │               action_override, movement_mode, condition_flags,
+    │               active_alternate, reaction_policy
     │   All values stored as TEXT — callers parse/convert as needed
     │
     ├── character_inventory (character_id, name, description, quantity, equipped)
@@ -326,7 +327,7 @@ combat_state (character_id, source, target_stat, modifier_type, value,
     Sources: "ability:X", "cond:X", "zone:X:tag", "equipment:X"
     Duration types: encounter, rounds, condition, reaction, sustained,
                     concentration, next_attack, next_attack_received,
-                    until_escape, until_next_turn
+                    until_escape, until_next_turn, readied
     metadata: JSON for reaction hooks, contagious flags, homing retries
 
 encounter_state (session_id, status, round, initiative_order, current_turn)
@@ -547,8 +548,8 @@ flowchart TD
     F -->|Combat| H["encounter_start — zones + initiative + placements + terrain modifiers"]
     H --> H1["_auto_register_reactions — scan abilities for reaction hooks"]
     H1 --> I[Combat Round Loop]
-    I --> I1["PC acts — rules_resolve / combat_modifier"]
-    I --> I2["NPC acts — npc_combat_turn (intent → validate → execute)"]
+    I --> I1["PC acts — rules_resolve / combat_modifier / ready / delay"]
+    I --> I2["NPC acts — npc_combat_turn (intent → validate → execute, incl. ready/delay)"]
     I1 --> I3{Combat over?}
     I2 --> I3
     I3 -->|No| I4["encounter_advance_turn — end_turn ticks + start_turn + auto-skip incapacitated"]
@@ -623,13 +624,15 @@ flowchart LR
 4. Insert checkpoint row (`kind='turn'`), advance cursor
 
 **turn_revert (undo):**
-1. Move cursor back N steps
+1. Move cursor back N **turn** checkpoints (auto-checkpoints are skipped)
 2. Delete timeline/journal entries + their embeddings added after target checkpoint
-3. Restore full state from snapshot (FK OFF → delete all current → re-insert from JSON → FK ON)
+3. Clean up auto-checkpoints between old and new cursor positions
+4. Restore full state from snapshot (FK OFF → delete all current → re-insert from JSON → FK ON)
 
 **turn_advance (redo):**
 - Only works if cursor < tip (no new actions since revert)
-- Loads next checkpoint's snapshot, restores it
+- Jumps forward by N **turn** checkpoints (auto-checkpoints are skipped)
+- Loads target checkpoint's snapshot, restores it
 
 **Fork detection:**
 - If cursor is behind tip and a new checkpoint is created without `force=True`, raises error
@@ -673,14 +676,19 @@ flowchart TD
     H --> J[Apply on_hit / on_miss effects]
     I --> J
 
-    J --> K[Execute mutations]
+    J --> J1{"on_hit.resist defined?"}
+    J1 -->|Yes| J2["Resistance roll — defender stat vs attacker DC"]
+    J2 -->|Resisted| N
+    J2 -->|Failed| K
+    J1 -->|No| K
+
+    K[Execute mutations]
     K --> K1["subtract_from — roll damage dice + bonus, subtract from stat"]
     K --> K2["increment_by — modify attribute with floor/ceiling bounds"]
     K --> K3["apply_modifiers — insert combat_state rows with duration"]
     K --> K4["push — force_move via zone graph (away/toward)"]
     K --> K5["apply_condition — set flags + condition modifiers"]
     K --> K6["remove_conditions — delete cond:X rows + reset thresholds"]
-
     K1 --> L["Sync condition state — threshold checks, flag updates"]
     K2 --> L
     K3 --> L
@@ -707,6 +715,23 @@ degree shift, miss chance (concealment), and damage multipliers.
 degree of failure (1–4, based on margin ÷ degree_step). Outcomes are looked up
 from configurable outcome tables. Supports team bonuses, DC scaling based on hit margin, cap checks, and
 reaction hooks.
+
+### Reaction Hooks
+
+Reactions are checked at four points during action resolution:
+`before_attack` (Interpose — substitute defender), `replace_defense` (Deflect),
+`after_hit`, and `after_miss` (Riposte — free counter-attack).
+
+Each reaction respects per-character **reaction policies** (`active`, `inactive`,
+`ask`) stored in `character_attributes`. NPCs with `ask` policy are queried via
+a lightweight Claude subprocess for a YES/NO tactical decision.
+
+### On-Hit Resistance
+
+Actions can declare `on_hit.resist` — an immediate resistance roll before any
+on_hit effects apply. The defender rolls using the best of one or more stats
+against a DC derived from the attacker's stat + offset. If the defender passes,
+all remaining on_hit effects (damage, modifiers, push, conditions) are skipped.
 
 ### Condition System
 
@@ -750,6 +775,14 @@ extra_modifiers from each component.
 | **replenish** | Reset duration to value (e.g., reaction count back to 1) |
 | **retry_action** | Re-attempt homing attacks, decrement retries on miss |
 
+### Alternate Switching Limits
+
+During active encounters, `switch_alternate()` enforces a per-turn limit from
+the system pack's `combat.alternate_switching.max_per_turn` config. A
+`_switches_this_turn` counter (category `internal`) is incremented on each
+switch and reset by `advance_turn()`. The `_bypass_limit=True` flag skips
+enforcement for internal resets (e.g., encounter_end resetting arrays to base).
+
 ### Zone-Based Positioning
 
 Encounters use abstract zones connected by weighted edges.
@@ -783,19 +816,35 @@ distance comparison, moves character hop by hop. Stops at graph boundary.
    as combat_state entries with `duration_type='reaction'`
 
 **encounter_advance_turn:**
-1. End-turn processing (modifier ticks, action counter reset)
+1. End-turn processing (modifier ticks, action/switch counter reset)
 2. Advance initiative index (wrap to round+1 at end)
 3. Auto-skip incapacitated characters (recursive)
 4. Start-turn processing
 5. Show zone context + condition reminders for new character
 
+**encounter_ready / encounter_execute_ready:**
+- `ready_action()` stores the action, trigger, and optional target as a
+  `duration_type='readied'` combat_state row, then advances the turn
+- `execute_ready()` fires the readied action as a free action during another
+  character's turn, resolves it via `resolve_action()`, and consumes the row
+- Unused readied actions are cleaned up at the start of the character's next turn
+
+**encounter_delay / encounter_undelay:**
+- `delay_turn()` removes the character from initiative order, marks them with
+  `_delayed` attribute, and starts the next character's turn (no end-turn
+  processing on the delaying character since they didn't act)
+- `undelay()` inserts the character back into initiative just before the
+  current character and starts their turn
+- Delayed characters appear in `encounter_status` under a separate "Delayed" line
+
 **encounter_end:**
 1. Collect summary (participants, defeated, final vitals)
 2. Remove all encounter/rounds/concentration modifiers
 3. Delete zones, adjacency, placements
-4. Mark encounter status='ended'
-5. Recalculate all participants
-6. Auto-journal combat summary with entity tags
+4. Clean up encounter-specific attributes (delayed markers, reaction policies)
+5. Mark encounter status='ended'
+6. Recalculate all participants
+7. Auto-journal combat summary with entity tags
 
 **encounter_status HUD:**
 Box-drawn zone display showing characters, vital stats, active modifiers,
@@ -809,13 +858,30 @@ flowchart LR
     B --> C["NPC subprocess decides intent — returns JSON with step sequence"]
     C --> D["parse_combat_intent — extract JSON, normalize targets, validate vs schema"]
     D --> E["validate_sequence — enforce per-step limits, apply condition reductions"]
-    E --> F["execute_combat_turn — resolve each step: movement, actions, advance_turn"]
+    E --> F["execute_combat_turn — resolve each step: movement, actions, ready, delay, advance_turn"]
 ```
 
 The system pack's `intent` schema defines available step types and per-turn
 limits. Character attributes can override limits (e.g., a buff adds extra moves).
 Conditions can reduce limits (e.g., a debuff sets `max_total: 1`).
+Steps with `replaces_turn: true` (ready, delay) replace the entire turn sequence.
 If JSON parsing fails, NPC takes a narrative-only turn.
+
+**NPC combat context** (`build_combat_context`) assembles:
+- Zone layout, allies, enemies, distances, vital stats
+- **Reactions** with current policy (active/inactive/ask) and remaining uses
+- **Sustained powers** that can be deactivated as free actions
+- **Team attack** eligibility (same-zone allies with bonus info)
+- **Tactical options** from intent schema (ready, delay)
+
+**Reaction policies** control automatic reaction firing:
+- `active` (default) — fire automatically when triggered
+- `inactive` — suppress the reaction entirely
+- `ask` — consult the NPC via a lightweight Claude subprocess for a YES/NO decision;
+  falls back to `active` if no callback or query fails
+- NPCs set policies via `reaction_policy` in their combat intent JSON
+- Policies are stored as `character_attributes` (category `reaction_policy`)
+  and cleaned up at encounter end
 
 ---
 
@@ -952,7 +1018,7 @@ Key behavioral rules from SHARED_GUIDE:
 ## Development Setup
 
 **Install:** `pip install -e cruncher/ -e .`
-**Test:** `.venv/bin/pytest tests/ -v --npc-model=MODEL_NAME` (810+ tests)
+**Test:** `.venv/bin/pytest tests/ -v --npc-model=MODEL_NAME` (837 tests)
 **Lint:** ruff (via pre-commit hooks)
 
 **Pre-commit hooks** (`.pre-commit-config.yaml`):
@@ -973,7 +1039,7 @@ Key behavioral rules from SHARED_GUIDE:
 
 ---
 
-## MCP Tools (43 total)
+## MCP Tools (49 total)
 
 ### Session (6)
 `session_setup`, `session_resume`, `session_list`, `session_update`,
@@ -998,9 +1064,10 @@ Key behavioral rules from SHARED_GUIDE:
 ### Rules & Combat (5)
 `system_info`, `rules_check`, `rules_resolve`, `combat_modifier`, `rest`
 
-### Encounter (8)
+### Encounter (14)
 `encounter_start`, `encounter_status`, `encounter_move`,
-`encounter_advance_turn`, `encounter_end`, `encounter_join`,
+`encounter_advance_turn`, `encounter_ready`, `encounter_execute_ready`,
+`encounter_delay`, `encounter_undelay`, `encounter_end`, `encounter_join`,
 `encounter_leave`, `encounter_zone_update`, `encounter_zone_add`,
 `encounter_zone_remove`
 
