@@ -277,12 +277,82 @@ def build_combat_context(
 
     json_block, rules_block = _build_intent_prompt(intent_schema)
 
+    # Tactical options from intent schema (e.g. ready, delay)
+    tactical_section = ""
+    if intent_schema:
+        tactical_lines = []
+        steps_def = intent_schema.get("steps", {})
+        for step_name, step_def in steps_def.items():
+            if step_def.get("replaces_turn"):
+                desc = step_def.get("description", "")
+                if desc:
+                    tactical_lines.append(f"  {step_name}: {desc}")
+                else:
+                    tactical_lines.append(f"  {step_name}")
+        if tactical_lines:
+            tactical_section = "Tactical options (replace your entire turn):\n" + "\n".join(tactical_lines) + "\n"
+
+    # Available reactions (registered reaction abilities)
+    reactions_section = ""
+    reaction_rows = db.execute(
+        "SELECT source, duration_type, duration, metadata FROM combat_state "
+        "WHERE character_id = ? AND duration_type IN ('reaction', 'triggered') "
+        "AND target_stat = '_reaction'",
+        (npc_id,),
+    ).fetchall()
+    if reaction_rows:
+        react_lines = []
+        for rsource, rdur_type, rduration, rmeta_json in reaction_rows:
+            try:
+                rmeta = json.loads(rmeta_json) if rmeta_json else {}
+            except (json.JSONDecodeError, TypeError):
+                rmeta = {}
+            hook = rmeta.get("hook", "")
+            effect = rmeta.get("effect", "")
+            uses = f"{rduration} use(s)" if rduration else "spent"
+            react_lines.append(f"  {rsource} — triggers on {hook}, {effect} [{uses}]")
+        reactions_section = "Your reactions (fire automatically when triggered):\n" + "\n".join(react_lines) + "\n"
+
+    # Active sustained powers (can be deactivated)
+    sustained_section = ""
+    sustained_rows = db.execute(
+        "SELECT DISTINCT source FROM combat_state WHERE character_id = ? AND duration_type = 'sustained'",
+        (npc_id,),
+    ).fetchall()
+    if sustained_rows:
+        sustained_names = [r[0] for r in sustained_rows]
+        sustained_section = (
+            "Active sustained powers: " + ", ".join(sustained_names) + " (you may deactivate these as a free action)\n"
+        )
+
+    # Team attack availability (same-zone allies who could assist)
+    team_section = ""
+    if sdata:
+        team_cfg = sdata.get("combat", {}).get("team_attack", {})
+        if team_cfg:
+            bonus_per = team_cfg.get("attack_bonus_per", 2)
+            max_bonus = team_cfg.get("max_attack_bonus", 5)
+            same_zone = team_cfg.get("requires_same_zone", True)
+            eligible = []
+            for cid, zid, team in char_zones:
+                if cid == npc_id:
+                    continue
+                if npc_team and team and team == npc_team:
+                    if not same_zone or zid == npc_zid:
+                        eligible.append(_char_name(db, cid))
+            if eligible:
+                team_section = (
+                    f"Team attack: {', '.join(eligible)} can assist your attack "
+                    f"(+{bonus_per} per ally, max +{max_bonus})\n"
+                )
+
     # Active conditions with mechanical effects
     condition_section = ""
     active_labels = set()
     mod_rows = db.execute(
         "SELECT source, target_stat, value, duration_type, duration, applied_by "
-        "FROM combat_state WHERE character_id = ?",
+        "FROM combat_state WHERE character_id = ? "
+        "AND duration_type NOT IN ('reaction', 'triggered')",
         (npc_id,),
     ).fetchall()
     if mod_rows:
@@ -295,6 +365,8 @@ def build_combat_context(
                     line += f" (by {applier_name[0]})"
             if dur_type == "rounds" and duration is not None:
                 line += f" [{duration}r left]"
+            if dur_type == "sustained":
+                line += " [sustained]"
             mod_lines.append(line)
             active_labels.add(source)
         condition_section = "Your active conditions:\n" + "\n".join(mod_lines) + "\n"
@@ -351,7 +423,7 @@ Allies:
 {chr(10).join(f"  {a}" for a in allies) if allies else "  (none)"}
 
 Zones: {", ".join(zone_list)}
-{actions_section}{combat_options_section}{abilities_section}{movement_section}{condition_section}
+{actions_section}{combat_options_section}{abilities_section}{movement_section}{reactions_section}{sustained_section}{team_section}{tactical_section}{condition_section}
 Decide what to do. Respond with a JSON block followed by optional in-character narration.
 
 ```json
@@ -646,6 +718,14 @@ def _validate_sequence(
                 if cur is None or cond_max_move < cur:
                     max_per_step["move"] = cond_max_move
 
+    # Check for turn-replacing steps (e.g. ready, delay)
+    # If present, only the turn-replacing step runs
+    steps_def = schema.get("steps", {}) if schema else {}
+    for step in sequence:
+        step_def = steps_def.get(step, {})
+        if step_def.get("replaces_turn"):
+            return [step]
+
     # Validate per-step counts
     step_counts: dict[str, int] = {}
     validated = []
@@ -688,6 +768,7 @@ def execute_combat_turn(
     )
 
     lines = []
+    skip_advance = False
     enc_id = _require_active_encounter(db, session_id)[0]
 
     # Load intent schema and condition rules
@@ -809,13 +890,48 @@ def execute_combat_turn(
                 except LoreKitError as e:
                     lines.append(f"MOVEMENT FAILED: {e}")
 
+        elif executor == "ready":
+            action = intent.get("action")
+            targets = intent.get("targets")
+            target_name = targets[0] if targets else ""
+            trigger = intent.get("trigger", "")
+            if action and trigger:
+                try:
+                    from lorekit.encounter import ready_action
+
+                    lines.append(
+                        ready_action(
+                            db,
+                            session_id,
+                            npc_id,
+                            action,
+                            trigger,
+                            targets=target_name,
+                            pack_dir=system_path,
+                        )
+                    )
+                except LoreKitError as e:
+                    lines.append(f"READY FAILED: {e}")
+            else:
+                lines.append("READY SKIPPED: requires action and trigger")
+
+        elif executor == "delay":
+            try:
+                from lorekit.encounter import delay_turn
+
+                lines.append(delay_turn(db, session_id, npc_id))
+                skip_advance = True
+            except LoreKitError as e:
+                lines.append(f"DELAY FAILED: {e}")
+
         # Unknown executor: skip silently (schema may define future executors)
 
     # --- Advance turn (auto-calls end_turn on NPC) ---
-    try:
-        advance_result = advance_turn(db, session_id, combat_cfg=combat_cfg)
-        lines.append(advance_result)
-    except LoreKitError as e:
-        lines.append(f"ADVANCE FAILED: {e}")
+    if not skip_advance:
+        try:
+            advance_result = advance_turn(db, session_id, combat_cfg=combat_cfg)
+            lines.append(advance_result)
+        except LoreKitError as e:
+            lines.append(f"ADVANCE FAILED: {e}")
 
     return lines

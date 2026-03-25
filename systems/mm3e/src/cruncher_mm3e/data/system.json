@@ -784,15 +784,31 @@
           "action": { "type": "action_name", "nullable": true },
           "targets": { "type": "characters", "nullable": true }
         }
+      },
+      "ready": {
+        "executor": "ready",
+        "replaces_turn": true,
+        "description": "Hold an action until a trigger condition occurs (free action when triggered)",
+        "fields": {
+          "action": { "type": "action_name" },
+          "targets": { "type": "characters", "nullable": true },
+          "trigger": { "type": "text" }
+        }
+      },
+      "delay": {
+        "executor": "delay",
+        "replaces_turn": true,
+        "description": "Postpone your turn — act later in the round at a time of your choosing"
       }
     },
     "default_sequence": ["move", "action"],
     "sequence_rules": {
-      "max_per_step": { "move": 1, "action": 1 },
+      "max_per_step": { "move": 1, "action": 1, "ready": 1, "delay": 1 },
       "max_total": 2
     },
     "extra_fields": {
       "narration": { "type": "text", "nullable": true },
+      "trigger": { "type": "text", "nullable": true },
       "combat_options": { "type": "list", "nullable": true, "item_schema": {"name": "string", "value": "number"} }
     },
     "rules": [
@@ -801,7 +817,9 @@
       "action MUST be one of the available actions — NOT an ability name",
       "action/targets/move_to can all be null (narrative-only turn)",
       "melee actions require the target to be in the SAME zone — move first if needed",
-      "ranged actions require the target to be within weapon range"
+      "ranged actions require the target to be within weapon range",
+      "ready REPLACES your entire turn — use sequence [\"ready\"] with action, targets, and trigger",
+      "delay REPLACES your entire turn — use sequence [\"delay\"] to hold your position in initiative"
     ]
   },
 

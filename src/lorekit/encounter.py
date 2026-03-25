@@ -1213,9 +1213,13 @@ def execute_ready(
 def delay_turn(db, session_id: int, character_id: int) -> str:
     """Delay the current character's turn.
 
-    Removes the character from initiative order temporarily and advances
-    to the next character. The character can re-enter initiative later
-    via undelay. Their zone position is preserved.
+    Removes the character from initiative order temporarily and starts
+    the next character's turn. The character can re-enter initiative
+    later via undelay. Their zone position is preserved.
+
+    Unlike advance_turn, this does NOT call end_turn on the delaying
+    character (they didn't act) or on the next character (they haven't
+    started). It only runs start_turn on the next character.
     """
     enc_id, rnd, init_json, current_turn = _require_active_encounter(db, session_id)
     init_order = json.loads(init_json)
@@ -1245,20 +1249,41 @@ def delay_turn(db, session_id: int, character_id: int) -> str:
     if not init_order:
         raise LoreKitError("Cannot delay — only character in initiative")
 
-    # Adjust current_turn (same logic as leave_encounter)
+    # After removal, current_turn points to the next character.
+    # Handle round wrap if the delayed character was last in order.
     new_turn = current_turn
-    if char_index < current_turn:
-        new_turn = current_turn - 1
-    elif char_index == current_turn:
-        new_turn = min(current_turn, len(init_order) - 1)
+    new_round = rnd
+    if new_turn >= len(init_order):
+        new_turn = 0
+        new_round = rnd + 1
 
     db.execute(
-        "UPDATE encounter_state SET initiative_order = ?, current_turn = ? WHERE id = ?",
-        (json.dumps(init_order), new_turn, enc_id),
+        "UPDATE encounter_state SET initiative_order = ?, current_turn = ?, round = ? WHERE id = ?",
+        (json.dumps(init_order), new_turn, new_round, enc_id),
     )
     db.commit()
 
-    return f"DELAY: {char_name} delays their turn (use encounter_undelay to act)"
+    # Start the next character's turn
+    next_char_id = init_order[new_turn]
+    next_name = _char_name(db, next_char_id)
+    lines = [
+        f"DELAY: {char_name} delays their turn",
+        f"TURN: Round {new_round}, {next_name} (character {next_char_id})",
+    ]
+
+    system_path = _resolve_system_path(db, session_id)
+    if system_path:
+        from lorekit.combat import start_turn as _start_turn
+
+        start_result = _start_turn(db, next_char_id, system_path)
+        if start_result:
+            lines.append(start_result)
+
+    char_type = db.execute("SELECT type FROM characters WHERE id = ?", (next_char_id,)).fetchone()
+    if char_type and char_type[0] == "pc":
+        lines.append("⚠ PC TURN — call turn_save with narration before player acts")
+
+    return "\n".join(lines)
 
 
 def undelay(db, session_id: int, character_id: int, combat_cfg: dict | None = None) -> str:

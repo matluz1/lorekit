@@ -2991,14 +2991,7 @@ def encounter_delay(character_id: int | str) -> str:
         session_id = _session_for_character(db, character_id)
         from lorekit.encounter import delay_turn
 
-        result = delay_turn(db, session_id, character_id)
-
-        # Auto-advance turn after delaying
-        combat_cfg = _load_combat_cfg(db, session_id)
-        from lorekit.encounter import advance_turn
-
-        advance_result = advance_turn(db, session_id, combat_cfg=combat_cfg)
-        return result + "\n\n" + advance_result
+        return delay_turn(db, session_id, character_id)
     except LoreKitError as e:
         return f"ERROR: {e}"
     finally:
