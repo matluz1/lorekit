@@ -1256,6 +1256,18 @@ def _fire_damage_triggers(
 # ---------------------------------------------------------------------------
 
 
+def _get_reaction_policy(db, reactor_id: int, source: str) -> str:
+    """Read the reaction policy for a specific reaction.
+
+    Returns 'active' (default), 'inactive', or 'ask'.
+    """
+    row = db.execute(
+        "SELECT value FROM character_attributes WHERE character_id = ? AND category = 'reaction_policy' AND key = ?",
+        (reactor_id, source),
+    ).fetchone()
+    return row[0] if row else "active"
+
+
 def _check_reactions(
     db,
     pack: SystemPack,
@@ -1264,12 +1276,19 @@ def _check_reactions(
     defender: CharacterData,
     action_def: dict,
     lines: list[str],
+    options: dict | None = None,
 ) -> dict:
     """Check for reaction combat_state entries matching the named hook.
 
     Reactions are combat_state rows with ``duration_type`` in
     ('reaction', 'triggered') and a JSON ``metadata`` column declaring
     which hook they respond to and what effect they produce.
+
+    Respects per-character reaction policies:
+    - 'active': fire automatically (default)
+    - 'inactive': skip
+    - 'ask': call options['reaction_query'] callback for a yes/no decision;
+      if no callback is set, treat as 'active'
 
     Returns a dict of context modifications:
     - ``new_defender_id``: substitute defender (Interpose)
@@ -1278,6 +1297,7 @@ def _check_reactions(
     """
     import json as _json
 
+    options = options or {}
     reactions_cfg = pack.combat.get("reactions", {})
     hook_cfg = reactions_cfg.get(hook_name, {})
     if not hook_cfg:
@@ -1348,6 +1368,18 @@ def _check_reactions(
                     max_range = metadata.get("range_zones", 1)
                     if dist is not None and dist > max_range:
                         continue
+
+        # Check reaction policy
+        policy = _get_reaction_policy(db, reactor_id, source)
+        if policy == "inactive":
+            continue
+        if policy == "ask":
+            query_fn = options.get("reaction_query")
+            if query_fn:
+                if not query_fn(db, reactor_id, source, hook_name, effect_name, attacker, defender):
+                    lines.append(f"REACTION [{source}]: declined")
+                    continue
+            # No callback (GM play) → treat as active
 
         # Dispatch effect
         reactor_name = db.execute("SELECT name FROM characters WHERE id = ?", (reactor_id,)).fetchone()
@@ -1772,7 +1804,9 @@ def _resolve_degree(
     team_atk_bonus, team_dc_bonus = _apply_team_bonus(db, pack, attacker, options, trade_mod_lines)
 
     # Reaction hook: before_attack (e.g. Interpose — substitute defender)
-    reaction_mods = _check_reactions(db, pack, "before_attack", attacker, defender, action_def, trade_mod_lines)
+    reaction_mods = _check_reactions(
+        db, pack, "before_attack", attacker, defender, action_def, trade_mod_lines, options
+    )
     if reaction_mods.get("new_defender_id"):
         defender = load_character_data(db, reaction_mods["new_defender_id"])
 
@@ -1787,7 +1821,9 @@ def _resolve_degree(
     cond_atk_bonus = atk_bonus_map.get(range_type, 0) if range_type else 0
 
     # Reaction hook: replace_defense (e.g. Deflect — use reactor stat as defense)
-    defense_mods = _check_reactions(db, pack, "replace_defense", attacker, defender, action_def, trade_mod_lines)
+    defense_mods = _check_reactions(
+        db, pack, "replace_defense", attacker, defender, action_def, trade_mod_lines, options
+    )
 
     if action_def.get("contested"):
         atk_roll, atk_total, def_total, def_roll, def_bonus, atk_natural = _contested_roll(
@@ -2040,7 +2076,7 @@ def _resolve_degree(
             on_hit = action_def.get("on_hit", {})
             _apply_on_hit(db, pack, attacker, defender, on_hit, lines, margin=hit_margin, options=options)
         # Reaction hook: after_hit
-        after_hit_mods = _check_reactions(db, pack, "after_hit", attacker, defender, action_def, lines)
+        after_hit_mods = _check_reactions(db, pack, "after_hit", attacker, defender, action_def, lines, options)
         if after_hit_mods.get("free_attack"):
             fa = after_hit_mods["free_attack"]
             try:
@@ -2065,7 +2101,7 @@ def _resolve_degree(
             lines.append(f"{defender.name} resists by {margin}")
 
         # Reaction hook: after_miss
-        after_miss_mods = _check_reactions(db, pack, "after_miss", attacker, defender, action_def, lines)
+        after_miss_mods = _check_reactions(db, pack, "after_miss", attacker, defender, action_def, lines, options)
         if after_miss_mods.get("free_attack"):
             fa = after_miss_mods["free_attack"]
             try:

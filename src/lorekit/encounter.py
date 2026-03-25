@@ -1558,10 +1558,14 @@ def end_encounter(db, session_id: int, combat_cfg: dict | None = None, pack_dir:
     if reset_attrs:
         reset_lines = _reset_encounter_attributes(db, char_ids, reset_attrs, pack_dir)
 
-    # Clean up delayed markers
+    # Clean up encounter-specific attributes (delayed markers, reaction policies)
     for cid in char_ids:
         db.execute(
             "DELETE FROM character_attributes WHERE character_id = ? AND key = '_delayed'",
+            (cid,),
+        )
+        db.execute(
+            "DELETE FROM character_attributes WHERE character_id = ? AND category = 'reaction_policy'",
             (cid,),
         )
 

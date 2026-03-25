@@ -809,6 +809,7 @@
     "extra_fields": {
       "narration": { "type": "text", "nullable": true },
       "trigger": { "type": "text", "nullable": true },
+      "reaction_policy": { "type": "object", "nullable": true, "description": "Map of reaction source → policy (active/inactive/ask)" },
       "combat_options": { "type": "list", "nullable": true, "item_schema": {"name": "string", "value": "number"} }
     },
     "rules": [

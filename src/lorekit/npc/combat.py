@@ -17,6 +17,79 @@ import re
 from lorekit.db import LoreKitError
 
 
+def query_npc_reaction(
+    db,
+    reactor_id: int,
+    source: str,
+    hook: str,
+    effect: str,
+    attacker,
+    defender,
+) -> bool:
+    """Ask an NPC whether to use a reaction via a lightweight Claude call.
+
+    Builds a minimal prompt with the combat situation and the reaction
+    choice, parses a YES/NO response. Returns True to use, False to decline.
+
+    Falls back to True (use reaction) if the query fails or times out.
+    """
+    import subprocess
+
+    from lorekit.encounter import _char_name
+
+    reactor_name = _char_name(db, reactor_id)
+    attacker_name = attacker.name if hasattr(attacker, "name") else str(attacker)
+    defender_name = defender.name if hasattr(defender, "name") else str(defender)
+
+    # Read NPC model from character_attributes (same as _build_npc_prompt)
+    model_row = db.execute(
+        "SELECT value FROM character_attributes WHERE character_id = ? AND category = 'system' AND key = 'model'",
+        (reactor_id,),
+    ).fetchone()
+    if not model_row:
+        raise LoreKitError(f"No model configured for character {reactor_id} — set category='system', key='model'")
+    model = model_row[0]
+
+    # Build a minimal prompt
+    prompt = (
+        f"You are {reactor_name} in combat. Quick decision — respond with only YES or NO.\n\n"
+        f"{attacker_name} is attacking {defender_name}.\n"
+        f"You have the reaction '{source}' available ({effect}).\n"
+        f"Do you use it? Consider your own health, the ally's situation, and tactical value.\n"
+        f"Respond with ONLY 'YES' or 'NO'."
+    )
+
+    try:
+        proc = subprocess.run(
+            [
+                "claude",
+                "-p",
+                "--no-session-persistence",
+                "--permission-mode",
+                "bypassPermissions",
+                "--tools",
+                "",
+                "--disable-slash-commands",
+                "--model",
+                model,
+                "--output-format",
+                "text",
+                prompt,
+            ],
+            capture_output=True,
+            text=True,
+            timeout=30,
+            stdin=subprocess.DEVNULL,
+        )
+        if proc.returncode != 0:
+            return True  # fallback: use reaction
+
+        answer = proc.stdout.strip().upper()
+        return "NO" not in answer
+    except (subprocess.TimeoutExpired, FileNotFoundError):
+        return True  # fallback: use reaction
+
+
 def build_combat_context(
     db,
     npc_id: int,
@@ -310,8 +383,18 @@ def build_combat_context(
             hook = rmeta.get("hook", "")
             effect = rmeta.get("effect", "")
             uses = f"{rduration} use(s)" if rduration else "spent"
-            react_lines.append(f"  {rsource} — triggers on {hook}, {effect} [{uses}]")
-        reactions_section = "Your reactions (fire automatically when triggered):\n" + "\n".join(react_lines) + "\n"
+            # Show current policy
+            policy_row = db.execute(
+                "SELECT value FROM character_attributes "
+                "WHERE character_id = ? AND category = 'reaction_policy' AND key = ?",
+                (npc_id, rsource),
+            ).fetchone()
+            policy = policy_row[0] if policy_row else "active"
+            react_lines.append(f"  {rsource} — triggers on {hook}, {effect} [{uses}] (policy: {policy})")
+        reactions_section = (
+            "Your reactions:\n" + "\n".join(react_lines) + "\n"
+            "  Set reaction_policy in your response to change: active (auto-fire), inactive (suppress), ask (you'll be consulted)\n"
+        )
 
     # Active sustained powers (can be deactivated)
     sustained_section = ""
@@ -780,6 +863,19 @@ def execute_combat_turn(
 
     sequence = intent.get("sequence", ["move", "action"])
 
+    # Store reaction policies from NPC intent
+    reaction_policy = intent.get("reaction_policy")
+    if reaction_policy and isinstance(reaction_policy, dict):
+        for rsource, rmode in reaction_policy.items():
+            if rmode in ("active", "inactive", "ask"):
+                db.execute(
+                    "INSERT INTO character_attributes (character_id, category, key, value) "
+                    "VALUES (?, 'reaction_policy', ?, ?) "
+                    "ON CONFLICT(character_id, category, key) DO UPDATE SET value = excluded.value",
+                    (npc_id, rsource, rmode),
+                )
+        db.commit()
+
     # Validate sequence against schema + character overrides + conditions
     sequence = _validate_sequence(
         sequence, schema, db, npc_id, condition_rules=cond_rules, condition_thresholds=cond_thresholds
@@ -840,6 +936,9 @@ def execute_combat_turn(
                     npc_combat_opts = intent.get("combat_options")
                     if npc_combat_opts:
                         action_opts["combat_options"] = npc_combat_opts
+
+                    # Wire reaction query callback for "ask" mode reactions
+                    action_opts["reaction_query"] = query_npc_reaction
 
                     try:
                         lines.append(
