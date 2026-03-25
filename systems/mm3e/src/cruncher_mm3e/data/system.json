@@ -94,7 +94,8 @@
       "requires_same_zone": true
     },
     "alternate_switching": {
-      "action_cost": "free"
+      "action_cost": "free",
+      "max_per_turn": 1
     },
     "hud": {
       "vital_stat": {"current": "damage_condition", "label": "Condition"}

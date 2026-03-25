@@ -158,6 +158,65 @@ def _increment_turn_actions(db, character_id: int) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Alternate switching limits
+# ---------------------------------------------------------------------------
+
+
+def _check_switch_limit(db, char, pack) -> None:
+    """Raise LoreKitError if the character has exhausted their switches this turn.
+
+    Only enforced during an active encounter. Reads max_per_turn from the
+    system pack's combat.alternate_switching config.
+    """
+    combat_cfg = pack.combat or {}
+    switching_cfg = combat_cfg.get("alternate_switching", {})
+    max_per_turn = switching_cfg.get("max_per_turn")
+    if max_per_turn is None:
+        return  # no limit configured
+
+    # Only enforce during active encounters
+    from lorekit.encounter import _get_active_encounter
+
+    enc = _get_active_encounter(db, char.session_id)
+    if enc is None:
+        return
+
+    row = db.execute(
+        "SELECT value FROM character_attributes WHERE character_id = ? AND key = '_switches_this_turn'",
+        (char.id,),
+    ).fetchone()
+    switches_used = int(row[0]) if row else 0
+
+    if switches_used >= max_per_turn:
+        action_cost = switching_cfg.get("action_cost", "free")
+        raise LoreKitError(
+            f"BLOCKED: already switched arrays {switches_used}/{max_per_turn} time(s) this turn "
+            f"(switching costs a {action_cost} action, {max_per_turn}/turn)"
+        )
+
+
+def _increment_switches(db, char) -> None:
+    """Increment the per-turn switch counter during an active encounter."""
+    from lorekit.encounter import _get_active_encounter
+
+    enc = _get_active_encounter(db, char.session_id)
+    if enc is None:
+        return
+
+    row = db.execute(
+        "SELECT value FROM character_attributes WHERE character_id = ? AND key = '_switches_this_turn'",
+        (char.id,),
+    ).fetchone()
+    new_val = (int(row[0]) if row else 0) + 1
+    db.execute(
+        "INSERT INTO character_attributes (character_id, category, key, value) "
+        "VALUES (?, 'internal', '_switches_this_turn', ?) "
+        "ON CONFLICT(character_id, category, key) DO UPDATE SET value = ?",
+        (char.id, str(new_val), str(new_val)),
+    )
+
+
+# ---------------------------------------------------------------------------
 # Condition modifier sync (Phases 1+2: additive modifiers + decomposition)
 # ---------------------------------------------------------------------------
 
@@ -2693,17 +2752,34 @@ def deactivate_power(db, character_id: int, ability_name: str, pack_dir: str) ->
 # ---------------------------------------------------------------------------
 
 
-def switch_alternate(db, character_id: int, array_name: str, alternate_name: str, pack_dir: str) -> str:
+def switch_alternate(
+    db,
+    character_id: int,
+    array_name: str,
+    alternate_name: str,
+    pack_dir: str,
+    *,
+    _bypass_limit: bool = False,
+) -> str:
     """Switch the active alternate in a power array.
 
     Deactivates the current alternate's action_override, activates the new
     one, updates the active_alternate tracker, and re-runs rules_calc.
+
+    During an active encounter, enforces the per-turn switch limit from the
+    system pack's combat.alternate_switching.max_per_turn config (if set).
+    Set _bypass_limit=True for internal resets (e.g. encounter_end cleanup).
     """
     import json as _json
 
     from lorekit.rules import load_character_data, rules_calc
 
+    pack = load_system_pack(pack_dir)
     char = load_character_data(db, character_id)
+
+    # Enforce per-turn switch limit during active encounters
+    if not _bypass_limit:
+        _check_switch_limit(db, char, pack)
 
     # Find all abilities in this array
     rows = db.execute(
@@ -2762,6 +2838,10 @@ def switch_alternate(db, character_id: int, array_name: str, alternate_name: str
         "ON CONFLICT(character_id, category, key) DO UPDATE SET value = excluded.value",
         (character_id, array_name, alternate_name),
     )
+
+    # Increment per-turn switch counter (only during active encounters)
+    if not _bypass_limit:
+        _increment_switches(db, char)
 
     db.commit()
     recomp = rules_calc(db, character_id, pack_dir)

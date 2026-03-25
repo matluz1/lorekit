@@ -126,7 +126,7 @@ def _switch_to_base(db, char_ids: list[int], category: str, pack_dir: str | None
             if current == group_name:
                 continue
             try:
-                switch_alternate(db, cid, group_name, group_name, pack_dir)
+                switch_alternate(db, cid, group_name, group_name, pack_dir, _bypass_limit=True)
                 char_name = db.execute("SELECT name FROM characters WHERE id = ?", (cid,)).fetchone()[0]
                 lines.append(f"  {char_name}: {group_name} reset to base")
             except Exception:
@@ -940,9 +940,9 @@ def advance_turn(db, session_id: int, combat_cfg: dict | None = None) -> str:
         lines.append(end_result)
         lines.append("")
 
-    # Reset per-turn action counter for the ending character
+    # Reset per-turn counters for the ending character
     db.execute(
-        "DELETE FROM character_attributes WHERE character_id = ? AND key = '_actions_this_turn'",
+        "DELETE FROM character_attributes WHERE character_id = ? AND key IN ('_actions_this_turn', '_switches_this_turn')",
         (ending_char_id,),
     )
     db.commit()

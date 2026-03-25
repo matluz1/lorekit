@@ -176,6 +176,15 @@ def build_combat_context(
                 combat_options_section = "Combat options: " + ", ".join(opt_lines) + "\n"
 
     # NPC's own abilities (powers, feats, advantages) — with action/movement hints
+    # Load active alternate state for array awareness
+    active_alternates = {}
+    alt_rows = db.execute(
+        "SELECT key, value FROM character_attributes WHERE character_id = ? AND category = 'active_alternate'",
+        (npc_id,),
+    ).fetchall()
+    for akey, aval in alt_rows:
+        active_alternates[akey] = aval  # {array_name: active_alternate_name}
+
     abilities_section = ""
     ability_rows = db.execute(
         "SELECT name, uses, description FROM character_abilities WHERE character_id = ?",
@@ -184,17 +193,54 @@ def build_combat_context(
     if ability_rows:
         ab_lines = []
         for ab_name, ab_uses, ab_desc in ability_rows:
-            line = f"  {ab_name} ({ab_uses}): "
             try:
                 desc_data = json.loads(ab_desc)
+            except (json.JSONDecodeError, TypeError, AttributeError):
+                desc_data = None
+
+            # Skip inactive array alternates
+            if desc_data and active_alternates:
+                array_of = desc_data.get("array_of")
+                if array_of and active_alternates.get(array_of) != ab_name:
+                    continue  # inactive alternate — don't show
+                # Also skip the primary if an alternate is active
+                if ab_name in active_alternates and active_alternates[ab_name] != ab_name:
+                    continue
+
+            line = f"  {ab_name} ({ab_uses}): "
+            if desc_data:
                 display_desc = desc_data.get("desc", ab_desc)
                 uses_action = desc_data.get("uses_action")
                 line += display_desc
                 if uses_action:
                     line += f" [uses action: {uses_action}]"
-            except (json.JSONDecodeError, TypeError, AttributeError):
+                array_of = desc_data.get("array_of")
+                if array_of:
+                    line += f" [array: {array_of}, active]"
+            else:
                 line += ab_desc
             ab_lines.append(line)
+
+        # Add array switching note if NPC has arrays
+        if active_alternates and sdata:
+            combat_data = sdata.get("combat", {})
+            switching_cfg = combat_data.get("alternate_switching", {})
+            action_cost = switching_cfg.get("action_cost", "free")
+            max_per_turn = switching_cfg.get("max_per_turn")
+            if max_per_turn:
+                switch_row = db.execute(
+                    "SELECT value FROM character_attributes WHERE character_id = ? AND key = '_switches_this_turn'",
+                    (npc_id,),
+                ).fetchone()
+                switches_used = int(switch_row[0]) if switch_row else 0
+                remaining = max(0, max_per_turn - switches_used)
+                if remaining > 0:
+                    ab_lines.append(
+                        f"  [You may switch arrays {remaining} more time(s) this turn ({action_cost} action)]"
+                    )
+                else:
+                    ab_lines.append("  [No array switches remaining this turn]")
+
         abilities_section = "Your abilities:\n" + "\n".join(ab_lines) + "\n"
 
     # Movement modes (e.g. teleport)
