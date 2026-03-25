@@ -735,6 +735,17 @@
     "ability_category": "power"
   },
 
+  "encounter_end": {
+    "clear_duration_types": [
+      "encounter", "rounds", "concentration",
+      "until_next_turn", "reaction",
+      "next_attack_received", "triggered"
+    ],
+    "reset_attributes": [
+      { "category": "active_alternate", "action": "switch_to_base" }
+    ]
+  },
+
   "rest": {
     "short": {
       "reset_uses": ["per_encounter"],

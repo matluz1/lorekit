@@ -2919,9 +2919,10 @@ def encounter_end(session_id: int) -> str:
     db = require_db()
     try:
         combat_cfg = _load_combat_cfg(db, session_id)
+        system_path = _resolve_system_path_for_session(db, session_id)
         from lorekit.encounter import end_encounter
 
-        return end_encounter(db, session_id, combat_cfg=combat_cfg)
+        return end_encounter(db, session_id, combat_cfg=combat_cfg, pack_dir=system_path or None)
     except LoreKitError as e:
         return f"ERROR: {e}"
     finally:
@@ -2975,9 +2976,10 @@ def encounter_leave(character_id: int | str) -> str:
         character_id = _resolve_character(db, character_id)
         session_id = _session_for_character(db, character_id)
         combat_cfg = _load_combat_cfg(db, session_id)
+        system_path = _resolve_system_path_for_session(db, session_id)
         from lorekit.encounter import leave_encounter
 
-        return leave_encounter(db, session_id, character_id, combat_cfg)
+        return leave_encounter(db, session_id, character_id, combat_cfg, pack_dir=system_path or None)
     except LoreKitError as e:
         return f"ERROR: {e}"
     finally:

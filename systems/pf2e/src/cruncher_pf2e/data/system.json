@@ -279,6 +279,13 @@
     }
   },
 
+  "encounter_end": {
+    "clear_duration_types": [
+      "encounter", "rounds", "concentration",
+      "until_next_turn", "reaction"
+    ]
+  },
+
   "rest": {
     "short": {
       "restore": {"current_hp": "current_hp"},

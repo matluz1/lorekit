@@ -35,6 +35,105 @@ def _resolve_system_path(db, session_id: int) -> str | None:
     return resolve_system_path(meta_row[0])
 
 
+def _load_encounter_end_cfg(pack_dir: str | None) -> dict:
+    """Load encounter_end config from system.json.
+
+    Returns the encounter_end section, or an empty dict if not configured.
+    """
+    if not pack_dir:
+        return {}
+    import os
+
+    system_json_path = os.path.join(pack_dir, "system.json")
+    try:
+        with open(system_json_path) as f:
+            import json as _json
+
+            system_data = _json.load(f)
+        return system_data.get("encounter_end", {})
+    except (FileNotFoundError, json.JSONDecodeError):
+        return {}
+
+
+def _reset_encounter_attributes(db, char_ids: list[int], reset_attrs: list[dict], pack_dir: str | None) -> list[str]:
+    """Process reset_attributes from encounter_end config.
+
+    Dispatches on the 'action' field:
+    - reset_to_base: set value = key for all rows in the category
+    - switch_to_base: call switch_alternate() to atomically reset arrays
+      (handles action_override cleanup that a plain value reset cannot)
+    - delete: remove all rows in the category
+    - (with 'value'): set a specific key to a fixed value
+
+    Returns summary lines for the combat report.
+    """
+    lines = []
+    for ra in reset_attrs:
+        cat = ra.get("category", "")
+        action = ra.get("action", "")
+
+        if action == "reset_to_base":
+            for cid in char_ids:
+                db.execute(
+                    "UPDATE character_attributes SET value = key WHERE character_id = ? AND category = ?",
+                    (cid, cat),
+                )
+        elif action == "switch_to_base":
+            lines.extend(_switch_to_base(db, char_ids, cat, pack_dir))
+        elif action == "delete":
+            for cid in char_ids:
+                db.execute(
+                    "DELETE FROM character_attributes WHERE character_id = ? AND category = ?",
+                    (cid, cat),
+                )
+        elif "value" in ra:
+            key = ra.get("key", "")
+            val = str(ra["value"])
+            for cid in char_ids:
+                db.execute(
+                    "INSERT INTO character_attributes "
+                    "(character_id, category, key, value) "
+                    "VALUES (?, ?, ?, ?) "
+                    "ON CONFLICT(character_id, category, key) "
+                    "DO UPDATE SET value = excluded.value",
+                    (cid, cat, key, val),
+                )
+    return lines
+
+
+def _switch_to_base(db, char_ids: list[int], category: str, pack_dir: str | None) -> list[str]:
+    """Switch tracked alternates back to base via switch_alternate().
+
+    Reads rows from the given category (key = group name, value = current
+    selection) and calls switch_alternate(value → key) for each that is
+    not already at base. This atomically handles action_override cleanup
+    that a plain value reset cannot.
+
+    Returns summary lines for the combat report.
+    """
+    if not pack_dir:
+        return []
+
+    from lorekit.combat import switch_alternate
+
+    lines = []
+    for cid in char_ids:
+        rows = db.execute(
+            "SELECT key, value FROM character_attributes WHERE character_id = ? AND category = ?",
+            (cid, category),
+        ).fetchall()
+        for group_name, current in rows:
+            if current == group_name:
+                continue
+            try:
+                switch_alternate(db, cid, group_name, group_name, pack_dir)
+                char_name = db.execute("SELECT name FROM characters WHERE id = ?", (cid,)).fetchone()[0]
+                lines.append(f"  {char_name}: {group_name} reset to base")
+            except Exception:
+                pass  # best-effort — don't fail encounter end
+    return lines
+
+
 # ---------------------------------------------------------------------------
 # Zone graph — shortest path
 # ---------------------------------------------------------------------------
@@ -1024,6 +1123,7 @@ def leave_encounter(
     session_id: int,
     character_id: int,
     combat_cfg: dict | None = None,
+    pack_dir: str | None = None,
 ) -> str:
     """Remove a character from an active encounter.
 
@@ -1063,11 +1163,18 @@ def leave_encounter(
     )
 
     # Remove encounter-duration combat_state rows
+    enc_cfg = _load_encounter_end_cfg(pack_dir)
+    clear_types = enc_cfg.get("clear_duration_types", ["encounter", "rounds", "concentration", "reaction"])
+    ph = ",".join("?" * len(clear_types))
     db.execute(
-        "DELETE FROM combat_state WHERE character_id = ? AND duration_type IN "
-        "('encounter', 'rounds', 'concentration', 'reaction')",
-        (character_id,),
+        f"DELETE FROM combat_state WHERE character_id = ? AND duration_type IN ({ph})",
+        (character_id, *clear_types),
     )
+
+    # Process attribute resets (e.g. active_alternate → base)
+    reset_attrs = enc_cfg.get("reset_attributes", [])
+    if reset_attrs:
+        _reset_encounter_attributes(db, [character_id], reset_attrs, pack_dir)
 
     # Remove from initiative order
     init_order.remove(character_id)
@@ -1095,7 +1202,7 @@ def leave_encounter(
     return result
 
 
-def end_encounter(db, session_id: int, combat_cfg: dict | None = None) -> str:
+def end_encounter(db, session_id: int, combat_cfg: dict | None = None, pack_dir: str | None = None) -> str:
     """End the active encounter with combat summary.
 
     Collects participant stats before cleanup, removes zones/positions/modifiers,
@@ -1149,14 +1256,22 @@ def end_encounter(db, session_id: int, combat_cfg: dict | None = None) -> str:
         for _, zname in zone_rows:
             terrain_removed += _remove_zone_terrain(db, cid, zname)
 
-    # Remove encounter-duration combat_state modifiers
+    # Remove encounter-duration combat_state modifiers (data-driven)
+    enc_cfg = _load_encounter_end_cfg(pack_dir)
+    clear_types = enc_cfg.get("clear_duration_types", ["encounter", "rounds", "concentration"])
     encounter_removed = 0
+    ph = ",".join("?" * len(clear_types))
     for cid in char_ids:
         encounter_removed += db.execute(
-            "DELETE FROM combat_state WHERE character_id = ? "
-            "AND duration_type IN ('encounter', 'rounds', 'concentration')",
-            (cid,),
+            f"DELETE FROM combat_state WHERE character_id = ? AND duration_type IN ({ph})",
+            (cid, *clear_types),
         ).rowcount
+
+    # Process attribute resets (e.g. active_alternate → base)
+    reset_attrs = enc_cfg.get("reset_attributes", [])
+    reset_lines = []
+    if reset_attrs:
+        reset_lines = _reset_encounter_attributes(db, char_ids, reset_attrs, pack_dir)
 
     # Clean up zone data
     zone_ids = [r[0] for r in zone_rows]
@@ -1174,7 +1289,7 @@ def end_encounter(db, session_id: int, combat_cfg: dict | None = None) -> str:
     db.commit()
 
     # Auto-recalc derived stats for all participants after modifier cleanup
-    if terrain_removed or encounter_removed:
+    if terrain_removed or encounter_removed or reset_lines:
         from lorekit.rules import try_rules_calc
 
         for cid in char_ids:
@@ -1195,6 +1310,8 @@ def end_encounter(db, session_id: int, combat_cfg: dict | None = None) -> str:
         parts.append(f"{encounter_removed} combat modifier(s)")
     if parts:
         lines.append(f"Cleared: {', '.join(parts)}")
+    if reset_lines:
+        lines.extend(reset_lines)
 
     # Auto-save combat summary to journal (scoped to participants)
     summary_text = "\n".join(lines)
