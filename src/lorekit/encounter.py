@@ -84,15 +84,10 @@ def _reset_encounter_attributes(db, char_ids: list[int], reset_attrs: list[dict]
         elif "value" in ra:
             key = ra.get("key", "")
             val = str(ra["value"])
+            from lorekit.queries import upsert_attribute
+
             for cid in char_ids:
-                db.execute(
-                    "INSERT INTO character_attributes "
-                    "(character_id, category, key, value) "
-                    "VALUES (?, ?, ?, ?) "
-                    "ON CONFLICT(character_id, category, key) "
-                    "DO UPDATE SET value = excluded.value",
-                    (cid, cat, key, val),
-                )
+                upsert_attribute(db, cid, cat, key, val)
     return lines
 
 
@@ -1231,12 +1226,9 @@ def delay_turn(db, session_id: int, character_id: int) -> str:
     char_name = _char_name(db, character_id)
 
     # Mark as delayed
-    db.execute(
-        "INSERT INTO character_attributes (character_id, category, key, value) "
-        "VALUES (?, 'internal', '_delayed', '1') "
-        "ON CONFLICT(character_id, category, key) DO UPDATE SET value = '1'",
-        (character_id,),
-    )
+    from lorekit.queries import upsert_attribute
+
+    upsert_attribute(db, character_id, "internal", "_delayed", "1")
 
     # Remove from initiative order
     char_index = init_order.index(character_id)

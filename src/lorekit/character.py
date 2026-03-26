@@ -267,11 +267,9 @@ def cmd_update(db, args):
 
 
 def set_attr(db, character_id: int, category: str, key: str, value: str) -> str:
-    db.execute(
-        "INSERT INTO character_attributes (character_id, category, key, value) "
-        "VALUES (?, ?, ?, ?) ON CONFLICT(character_id, category, key) DO UPDATE SET value = excluded.value",
-        (character_id, category, key, value),
-    )
+    from lorekit.queries import upsert_attribute
+
+    upsert_attribute(db, character_id, category, key, value)
     db.commit()
     return f"ATTR_SET: {key} = {value}"
 

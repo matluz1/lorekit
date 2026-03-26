@@ -879,12 +879,9 @@ def execute_combat_turn(
     if reaction_policy and isinstance(reaction_policy, dict):
         for rsource, rmode in reaction_policy.items():
             if rmode in ("active", "inactive", "ask"):
-                db.execute(
-                    "INSERT INTO character_attributes (character_id, category, key, value) "
-                    "VALUES (?, 'reaction_policy', ?, ?) "
-                    "ON CONFLICT(character_id, category, key) DO UPDATE SET value = excluded.value",
-                    (npc_id, rsource, rmode),
-                )
+                from lorekit.queries import upsert_attribute
+
+                upsert_attribute(db, npc_id, "reaction_policy", rsource, rmode)
     db.commit()
 
     # Validate sequence against schema + character overrides + conditions

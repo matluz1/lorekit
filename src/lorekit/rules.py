@@ -105,16 +105,13 @@ def write_derived(db, character_id: int, derived: dict[str, Any]) -> int:
 
     Returns the number of attributes written.
     """
+    from lorekit.queries import upsert_attribute
+
     count = 0
     for key, value in derived.items():
         if isinstance(value, str) and value.startswith("ERROR:"):
             continue  # Skip errored stats
-        db.execute(
-            "INSERT INTO character_attributes (character_id, category, key, value) "
-            "VALUES (?, 'derived', ?, ?) "
-            "ON CONFLICT(character_id, category, key) DO UPDATE SET value = excluded.value",
-            (character_id, key, str(value)),
-        )
+        upsert_attribute(db, character_id, "derived", key, str(value))
         count += 1
     db.commit()
     return count
@@ -156,14 +153,11 @@ def _run_build(db, character_id: int, pack_dir: str, char: CharacterData):
     # Write build attributes to DB and merge into character data
     count = 0
     build_attrs = char.attributes.setdefault("build", {})
+    from lorekit.queries import upsert_attribute
+
     for key, value in build_result.attributes.items():
         str_val = str(value)
-        db.execute(
-            "INSERT INTO character_attributes (character_id, category, key, value) "
-            "VALUES (?, 'build', ?, ?) "
-            "ON CONFLICT(character_id, category, key) DO UPDATE SET value = excluded.value",
-            (character_id, key, str_val),
-        )
+        upsert_attribute(db, character_id, "build", key, str_val)
         build_attrs[key] = str_val
         count += 1
 
@@ -174,24 +168,14 @@ def _run_build(db, character_id: int, pack_dir: str, char: CharacterData):
             ("budget_spent", build_result.budget_spent),
         ]:
             str_val = str(budget_val)
-            db.execute(
-                "INSERT INTO character_attributes (character_id, category, key, value) "
-                "VALUES (?, 'build', ?, ?) "
-                "ON CONFLICT(character_id, category, key) DO UPDATE SET value = excluded.value",
-                (character_id, budget_key, str_val),
-            )
+            upsert_attribute(db, character_id, "build", budget_key, str_val)
             build_attrs[budget_key] = str_val
 
         # Per-category costs
         for cost_cat, cost_val in build_result.costs.items():
             cost_key = f"cost_{cost_cat}"
             str_val = str(cost_val)
-            db.execute(
-                "INSERT INTO character_attributes (character_id, category, key, value) "
-                "VALUES (?, 'build', ?, ?) "
-                "ON CONFLICT(character_id, category, key) DO UPDATE SET value = excluded.value",
-                (character_id, cost_key, str_val),
-            )
+            upsert_attribute(db, character_id, "build", cost_key, str_val)
             build_attrs[cost_key] = str_val
 
     if count:

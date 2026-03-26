@@ -145,17 +145,11 @@ def _check_condition_action_limit(db, character_id: int, pack: SystemPack) -> No
 
 def _increment_turn_actions(db, character_id: int) -> None:
     """Increment the per-turn action counter for a character."""
-    row = db.execute(
-        "SELECT value FROM character_attributes WHERE character_id = ? AND key = '_actions_this_turn'",
-        (character_id,),
-    ).fetchone()
-    new_val = (int(row[0]) if row else 0) + 1
-    db.execute(
-        "INSERT INTO character_attributes (character_id, category, key, value) "
-        "VALUES (?, 'internal', '_actions_this_turn', ?) "
-        "ON CONFLICT(character_id, category, key) DO UPDATE SET value = ?",
-        (character_id, str(new_val), str(new_val)),
-    )
+    from lorekit.queries import get_attribute, upsert_attribute
+
+    row = get_attribute(db, character_id, "internal", "_actions_this_turn")
+    new_val = (int(row) if row else 0) + 1
+    upsert_attribute(db, character_id, "internal", "_actions_this_turn", str(new_val))
     db.commit()
 
 
@@ -205,17 +199,11 @@ def _increment_switches(db, char) -> None:
     if enc is None:
         return
 
-    row = db.execute(
-        "SELECT value FROM character_attributes WHERE character_id = ? AND key = '_switches_this_turn'",
-        (char.character_id,),
-    ).fetchone()
-    new_val = (int(row[0]) if row else 0) + 1
-    db.execute(
-        "INSERT INTO character_attributes (character_id, category, key, value) "
-        "VALUES (?, 'internal', '_switches_this_turn', ?) "
-        "ON CONFLICT(character_id, category, key) DO UPDATE SET value = ?",
-        (char.character_id, str(new_val), str(new_val)),
-    )
+    from lorekit.queries import get_attribute, upsert_attribute
+
+    row = get_attribute(db, char.character_id, "internal", "_switches_this_turn")
+    new_val = (int(row) if row else 0) + 1
+    upsert_attribute(db, char.character_id, "internal", "_switches_this_turn", str(new_val))
 
 
 # ---------------------------------------------------------------------------
@@ -354,12 +342,9 @@ def sync_condition_modifiers(
 
     for flag in desired_flags:
         if flag not in existing_flag_set:
-            db.execute(
-                "INSERT INTO character_attributes (character_id, category, key, value) "
-                "VALUES (?, 'condition_flags', ?, '1') "
-                "ON CONFLICT(character_id, category, key) DO UPDATE SET value = '1'",
-                (character_id, flag),
-            )
+            from lorekit.queries import upsert_attribute
+
+            upsert_attribute(db, character_id, "condition_flags", flag, "1")
             changed = True
 
     for flag in existing_flag_set:
@@ -603,12 +588,9 @@ def _get_attr_str(char: CharacterData, stat: str) -> str:
 
 def _write_attr(db, character_id: int, key: str, value: Any) -> None:
     """Write/update a combat attribute on a character."""
-    db.execute(
-        "INSERT INTO character_attributes (character_id, category, key, value) "
-        "VALUES (?, 'combat', ?, ?) "
-        "ON CONFLICT(character_id, category, key) DO UPDATE SET value = excluded.value",
-        (character_id, key, str(value)),
-    )
+    from lorekit.queries import upsert_attribute
+
+    upsert_attribute(db, character_id, "combat", key, str(value))
     db.commit()
 
 
@@ -623,12 +605,9 @@ def _read_resource(db, character_id: int, key: str) -> int:
 
 def _write_resource(db, character_id: int, key: str, value: int) -> None:
     """Write a resource value to character_attributes (category='resource')."""
-    db.execute(
-        "INSERT INTO character_attributes (character_id, category, key, value) "
-        "VALUES (?, 'resource', ?, ?) "
-        "ON CONFLICT(character_id, category, key) DO UPDATE SET value = excluded.value",
-        (character_id, key, str(value)),
-    )
+    from lorekit.queries import upsert_attribute
+
+    upsert_attribute(db, character_id, "resource", key, str(value))
     db.commit()
 
 
@@ -2919,22 +2898,16 @@ def switch_alternate(
     new_desc = alternates[alternate_name]
     action_data = new_desc.get("action")
     if action_data:
+        from lorekit.queries import upsert_attribute
+
         key = action_data.get("key", alternate_name.lower().replace(" ", "_"))
-        db.execute(
-            "INSERT INTO character_attributes (character_id, category, key, value) "
-            "VALUES (?, 'action_override', ?, ?) "
-            "ON CONFLICT(character_id, category, key) DO UPDATE SET value = excluded.value",
-            (character_id, key, json.dumps(action_data)),
-        )
+        upsert_attribute(db, character_id, "action_override", key, json.dumps(action_data))
         lines.append(f"  Action registered: {key}")
 
     # Track active alternate
-    db.execute(
-        "INSERT INTO character_attributes (character_id, category, key, value) "
-        "VALUES (?, 'active_alternate', ?, ?) "
-        "ON CONFLICT(character_id, category, key) DO UPDATE SET value = excluded.value",
-        (character_id, array_name, alternate_name),
-    )
+    from lorekit.queries import upsert_attribute as _upsert
+
+    _upsert(db, character_id, "active_alternate", array_name, alternate_name)
 
     # Increment per-turn switch counter (only during active encounters)
     if not _bypass_limit:

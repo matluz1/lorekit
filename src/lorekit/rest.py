@@ -87,14 +87,9 @@ def rest(db, session_id: int, rest_type: str, pack_dir: str) -> str:
                 ).fetchone()
                 old_val = old_row[0] if old_row else "0"
 
-                db.execute(
-                    "INSERT INTO character_attributes "
-                    "(character_id, category, key, value) "
-                    "VALUES (?, 'stat', ?, ?) "
-                    "ON CONFLICT(character_id, category, key) "
-                    "DO UPDATE SET value = excluded.value",
-                    (cid, stat, str(new_val)),
-                )
+                from lorekit.queries import upsert_attribute
+
+                upsert_attribute(db, cid, "stat", stat, str(new_val))
                 char_lines.append(f"    {stat}: {old_val} → {new_val}")
 
         # --- Reset ability uses ---
@@ -137,11 +132,9 @@ def rest(db, session_id: int, rest_type: str, pack_dir: str) -> str:
                 (cid, cat, key),
             ).fetchone()
             if old_row and old_row[0] != val:
-                db.execute(
-                    "INSERT INTO character_attributes (character_id, category, key, value) "
-                    "VALUES (?, ?, ?, ?) ON CONFLICT(character_id, category, key) DO UPDATE SET value = excluded.value",
-                    (cid, cat, key, val),
-                )
+                from lorekit.queries import upsert_attribute
+
+                upsert_attribute(db, cid, cat, key, val)
                 char_lines.append(f"    {key}: {old_row[0]} → {val}")
 
         # --- Clear combat modifiers ---
