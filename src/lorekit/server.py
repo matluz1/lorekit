@@ -1,7 +1,11 @@
 #!/usr/bin/env python3
 """LoreKit MCP server -- long-lived process with cached embedding model."""
 
+import copy
+import json
 import os
+import sqlite3
+import subprocess
 import sys
 
 from mcp.server.fastmcp import FastMCP
@@ -79,8 +83,6 @@ def _auto_register_reactions(db, session_id: int) -> list[str]:
     insert a combat_state row with ``duration_type = 'reaction'`` so the
     engine's ``_check_reactions()`` can find it during resolution.
     """
-    import json
-
     # Get all characters in the encounter
     enc = db.execute(
         "SELECT id, initiative_order FROM encounter_state WHERE session_id = ? AND status = 'active'",
@@ -872,9 +874,7 @@ def turn_save(
             (session_id,),
         ).fetchone()
         if enc_row:
-            import json as _json
-
-            init_order = _json.loads(enc_row[0])
+            init_order = json.loads(enc_row[0])
             current_turn = enc_row[1]
             remaining = len(init_order) - current_turn - 1
             if remaining > 0 and current_turn > 0:
@@ -899,15 +899,13 @@ def turn_save(
 
 def _embed_ability_metadata(ab: dict) -> str:
     """Embed array_of/dynamic/uses_action into description JSON when present."""
-    import json as _json
-
     desc = ab.get("desc", "")
     array_of = ab.get("array_of")
     uses_action = ab.get("uses_action")
     if not array_of and not uses_action:
         return desc
     try:
-        desc_data = _json.loads(desc) if desc.strip().startswith("{") else {"desc": desc}
+        desc_data = json.loads(desc) if desc.strip().startswith("{") else {"desc": desc}
     except (ValueError, AttributeError):
         desc_data = {"desc": desc}
     if array_of:
@@ -916,7 +914,7 @@ def _embed_ability_metadata(ab: dict) -> str:
         desc_data["dynamic"] = True
     if uses_action:
         desc_data["uses_action"] = uses_action
-    return _json.dumps(desc_data)
+    return json.dumps(desc_data)
 
 
 @mcp.tool()
@@ -952,19 +950,17 @@ def character_build(
       Keys: self_concept, current_goals, emotional_state, relationships, behavioral_patterns.
     aliases: JSON array of alternative names for this character (e.g. ["Bob", "the bartender"]).
     """
-    import json as _json
-
     from lorekit.character import create as char_create
     from lorekit.character import set_ability, set_attr, set_item
     from lorekit.db import LoreKitError, require_db
 
     try:
-        attrs_list = _json.loads(attrs)
-        items_list = _json.loads(items)
-        abilities_list = _json.loads(abilities)
-        core_dict = _json.loads(core)
-        aliases_list = _json.loads(aliases)
-    except _json.JSONDecodeError as e:
+        attrs_list = json.loads(attrs)
+        items_list = json.loads(items)
+        abilities_list = json.loads(abilities)
+        core_dict = json.loads(core)
+        aliases_list = json.loads(aliases)
+    except json.JSONDecodeError as e:
         return f"ERROR: Invalid JSON: {e}"
 
     db = require_db()
@@ -990,17 +986,15 @@ def character_build(
             # Auto-register action_override from ability's action field
             action_def = ab.get("action")
             if action_def:
-                import copy as _copy
-
-                adef = _copy.deepcopy(action_def)
+                adef = copy.deepcopy(action_def)
                 akey = adef.pop("key", ab["name"].lower().replace(" ", "_"))
-                set_attr(db, char_id, "action_override", akey, _json.dumps(adef))
+                set_attr(db, char_id, "action_override", akey, json.dumps(adef))
 
             # Auto-register movement_mode from ability's movement field
             movement_def = ab.get("movement")
             if movement_def:
                 mode = movement_def.get("mode", "special")
-                set_attr(db, char_id, "movement_mode", mode, _json.dumps(movement_def))
+                set_attr(db, char_id, "movement_mode", mode, json.dumps(movement_def))
 
             ability_count += 1
 
@@ -1059,16 +1053,12 @@ def ability_from_template(
     overrides: JSON object of fields to override on the template defaults.
       M&M example: {"ranks": 10, "extras": ["Accurate"], "feeds": {"bonus_ranged_damage": 10}}
     """
-    import copy
-    import json as _json
-    import os
-
     from lorekit.character import set_ability
     from lorekit.db import LoreKitError, require_db
 
     try:
-        overrides_dict = _json.loads(overrides)
-    except _json.JSONDecodeError as e:
+        overrides_dict = json.loads(overrides)
+    except json.JSONDecodeError as e:
         return f"ERROR: Invalid JSON overrides: {e}"
 
     db = require_db()
@@ -1091,7 +1081,7 @@ def ability_from_template(
             return "ERROR: system.json not found"
 
         with open(system_file) as f:
-            system_data = _json.load(f)
+            system_data = json.load(f)
 
         templates_cfg = system_data.get("templates")
         if not templates_cfg:
@@ -1102,7 +1092,7 @@ def ability_from_template(
             return f"ERROR: Templates file not found: {templates_cfg['source']}"
 
         with open(source_file) as f:
-            templates_data = _json.load(f)
+            templates_data = json.load(f)
 
         template = templates_data.get(template_key)
         if template is None:
@@ -1118,7 +1108,7 @@ def ability_from_template(
         ability_name = merged.get("name", template_key)
 
         # Store the merged data as the ability description (JSON)
-        set_ability(db, character_id, ability_name, _json.dumps(merged), ability_category, "at_will")
+        set_ability(db, character_id, ability_name, json.dumps(merged), ability_category, "at_will")
 
         # Auto-register action_override from template's action field
         action_def = merged.get("action")
@@ -1127,7 +1117,7 @@ def ability_from_template(
             akey = adef.pop("key", ability_name.lower().replace(" ", "_"))
             from lorekit.character import set_attr
 
-            set_attr(db, character_id, "action_override", akey, _json.dumps(adef))
+            set_attr(db, character_id, "action_override", akey, json.dumps(adef))
 
         # Auto-register movement_mode from template's movement field
         movement_def = merged.get("movement")
@@ -1135,7 +1125,7 @@ def ability_from_template(
             mode = movement_def.get("mode", "special")
             from lorekit.character import set_attr
 
-            set_attr(db, character_id, "movement_mode", mode, _json.dumps(movement_def))
+            set_attr(db, character_id, "movement_mode", mode, json.dumps(movement_def))
 
         # Auto-run rules_calc
         rules_summary = try_rules_calc(db, character_id)
@@ -1172,8 +1162,6 @@ def session_setup(
     narrative_time: initial in-game time as ISO 8601, e.g. "1347-03-15T14:00".
     The first act is automatically set to "active".
     """
-    import json as _json
-
     from lorekit.db import LoreKitError, require_db
     from lorekit.narrative.region import create as region_create_fn
     from lorekit.narrative.session import create as sess_create
@@ -1182,10 +1170,10 @@ def session_setup(
     from lorekit.narrative.story import set_story as story_set_fn
 
     try:
-        meta_dict = _json.loads(meta)
-        acts_list = _json.loads(acts)
-        regions_list = _json.loads(regions)
-    except _json.JSONDecodeError as e:
+        meta_dict = json.loads(meta)
+        acts_list = json.loads(acts)
+        regions_list = json.loads(regions)
+    except json.JSONDecodeError as e:
         return f"ERROR: Invalid JSON: {e}"
 
     db = require_db()
@@ -1251,8 +1239,6 @@ def session_resume(session_id: int) -> str:
     all PCs with full sheets, all regions, last 20 timeline entries, and last 5
     journal notes.
     """
-    import sqlite3
-
     from lorekit.character import view as char_view
     from lorekit.db import LoreKitError, require_db
     from lorekit.narrative.journal import list_entries as journal_list_fn
@@ -1393,21 +1379,19 @@ def character_sheet_update(
     aliases: JSON array of alternative names for this character (e.g. ["Bob", "the bartender"]).
       Replaces existing aliases entirely.
     """
-    import json as _json
-
     from lorekit.character import remove_ability, remove_item, set_ability, set_attr, set_item
     from lorekit.character import update as char_update
     from lorekit.db import LoreKitError, require_db
 
     try:
-        attrs_list = _json.loads(attrs)
-        items_list = _json.loads(items)
-        abilities_list = _json.loads(abilities)
-        remove_list = _json.loads(remove_items)
-        remove_abilities_list = _json.loads(remove_abilities)
-        core_dict = _json.loads(core)
-        aliases_list = _json.loads(aliases)
-    except _json.JSONDecodeError as e:
+        attrs_list = json.loads(attrs)
+        items_list = json.loads(items)
+        abilities_list = json.loads(abilities)
+        remove_list = json.loads(remove_items)
+        remove_abilities_list = json.loads(remove_abilities)
+        core_dict = json.loads(core)
+        aliases_list = json.loads(aliases)
+    except json.JSONDecodeError as e:
         return f"ERROR: Invalid JSON: {e}"
 
     db = require_db()
@@ -1472,17 +1456,15 @@ def character_sheet_update(
             # Auto-register action_override from ability's action field
             action_def = ab.get("action")
             if action_def:
-                import copy as _copy
-
-                adef = _copy.deepcopy(action_def)
+                adef = copy.deepcopy(action_def)
                 akey = adef.pop("key", ab["name"].lower().replace(" ", "_"))
-                set_attr(db, character_id, "action_override", akey, _json.dumps(adef))
+                set_attr(db, character_id, "action_override", akey, json.dumps(adef))
 
             # Auto-register movement_mode from ability's movement field
             movement_def = ab.get("movement")
             if movement_def:
                 mode = movement_def.get("mode", "special")
-                set_attr(db, character_id, "movement_mode", mode, _json.dumps(movement_def))
+                set_attr(db, character_id, "movement_mode", mode, json.dumps(movement_def))
 
             ability_count += 1
         if ability_count:
@@ -1565,8 +1547,6 @@ def _build_npc_prompt(db, npc_id: int, session_id: int, gm_message: str = "") ->
 
     Returns (system_prompt, model, npc_name) or None if NPC/session not found.
     """
-    import sqlite3
-
     from lorekit.npc.prefetch import assemble_context
 
     db.row_factory = sqlite3.Row
@@ -1720,8 +1700,6 @@ def _parse_npc_stream(stdout: str, npc_name: str = "NPC") -> tuple[str, list[str
 
     Returns (response_text, list_of_tool_names_used).
     """
-    import json
-
     _npc_log(f"[START] ─── {npc_name} ───")
 
     text_parts: list[str] = []
@@ -1806,8 +1784,6 @@ def npc_interact(session_id: int, npc_id: int | str, message: str) -> str:
 
     npc_id: numeric ID or NPC name (case-insensitive).
     """
-    import subprocess
-
     from lorekit.db import require_db
 
     db = require_db()
@@ -1990,8 +1966,6 @@ def npc_combat_turn(session_id: int, npc_id: int | str) -> str:
 
     npc_id: numeric ID or NPC name (case-insensitive).
     """
-    import subprocess
-
     from lorekit.db import LoreKitError, require_db
 
     db = require_db()
@@ -2074,8 +2048,6 @@ def npc_combat_turn(session_id: int, npc_id: int | str) -> str:
 
     intent = parse_combat_intent(response_text, schema=intent_schema)
 
-    import json
-
     _npc_log(f"[COMBAT] ← {npc_name}: {json.dumps(intent, default=str)}")
 
     # Build output
@@ -2123,8 +2095,6 @@ def system_info(system: str = "", session_id: int = 0, section: str = "all") -> 
     session_id: alternatively, resolve the system from a session's rules_system metadata.
     section: "actions", "defaults", "derived", "build", "constraints", "resolution", "combat", or "all".
     """
-    import os
-
     from lorekit.db import LoreKitError, require_db
 
     if not system and session_id <= 0:
@@ -2166,8 +2136,6 @@ def rules_check(character_id: int | str, check: str, dc: int, system_path: str =
     If system_path is empty, reads the session's 'rules_system' metadata
     and looks for the pack under systems/<rules_system>/ in the project root.
     """
-    import os
-
     from lorekit.db import LoreKitError, require_db
 
     db = require_db()
@@ -2216,9 +2184,6 @@ def rules_resolve(
     If system_path is empty, reads the session's 'rules_system' metadata
     and looks for the pack under systems/<rules_system>/ in the project root.
     """
-    import json
-    import os
-
     from lorekit.db import LoreKitError, require_db
 
     db = require_db()
@@ -2309,8 +2274,6 @@ def rules_calc(character_id: int | str, system_path: str = "") -> str:
     If system_path is empty, reads the session's 'rules_system' metadata
     and looks for the pack under systems/<rules_system>/ in the project root.
     """
-    import os
-
     from lorekit.db import LoreKitError, require_db
 
     db = require_db()
@@ -2357,8 +2320,6 @@ def end_turn(character_id: int | str, system_path: str = "") -> str:
     character_id: numeric ID or character name (case-insensitive).
     If system_path is empty, reads the session's 'rules_system' metadata.
     """
-    import os
-
     from lorekit.db import LoreKitError, require_db
 
     db = require_db()
@@ -2562,8 +2523,6 @@ def rules_modifiers(character_id: int | str, stat: str = "", system_path: str = 
     character_id: numeric ID or character name (case-insensitive).
     If system_path is empty, reads the session's 'rules_system' metadata.
     """
-    import os
-
     from lorekit.db import LoreKitError, require_db
 
     db = require_db()
@@ -2754,8 +2713,6 @@ def encounter_start(
     adjacency: JSON array (optional) — [{"from": "A", "to": "B", "weight": 1}, ...]
     placements: JSON array (optional) — [{"character_id": 5, "zone": "Entrance"}, ...]
     """
-    import json
-
     from lorekit.db import LoreKitError, require_db
 
     db = require_db()
@@ -2864,13 +2821,11 @@ def encounter_move(character_id: int | str, target_zone: str) -> str:
                 pass
 
         # Check for movement modes that bypass adjacency (e.g. teleport)
-        import json as _json
-
         mode_rows = db.execute(
             "SELECT value FROM character_attributes WHERE character_id = ? AND category = 'movement_mode'",
             (character_id,),
         ).fetchall()
-        skip_adj = any(_json.loads(v).get("skip_adjacency") for (v,) in mode_rows) if mode_rows else False
+        skip_adj = any(json.loads(v).get("skip_adjacency") for (v,) in mode_rows) if mode_rows else False
 
         from lorekit.encounter import move_character
 
@@ -3116,8 +3071,6 @@ def encounter_zone_update(session_id: int, zone_name: str, tags: str) -> str:
 
     tags: JSON array — ["difficult_terrain", "cover"]
     """
-    import json
-
     from lorekit.db import LoreKitError, require_db
 
     db = require_db()
@@ -3149,8 +3102,6 @@ def encounter_zone_add(
     adjacent_to: JSON array — [{"zone": "Arena", "weight": 1}, ...]
       Declares which existing zones connect to the new one. Empty = isolated.
     """
-    import json
-
     from lorekit.db import LoreKitError, require_db
 
     db = require_db()

@@ -46,9 +46,7 @@ def _load_encounter_end_cfg(pack_dir: str | None) -> dict:
     system_json_path = os.path.join(pack_dir, "system.json")
     try:
         with open(system_json_path) as f:
-            import json as _json
-
-            system_data = _json.load(f)
+            system_data = json.load(f)
         return system_data.get("encounter_end", {})
     except (FileNotFoundError, json.JSONDecodeError):
         return {}

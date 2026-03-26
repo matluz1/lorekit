@@ -15,7 +15,9 @@ derived stats when modifiers expire.
 
 from __future__ import annotations
 
+import json
 import math
+import os
 import random
 from typing import Any
 
@@ -446,10 +448,8 @@ def _get_defender_resolution_effects(
             (defender_id,),
         ).fetchone()
         if zone_row and zone_row[0]:
-            import json as _json
-
             try:
-                tags = _json.loads(zone_row[0]) if isinstance(zone_row[0], str) else zone_row[0]
+                tags = json.loads(zone_row[0]) if isinstance(zone_row[0], str) else zone_row[0]
             except (ValueError, TypeError):
                 tags = []
             for tag in tags:
@@ -531,8 +531,6 @@ def _get_action_def(pack: SystemPack, char: CharacterData, action: str) -> dict:
     if action in overrides:
         raw = overrides[action]
         if isinstance(raw, str):
-            import json
-
             return json.loads(raw)
         return raw
 
@@ -550,15 +548,12 @@ def _get_gm_hints(pack: SystemPack, action: str) -> str | None:
     Returns a formatted hint string, or None if the action is not a
     recognized gm_assisted effect.
     """
-    import json as _json
-    import os
-
     effects_path = os.path.join(pack.pack_dir, "effects.json")
     if not os.path.isfile(effects_path):
         return None
 
     with open(effects_path) as f:
-        effects_data = _json.load(f)
+        effects_data = json.load(f)
 
     effect_def = effects_data.get(action)
     if not isinstance(effect_def, dict):
@@ -1295,8 +1290,6 @@ def _check_reactions(
     - ``defense_override``: replace defense value (Deflect)
     - ``free_attack``: reactor gets a free counter-attack
     """
-    import json as _json
-
     options = options or {}
     reactions_cfg = pack.combat.get("reactions", {})
     hook_cfg = reactions_cfg.get(hook_name, {})
@@ -1316,7 +1309,7 @@ def _check_reactions(
 
     for row_id, reactor_id, source, dur_type, duration, metadata_str in rows:
         try:
-            metadata = _json.loads(metadata_str)
+            metadata = json.loads(metadata_str)
         except (ValueError, TypeError):
             continue
 
@@ -2119,12 +2112,10 @@ def _resolve_degree(
 
     # Homing: on miss, defer re-attack to attacker's next turn
     if not hit and action_def.get("homing"):
-        import json as _json
-
         homing_ranks = action_def.get("homing")
         retries = homing_ranks if isinstance(homing_ranks, int) else 1
         action_name = action_def.get("_action_name", "unknown")
-        metadata = _json.dumps(
+        metadata = json.dumps(
             {
                 "action": action_name,
                 "target_id": defender.character_id,
@@ -2168,8 +2159,6 @@ def _check_contagious(
     Each contagious modifier declares its own ``spread_range`` in metadata
     (defaults to ``"melee"``). The action's range must match for spreading.
     """
-    import json as _json
-
     action_range = action_def.get("range", "")
 
     rows = db.execute(
@@ -2181,7 +2170,7 @@ def _check_contagious(
 
     for source, target_stat, mod_type, value, bonus_type, dur_type, duration, save_stat, save_dc, meta_str in rows:
         try:
-            metadata = _json.loads(meta_str)
+            metadata = json.loads(meta_str)
         except (ValueError, TypeError):
             continue
         if not metadata.get("contagious"):
@@ -2508,10 +2497,8 @@ def start_turn(db, character_id: int, pack_dir: str) -> str:
 
         elif action == "retry_action":
             # Homing: retry a deferred attack
-            import json as _json
-
             try:
-                meta = _json.loads(metadata) if metadata else None
+                meta = json.loads(metadata) if metadata else None
             except (ValueError, TypeError):
                 meta = None
             if not meta:
@@ -2545,7 +2532,7 @@ def start_turn(db, character_id: int, pack_dir: str) -> str:
                     meta["retries_left"] = retries_left - 1
                     db.execute(
                         "UPDATE combat_state SET metadata = ? WHERE id = ?",
-                        (_json.dumps(meta), row_id),
+                        (json.dumps(meta), row_id),
                     )
                 has_output = True
 
@@ -2772,8 +2759,6 @@ def activate_power(db, character_id: int, ability_name: str, pack_dir: str) -> s
     inserts them as combat_state rows with ``duration_type = "sustained"``,
     and re-runs rules_calc to recompute derived stats.
     """
-    import json as _json
-
     from lorekit.rules import load_character_data, rules_calc
 
     char = load_character_data(db, character_id)
@@ -2788,7 +2773,7 @@ def activate_power(db, character_id: int, ability_name: str, pack_dir: str) -> s
         raise LoreKitError(f"Ability '{ability_name}' not found on {char.name}")
 
     try:
-        desc = _json.loads(row[0])
+        desc = json.loads(row[0])
     except (ValueError, TypeError):
         raise LoreKitError(f"Ability '{ability_name}' has no structured data")
 
@@ -2883,7 +2868,6 @@ def switch_alternate(
     system pack's combat.alternate_switching.max_per_turn config (if set).
     Set _bypass_limit=True for internal resets (e.g. encounter_end cleanup).
     """
-    import json as _json
 
     from lorekit.rules import load_character_data, rules_calc
 
@@ -2905,7 +2889,7 @@ def switch_alternate(
     primary_name = None
     for name, desc_str in rows:
         try:
-            desc = _json.loads(desc_str)
+            desc = json.loads(desc_str)
         except (ValueError, TypeError):
             continue
         if desc.get("array_of") == array_name:
@@ -2940,7 +2924,7 @@ def switch_alternate(
             "INSERT INTO character_attributes (character_id, category, key, value) "
             "VALUES (?, 'action_override', ?, ?) "
             "ON CONFLICT(character_id, category, key) DO UPDATE SET value = excluded.value",
-            (character_id, key, _json.dumps(action_data)),
+            (character_id, key, json.dumps(action_data)),
         )
         lines.append(f"  Action registered: {key}")
 

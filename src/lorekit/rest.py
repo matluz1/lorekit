@@ -10,6 +10,10 @@ the system pack without knowing what "rest" means.
 
 from __future__ import annotations
 
+import json
+import os
+import re
+
 from lorekit.db import LoreKitError
 
 
@@ -19,9 +23,6 @@ def rest(db, session_id: int, rest_type: str, pack_dir: str) -> str:
     rest_type: key in the system pack's "rest" section (e.g. "short", "long")
     pack_dir: path to the system pack directory
     """
-    import json
-    import os
-
     from cruncher.formulas import FormulaContext, calc
     from cruncher.system_pack import load_system_pack
     from lorekit.rules import load_character_data, try_rules_calc
@@ -111,8 +112,6 @@ def rest(db, session_id: int, rest_type: str, pack_dir: str) -> str:
                 for aid, aname, uses in rows:
                     # Reset uses to original max (e.g. "0/3 day" → "3/3 day")
                     # Parse "N/M unit" format
-                    import re
-
                     m = re.match(r"(\d+)/(\d+)\s*(.*)", uses)
                     if m:
                         max_uses = m.group(2)
