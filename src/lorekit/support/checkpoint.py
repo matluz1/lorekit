@@ -9,6 +9,7 @@ stories, acts, regions, metadata) made since that checkpoint.
 import json
 
 from lorekit.db import LoreKitError
+from lorekit.npc.memory import NPC_CORE_FIELDS
 
 
 def snapshot_session(db, session_id):
@@ -220,20 +221,16 @@ def snapshot_session(db, session_id):
     ]
 
     # NPC core identity
+    _core_cols = ", ".join(NPC_CORE_FIELDS)
     snap["npc_core"] = [
         {
             "id": r[0],
             "npc_id": r[1],
-            "self_concept": r[2],
-            "current_goals": r[3],
-            "emotional_state": r[4],
-            "relationships": r[5],
-            "behavioral_patterns": r[6],
-            "updated_at": r[7],
+            **{f: r[i + 2] for i, f in enumerate(NPC_CORE_FIELDS)},
+            "updated_at": r[len(NPC_CORE_FIELDS) + 2],
         }
         for r in db.execute(
-            "SELECT id, npc_id, self_concept, current_goals, emotional_state, relationships, "
-            "behavioral_patterns, updated_at FROM npc_core WHERE session_id = ?",
+            f"SELECT id, npc_id, {_core_cols}, updated_at FROM npc_core WHERE session_id = ?",
             (session_id,),
         ).fetchall()
     ]
@@ -514,22 +511,13 @@ def restore_snapshot(db, session_id, snapshot):
             )
 
         # NPC core identity
+        _core_cols = ", ".join(NPC_CORE_FIELDS)
+        _core_placeholders = ", ".join("?" for _ in range(len(NPC_CORE_FIELDS) + 4))
         for r in snapshot.get("npc_core", []):
             db.execute(
-                "INSERT INTO npc_core (id, session_id, npc_id, self_concept, current_goals, "
-                "emotional_state, relationships, behavioral_patterns, updated_at) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                (
-                    r["id"],
-                    session_id,
-                    r["npc_id"],
-                    r["self_concept"],
-                    r["current_goals"],
-                    r["emotional_state"],
-                    r["relationships"],
-                    r["behavioral_patterns"],
-                    r["updated_at"],
-                ),
+                f"INSERT INTO npc_core (id, session_id, npc_id, {_core_cols}, updated_at) "
+                f"VALUES ({_core_placeholders})",
+                (r["id"], session_id, r["npc_id"], *(r[f] for f in NPC_CORE_FIELDS), r["updated_at"]),
             )
 
         # Timeline

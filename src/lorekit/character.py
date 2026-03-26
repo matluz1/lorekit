@@ -155,18 +155,19 @@ def view(db, character_id: int) -> str:
         session_id = row[1]
 
         # NPC core identity
+        from lorekit.npc.memory import NPC_CORE_FIELDS
+
+        cols = ", ".join(NPC_CORE_FIELDS)
         core_row = db.execute(
-            "SELECT self_concept, current_goals, emotional_state, relationships, behavioral_patterns "
-            "FROM npc_core WHERE session_id = ? AND npc_id = ?",
+            f"SELECT {cols} FROM npc_core WHERE session_id = ? AND npc_id = ?",
             (session_id, character_id),
         ).fetchone()
         if core_row:
             lines.append("")
             lines.append("--- NPC CORE ---")
-            labels = ["SELF_CONCEPT", "CURRENT_GOALS", "EMOTIONAL_STATE", "RELATIONSHIPS", "BEHAVIORAL_PATTERNS"]
-            for label, val in zip(labels, core_row):
+            for field, val in zip(NPC_CORE_FIELDS, core_row):
                 if val:
-                    lines.append(f"{label}: {val}")
+                    lines.append(f"{field.upper()}: {val}")
 
         # Top 5 NPC memories by importance
         mem_rows = db.execute(

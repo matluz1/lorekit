@@ -6,6 +6,7 @@ import math
 from lorekit.db import LoreKitError
 
 VALID_MEMORY_TYPES = ("experience", "observation", "relationship", "reflection")
+NPC_CORE_FIELDS = ("self_concept", "current_goals", "emotional_state", "relationships", "behavioral_patterns")
 CORE_FIELD_CAP = 2000
 
 
@@ -65,26 +66,21 @@ def get_memories(db, npc_id, session_id, limit=10, min_importance=0.0):
 
 def get_core(db, session_id, npc_id):
     """Return npc_core row as dict, or None."""
+    cols = ", ".join(NPC_CORE_FIELDS)
     row = db.execute(
-        "SELECT self_concept, current_goals, emotional_state, relationships, "
-        "behavioral_patterns, updated_at FROM npc_core WHERE session_id = ? AND npc_id = ?",
+        f"SELECT {cols}, updated_at FROM npc_core WHERE session_id = ? AND npc_id = ?",
         (session_id, npc_id),
     ).fetchone()
     if row is None:
         return None
-    return {
-        "self_concept": row[0],
-        "current_goals": row[1],
-        "emotional_state": row[2],
-        "relationships": row[3],
-        "behavioral_patterns": row[4],
-        "updated_at": row[5],
-    }
+    result = {field: row[i] for i, field in enumerate(NPC_CORE_FIELDS)}
+    result["updated_at"] = row[len(NPC_CORE_FIELDS)]
+    return result
 
 
 def set_core(db, session_id, npc_id, **fields):
     """Upsert npc_core with 2,000-char cap per field."""
-    allowed = {"self_concept", "current_goals", "emotional_state", "relationships", "behavioral_patterns"}
+    allowed = set(NPC_CORE_FIELDS)
     filtered = {}
     for k, v in fields.items():
         if k in allowed and v is not None:

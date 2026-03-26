@@ -4,6 +4,7 @@ import json
 import re
 
 import lorekit.npc.memory as npc_memory
+from lorekit.npc.memory import NPC_CORE_FIELDS
 
 
 def parse_npc_metadata(text):
@@ -180,10 +181,8 @@ def _apply_state_changes(db, session_id, npc_id, state_changes):
         if key.startswith("relationship."):
             rel_name = key[len("relationship.") :]
             relationship_updates[rel_name] = value
-        elif key in ("self_concept", "current_goals", "emotional_state", "behavioral_patterns"):
+        elif key in NPC_CORE_FIELDS and key != "relationships":
             direct_fields[key] = value
-        elif key == "emotional_state":
-            direct_fields["emotional_state"] = value
 
     # Merge relationship updates into existing relationships JSON
     if relationship_updates:
