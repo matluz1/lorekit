@@ -580,22 +580,10 @@ def _get_char_vital(db, cid: int, hud_cfg: dict) -> str:
     max_key = vital.get("max")
     label = vital.get("label", "")
 
-    current_val = None
-    max_val = None
-    if current_key:
-        row = db.execute(
-            "SELECT value FROM character_attributes WHERE character_id = ? AND key = ?",
-            (cid, current_key),
-        ).fetchone()
-        if row:
-            current_val = row[0]
-    if max_key:
-        row = db.execute(
-            "SELECT value FROM character_attributes WHERE character_id = ? AND key = ?",
-            (cid, max_key),
-        ).fetchone()
-        if row:
-            max_val = row[0]
+    from lorekit.queries import get_attribute_by_key
+
+    current_val = get_attribute_by_key(db, cid, current_key) if current_key else None
+    max_val = get_attribute_by_key(db, cid, max_key) if max_key else None
 
     if current_val is None:
         return ""
@@ -680,11 +668,10 @@ def _get_condition_reminders(db, cid: int, session_id: int) -> list[str]:
         if not (attr_key and min_val is not None and cond_name):
             continue
         if cond_name in condition_rules and cond_name not in seen:
-            row = db.execute(
-                "SELECT value FROM character_attributes WHERE character_id = ? AND key = ?",
-                (cid, attr_key),
-            ).fetchone()
-            if row and float(row[0]) >= min_val:
+            from lorekit.queries import get_attribute_by_key
+
+            val = get_attribute_by_key(db, cid, attr_key)
+            if val is not None and float(val) >= min_val:
                 desc = _desc(condition_rules[cond_name])
                 if desc:
                     reminders.append(f"⚠ {cname} is {cond_name}: {desc}")

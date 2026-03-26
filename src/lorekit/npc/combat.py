@@ -485,11 +485,10 @@ def build_combat_context(
         cond_name = thresh.get("condition")
         if not (attr_key and min_val is not None and cond_name and cond_name in condition_rules):
             continue
-        row = db.execute(
-            "SELECT value FROM character_attributes WHERE character_id = ? AND key = ?",
-            (npc_id, attr_key),
-        ).fetchone()
-        if row and float(row[0]) >= min_val and cond_name not in active_labels:
+        from lorekit.queries import get_attribute_by_key
+
+        val = get_attribute_by_key(db, npc_id, attr_key)
+        if val is not None and float(val) >= min_val and cond_name not in active_labels:
             cdef = condition_rules[cond_name]
             desc = cdef.get("description") if isinstance(cdef, dict) else cdef
             condition_section += f"  ⚠ {cond_name}: {desc}\n"
@@ -634,13 +633,12 @@ def _get_relative_health(db, cid: int, hud_cfg: dict) -> str:
     if not current_key:
         return ""
 
-    current_row = db.execute(
-        "SELECT value FROM character_attributes WHERE character_id = ? AND key = ?",
-        (cid, current_key),
-    ).fetchone()
-    if not current_row:
+    from lorekit.queries import get_attribute_by_key
+
+    current_str = get_attribute_by_key(db, cid, current_key)
+    if not current_str:
         return ""
-    current = float(current_row[0])
+    current = float(current_str)
 
     if not max_key:
         # Single-value vital (like mm3e damage condition)
@@ -648,13 +646,10 @@ def _get_relative_health(db, cid: int, hud_cfg: dict) -> str:
             return "unhurt"
         return f"condition {int(current)}"
 
-    max_row = db.execute(
-        "SELECT value FROM character_attributes WHERE character_id = ? AND key = ?",
-        (cid, max_key),
-    ).fetchone()
-    if not max_row:
+    max_str = get_attribute_by_key(db, cid, max_key)
+    if not max_str:
         return ""
-    max_val = float(max_row[0])
+    max_val = float(max_str)
 
     if max_val <= 0:
         return ""
@@ -775,13 +770,12 @@ def _validate_sequence(
     # Character-level overrides: max_{step}_steps attribute
     # When a per-step limit increases, expand max_total by the same delta
     for step_name in max_per_step:
+        from lorekit.queries import get_attribute_by_key
+
         override_key = f"max_{step_name}_steps"
-        row = db.execute(
-            "SELECT value FROM character_attributes WHERE character_id = ? AND key = ?",
-            (npc_id, override_key),
-        ).fetchone()
-        if row:
-            new_val = int(row[0])
+        override_val = get_attribute_by_key(db, npc_id, override_key)
+        if override_val:
+            new_val = int(override_val)
             old_val = max_per_step[step_name]
             if max_total is not None and new_val > old_val:
                 max_total += new_val - old_val

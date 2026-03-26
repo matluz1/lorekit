@@ -81,11 +81,9 @@ def rest(db, session_id: int, rest_type: str, pack_dir: str) -> str:
                     continue
 
                 # Read old value
-                old_row = db.execute(
-                    "SELECT value FROM character_attributes WHERE character_id = ? AND key = ?",
-                    (cid, stat),
-                ).fetchone()
-                old_val = old_row[0] if old_row else "0"
+                from lorekit.queries import get_attribute_by_key
+
+                old_val = get_attribute_by_key(db, cid, stat) or "0"
 
                 from lorekit.queries import upsert_attribute
 
@@ -127,15 +125,14 @@ def rest(db, session_id: int, rest_type: str, pack_dir: str) -> str:
             cat = ra["category"]
             key = ra["key"]
             val = str(ra.get("value", "0"))
-            old_row = db.execute(
-                "SELECT value FROM character_attributes WHERE character_id = ? AND category = ? AND key = ?",
-                (cid, cat, key),
-            ).fetchone()
-            if old_row and old_row[0] != val:
+            from lorekit.queries import get_attribute
+
+            old_val = get_attribute(db, cid, cat, key)
+            if old_val is not None and old_val != val:
                 from lorekit.queries import upsert_attribute
 
                 upsert_attribute(db, cid, cat, key, val)
-                char_lines.append(f"    {key}: {old_row[0]} → {val}")
+                char_lines.append(f"    {key}: {old_val} → {val}")
 
         # --- Clear combat modifiers ---
         clear_types = type_cfg.get("clear_duration_types", [])

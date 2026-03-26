@@ -56,11 +56,10 @@ def get_active_conditions(db, character_id: int, condition_rules: dict, threshol
         cond_name = thresh.get("condition")
         if not (attr_key and min_val is not None and cond_name):
             continue
-        row = db.execute(
-            "SELECT value FROM character_attributes WHERE character_id = ? AND key = ?",
-            (character_id, attr_key),
-        ).fetchone()
-        if row and float(row[0]) >= min_val:
+        from lorekit.queries import get_attribute_by_key
+
+        val = get_attribute_by_key(db, character_id, attr_key)
+        if val is not None and float(val) >= min_val:
             active.add(cond_name)
 
     return active

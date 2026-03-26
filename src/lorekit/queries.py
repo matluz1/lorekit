@@ -51,3 +51,12 @@ def get_attribute(db, character_id: int, category: str, key: str) -> str | None:
         (character_id, category, key),
     ).fetchone()
     return row[0] if row else None
+
+
+def get_attribute_by_key(db, character_id: int, key: str) -> str | None:
+    """Return a single attribute value by key (any category), or None if not set."""
+    row = db.execute(
+        "SELECT value FROM character_attributes WHERE character_id = ? AND key = ?",
+        (character_id, key),
+    ).fetchone()
+    return row[0] if row else None
