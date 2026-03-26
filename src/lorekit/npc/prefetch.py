@@ -202,8 +202,14 @@ def _get_recent_memories(db, npc_id: int, session_id: int, limit: int = FALLBACK
     return [_row_to_memory(r) for r in rows]
 
 
-def _get_recent_timeline(db, session_id: int, npc_id: int = 0, limit: int = 10) -> list[str]:
-    """Get recent timeline entries visible to this NPC, as formatted strings.
+def _get_npc_region_id(db, npc_id: int) -> int:
+    """Look up the NPC's region_id, returning 0 if not found."""
+    row = db.execute("SELECT region_id FROM characters WHERE id = ?", (npc_id,)).fetchone()
+    return row[0] if row and row[0] else 0
+
+
+def _get_scoped_entries(db, session_id: int, npc_id: int, table: str, columns: str, limit: int) -> list:
+    """Fetch recent entries from a scoped table (timeline/journal) visible to an NPC.
 
     Scope filtering:
     - "all" entries are always visible
@@ -212,33 +218,33 @@ def _get_recent_timeline(db, session_id: int, npc_id: int = 0, limit: int = 10) 
     - "gm" entries are never visible to NPCs
     """
     if not npc_id:
-        # Fallback: no NPC context, show all non-gm entries
-        rows = db.execute(
-            "SELECT entry_type, content, summary FROM timeline "
-            "WHERE session_id = ? AND scope != 'gm' ORDER BY id DESC LIMIT ?",
+        return db.execute(
+            f"SELECT {columns} FROM {table} WHERE session_id = ? AND scope != 'gm' ORDER BY id DESC LIMIT ?",
             (session_id, limit),
         ).fetchall()
-    else:
-        npc_region = db.execute("SELECT region_id FROM characters WHERE id = ?", (npc_id,)).fetchone()
-        npc_region_id = npc_region[0] if npc_region and npc_region[0] else 0
 
-        rows = db.execute(
-            """SELECT entry_type, content, summary FROM timeline
-            WHERE session_id = ? AND (
-                scope = 'all'
-                OR (scope = 'participants' AND id IN (
-                    SELECT source_id FROM entry_entities
-                    WHERE source = 'timeline' AND entity_type = 'character' AND entity_id = ?
-                ))
-                OR (scope = 'region' AND id IN (
-                    SELECT source_id FROM entry_entities
-                    WHERE source = 'timeline' AND entity_type = 'region' AND entity_id = ?
-                ))
-            )
-            ORDER BY id DESC LIMIT ?""",
-            (session_id, npc_id, npc_region_id, limit),
-        ).fetchall()
+    npc_region_id = _get_npc_region_id(db, npc_id)
+    return db.execute(
+        f"""SELECT {columns} FROM {table}
+        WHERE session_id = ? AND (
+            scope = 'all'
+            OR (scope = 'participants' AND id IN (
+                SELECT source_id FROM entry_entities
+                WHERE source = ? AND entity_type = 'character' AND entity_id = ?
+            ))
+            OR (scope = 'region' AND id IN (
+                SELECT source_id FROM entry_entities
+                WHERE source = ? AND entity_type = 'region' AND entity_id = ?
+            ))
+        )
+        ORDER BY id DESC LIMIT ?""",
+        (session_id, table, npc_id, table, npc_region_id, limit),
+    ).fetchall()
 
+
+def _get_recent_timeline(db, session_id: int, npc_id: int = 0, limit: int = 10) -> list[str]:
+    """Get recent timeline entries visible to this NPC, as formatted strings."""
+    rows = _get_scoped_entries(db, session_id, npc_id, "timeline", "entry_type, content, summary", limit)
     entries = []
     for entry_type, content, summary in reversed(rows):
         text = summary or content[:200]
@@ -247,30 +253,8 @@ def _get_recent_timeline(db, session_id: int, npc_id: int = 0, limit: int = 10) 
 
 
 def _get_recent_journal(db, session_id: int, npc_id: int, limit: int = 5) -> list[str]:
-    """Get recent journal entries visible to this NPC, as formatted strings.
-
-    Same scope filtering as timeline.
-    """
-    npc_region = db.execute("SELECT region_id FROM characters WHERE id = ?", (npc_id,)).fetchone()
-    npc_region_id = npc_region[0] if npc_region and npc_region[0] else 0
-
-    rows = db.execute(
-        """SELECT entry_type, content FROM journal
-        WHERE session_id = ? AND (
-            scope = 'all'
-            OR (scope = 'participants' AND id IN (
-                SELECT source_id FROM entry_entities
-                WHERE source = 'journal' AND entity_type = 'character' AND entity_id = ?
-            ))
-            OR (scope = 'region' AND id IN (
-                SELECT source_id FROM entry_entities
-                WHERE source = 'journal' AND entity_type = 'region' AND entity_id = ?
-            ))
-        )
-        ORDER BY id DESC LIMIT ?""",
-        (session_id, npc_id, npc_region_id, limit),
-    ).fetchall()
-
+    """Get recent journal entries visible to this NPC, as formatted strings."""
+    rows = _get_scoped_entries(db, session_id, npc_id, "journal", "entry_type, content", limit)
     entries = []
     for entry_type, content in reversed(rows):
         entries.append(f"- [{entry_type}] {content[:200]}")
