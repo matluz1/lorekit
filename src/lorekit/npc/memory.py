@@ -121,7 +121,7 @@ def set_core(db, session_id, npc_id, **fields):
     db.commit()
 
 
-def _parse_time(dt_str):
+def parse_time(dt_str):
     """Parse an ISO 8601 datetime string. Returns datetime or None."""
     from datetime import datetime, timezone
 
@@ -134,12 +134,12 @@ def _parse_time(dt_str):
         return None
 
 
-def _narrative_hours_since(dt_str, now_dt):
+def narrative_hours_since(dt_str, now_dt):
     """Calculate hours between a timestamp and a reference datetime.
 
     Returns 0.0 if either value is missing or unparseable.
     """
-    ts = _parse_time(dt_str)
+    ts = parse_time(dt_str)
     if ts is None or now_dt is None:
         return 0.0
     # Strip timezone info for comparison if mixed (narrative times may lack tz)
@@ -166,7 +166,7 @@ def score_memories(memories, query_embedding, narrative_now, noise=0.0):
     from datetime import datetime, timezone
 
     # Parse narrative_now; fall back to wall-clock if unavailable
-    now_dt = _parse_time(narrative_now)
+    now_dt = parse_time(narrative_now)
     if now_dt is None:
         now_dt = datetime.now(timezone.utc)
 
@@ -176,7 +176,7 @@ def score_memories(memories, query_embedding, narrative_now, noise=0.0):
         # Prefer last_accessed (narrative time of last retrieval),
         # then narrative_time (when the memory was formed)
         last = m.get("last_accessed") or m.get("narrative_time") or ""
-        hours = _narrative_hours_since(last, now_dt)
+        hours = narrative_hours_since(last, now_dt)
         recency = RECENCY_DECAY**hours
 
         importance = float(m.get("importance", DEFAULT_IMPORTANCE))

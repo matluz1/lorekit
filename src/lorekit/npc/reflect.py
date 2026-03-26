@@ -196,9 +196,9 @@ def prune_memories(db, session_id, npc_id, narrative_now=""):
 
     Returns count of pruned memories.
     """
-    from lorekit.npc.memory import _narrative_hours_since, _parse_time
+    from lorekit.npc.memory import narrative_hours_since, parse_time
 
-    now_dt = _parse_time(narrative_now)
+    now_dt = parse_time(narrative_now)
     if now_dt is None:
         now_dt = datetime.now(timezone.utc)
 
@@ -214,7 +214,7 @@ def prune_memories(db, session_id, npc_id, narrative_now=""):
         if not nar_time:
             continue
 
-        hours = _narrative_hours_since(nar_time, now_dt)
+        hours = narrative_hours_since(nar_time, now_dt)
         recency = RECENCY_DECAY**hours
         if recency < PRUNE_RECENCY:
             to_prune.append(mem_id)
