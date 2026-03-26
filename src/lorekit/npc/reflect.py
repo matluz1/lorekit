@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 
 import lorekit.npc.memory as npc_memory
 from lorekit.db import LoreKitError
+from lorekit.npc.memory import MEMORY_SELECT, memory_row_to_dict
 
 
 def check_trigger(db, session_id, npc_id, threshold=15.0):
@@ -32,38 +33,20 @@ def get_unprocessed_memories(db, session_id, npc_id):
 
     if last_reflection_at:
         rows = db.execute(
-            "SELECT id, content, importance, memory_type, entities, narrative_time, "
-            "access_count, last_accessed, source_ids, created_at "
-            "FROM npc_memories WHERE npc_id = ? AND session_id = ? "
+            f"SELECT {MEMORY_SELECT} FROM npc_memories WHERE npc_id = ? AND session_id = ? "
             "AND memory_type != 'reflection' AND created_at > ? "
             "ORDER BY created_at ASC",
             (npc_id, session_id, last_reflection_at),
         ).fetchall()
     else:
         rows = db.execute(
-            "SELECT id, content, importance, memory_type, entities, narrative_time, "
-            "access_count, last_accessed, source_ids, created_at "
-            "FROM npc_memories WHERE npc_id = ? AND session_id = ? "
+            f"SELECT {MEMORY_SELECT} FROM npc_memories WHERE npc_id = ? AND session_id = ? "
             "AND memory_type != 'reflection' "
             "ORDER BY created_at ASC",
             (npc_id, session_id),
         ).fetchall()
 
-    return [
-        {
-            "id": r[0],
-            "content": r[1],
-            "importance": r[2],
-            "memory_type": r[3],
-            "entities": r[4],
-            "narrative_time": r[5],
-            "access_count": r[6],
-            "last_accessed": r[7],
-            "source_ids": r[8],
-            "created_at": r[9],
-        }
-        for r in rows
-    ]
+    return [memory_row_to_dict(r) for r in rows]
 
 
 def generate_reflection(db, session_id, npc_id, context_hint="", narrative_time=""):

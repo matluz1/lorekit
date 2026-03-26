@@ -8,7 +8,25 @@ from lorekit.db import LoreKitError
 
 VALID_MEMORY_TYPES = ("experience", "observation", "relationship", "reflection")
 NPC_CORE_FIELDS = ("self_concept", "current_goals", "emotional_state", "relationships", "behavioral_patterns")
+MEMORY_COLUMNS = (
+    "id",
+    "content",
+    "importance",
+    "memory_type",
+    "entities",
+    "narrative_time",
+    "access_count",
+    "last_accessed",
+    "source_ids",
+    "created_at",
+)
+MEMORY_SELECT = ", ".join(MEMORY_COLUMNS)
 CORE_FIELD_CAP = 2000
+
+
+def memory_row_to_dict(row) -> dict:
+    """Convert a DB row tuple to a memory dict."""
+    return {col: row[i] for i, col in enumerate(MEMORY_COLUMNS)}
 
 
 def add_memory(db, session_id, npc_id, content, importance, memory_type, entities, narrative_time, source_ids=None):
@@ -41,28 +59,13 @@ def add_memory(db, session_id, npc_id, content, importance, memory_type, entitie
 def get_memories(db, npc_id, session_id, limit=10, min_importance=0.0):
     """Retrieve NPC memories ordered by importance DESC."""
     rows = db.execute(
-        "SELECT id, content, importance, memory_type, entities, narrative_time, "
-        "access_count, last_accessed, source_ids, created_at "
-        "FROM npc_memories WHERE npc_id = ? AND session_id = ? AND importance >= ? "
+        f"SELECT {MEMORY_SELECT} FROM npc_memories "
+        "WHERE npc_id = ? AND session_id = ? AND importance >= ? "
         "ORDER BY importance DESC LIMIT ?",
         (npc_id, session_id, min_importance, limit),
     ).fetchall()
 
-    return [
-        {
-            "id": r[0],
-            "content": r[1],
-            "importance": r[2],
-            "memory_type": r[3],
-            "entities": r[4],
-            "narrative_time": r[5],
-            "access_count": r[6],
-            "last_accessed": r[7],
-            "source_ids": r[8],
-            "created_at": r[9],
-        }
-        for r in rows
-    ]
+    return [memory_row_to_dict(r) for r in rows]
 
 
 def get_core(db, session_id, npc_id):

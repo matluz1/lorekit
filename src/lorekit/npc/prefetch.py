@@ -17,6 +17,7 @@ import logging
 import sqlite3
 
 import lorekit.npc.memory as npc_memory
+from lorekit.npc.memory import MEMORY_SELECT, memory_row_to_dict
 
 logger = logging.getLogger("lorekit.prefetch")
 
@@ -121,9 +122,7 @@ def _get_entity_memories(db, npc_id: int, session_id: int, entity_names: list[st
         return []
 
     rows = db.execute(
-        "SELECT id, content, importance, memory_type, entities, narrative_time, "
-        "access_count, last_accessed, source_ids, created_at "
-        "FROM npc_memories WHERE npc_id = ? AND session_id = ?",
+        f"SELECT {MEMORY_SELECT} FROM npc_memories WHERE npc_id = ? AND session_id = ?",
         (npc_id, session_id),
     ).fetchall()
 
@@ -182,9 +181,7 @@ def _get_vector_memories(db, npc_id: int, session_id: int, query_embedding, limi
 
         placeholders = ",".join("?" * len(memory_ids))
         mem_rows = db.execute(
-            f"SELECT id, content, importance, memory_type, entities, narrative_time, "
-            f"access_count, last_accessed, source_ids, created_at "
-            f"FROM npc_memories WHERE id IN ({placeholders})",
+            f"SELECT {MEMORY_SELECT} FROM npc_memories WHERE id IN ({placeholders})",
             memory_ids,
         ).fetchall()
 
@@ -201,9 +198,7 @@ def _get_vector_memories(db, npc_id: int, session_id: int, query_embedding, limi
 def _get_recent_memories(db, npc_id: int, session_id: int, limit: int = _FALLBACK_RECENT) -> list[dict]:
     """Retrieve most recent memories by narrative_time (fallback when no entities found)."""
     rows = db.execute(
-        "SELECT id, content, importance, memory_type, entities, narrative_time, "
-        "access_count, last_accessed, source_ids, created_at "
-        "FROM npc_memories WHERE npc_id = ? AND session_id = ? "
+        f"SELECT {MEMORY_SELECT} FROM npc_memories WHERE npc_id = ? AND session_id = ? "
         "ORDER BY created_at DESC LIMIT ?",
         (npc_id, session_id, limit),
     ).fetchall()
@@ -285,20 +280,7 @@ def _get_recent_journal(db, session_id: int, npc_id: int, limit: int = 5) -> lis
     return entries
 
 
-def _row_to_memory(row) -> dict:
-    """Convert a DB row tuple to a memory dict."""
-    return {
-        "id": row[0],
-        "content": row[1],
-        "importance": row[2],
-        "memory_type": row[3],
-        "entities": row[4],
-        "narrative_time": row[5],
-        "access_count": row[6],
-        "last_accessed": row[7],
-        "source_ids": row[8],
-        "created_at": row[9],
-    }
+_row_to_memory = memory_row_to_dict
 
 
 # ---------------------------------------------------------------------------
