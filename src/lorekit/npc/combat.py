@@ -448,9 +448,11 @@ def build_combat_context(
         for source, stat, value, dur_type, duration, applied_by in mod_rows:
             line = f"  {source}: {value:+d} to {stat}"
             if applied_by:
-                applier_name = db.execute("SELECT name FROM characters WHERE id = ?", (applied_by,)).fetchone()
+                from lorekit.queries import get_character_name
+
+                applier_name = get_character_name(db, applied_by)
                 if applier_name:
-                    line += f" (by {applier_name[0]})"
+                    line += f" (by {applier_name})"
             if dur_type == "rounds" and duration is not None:
                 line += f" [{duration}r left]"
             if dur_type == "sustained":
@@ -738,15 +740,13 @@ def parse_combat_intent(response: str, schema: dict | None = None) -> dict:
 
 def _resolve_system_path_internal(db, session_id: int) -> str | None:
     """Resolve system pack path from session metadata."""
+    from lorekit.queries import get_session_meta
     from lorekit.rules import resolve_system_path
 
-    meta_row = db.execute(
-        "SELECT value FROM session_meta WHERE session_id = ? AND key = 'rules_system'",
-        (session_id,),
-    ).fetchone()
-    if meta_row is None:
+    system_name = get_session_meta(db, session_id, "rules_system")
+    if system_name is None:
         return None
-    return resolve_system_path(meta_row[0])
+    return resolve_system_path(system_name)
 
 
 def _validate_sequence(
