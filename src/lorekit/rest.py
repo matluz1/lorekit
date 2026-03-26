@@ -23,6 +23,7 @@ def rest(db, session_id: int, rest_type: str, pack_dir: str) -> str:
     rest_type: key in the system pack's "rest" section (e.g. "short", "long")
     pack_dir: path to the system pack directory
     """
+    from cruncher.errors import CruncherError
     from cruncher.formulas import FormulaContext, calc
     from cruncher.system_pack import load_system_pack
     from lorekit.rules import load_character_data, try_rules_calc
@@ -75,7 +76,7 @@ def rest(db, session_id: int, rest_type: str, pack_dir: str) -> str:
             for stat, formula_str in restore.items():
                 try:
                     new_val = int(calc(formula_str, ctx))
-                except Exception as e:
+                except (ValueError, ZeroDivisionError, KeyError, CruncherError) as e:
                     char_lines.append(f"    {stat}: formula error ({e})")
                     continue
 
@@ -174,7 +175,7 @@ def rest(db, session_id: int, rest_type: str, pack_dir: str) -> str:
             unit = time_cfg["unit"]
             time_result = time_advance(db, session_id, amount, unit)
             lines.append(time_result)
-        except Exception as e:
+        except (LoreKitError, ValueError) as e:
             lines.append(f"  Time advance skipped: {e}")
 
     return "\n".join(lines)

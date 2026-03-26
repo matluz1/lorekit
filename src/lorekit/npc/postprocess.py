@@ -4,6 +4,7 @@ import json
 import re
 
 import lorekit.npc.memory as npc_memory
+from lorekit.db import LoreKitError
 from lorekit.npc.memory import NPC_CORE_FIELDS
 
 
@@ -99,7 +100,7 @@ def _parse_memory_line(line):
             "type": mem_type,
             "entities": entities,
         }
-    except Exception:
+    except (json.JSONDecodeError, ValueError, KeyError, TypeError):
         return None
 
 
@@ -112,7 +113,7 @@ def _parse_state_line(line):
         if not key or not val:
             return None
         return (key, val)
-    except Exception:
+    except (ValueError, AttributeError):
         return None
 
 
@@ -145,7 +146,7 @@ def process_npc_response(db, session_id, npc_id, full_text, npc_name, narrative_
                 entities=mem["entities"],
                 narrative_time=narrative_time,
             )
-        except Exception:
+        except (LoreKitError, OSError):
             pass  # tolerant: skip failures silently
 
     # Apply state changes
@@ -166,7 +167,7 @@ def process_npc_response(db, session_id, npc_id, full_text, npc_name, narrative_
                 entities=[],
                 narrative_time=narrative_time,
             )
-        except Exception:
+        except (LoreKitError, OSError):
             pass
 
     return narrative
@@ -201,5 +202,5 @@ def _apply_state_changes(db, session_id, npc_id, state_changes):
     if direct_fields:
         try:
             npc_memory.set_core(db, session_id, npc_id, **direct_fields)
-        except Exception:
+        except (LoreKitError, OSError):
             pass

@@ -19,6 +19,7 @@ from cruncher import (
     process_build,
     recalculate,
 )
+from cruncher.errors import CruncherError
 from cruncher.types import CharacterData
 from lorekit.db import LoreKitError
 
@@ -270,7 +271,7 @@ def try_rules_calc(db, character_id: int) -> str:
 
     try:
         return rules_calc(db, character_id, system_path)
-    except Exception as e:
+    except (LoreKitError, CruncherError, ValueError, ZeroDivisionError) as e:
         return f"RULES_CALC_WARNING: {e}"
 
 

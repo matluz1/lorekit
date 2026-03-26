@@ -865,7 +865,7 @@ def turn_save(
                         (source, source_id, entity_type, entity_id),
                     )
             db.commit()
-        except Exception:
+        except (OSError, sqlite3.Error):
             pass  # tagging is best-effort
 
         # Warn if saving mid-round (characters haven't acted yet)
@@ -1337,7 +1337,7 @@ def session_resume(session_id: int) -> str:
             from lorekit.support.recall import reindex
 
             reindex(db, session_id)
-        except Exception:
+        except (ImportError, RuntimeError, OSError):
             pass
 
         return "\n".join(parts)
@@ -1784,7 +1784,7 @@ def npc_interact(session_id: int, npc_id: int | str, message: str) -> str:
 
     npc_id: numeric ID or NPC name (case-insensitive).
     """
-    from lorekit.db import require_db
+    from lorekit.db import LoreKitError, require_db
 
     db = require_db()
     try:
@@ -1847,7 +1847,7 @@ def npc_interact(session_id: int, npc_id: int | str, message: str) -> str:
             narrative_time = meta_row[0] if meta_row else ""
 
             clean_text = process_npc_response(db2, session_id, npc_id, response_text, npc_name, narrative_time)
-        except Exception:
+        except (LoreKitError, ValueError, OSError):
             clean_text = response_text  # fallback: return raw text
         finally:
             db2.close()
@@ -1902,7 +1902,7 @@ def npc_memory_add(
 @mcp.tool()
 def npc_reflect(session_id: int, npc_id: int | str) -> str:
     """Trigger reflection for a single NPC. Generates insights from accumulated memories."""
-    from lorekit.db import require_db
+    from lorekit.db import LoreKitError, require_db
 
     db = require_db()
     try:
@@ -1915,7 +1915,7 @@ def npc_reflect(session_id: int, npc_id: int | str) -> str:
 
         result = generate_reflection(db, session_id, npc_id)
         return f"NPC_REFLECTED: {result['npc_name']} — {result['reflections_stored']} reflections, {result['rules_added']} behavioral rules"
-    except Exception as e:
+    except (LoreKitError, subprocess.SubprocessError, OSError) as e:
         return f"ERROR: {e}"
     finally:
         db.close()
@@ -2662,7 +2662,7 @@ def _sync_condition_modifiers_for(db, character_id: int) -> str:
 
     try:
         pack = load_system_pack(system_path)
-    except Exception:
+    except (FileNotFoundError, json.JSONDecodeError, OSError):
         return ""
     combat_cfg = pack.combat or {}
     cr = combat_cfg.get("condition_rules", {})
@@ -2684,7 +2684,7 @@ def _load_combat_cfg(db, session_id: int) -> dict:
     try:
         pack = load_system_pack(system_path)
         return pack.combat
-    except Exception:
+    except (FileNotFoundError, json.JSONDecodeError, OSError):
         return {}
 
 

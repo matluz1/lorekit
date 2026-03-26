@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """recall.py -- Semantic search across timeline entries and journal notes."""
 
+import sqlite3
 import sys
 
 from lorekit.args import parse_args
@@ -98,7 +99,7 @@ def reindex(db, session_id: int) -> str:
         placeholders = ",".join("?" * len(emb_ids))
         try:
             db.execute(f"DELETE FROM vec_embeddings WHERE rowid IN ({placeholders})", emb_ids)
-        except Exception:
+        except (OSError, RuntimeError, sqlite3.Error):
             pass
         db.execute(f"DELETE FROM embeddings WHERE id IN ({placeholders})", emb_ids)
         db.commit()

@@ -1218,7 +1218,7 @@ def _fire_damage_triggers(
                             {"damage_rank": damage_rank, "max": max, "min": min, "floor": math.floor},
                         )
                     )
-                except Exception as e:
+                except (ValueError, ZeroDivisionError, NameError, TypeError) as e:
                     lines.append(f"⚠ DC_FORMULA: '{dc_formula}' failed — {e}. Using default DC {dc}.")
 
         char = load_character_data(db, defender_id)

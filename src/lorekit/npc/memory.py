@@ -2,6 +2,7 @@
 
 import json
 import math
+import sqlite3
 
 from lorekit.db import LoreKitError
 
@@ -31,7 +32,7 @@ def add_memory(db, session_id, npc_id, content, importance, memory_type, entitie
         from lorekit.support.vectordb import index_npc_memory
 
         index_npc_memory(db, session_id, npc_id, memory_id, content)
-    except Exception:
+    except (ImportError, RuntimeError, OSError, sqlite3.Error):
         pass
 
     return memory_id

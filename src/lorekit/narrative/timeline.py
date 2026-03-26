@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """timeline.py -- Unified timeline of narration and player choices."""
 
+import sqlite3
 import sys
 
 from lorekit.args import parse_args
@@ -77,7 +78,7 @@ def add(
             from lorekit.support.vectordb import index_timeline
 
             index_timeline(db, session_id, sql_id, entry_type, summary)
-        except Exception:
+        except (ImportError, RuntimeError, OSError, sqlite3.Error):
             pass
     return f"TIMELINE_ADDED: {sql_id}"
 
@@ -114,7 +115,7 @@ def set_summary(db, timeline_id: int, summary: str) -> str:
             from lorekit.support.vectordb import index_timeline
 
             index_timeline(db, session_id, timeline_id, entry_type, summary)
-        except Exception:
+        except (ImportError, RuntimeError, OSError, sqlite3.Error):
             pass
     return f"SUMMARY_SET: {timeline_id}"
 
@@ -180,7 +181,7 @@ def revert(db, session_id: int) -> str:
             from lorekit.support.vectordb import delete_timeline
 
             delete_timeline(db, narration_ids_with_summary)
-        except Exception:
+        except (ImportError, RuntimeError, OSError, sqlite3.Error):
             pass
 
     breakdown = ", ".join(f"{count} {etype}" for etype, count in sorted(type_counts.items()))

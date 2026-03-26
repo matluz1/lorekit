@@ -611,7 +611,7 @@ def init_schema(db_path=None):
     # Create vec0 virtual table if sqlite-vec is loaded
     try:
         conn.execute("CREATE VIRTUAL TABLE IF NOT EXISTS vec_embeddings USING vec0(embedding float[384])")
-    except Exception:
+    except (sqlite3.OperationalError, sqlite3.DatabaseError):
         pass
     # Run column migrations
     for table, column, sql in ADD_COLUMN_MIGRATIONS:
