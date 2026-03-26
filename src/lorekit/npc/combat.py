@@ -393,7 +393,11 @@ def build_combat_context(
             react_lines.append(f"  {rsource} — triggers on {hook}, {effect} [{uses}] (policy: {policy})")
         reactions_section = (
             "Your reactions:\n" + "\n".join(react_lines) + "\n"
-            "  Set reaction_policy in your response to change: active (auto-fire), inactive (suppress), ask (you'll be consulted)\n"
+            "  You may set reaction_policy in your response to change how each reaction fires:\n"
+            "    active  — auto-fire whenever triggered (default; use for most reactions)\n"
+            "    inactive — suppress for the rest of this encounter\n"
+            "    ask     — you will be consulted before it fires (only use this when the\n"
+            "              situation is complex enough to warrant a deliberate choice)\n"
         )
 
     # Active sustained powers (can be deactivated)
