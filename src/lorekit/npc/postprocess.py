@@ -4,7 +4,6 @@ import json
 import re
 
 import lorekit.npc.memory as npc_memory
-from lorekit.db import LoreKitError
 from lorekit.npc.config import DEFAULT_IMPORTANCE
 from lorekit.npc.memory import NPC_CORE_FIELDS
 
@@ -147,7 +146,7 @@ def process_npc_response(db, session_id, npc_id, full_text, npc_name, narrative_
                 entities=mem["entities"],
                 narrative_time=narrative_time,
             )
-        except (LoreKitError, OSError):
+        except Exception:
             pass  # tolerant: skip failures silently
 
     # Apply state changes
@@ -168,7 +167,7 @@ def process_npc_response(db, session_id, npc_id, full_text, npc_name, narrative_
                 entities=[],
                 narrative_time=narrative_time,
             )
-        except (LoreKitError, OSError):
+        except Exception:
             pass
 
     return narrative
@@ -203,5 +202,5 @@ def _apply_state_changes(db, session_id, npc_id, state_changes):
     if direct_fields:
         try:
             npc_memory.set_core(db, session_id, npc_id, **direct_fields)
-        except (LoreKitError, OSError):
+        except Exception:
             pass

@@ -124,7 +124,7 @@ def _switch_to_base(db, char_ids: list[int], category: str, pack_dir: str | None
                 switch_alternate(db, cid, group_name, group_name, pack_dir, _bypass_limit=True)
                 char_name = _char_name(db, cid)
                 lines.append(f"  {char_name}: {group_name} reset to base")
-            except (LoreKitError, OSError):
+            except Exception:
                 pass  # best-effort — don't fail encounter end
     return lines
 
@@ -1626,7 +1626,7 @@ def end_encounter(db, session_id: int, combat_cfg: dict | None = None, pack_dir:
             pass
 
         lines.append(f"Journal saved: {journal_result}")
-    except (LoreKitError, OSError):
+    except Exception:
         pass  # journal save is best-effort
 
     return "\n".join(lines)

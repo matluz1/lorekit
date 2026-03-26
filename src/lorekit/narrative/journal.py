@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """journal.py -- Append-only adventure log."""
 
-import sqlite3
 import sys
 
 from lorekit.args import parse_args
@@ -69,7 +68,7 @@ def add(
         from lorekit.support.vectordb import index_journal
 
         index_journal(db, session_id, sql_id, entry_type, content)
-    except (ImportError, RuntimeError, OSError, sqlite3.Error):
+    except Exception:
         pass
     return f"JOURNAL_ADDED: {sql_id}"
 

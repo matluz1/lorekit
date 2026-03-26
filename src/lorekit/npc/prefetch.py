@@ -14,7 +14,6 @@ Pipeline steps:
 
 import json
 import logging
-import sqlite3
 
 import lorekit.npc.memory as npc_memory
 from lorekit.npc.config import (
@@ -189,7 +188,7 @@ def _get_vector_memories(db, npc_id: int, session_id: int, query_embedding, limi
             m["_distance"] = distances.get(r[0], 1.0)
             results.append(m)
         return results
-    except (RuntimeError, OSError, sqlite3.Error):
+    except Exception:
         return []
 
 
@@ -321,7 +320,7 @@ def _attach_embeddings(db, memories: list[dict]) -> list[dict]:
             m["embedding"] = emb_map.get(m["id"])
 
         return memories
-    except (RuntimeError, OSError, sqlite3.Error):
+    except Exception:
         return memories
 
 
@@ -510,7 +509,7 @@ def assemble_context(
         from lorekit.support.vectordb import _embed_query
 
         query_embedding = _embed_query(gm_message)
-    except (ImportError, RuntimeError, OSError):
+    except Exception:
         pass
     debug["has_query_embedding"] = query_embedding is not None
 

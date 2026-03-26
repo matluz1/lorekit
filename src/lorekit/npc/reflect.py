@@ -2,7 +2,6 @@
 
 import json
 import re
-import sqlite3
 import subprocess
 from datetime import datetime, timezone
 
@@ -112,7 +111,7 @@ def generate_reflection(db, session_id, npc_id, context_hint="", narrative_time=
                 source_ids=ref.get("source_ids", source_memory_ids),
             )
             reflections_stored += 1
-        except (LoreKitError, OSError):
+        except Exception:
             pass
 
     # 10. Merge behavioral rules into npc_core
@@ -229,7 +228,7 @@ def prune_memories(db, session_id, npc_id, narrative_now=""):
     # Also delete embeddings if the table exists
     try:
         db.execute(f"DELETE FROM npc_memory_embeddings WHERE memory_id IN ({placeholders})", to_prune)
-    except (OSError, RuntimeError, sqlite3.Error):
+    except Exception:
         pass
 
     db.commit()

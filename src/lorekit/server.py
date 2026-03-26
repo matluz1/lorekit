@@ -867,7 +867,7 @@ def turn_save(
                         (source, source_id, entity_type, entity_id),
                     )
             db.commit()
-        except (OSError, sqlite3.Error):
+        except Exception:
             pass  # tagging is best-effort
 
         # Warn if saving mid-round (characters haven't acted yet)
@@ -1341,7 +1341,7 @@ def session_resume(session_id: int) -> str:
             from lorekit.support.recall import reindex
 
             reindex(db, session_id)
-        except (ImportError, RuntimeError, OSError):
+        except Exception:
             pass
 
         return "\n".join(parts)
@@ -1851,7 +1851,7 @@ def npc_interact(session_id: int, npc_id: int | str, message: str) -> str:
             narrative_time = meta_row[0] if meta_row else ""
 
             clean_text = process_npc_response(db2, session_id, npc_id, response_text, npc_name, narrative_time)
-        except (LoreKitError, ValueError, OSError):
+        except Exception:
             clean_text = response_text  # fallback: return raw text
         finally:
             db2.close()
@@ -2664,7 +2664,7 @@ def _sync_condition_modifiers_for(db, character_id: int) -> str:
 
     try:
         pack = load_system_pack(system_path)
-    except (FileNotFoundError, json.JSONDecodeError, OSError):
+    except Exception:
         return ""
     combat_cfg = pack.combat or {}
     cr = combat_cfg.get("condition_rules", {})
@@ -2686,7 +2686,7 @@ def _load_combat_cfg(db, session_id: int) -> dict:
     try:
         pack = load_system_pack(system_path)
         return pack.combat
-    except (FileNotFoundError, json.JSONDecodeError, OSError):
+    except Exception:
         return {}
 
 

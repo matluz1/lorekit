@@ -2,7 +2,6 @@
 
 import json
 import math
-import sqlite3
 
 from lorekit.db import LoreKitError
 from lorekit.npc.config import CORE_FIELD_CAP, DEFAULT_IMPORTANCE, RECENCY_DECAY
@@ -50,7 +49,7 @@ def add_memory(db, session_id, npc_id, content, importance, memory_type, entitie
         from lorekit.support.vectordb import index_npc_memory
 
         index_npc_memory(db, session_id, npc_id, memory_id, content)
-    except (ImportError, RuntimeError, OSError, sqlite3.Error):
+    except Exception:
         pass
 
     return memory_id
