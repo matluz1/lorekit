@@ -17,22 +17,20 @@ import logging
 import sqlite3
 
 import lorekit.npc.memory as npc_memory
+from lorekit.npc.config import (
+    CHARS_PER_TOKEN,
+    DEFAULT_TOKEN_BUDGET,
+    FALLBACK_RECENT,
+    HOT_IMPORTANCE,
+    HOT_MEMORY_LIMIT,
+    IDENTITY_RESERVE,
+    MEMORY_BUDGET_RATIO,
+    MIN_MEMORIES,
+    TIMELINE_BUDGET_RATIO,
+)
 from lorekit.npc.memory import MEMORY_SELECT, memory_row_to_dict
 
 logger = logging.getLogger("lorekit.prefetch")
-
-# Approximate tokens per character (conservative estimate for mixed content)
-_CHARS_PER_TOKEN = 4
-# Default context budget in tokens
-DEFAULT_TOKEN_BUDGET = 6000
-# Reserve for identity + overhead sections
-_IDENTITY_RESERVE = 1500
-# Minimum memories to always include (even if budget is tight)
-_MIN_MEMORIES = 3
-# Hot memory threshold
-_HOT_IMPORTANCE = 0.7
-# Recent memory fallback count (when zero entities extracted)
-_FALLBACK_RECENT = 10
 
 
 class PreFetchResult:
@@ -47,7 +45,7 @@ class PreFetchResult:
 
 def _estimate_tokens(text: str) -> int:
     """Estimate token count from character length."""
-    return max(1, len(text) // _CHARS_PER_TOKEN)
+    return max(1, len(text) // CHARS_PER_TOKEN)
 
 
 # ---------------------------------------------------------------------------
@@ -195,7 +193,7 @@ def _get_vector_memories(db, npc_id: int, session_id: int, query_embedding, limi
         return []
 
 
-def _get_recent_memories(db, npc_id: int, session_id: int, limit: int = _FALLBACK_RECENT) -> list[dict]:
+def _get_recent_memories(db, npc_id: int, session_id: int, limit: int = FALLBACK_RECENT) -> list[dict]:
     """Retrieve most recent memories by narrative_time (fallback when no entities found)."""
     rows = db.execute(
         f"SELECT {MEMORY_SELECT} FROM npc_memories WHERE npc_id = ? AND session_id = ? "
@@ -411,7 +409,7 @@ def _format_memories(scored_memories: list[tuple[dict, float]], token_budget: in
         line = f"- [{m['memory_type']}] {m['content']}"
         line_tokens = _estimate_tokens(line)
 
-        if tokens_used + line_tokens > token_budget and i >= _MIN_MEMORIES:
+        if tokens_used + line_tokens > token_budget and i >= MIN_MEMORIES:
             break
 
         lines.append(line)
@@ -497,7 +495,9 @@ def assemble_context(
     debug["core_tokens"] = core_tokens
 
     # Step 2: Load hot memories (importance > threshold)
-    hot_memories = npc_memory.get_memories(db, npc_id, session_id, limit=20, min_importance=_HOT_IMPORTANCE)
+    hot_memories = npc_memory.get_memories(
+        db, npc_id, session_id, limit=HOT_MEMORY_LIMIT, min_importance=HOT_IMPORTANCE
+    )
     debug["hot_count"] = len(hot_memories)
 
     # Step 3: Parse invocation context
@@ -545,8 +545,8 @@ def assemble_context(
     remaining_budget = token_budget - core_tokens
 
     # Allocate: 60% memories, 25% timeline, 15% journal
-    memory_budget = int(remaining_budget * 0.6)
-    timeline_budget = int(remaining_budget * 0.25)
+    memory_budget = int(remaining_budget * MEMORY_BUDGET_RATIO)
+    timeline_budget = int(remaining_budget * TIMELINE_BUDGET_RATIO)
     journal_budget = remaining_budget - memory_budget - timeline_budget
 
     memories_text, mem_tokens = _format_memories(scored, memory_budget)

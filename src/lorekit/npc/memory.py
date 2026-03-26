@@ -5,6 +5,7 @@ import math
 import sqlite3
 
 from lorekit.db import LoreKitError
+from lorekit.npc.config import CORE_FIELD_CAP, DEFAULT_IMPORTANCE, RECENCY_DECAY
 
 VALID_MEMORY_TYPES = ("experience", "observation", "relationship", "reflection")
 NPC_CORE_FIELDS = ("self_concept", "current_goals", "emotional_state", "relationships", "behavioral_patterns")
@@ -21,7 +22,6 @@ MEMORY_COLUMNS = (
     "created_at",
 )
 MEMORY_SELECT = ", ".join(MEMORY_COLUMNS)
-CORE_FIELD_CAP = 2000
 
 
 def memory_row_to_dict(row) -> dict:
@@ -178,9 +178,9 @@ def score_memories(memories, query_embedding, narrative_now, noise=0.0):
         # then narrative_time (when the memory was formed)
         last = m.get("last_accessed") or m.get("narrative_time") or ""
         hours = _narrative_hours_since(last, now_dt)
-        recency = 0.995**hours
+        recency = RECENCY_DECAY**hours
 
-        importance = float(m.get("importance", 0.5))
+        importance = float(m.get("importance", DEFAULT_IMPORTANCE))
 
         # Relevance via cosine similarity with query_embedding
         # (embedding stored externally; for scoring we expect it passed in m["embedding"])

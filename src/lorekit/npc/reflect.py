@@ -8,10 +8,11 @@ from datetime import datetime, timezone
 
 import lorekit.npc.memory as npc_memory
 from lorekit.db import LoreKitError
+from lorekit.npc.config import PRUNE_IMPORTANCE, PRUNE_RECENCY, RECENCY_DECAY, REFLECT_TIMEOUT, REFLECTION_THRESHOLD
 from lorekit.npc.memory import MEMORY_SELECT, memory_row_to_dict
 
 
-def check_trigger(db, session_id, npc_id, threshold=15.0):
+def check_trigger(db, session_id, npc_id, threshold=REFLECTION_THRESHOLD):
     """Return True if unprocessed memories' importance sum >= threshold."""
     unprocessed = get_unprocessed_memories(db, session_id, npc_id)
     total = sum(float(m["importance"]) for m in unprocessed)
@@ -152,7 +153,7 @@ def generate_reflection(db, session_id, npc_id, context_hint="", narrative_time=
     }
 
 
-def reflect_all(db, session_id, threshold=15.0, context_hint=""):
+def reflect_all(db, session_id, threshold=REFLECTION_THRESHOLD, context_hint=""):
     """Reflect on all NPCs in a session that meet the trigger threshold.
 
     Returns a summary string.
@@ -204,7 +205,7 @@ def prune_memories(db, session_id, npc_id, narrative_now=""):
 
     candidates = db.execute(
         "SELECT id, importance, access_count, narrative_time FROM npc_memories "
-        "WHERE npc_id = ? AND session_id = ? AND importance < 0.3 AND access_count = 0",
+        f"WHERE npc_id = ? AND session_id = ? AND importance < {PRUNE_IMPORTANCE} AND access_count = 0",
         (npc_id, session_id),
     ).fetchall()
 
@@ -215,8 +216,8 @@ def prune_memories(db, session_id, npc_id, narrative_now=""):
             continue
 
         hours = _narrative_hours_since(nar_time, now_dt)
-        recency = 0.995**hours
-        if recency < 0.01:
+        recency = RECENCY_DECAY**hours
+        if recency < PRUNE_RECENCY:
             to_prune.append(mem_id)
 
     if not to_prune:
@@ -333,7 +334,7 @@ def _call_llm(prompt):
         cmd,
         capture_output=True,
         text=True,
-        timeout=120,
+        timeout=REFLECT_TIMEOUT,
         cwd=project_root,
         stdin=subprocess.DEVNULL,
     )

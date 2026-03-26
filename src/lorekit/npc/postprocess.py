@@ -5,6 +5,7 @@ import re
 
 import lorekit.npc.memory as npc_memory
 from lorekit.db import LoreKitError
+from lorekit.npc.config import DEFAULT_IMPORTANCE
 from lorekit.npc.memory import NPC_CORE_FIELDS
 
 
@@ -73,7 +74,7 @@ def _parse_memory_line(line):
         if not content:
             return None
 
-        importance = 0.5
+        importance = DEFAULT_IMPORTANCE
         if "importance" in parts:
             try:
                 importance = float(parts["importance"])

@@ -15,6 +15,7 @@ import json
 import re
 
 from lorekit.db import LoreKitError
+from lorekit.npc.config import REACTION_TIMEOUT
 
 
 def query_npc_reaction(
@@ -78,7 +79,7 @@ def query_npc_reaction(
             ],
             capture_output=True,
             text=True,
-            timeout=30,
+            timeout=REACTION_TIMEOUT,
             stdin=subprocess.DEVNULL,
         )
         if proc.returncode != 0:
