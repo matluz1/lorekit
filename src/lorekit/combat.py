@@ -819,8 +819,9 @@ def _apply_degree_effect(
 
 
 def _char_name_from_id(db, character_id: int) -> str:
-    row = db.execute("SELECT name FROM characters WHERE id = ?", (character_id,)).fetchone()
-    return row[0] if row else f"#{character_id}"
+    from lorekit.queries import get_character_name
+
+    return get_character_name(db, character_id) or f"#{character_id}"
 
 
 def _check_on_hit_resist(
@@ -1375,8 +1376,7 @@ def _check_reactions(
             # No callback (GM play) → treat as active
 
         # Dispatch effect
-        reactor_name = db.execute("SELECT name FROM characters WHERE id = ?", (reactor_id,)).fetchone()
-        reactor_name = reactor_name[0] if reactor_name else f"#{reactor_id}"
+        reactor_name = _char_name_from_id(db, reactor_id)
 
         if effect_name == "substitute_defender":
             lines.append(f"REACTION [{source}]: {reactor_name} interposes for {defender.name}!")

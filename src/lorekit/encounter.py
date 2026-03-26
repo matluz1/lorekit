@@ -23,15 +23,13 @@ def _resolve_system_path(db, session_id: int) -> str | None:
 
     Returns the full path, or None if no rules_system is configured.
     """
+    from lorekit.queries import get_session_meta
     from lorekit.rules import resolve_system_path
 
-    meta_row = db.execute(
-        "SELECT value FROM session_meta WHERE session_id = ? AND key = 'rules_system'",
-        (session_id,),
-    ).fetchone()
-    if meta_row is None:
+    system_name = get_session_meta(db, session_id, "rules_system")
+    if system_name is None:
         return None
-    return resolve_system_path(meta_row[0])
+    return resolve_system_path(system_name)
 
 
 def _load_encounter_end_cfg(pack_dir: str | None) -> dict:
@@ -124,7 +122,7 @@ def _switch_to_base(db, char_ids: list[int], category: str, pack_dir: str | None
                 continue
             try:
                 switch_alternate(db, cid, group_name, group_name, pack_dir, _bypass_limit=True)
-                char_name = db.execute("SELECT name FROM characters WHERE id = ?", (cid,)).fetchone()[0]
+                char_name = _char_name(db, cid)
                 lines.append(f"  {char_name}: {group_name} reset to base")
             except (LoreKitError, OSError):
                 pass  # best-effort — don't fail encounter end
@@ -573,8 +571,9 @@ def start_encounter(
 
 def _char_name(db, character_id: int) -> str:
     """Get character name by ID."""
-    row = db.execute("SELECT name FROM characters WHERE id = ?", (character_id,)).fetchone()
-    return row[0] if row else f"character {character_id}"
+    from lorekit.queries import get_character_name
+
+    return get_character_name(db, character_id) or f"character {character_id}"
 
 
 def _get_char_vital(db, cid: int, hud_cfg: dict) -> str:
@@ -667,9 +666,9 @@ def _get_condition_reminders(db, cid: int, session_id: int) -> list[str]:
         if source in condition_rules and source not in seen:
             by_note = ""
             if applied_by:
-                applier = db.execute("SELECT name FROM characters WHERE id = ?", (applied_by,)).fetchone()
-                if applier:
-                    by_note = f" (by {applier[0]})"
+                applier_name = _char_name(db, applied_by)
+                if applier_name:
+                    by_note = f" (by {applier_name})"
             desc = _desc(condition_rules[source])
             if desc:
                 reminders.append(f"⚠ {cname} is {source}{by_note}: {desc}")
@@ -1396,7 +1395,7 @@ def join_encounter(
 
     try_rules_calc(db, character_id)
 
-    char_name = db.execute("SELECT name FROM characters WHERE id = ?", (character_id,)).fetchone()[0]
+    char_name = _char_name(db, character_id)
     return f"JOINED ENCOUNTER: {char_name} placed in {zone_name} (team: {team or 'none'})"
 
 
@@ -1422,7 +1421,7 @@ def leave_encounter(
     if character_id not in init_order:
         raise LoreKitError(f"Character {character_id} is not in this encounter")
 
-    char_name = db.execute("SELECT name FROM characters WHERE id = ?", (character_id,)).fetchone()[0]
+    char_name = _char_name(db, character_id)
 
     # Check if it's this character's turn
     is_current = init_order[current_turn] == character_id

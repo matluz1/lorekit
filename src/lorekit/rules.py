@@ -256,14 +256,12 @@ def try_rules_calc(db, character_id: int) -> str:
         return ""
     session_id = row[0]
 
-    meta_row = db.execute(
-        "SELECT value FROM session_meta WHERE session_id = ? AND key = 'rules_system'",
-        (session_id,),
-    ).fetchone()
-    if meta_row is None:
+    from lorekit.queries import get_session_meta
+
+    system_name = get_session_meta(db, session_id, "rules_system")
+    if system_name is None:
         return ""
 
-    system_name = meta_row[0]
     system_path = resolve_system_path(system_name)
 
     if not system_path:

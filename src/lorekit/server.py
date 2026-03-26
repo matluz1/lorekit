@@ -100,8 +100,9 @@ def _auto_register_reactions(db, session_id: int) -> list[str]:
             (char_id,),
         ).fetchall()
 
-        char_name = db.execute("SELECT name FROM characters WHERE id = ?", (char_id,)).fetchone()
-        char_name = char_name[0] if char_name else f"#{char_id}"
+        from lorekit.queries import get_character_name
+
+        char_name = get_character_name(db, char_id) or f"#{char_id}"
 
         for ability_name, desc_str in abilities:
             try:
@@ -144,11 +145,12 @@ def _auto_register_reactions(db, session_id: int) -> list[str]:
 def _session_for_character(db, character_id: int) -> int:
     """Look up the session_id for a character."""
     from lorekit.db import LoreKitError
+    from lorekit.queries import get_character_session_id
 
-    row = db.execute("SELECT session_id FROM characters WHERE id = ?", (character_id,)).fetchone()
-    if not row:
+    sid = get_character_session_id(db, character_id)
+    if sid is None:
         raise LoreKitError(f"Character {character_id} not found")
-    return row[0]
+    return sid
 
 
 def _run_with_db(fn, *args, **kwargs):
@@ -879,10 +881,12 @@ def turn_save(
             remaining = len(init_order) - current_turn - 1
             if remaining > 0 and current_turn > 0:
                 names = []
+                from lorekit.queries import get_character_name as _get_name
+
                 for cid in init_order[current_turn + 1 :]:
-                    name_row = db.execute("SELECT name FROM characters WHERE id = ?", (cid,)).fetchone()
-                    if name_row:
-                        names.append(name_row[0])
+                    cname = _get_name(db, cid)
+                    if cname:
+                        names.append(cname)
                 results.append(
                     f"⚠ INCOMPLETE ROUND: {remaining} character(s) have not acted this round ({', '.join(names)})"
                 )
@@ -2636,13 +2640,11 @@ def rest(session_id: int, type: str) -> str:
 
 def _resolve_system_path_for_session(db, session_id: int) -> str:
     """Resolve system pack path from session metadata."""
-    meta_row = db.execute(
-        "SELECT value FROM session_meta WHERE session_id = ? AND key = 'rules_system'",
-        (session_id,),
-    ).fetchone()
-    if meta_row is None:
+    from lorekit.queries import get_session_meta
+
+    system_name = get_session_meta(db, session_id, "rules_system")
+    if system_name is None:
         return ""
-    system_name = meta_row[0]
     return resolve_system_path(system_name) or ""
 
 
