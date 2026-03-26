@@ -1,8 +1,6 @@
 """npc_reflect.py -- NPC async reflection: triggers, generation, parsing, pruning."""
 
 import json
-import math
-import os
 import re
 import subprocess
 from datetime import datetime, timezone

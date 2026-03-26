@@ -1254,7 +1254,7 @@ def session_resume(session_id: int) -> str:
     import sqlite3
 
     from lorekit.character import view as char_view
-    from lorekit.db import LoreKitError, format_table, require_db
+    from lorekit.db import LoreKitError, require_db
     from lorekit.narrative.journal import list_entries as journal_list_fn
     from lorekit.narrative.region import list_regions as region_list_fn
     from lorekit.narrative.session import meta_get
@@ -2594,7 +2594,6 @@ def rules_modifiers(character_id: int | str, stat: str = "", system_path: str = 
             load_stacking_policy,
         )
         from cruncher.system_pack import load_system_pack
-        from cruncher.types import CharacterData
         from lorekit.rules import (
             _load_combat_modifiers,
             load_character_data,

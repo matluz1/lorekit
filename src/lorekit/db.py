@@ -2,7 +2,6 @@
 
 import os
 import sqlite3
-import sys
 
 SCHEMA_SQL = """\
 CREATE TABLE IF NOT EXISTS sessions (
@@ -666,14 +665,3 @@ def format_table(cursor):
     for row in str_rows:
         lines.append(sep.join(val.ljust(w) for val, w in zip(row, widths)))
     return "\n".join(lines)
-
-
-# Legacy aliases for CLI usage
-def print_table(cursor):
-    """Print query results in sqlite3 -header -column format."""
-    print(format_table(cursor))
-
-
-def error(msg):
-    """Raise a LoreKitError. Legacy alias — prefer raising LoreKitError directly."""
-    raise LoreKitError(msg)

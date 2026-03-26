@@ -4,7 +4,7 @@
 import sys
 
 from lorekit.args import parse_args
-from lorekit.db import LoreKitError, error, format_table, require_db
+from lorekit.db import LoreKitError, format_table, require_db
 
 
 def usage():

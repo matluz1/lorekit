@@ -14,7 +14,6 @@ from __future__ import annotations
 
 import heapq
 import json
-from typing import Any
 
 from lorekit.db import LoreKitError
 
