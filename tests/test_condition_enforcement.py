@@ -91,7 +91,7 @@ class TestMissChance:
             roll_calls = iter([18])  # d20=19
             with (
                 patch("secrets.randbelow", side_effect=roll_calls),
-                patch("lorekit.combat.random.random", return_value=0.1),
+                patch("lorekit.combat.resolve.random.random", return_value=0.1),
             ):
                 lines = execute_combat_turn(db, attacker, sid, intent, cfg, MM3E_SYSTEM)
 
@@ -161,7 +161,7 @@ class TestMissChance:
             roll_calls = iter([18, 4])  # attack d20=19, resist d20=5
             with (
                 patch("secrets.randbelow", side_effect=roll_calls),
-                patch("lorekit.combat.random.random", return_value=0.5),
+                patch("lorekit.combat.resolve.random.random", return_value=0.5),
             ):
                 lines = execute_combat_turn(db, attacker, sid, intent, cfg, MM3E_SYSTEM)
 
