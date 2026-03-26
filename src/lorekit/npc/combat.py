@@ -393,11 +393,11 @@ def build_combat_context(
             react_lines.append(f"  {rsource} — triggers on {hook}, {effect} [{uses}] (policy: {policy})")
         reactions_section = (
             "Your reactions:\n" + "\n".join(react_lines) + "\n"
-            "  You may set reaction_policy in your response to change how each reaction fires:\n"
+            "  Each turn you may set reaction_policy to choose how each reaction fires:\n"
             "    active  — auto-fire whenever triggered (default; use for most reactions)\n"
-            "    inactive — suppress for the rest of this encounter\n"
+            "    inactive — suppress until your next turn\n"
             "    ask     — you will be consulted before it fires (only use this when the\n"
-            "              situation is complex enough to warrant a deliberate choice)\n"
+            "              turn situation is complex enough to warrant a deliberate choice)\n"
         )
 
     # Active sustained powers (can be deactivated)
@@ -867,6 +867,12 @@ def execute_combat_turn(
 
     sequence = intent.get("sequence", ["move", "action"])
 
+    # Clear previous reaction policies so the NPC re-decides each turn
+    db.execute(
+        "DELETE FROM character_attributes WHERE character_id = ? AND category = 'reaction_policy'",
+        (npc_id,),
+    )
+
     # Store reaction policies from NPC intent
     reaction_policy = intent.get("reaction_policy")
     if reaction_policy and isinstance(reaction_policy, dict):
@@ -878,7 +884,7 @@ def execute_combat_turn(
                     "ON CONFLICT(character_id, category, key) DO UPDATE SET value = excluded.value",
                     (npc_id, rsource, rmode),
                 )
-        db.commit()
+    db.commit()
 
     # Validate sequence against schema + character overrides + conditions
     sequence = _validate_sequence(
