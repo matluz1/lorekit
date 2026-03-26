@@ -1068,14 +1068,9 @@ def ability_from_template(
     db = require_db()
     try:
         # Find character's session and system path
-        row = db.execute(
-            "SELECT session_id FROM characters WHERE id = ?",
-            (character_id,),
-        ).fetchone()
-        if row is None:
-            return f"ERROR: Character {character_id} not found"
-
-        system_path = _resolve_system_path_for_session(db, row[0])
+        system_path, _, err = _resolve_system_path_for_character(db, character_id)
+        if err:
+            return err
         if not system_path:
             return "ERROR: No rules_system set for this session."
 
@@ -2146,23 +2141,9 @@ def rules_check(character_id: int | str, check: str, dc: int, system_path: str =
     try:
         character_id = _resolve_character(db, character_id)
         if not system_path:
-            row = db.execute(
-                "SELECT session_id FROM characters WHERE id = ?",
-                (character_id,),
-            ).fetchone()
-            if row is None:
-                return f"ERROR: Character {character_id} not found"
-            session_id = row[0]
-            meta_row = db.execute(
-                "SELECT value FROM session_meta WHERE session_id = ? AND key = 'rules_system'",
-                (session_id,),
-            ).fetchone()
-            if meta_row is None:
-                return "ERROR: No rules_system set for this session. Use session_meta_set to configure it."
-            system_name = meta_row[0]
-            system_path = resolve_system_path(system_name)
-            if not system_path:
-                return "ERROR: System pack not found for this session."
+            system_path, _, err = _resolve_system_path_for_character(db, character_id)
+            if err:
+                return err
 
         from lorekit.rules import rules_check as _rules_check
 
@@ -2195,23 +2176,11 @@ def rules_resolve(
         attacker_id = _resolve_character(db, attacker_id)
         defender_id = _resolve_character(db, defender_id)
         if not system_path:
-            row = db.execute(
-                "SELECT session_id FROM characters WHERE id = ?",
-                (attacker_id,),
-            ).fetchone()
-            if row is None:
-                return f"ERROR: Character {attacker_id} not found"
-            session_id = row[0]
-            meta_row = db.execute(
-                "SELECT value FROM session_meta WHERE session_id = ? AND key = 'rules_system'",
-                (session_id,),
-            ).fetchone()
-            if meta_row is None:
-                return "ERROR: No rules_system set for this session. Use session_meta_set to configure it."
-            system_name = meta_row[0]
-            system_path = resolve_system_path(system_name)
-            if not system_path:
-                return "ERROR: System pack not found for this session."
+            system_path, session_id, err = _resolve_system_path_for_character(db, attacker_id)
+            if err:
+                return err
+        else:
+            session_id = _session_for_character(db, attacker_id)
 
         opts = json.loads(options) if options else {}
 
@@ -2284,24 +2253,9 @@ def rules_calc(character_id: int | str, system_path: str = "") -> str:
     try:
         character_id = _resolve_character(db, character_id)
         if not system_path:
-            # Look up character's session, then session's rules_system meta
-            row = db.execute(
-                "SELECT session_id FROM characters WHERE id = ?",
-                (character_id,),
-            ).fetchone()
-            if row is None:
-                return f"ERROR: Character {character_id} not found"
-            session_id = row[0]
-            meta_row = db.execute(
-                "SELECT value FROM session_meta WHERE session_id = ? AND key = 'rules_system'",
-                (session_id,),
-            ).fetchone()
-            if meta_row is None:
-                return "ERROR: No rules_system set for this session. Use session_meta_set to configure it."
-            system_name = meta_row[0]
-            system_path = resolve_system_path(system_name)
-            if not system_path:
-                return "ERROR: System pack not found for this session."
+            system_path, _, err = _resolve_system_path_for_character(db, character_id)
+            if err:
+                return err
 
         from lorekit.rules import rules_calc as _rules_calc
 
@@ -2330,23 +2284,9 @@ def end_turn(character_id: int | str, system_path: str = "") -> str:
     try:
         character_id = _resolve_character(db, character_id)
         if not system_path:
-            row = db.execute(
-                "SELECT session_id FROM characters WHERE id = ?",
-                (character_id,),
-            ).fetchone()
-            if row is None:
-                return f"ERROR: Character {character_id} not found"
-            session_id = row[0]
-            meta_row = db.execute(
-                "SELECT value FROM session_meta WHERE session_id = ? AND key = 'rules_system'",
-                (session_id,),
-            ).fetchone()
-            if meta_row is None:
-                return "ERROR: No rules_system set for this session. Use session_meta_set to configure it."
-            system_name = meta_row[0]
-            system_path = resolve_system_path(system_name)
-            if not system_path:
-                return "ERROR: System pack not found for this session."
+            system_path, _, err = _resolve_system_path_for_character(db, character_id)
+            if err:
+                return err
 
         from lorekit.combat import end_turn as _end_turn
 
@@ -2533,23 +2473,9 @@ def rules_modifiers(character_id: int | str, stat: str = "", system_path: str = 
     try:
         character_id = _resolve_character(db, character_id)
         if not system_path:
-            row = db.execute(
-                "SELECT session_id FROM characters WHERE id = ?",
-                (character_id,),
-            ).fetchone()
-            if row is None:
-                return f"ERROR: Character {character_id} not found"
-            session_id = row[0]
-            meta_row = db.execute(
-                "SELECT value FROM session_meta WHERE session_id = ? AND key = 'rules_system'",
-                (session_id,),
-            ).fetchone()
-            if meta_row is None:
-                return "ERROR: No rules_system set for this session."
-            system_name = meta_row[0]
-            system_path = resolve_system_path(system_name)
-            if not system_path:
-                return "ERROR: System pack not found for this session."
+            system_path, _, err = _resolve_system_path_for_character(db, character_id)
+            if err:
+                return err
 
         from cruncher.stacking import (
             ModifierEntry,
@@ -2648,15 +2574,31 @@ def _resolve_system_path_for_session(db, session_id: int) -> str:
     return resolve_system_path(system_name) or ""
 
 
+def _resolve_system_path_for_character(db, character_id: int) -> tuple[str, int, str | None]:
+    """Resolve system pack path from a character's session.
+
+    Returns (system_path, session_id, error_message).
+    If error_message is not None, system_path and session_id are meaningless.
+    """
+    from lorekit.queries import get_character_session_id
+
+    session_id = get_character_session_id(db, character_id)
+    if session_id is None:
+        return "", 0, f"ERROR: Character {character_id} not found"
+    system_path = _resolve_system_path_for_session(db, session_id)
+    if not system_path:
+        return "", session_id, "ERROR: No rules_system set for this session. Use session_meta_set to configure it."
+    return system_path, session_id, None
+
+
 def _sync_condition_modifiers_for(db, character_id: int) -> str:
     """Run condition modifier sync for a character. Returns any recalc output."""
-    row = db.execute(
-        "SELECT session_id FROM characters WHERE id = ?",
-        (character_id,),
-    ).fetchone()
-    if not row:
+    from lorekit.queries import get_character_session_id
+
+    session_id = get_character_session_id(db, character_id)
+    if session_id is None:
         return ""
-    system_path = _resolve_system_path_for_session(db, row[0])
+    system_path = _resolve_system_path_for_session(db, session_id)
     if not system_path:
         return ""
     from cruncher.system_pack import load_system_pack
@@ -2797,13 +2739,7 @@ def encounter_move(character_id: int | str, target_zone: str) -> str:
     try:
         character_id = _resolve_character(db, character_id)
         # Find the character's session and active encounter
-        row = db.execute(
-            "SELECT session_id FROM characters WHERE id = ?",
-            (character_id,),
-        ).fetchone()
-        if row is None:
-            return f"ERROR: Character {character_id} not found"
-        session_id = row[0]
+        session_id = _session_for_character(db, character_id)
 
         from lorekit.encounter import _require_active_encounter
 
