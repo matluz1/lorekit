@@ -4,13 +4,8 @@
 import importlib
 import sys
 
-import lorekit.tools  # noqa: F401 — registers all @mcp.tool() decorators
+import lorekit.tools
 from lorekit._mcp_app import mcp
-
-# ---------------------------------------------------------------------------
-# Backward-compatible re-exports: ``from lorekit.server import X`` still works
-# for every symbol that tests or other modules historically imported.
-# ---------------------------------------------------------------------------
 
 _EXPORTS = {
     # tools/_helpers.py

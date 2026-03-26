@@ -1,6 +1,6 @@
 """Register all MCP tools on the shared app instance."""
 
-from lorekit.tools import (  # noqa: F401
+from lorekit.tools import (
     character,
     encounter,
     narrative,
