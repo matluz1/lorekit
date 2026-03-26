@@ -248,13 +248,11 @@ def try_rules_calc(db, character_id: int) -> str:
     This is the single entry-point every write-side function should call after
     modifying combat_state or character_attributes.
     """
-    row = db.execute(
-        "SELECT session_id FROM characters WHERE id = ?",
-        (character_id,),
-    ).fetchone()
-    if row is None:
+    from lorekit.queries import get_character_session_id
+
+    session_id = get_character_session_id(db, character_id)
+    if session_id is None:
         return ""
-    session_id = row[0]
 
     from lorekit.queries import get_session_meta
 
