@@ -9,9 +9,99 @@ Undo/redo walks auto-saves within the current branch.
 """
 
 import json
+import zlib
 
 from lorekit.db import LoreKitError
 from lorekit.npc.memory import NPC_CORE_FIELDS
+
+ANCHOR_COUNT_CAP = 20
+ANCHOR_SIZE_RATIO = 0.5
+
+
+def _compress(data: dict) -> bytes:
+    return zlib.compress(json.dumps(data).encode())
+
+
+def _decompress(blob) -> dict:
+    if isinstance(blob, bytes):
+        try:
+            return json.loads(zlib.decompress(blob))
+        except zlib.error:
+            return json.loads(blob)
+    # Legacy TEXT snapshots
+    return json.loads(blob)
+
+
+def _row_key(table: str, row: dict):
+    """Return the unique key for a row in a given table."""
+    if table == "character_zone":
+        return (row["encounter_id"], row["character_id"])
+    if table == "zone_adjacency":
+        return (row["zone_a"], row["zone_b"])
+    return row["id"]
+
+
+def compute_delta(old_snap: dict, new_snap: dict) -> dict:
+    """Diff two snapshots at row level. Returns delta dict."""
+    delta_tables = {}
+    all_tables = set(old_snap) | set(new_snap)
+    for table in all_tables:
+        old_rows = {_row_key(table, r): r for r in old_snap.get(table, [])}
+        new_rows = {_row_key(table, r): r for r in new_snap.get(table, [])}
+        added = [new_rows[k] for k in new_rows if k not in old_rows]
+        removed = [old_rows[k] for k in old_rows if k not in new_rows]
+        modified = [
+            {"key": k, "old": old_rows[k], "new": new_rows[k]}
+            for k in old_rows
+            if k in new_rows and old_rows[k] != new_rows[k]
+        ]
+        if added or removed or modified:
+            delta_tables[table] = {"added": added, "removed": removed, "modified": modified}
+    return {"tables": delta_tables}
+
+
+def apply_delta_forward(base_snap: dict, delta: dict) -> dict:
+    """Apply a delta to a base snapshot, returning the new state."""
+    result = {table: list(rows) for table, rows in base_snap.items()}
+    for table, changes in delta["tables"].items():
+        if table not in result:
+            result[table] = []
+        rows_by_key = {_row_key(table, r): r for r in result[table]}
+        for r in changes.get("removed", []):
+            rows_by_key.pop(_row_key(table, r), None)
+        for entry in changes.get("modified", []):
+            rows_by_key[entry["key"]] = entry["new"]
+        for r in changes.get("added", []):
+            rows_by_key[_row_key(table, r)] = r
+        result[table] = list(rows_by_key.values())
+    return result
+
+
+def reconstruct_state(db, checkpoint_id: int) -> dict:
+    """Return full snapshot for any checkpoint, resolving deltas up the parent chain."""
+    chain = []
+    current = checkpoint_id
+    while True:
+        row = db.execute(
+            "SELECT parent_id, is_anchor, snapshot FROM checkpoints WHERE id = ?",
+            (current,),
+        ).fetchone()
+        if row is None:
+            raise LoreKitError(f"Checkpoint {current} not found")
+        snap = _decompress(row[2])
+        if row[1]:  # is_anchor — full snapshot
+            base = snap
+            break
+        chain.append(snap)
+        if row[0] is None:
+            # No parent and not an anchor — treat as full snapshot (legacy data)
+            base = snap
+            break
+        current = row[0]
+    state = base
+    for delta in reversed(chain):
+        state = apply_delta_forward(state, delta)
+    return state
 
 
 def snapshot_session(db, session_id):
@@ -676,6 +766,12 @@ def create_checkpoint(db, session_id):
 
     If the cursor is behind the tip of the current branch, a new branch is
     created automatically (fork-on-save) — the old branch is preserved.
+
+    Uses the anchor policy to decide between storing a full snapshot or a delta:
+    1. Fork points are always anchors (full snapshot).
+    2. Every ANCHOR_COUNT_CAP checkpoints on the same branch → anchor.
+    3. If delta >= ANCHOR_SIZE_RATIO of full snapshot → anchor.
+    4. Otherwise → delta relative to parent.
     """
     cursor_cp, cursor_branch = _get_cursor(db, session_id)
 
@@ -685,6 +781,7 @@ def create_checkpoint(db, session_id):
 
     parent_id = cursor_cp
     branch_id = cursor_branch
+    is_fork = False
 
     # Fork detection: cursor is behind the tip of the current branch
     if cursor_cp is not None:
@@ -696,6 +793,9 @@ def create_checkpoint(db, session_id):
                 (session_id, cursor_branch, cursor_cp),
             )
             branch_id = cur.lastrowid
+            is_fork = True
+            # Promote fork point to anchor if it isn't already
+            db.execute("UPDATE checkpoints SET is_anchor = 1 WHERE id = ?", (cursor_cp,))
 
     tl_max = db.execute(
         "SELECT COALESCE(MAX(id), 0) FROM timeline WHERE session_id = ?",
@@ -709,10 +809,38 @@ def create_checkpoint(db, session_id):
 
     snap = snapshot_session(db, session_id)
 
+    # Anchor policy
+    is_anchor = True
+    payload = _compress(snap)
+
+    if parent_id is not None and not is_fork:
+        # Count checkpoints since last anchor on this branch
+        last_anchor = db.execute(
+            "SELECT id FROM checkpoints WHERE branch_id = ? AND is_anchor = 1 ORDER BY id DESC LIMIT 1",
+            (branch_id,),
+        ).fetchone()
+
+        distance = 0
+        if last_anchor:
+            distance = db.execute(
+                "SELECT COUNT(*) FROM checkpoints WHERE branch_id = ? AND id > ?",
+                (branch_id, last_anchor[0]),
+            ).fetchone()[0]
+
+        if distance < ANCHOR_COUNT_CAP:
+            parent_snap = reconstruct_state(db, parent_id)
+            delta = compute_delta(parent_snap, snap)
+            delta_json = json.dumps(delta)
+            full_json = json.dumps(snap)
+            if len(delta_json) < len(full_json) * ANCHOR_SIZE_RATIO:
+                is_anchor = False
+                payload = _compress(delta)
+
     cur = db.execute(
-        "INSERT INTO checkpoints (session_id, branch_id, parent_id, timeline_max_id, journal_max_id, snapshot) "
-        "VALUES (?, ?, ?, ?, ?, ?)",
-        (session_id, branch_id, parent_id, tl_max, jn_max, json.dumps(snap)),
+        "INSERT INTO checkpoints (session_id, branch_id, parent_id, "
+        "timeline_max_id, journal_max_id, snapshot, is_anchor) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?)",
+        (session_id, branch_id, parent_id, tl_max, jn_max, payload, int(is_anchor)),
     )
     new_id = cur.lastrowid
     _set_cursor(db, session_id, new_id, branch_id)
@@ -747,8 +875,7 @@ def revert_to_previous(db, session_id, steps=1):
         raise LoreKitError("Nothing to revert -- already at earliest checkpoint")
 
     target_id = history[target_idx]
-    snapshot_json = db.execute("SELECT snapshot FROM checkpoints WHERE id = ?", (target_id,)).fetchone()[0]
-    snapshot = json.loads(snapshot_json)
+    snapshot = reconstruct_state(db, target_id)
 
     restore_snapshot(db, session_id, snapshot)
     _set_cursor(db, session_id, target_id, cursor_branch)
@@ -786,8 +913,7 @@ def advance_to_next(db, session_id, steps=1):
         raise LoreKitError("Nothing to redo -- already at latest checkpoint")
 
     target_id = history[target_idx]
-    snapshot_json = db.execute("SELECT snapshot FROM checkpoints WHERE id = ?", (target_id,)).fetchone()[0]
-    snapshot = json.loads(snapshot_json)
+    snapshot = reconstruct_state(db, target_id)
 
     restore_snapshot(db, session_id, snapshot)
     _set_cursor(db, session_id, target_id, cursor_branch)
@@ -852,8 +978,7 @@ def save_load(db, session_id, name):
         raise LoreKitError(f"Save not found: {name}")
 
     target_id, target_branch = row
-    snapshot_json = db.execute("SELECT snapshot FROM checkpoints WHERE id = ?", (target_id,)).fetchone()[0]
-    snapshot = json.loads(snapshot_json)
+    snapshot = reconstruct_state(db, target_id)
 
     restore_snapshot(db, session_id, snapshot)
     _set_cursor(db, session_id, target_id, target_branch)

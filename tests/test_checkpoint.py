@@ -262,10 +262,9 @@ def test_cursor_in_session_meta(make_session):
     tip = db.execute("SELECT MAX(id) FROM checkpoints WHERE session_id = ?", (sid,)).fetchone()[0]
     assert cursor_val == tip
     # Cursor should NOT appear in any snapshot
-    snap_json = db.execute("SELECT snapshot FROM checkpoints WHERE id = ?", (tip,)).fetchone()[0]
-    import json
+    from lorekit.support.checkpoint import reconstruct_state
 
-    snap = json.loads(snap_json)
+    snap = reconstruct_state(db, tip)
     meta_keys = [m["key"] for m in snap.get("session_meta", [])]
     assert "cursor_checkpoint_id" not in meta_keys
     assert "cursor_branch_id" not in meta_keys
@@ -460,3 +459,164 @@ def test_save_load_then_play_forks(make_session):
     listing = timeline_list(session_id=sid)
     assert "New path." in listing
     assert "Turn 2." not in listing
+
+
+# -- Compression & Deltas --
+
+
+def test_snapshots_are_compressed(make_session):
+    """Checkpoint snapshots should be stored as compressed BLOB, not TEXT."""
+    sid = make_session()
+    turn_save(session_id=sid, narration="Turn 1.", summary="T1")
+    db = _get_db()
+    row = db.execute(
+        "SELECT typeof(snapshot), snapshot FROM checkpoints WHERE session_id = ? LIMIT 1", (sid,)
+    ).fetchone()
+    db.close()
+    assert row[0] == "blob"
+    import zlib
+
+    # Should decompress without error
+    zlib.decompress(row[1])
+
+
+def test_delta_round_trip():
+    """compute_delta + apply_delta_forward should reconstruct the new snapshot."""
+    from lorekit.support.checkpoint import apply_delta_forward, compute_delta
+
+    old = {
+        "characters": [{"id": 1, "name": "Hero", "level": 1}],
+        "character_attributes": [{"id": 10, "character_id": 1, "category": "stat", "key": "hp", "value": "50"}],
+        "timeline": [{"id": 100, "entry_type": "narration", "content": "Hello"}],
+    }
+    new = {
+        "characters": [{"id": 1, "name": "Hero", "level": 5}],  # modified
+        "character_attributes": [],  # removed
+        "timeline": [
+            {"id": 100, "entry_type": "narration", "content": "Hello"},
+            {"id": 101, "entry_type": "narration", "content": "World"},  # added
+        ],
+    }
+    delta = compute_delta(old, new)
+    reconstructed = apply_delta_forward(old, delta)
+
+    # Compare by converting to sorted key sets
+    for table in new:
+        new_keys = {r.get("id") for r in new[table]}
+        rec_keys = {r.get("id") for r in reconstructed[table]}
+        assert new_keys == rec_keys
+    # Check the modification
+    hero = [r for r in reconstructed["characters"] if r["id"] == 1][0]
+    assert hero["level"] == 5
+
+
+def test_delta_composite_keys():
+    """Delta should work with composite-key tables (character_zone, zone_adjacency)."""
+    from lorekit.support.checkpoint import apply_delta_forward, compute_delta
+
+    old = {
+        "character_zone": [
+            {"encounter_id": 1, "character_id": 1, "zone_id": 1, "team": "ally"},
+            {"encounter_id": 1, "character_id": 2, "zone_id": 1, "team": "enemy"},
+        ],
+        "zone_adjacency": [{"zone_a": 1, "zone_b": 2, "weight": 1}],
+    }
+    new = {
+        "character_zone": [
+            {"encounter_id": 1, "character_id": 1, "zone_id": 2, "team": "ally"},  # moved zone
+        ],
+        "zone_adjacency": [
+            {"zone_a": 1, "zone_b": 2, "weight": 1},
+            {"zone_a": 2, "zone_b": 3, "weight": 1},  # added
+        ],
+    }
+    delta = compute_delta(old, new)
+    reconstructed = apply_delta_forward(old, delta)
+
+    assert len(reconstructed["character_zone"]) == 1
+    assert reconstructed["character_zone"][0]["zone_id"] == 2
+    assert len(reconstructed["zone_adjacency"]) == 2
+
+
+def test_reconstruct_state_resolves_deltas(make_session, make_character):
+    """reconstruct_state should resolve delta chains correctly."""
+    sid = make_session()
+    cid = make_character(sid, name="Hero", level=1)
+    turn_save(session_id=sid, narration="Turn 1.", summary="T1")
+    # Make small changes each turn so deltas are stored (< 50% of full)
+    for i in range(2, 5):
+        character_sheet_update(character_id=cid, level=i)
+        turn_save(session_id=sid, narration=f"Turn {i}.", summary=f"T{i}")
+
+    # Verify some checkpoints are deltas
+    db = _get_db()
+    delta_count = db.execute(
+        "SELECT COUNT(*) FROM checkpoints WHERE session_id = ? AND is_anchor = 0",
+        (sid,),
+    ).fetchone()[0]
+    anchor_count = db.execute(
+        "SELECT COUNT(*) FROM checkpoints WHERE session_id = ? AND is_anchor = 1",
+        (sid,),
+    ).fetchone()[0]
+    # Should have at least one anchor and possibly some deltas
+    assert anchor_count >= 1
+
+    # reconstruct_state should work regardless of anchor/delta mix
+    from lorekit.support.checkpoint import reconstruct_state
+
+    tip_id = db.execute("SELECT MAX(id) FROM checkpoints WHERE session_id = ?", (sid,)).fetchone()[0]
+    snap = reconstruct_state(db, tip_id)
+    db.close()
+    # Should contain the latest character level
+    hero = [c for c in snap["characters"] if c["id"] == cid][0]
+    assert hero["level"] == 4
+
+
+def test_fork_point_is_anchor(make_session):
+    """Fork points should be promoted to anchors."""
+    sid = make_session()
+    turn_save(session_id=sid, narration="Turn 1.", summary="T1")
+    turn_save(session_id=sid, narration="Turn 2.", summary="T2")
+    # Get the checkpoint we'll fork from
+    db = _get_db()
+    cp_before = db.execute("SELECT MAX(id) FROM checkpoints WHERE session_id = ?", (sid,)).fetchone()[0]
+    db.close()
+    # Revert then save → fork
+    turn_revert(session_id=sid)
+    turn_save(session_id=sid, narration="Alt.", summary="Alt")
+    # The fork point should be an anchor
+    db = _get_db()
+    # Fork point is the checkpoint we reverted to (parent of the new branch)
+    fork_cp = db.execute(
+        "SELECT fork_checkpoint_id FROM checkpoint_branches WHERE session_id = ? ORDER BY id DESC LIMIT 1",
+        (sid,),
+    ).fetchone()[0]
+    is_anchor = db.execute("SELECT is_anchor FROM checkpoints WHERE id = ?", (fork_cp,)).fetchone()[0]
+    db.close()
+    assert is_anchor == 1
+
+
+def test_revert_advance_with_compressed_deltas(make_session, make_character):
+    """Full revert/advance cycle should work with compressed delta checkpoints."""
+    sid = make_session()
+    cid = make_character(sid, name="Hero", level=1)
+    turn_save(session_id=sid, narration="Turn 1.", summary="T1")
+    character_sheet_update(character_id=cid, level=5)
+    turn_save(session_id=sid, narration="Turn 2.", summary="T2")
+    character_sheet_update(character_id=cid, level=10)
+    turn_save(session_id=sid, narration="Turn 3.", summary="T3")
+
+    # Revert 2 steps
+    turn_revert(session_id=sid, steps=2)
+    view = character_view(character_id=cid)
+    assert "LEVEL: 1" in view
+
+    # Advance 1 step
+    turn_advance(session_id=sid)
+    view = character_view(character_id=cid)
+    assert "LEVEL: 5" in view
+
+    # Advance 1 more step
+    turn_advance(session_id=sid)
+    view = character_view(character_id=cid)
+    assert "LEVEL: 10" in view

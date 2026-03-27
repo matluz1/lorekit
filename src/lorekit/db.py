@@ -195,7 +195,8 @@ CREATE TABLE IF NOT EXISTS checkpoints (
     name            TEXT,
     timeline_max_id INTEGER NOT NULL DEFAULT 0,
     journal_max_id  INTEGER NOT NULL DEFAULT 0,
-    snapshot        TEXT    NOT NULL,
+    snapshot        BLOB    NOT NULL,
+    is_anchor       INTEGER NOT NULL DEFAULT 1,
     created_at      TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
 );
 
@@ -296,6 +297,7 @@ ADD_COLUMN_MIGRATIONS = [
     ),
     ("checkpoints", "parent_id", "ALTER TABLE checkpoints ADD COLUMN parent_id INTEGER REFERENCES checkpoints(id)"),
     ("checkpoints", "name", "ALTER TABLE checkpoints ADD COLUMN name TEXT"),
+    ("checkpoints", "is_anchor", "ALTER TABLE checkpoints ADD COLUMN is_anchor INTEGER NOT NULL DEFAULT 1"),
 ]
 
 DROP_COLUMN_MIGRATIONS = [
@@ -654,6 +656,15 @@ def _run_migrations(db_path):
                 "INSERT OR IGNORE INTO session_meta (session_id, key, value) VALUES (?, 'cursor_branch_id', ?)",
                 (sid, str(branch_id)),
             )
+        changed = True
+    # Data migration: compress uncompressed TEXT snapshots to zlib BLOB
+    row = conn.execute("SELECT id, snapshot FROM checkpoints WHERE typeof(snapshot) = 'text' LIMIT 1").fetchone()
+    if row:
+        import zlib
+
+        for cp_id, snap_text in conn.execute("SELECT id, snapshot FROM checkpoints WHERE typeof(snapshot) = 'text'"):
+            compressed = zlib.compress(snap_text.encode())
+            conn.execute("UPDATE checkpoints SET snapshot = ? WHERE id = ?", (compressed, cp_id))
         changed = True
     if changed:
         conn.commit()
