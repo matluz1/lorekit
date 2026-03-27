@@ -316,7 +316,7 @@ sessions (id, name, setting, system_type, status, created_at, updated_at)
     ├── session_meta (session_id, key, value)  [UNIQUE session_id+key]
     │   Keys: rules_system, narrative_time, last_gm_message,
     │         lore_* (world knowledge, 800-token cap in NPC prompts),
-    │         cursor_checkpoint_id
+    │         cursor_checkpoint_id, cursor_branch_id
     │
     ├── stories (session_id, adventure_size, premise)  [UNIQUE session_id]
     │   └── story_acts (session_id, act_order, title, description, goal, event, status)
@@ -415,9 +415,15 @@ embeddings (source, source_id, session_id, npc_id, content)
     [UNIQUE source+source_id]
     + vec_embeddings (virtual table, sqlite-vec, float[384])
 
-checkpoints (session_id, timeline_max_id, journal_max_id, snapshot, kind)
-    kind: turn (stable narrative boundary) | auto (mid-combat undo point)
-    snapshot: JSON dump of ALL mutable session state
+checkpoint_branches (session_id, parent_branch_id, fork_checkpoint_id)
+    Tree structure: each branch knows its parent branch and fork point
+
+checkpoints (session_id, branch_id, parent_id, name, timeline_max_id, journal_max_id, snapshot, is_anchor)
+    branch_id: which branch this checkpoint belongs to
+    parent_id: previous checkpoint in the chain (for delta resolution)
+    name: NULL for auto-saves, player-visible string for manual saves
+    snapshot: zlib-compressed BLOB (full snapshot if is_anchor=1, row-level delta otherwise)
+    is_anchor: 1 = full snapshot, 0 = delta relative to parent
 ```
 
 ### Migration System
@@ -566,8 +572,7 @@ flowchart TD
     B3 --> C["character_build — create PCs and NPCs"]
 
     C --> D[session_resume]
-    D --> D1["restore_to_last_turn — rollback dirty state from interrupted turns"]
-    D1 --> D2["Load: encounter, story, active act, characters (prefetch=1 only)"]
+    D --> D2["Load: encounter, story, active act, characters (prefetch=1 only)"]
     D2 --> D3["Load: regions, timeline (last 20), journal (last 5)"]
     D3 --> D4["Auto-reindex vector collections (best-effort)"]
     D4 --> E[Gameplay Loop]
@@ -596,11 +601,17 @@ flowchart TD
     F -->|Time skip| L["time_advance — triggers reflect_all if importance threshold met"]
     L --> E
 
-    F -->|Undo| M["turn_revert — restore previous checkpoint snapshot"]
+    F -->|Undo| M["turn_revert — restore previous checkpoint (single step)"]
     M --> E
 
-    F -->|Redo| N["turn_advance — restore next checkpoint (only if no new actions since revert)"]
+    F -->|Redo| N["turn_advance — restore next checkpoint on current branch"]
     N --> E
+
+    F -->|Save| O["manual_save — tag current checkpoint with a name"]
+    O --> E
+
+    F -->|Load| P["save_load — restore named save, fork-on-next-save if needed"]
+    P --> E
 ```
 
 ### session_setup (Atomic Bootstrap)
@@ -615,7 +626,7 @@ Creates an entire game session in one call:
 ### session_resume (State Assembly)
 
 Assembles the full game state for resuming play:
-1. **Auto-recovery** — rolls back to last `kind='turn'` checkpoint if dirty state detected
+1. **Save count** — shows number of named saves if any exist
 2. **Active encounter** — shows status HUD if combat is in progress
 3. **Session + metadata + narrative time**
 4. **Story + active act**
@@ -627,54 +638,70 @@ Assembles the full game state for resuming play:
 
 ## Checkpoint System
 
-Full-state snapshots enable precise undo/redo without transaction rollback.
+Branching checkpoint system with zlib compression, row-level delta encoding,
+and a player-facing save/load UX.
 
 ```mermaid
 flowchart LR
-    subgraph checkpoints ["Checkpoint Chain"]
-        CP0["CP#0 (initial)"] --> CP1["CP#1 (turn)"]
-        CP1 --> CP2["CP#2 (turn)"]
-        CP2 --> CP3["CP#3 (auto)"]
-        CP3 --> CP4["CP#4 (turn)"]
+    subgraph branch1 ["Branch 1 (main)"]
+        CP0["CP#0 ⚓"] --> CP1["CP#1 Δ"] --> CP2["CP#2 Δ"]
     end
-
+    subgraph branch2 ["Branch 2 (forked)"]
+        CP3["CP#3 Δ"] --> CP4["CP#4 ⚓"]
+    end
+    CP1 -.->|fork| CP3
     cursor["cursor →"] -.-> CP4
 ```
 
-### Checkpoint Kinds
+### Two Layers
 
-- **`kind='turn'`** — Stable narrative boundaries created by explicit `turn_save()`.
-  Never auto-deleted. These are the "safe points" the system rolls back to.
-- **`kind='auto'`** — Ephemeral combat checkpoints created during `resolve_action()`.
-  Deleted if session is interrupted mid-combat and resumed later.
+- **Auto-save** — silent checkpoint every `turn_save`. The player never sees these.
+  Used for undo/redo (`turn_revert` / `turn_advance`).
+- **Manual save** — player explicitly asks to save. Gets a name, shows up in `save_list`.
+  Under the hood, a manual save is a checkpoint with `name IS NOT NULL`.
+
+### Branching
+
+Saving after a revert **forks** into a new branch automatically — the old path
+is preserved. No branch truncation, nothing is deleted.
+
+- `checkpoint_branches` table tracks the tree structure (parent branch + fork point)
+- `get_branch_history()` computes the full ordered checkpoint list for any branch,
+  including inherited ancestors from parent branches
+- `cursor_checkpoint_id` + `cursor_branch_id` in session_meta track position
+
+### Compression & Deltas
+
+Snapshots are stored as **zlib-compressed BLOBs**. The anchor policy decides
+whether to store a full snapshot or a row-level delta:
+
+1. **Fork points** — always full snapshot (anchor). Promoted on fork creation.
+2. **Count cap** — full snapshot every 20 checkpoints on the same branch.
+3. **Size threshold** — if delta >= 50% of full snapshot size, store full instead.
+4. **Otherwise** — store row-level delta relative to parent checkpoint.
+
+`reconstruct_state()` resolves delta chains by walking `parent_id` to the
+nearest anchor and applying deltas forward.
 
 ### Operations
 
 **turn_save:**
 1. Add timeline entries (player_choice before narration for ordering)
 2. Auto-tag entities in entries (NPC name extraction from text)
-3. Snapshot all mutable state into JSON
-4. Insert checkpoint row (`kind='turn'`), advance cursor
+3. Snapshot all mutable state, compress, apply anchor policy
+4. If cursor is behind tip: fork (create new branch), else append to current branch
 
-**turn_revert (undo):**
-1. Move cursor back N **turn** checkpoints (auto-checkpoints are skipped)
-2. Delete timeline/journal entries + their embeddings added after target checkpoint
-3. Clean up auto-checkpoints between old and new cursor positions
-4. Restore full state from snapshot (FK OFF → delete all current → re-insert from JSON → FK ON)
+**turn_revert / turn_advance:**
+- Move cursor back/forward within the current branch's history
+- Reconstruct target state (resolving deltas if needed)
+- Restore via FK OFF → delete all current → re-insert → FK ON → rebuild embeddings
 
-**turn_advance (redo):**
-- Only works if cursor < tip (no new actions since revert)
-- Jumps forward by N **turn** checkpoints (auto-checkpoints are skipped)
-- Loads target checkpoint's snapshot, restores it
+**save_load:**
+- Find the named checkpoint, reconstruct its state, restore it
+- Move cursor to that checkpoint's branch — next `turn_save` will fork if behind tip
 
-**Fork detection:**
-- If cursor is behind tip and a new checkpoint is created without `force=True`, raises error
-- With `force=True`, truncates the "future" branch (deletes all checkpoints after cursor)
-
-**session_resume auto-recovery:**
-- If cursor points past the last `kind='turn'` checkpoint, auto-rollback to it
-- Deletes orphan `kind='auto'` checkpoints (from interrupted combat turns)
-- Returns recovery message so GM knows state was cleaned up
+**manual_save:**
+- Tag the current checkpoint with a name (or create a new one if state has changed)
 
 ### Snapshot Contents
 
@@ -692,8 +719,7 @@ are rebuilt from the restored timeline summaries and journal content.
 
 ```mermaid
 flowchart TD
-    A["rules_resolve — attacker, defender, action"] --> A1["Auto-checkpoint (kind='auto')"]
-    A1 --> B[Load character data + combat modifiers]
+    A["rules_resolve — attacker, defender, action"] --> B[Load character data + combat modifiers]
     B --> C[Check condition action limits]
     C --> D["Look up action — character action_override first, then system pack"]
     D --> D1["Expand combat_options (e.g. trade attack bonus for damage bonus)"]
@@ -1084,8 +1110,8 @@ Key behavioral rules from SHARED_GUIDE:
 ### Character (4)
 `character_view`, `character_list`, `character_build`, `character_sheet_update`
 
-### Turn & Checkpoint (3)
-`turn_save`, `turn_revert`, `turn_advance`
+### Turn & Checkpoint (8)
+`turn_save`, `turn_revert`, `turn_advance`, `manual_save`, `save_list`, `save_load`, `save_rename`, `save_delete`
 
 ### Timeline & Journal (5)
 `timeline_list`, `timeline_set_summary`, `journal_add`, `journal_list`,
