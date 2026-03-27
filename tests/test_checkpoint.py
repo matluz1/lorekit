@@ -1,4 +1,4 @@
-"""Tests for checkpoint/turn undo-redo system."""
+"""Tests for checkpoint/turn undo-redo system with branching and save/load."""
 
 import os
 import sqlite3
@@ -11,6 +11,11 @@ from lorekit.tools.character import character_build, character_sheet_update, cha
 from lorekit.tools.narrative import (  # noqa: E402
     journal_add,
     journal_list,
+    manual_save,
+    save_delete,
+    save_list,
+    save_load,
+    save_rename,
     timeline_list,
     turn_advance,
     turn_revert,
@@ -162,8 +167,8 @@ def test_revert_twice_works_then_fails(make_session):
     assert "ERROR" in result
 
 
-def test_revert_then_save_works(make_session):
-    """After reverting, saving truncates future checkpoints (branch truncation)."""
+def test_revert_then_save_forks(make_session):
+    """After reverting, saving creates a new branch (fork-on-save)."""
     sid = make_session()
     turn_save(session_id=sid, narration="Turn 1.", summary="T1")
     turn_save(session_id=sid, narration="Bad turn.", summary="Bad")
@@ -173,8 +178,8 @@ def test_revert_then_save_works(make_session):
     # Still 3 checkpoints (cursor moved back, nothing deleted)
     assert _checkpoint_count(sid) == 3
     turn_save(session_id=sid, narration="Good turn.", summary="Good")
-    # Branch truncation: #2 deleted, new #3 created → 3 checkpoints (#0, #1, #3)
-    assert _checkpoint_count(sid) == 3
+    # Fork: old branch preserved, new checkpoint on new branch → 4 checkpoints
+    assert _checkpoint_count(sid) == 4
     listing = timeline_list(session_id=sid)
     assert "Turn 1." in listing
     assert "Good turn." in listing
@@ -207,15 +212,19 @@ def test_redo_at_tip_fails(make_session):
     assert "ERROR" in result
 
 
-def test_redo_after_new_action_fails(make_session):
-    """Revert then save should fail (guard against accidental truncation)."""
+def test_revert_then_save_creates_branch(make_session):
+    """Revert then save should fork — not fail or truncate."""
     sid = make_session()
     turn_save(session_id=sid, narration="Turn 1.", summary="T1")
     turn_save(session_id=sid, narration="Turn 2.", summary="T2")
     turn_revert(session_id=sid)
     result = turn_save(session_id=sid, narration="Turn 3.", summary="T3")
-    assert "ERROR" in result
-    assert "future checkpoints" in result
+    assert "ERROR" not in result
+    # A new branch should exist
+    db = _get_db()
+    branches = db.execute("SELECT COUNT(*) FROM checkpoint_branches WHERE session_id = ?", (sid,)).fetchone()[0]
+    db.close()
+    assert branches == 2
 
 
 def test_multi_step_redo(make_session):
@@ -259,4 +268,195 @@ def test_cursor_in_session_meta(make_session):
     snap = json.loads(snap_json)
     meta_keys = [m["key"] for m in snap.get("session_meta", [])]
     assert "cursor_checkpoint_id" not in meta_keys
+    assert "cursor_branch_id" not in meta_keys
     db.close()
+
+
+# -- Branching --
+
+
+def _branch_count(session_id):
+    db = _get_db()
+    count = db.execute("SELECT COUNT(*) FROM checkpoint_branches WHERE session_id = ?", (session_id,)).fetchone()[0]
+    db.close()
+    return count
+
+
+def test_first_save_creates_branch(make_session):
+    """First turn_save should create a default branch."""
+    sid = make_session()
+    turn_save(session_id=sid, narration="Turn 1.", summary="T1")
+    assert _branch_count(sid) == 1
+
+
+def test_fork_creates_second_branch(make_session):
+    """Revert + save should fork into a second branch."""
+    sid = make_session()
+    turn_save(session_id=sid, narration="Turn 1.", summary="T1")
+    turn_save(session_id=sid, narration="Turn 2.", summary="T2")
+    turn_revert(session_id=sid)
+    turn_save(session_id=sid, narration="Alt turn.", summary="Alt")
+    assert _branch_count(sid) == 2
+
+
+def test_fork_preserves_old_branch_data(make_session, make_character):
+    """After forking, the old branch's checkpoints still exist."""
+    sid = make_session()
+    cid = make_character(sid, name="Hero", level=1)
+    turn_save(session_id=sid, narration="Turn 1.", summary="T1")
+    character_sheet_update(character_id=cid, level=5)
+    turn_save(session_id=sid, narration="Turn 2.", summary="T2")
+    # Revert to Turn 1 state
+    turn_revert(session_id=sid)
+    # Fork
+    character_sheet_update(character_id=cid, level=10)
+    turn_save(session_id=sid, narration="Alt turn.", summary="Alt")
+    # Current state should show level 10
+    view = character_view(character_id=cid)
+    assert "LEVEL: 10" in view
+    # Old branch checkpoints are preserved (not deleted)
+    assert _checkpoint_count(sid) == 4  # #0, #1, #2 (old), #3 (new branch)
+
+
+def test_revert_past_fork_stays_on_branch(make_session):
+    """Reverting past a fork point should stay on the current branch."""
+    sid = make_session()
+    turn_save(session_id=sid, narration="Turn 1.", summary="T1")
+    turn_save(session_id=sid, narration="Turn 2.", summary="T2")
+    turn_revert(session_id=sid)
+    turn_save(session_id=sid, narration="Alt.", summary="Alt")
+    # Now on branch 2 with Alt turn. Revert to checkpoint #0 (pre-game)
+    turn_revert(session_id=sid, steps=2)
+    # Should still be on branch 2
+    db = _get_db()
+    row = db.execute(
+        "SELECT value FROM session_meta WHERE session_id = ? AND key = 'cursor_branch_id'",
+        (sid,),
+    ).fetchone()
+    branch_id = int(row[0])
+    # Advance should follow branch 2, not branch 1
+    turn_advance(session_id=sid, steps=2)
+    listing = timeline_list(session_id=sid)
+    assert "Alt." in listing
+    assert "Turn 2." not in listing
+    db.close()
+
+
+def test_advance_follows_current_branch(make_session):
+    """Advance after revert should follow the current branch's checkpoints."""
+    sid = make_session()
+    turn_save(session_id=sid, narration="Turn 1.", summary="T1")
+    turn_save(session_id=sid, narration="Turn 2.", summary="T2")
+    turn_save(session_id=sid, narration="Turn 3.", summary="T3")
+    turn_revert(session_id=sid, steps=2)
+    turn_advance(session_id=sid)
+    listing = timeline_list(session_id=sid)
+    assert "Turn 2." in listing
+    assert "Turn 3." not in listing
+
+
+# -- Save/Load --
+
+
+def test_manual_save_creates_named_checkpoint(make_session):
+    sid = make_session()
+    turn_save(session_id=sid, narration="Turn 1.", summary="T1")
+    result = manual_save(session_id=sid, name="Before boss")
+    assert "Before boss" in result
+
+
+def test_manual_save_auto_names(make_session):
+    sid = make_session()
+    turn_save(session_id=sid, narration="Turn 1.", summary="T1")
+    result = manual_save(session_id=sid)
+    assert "Save 1" in result
+    result = manual_save(session_id=sid)
+    assert "Save 2" in result
+
+
+def test_save_list_shows_only_named(make_session):
+    sid = make_session()
+    turn_save(session_id=sid, narration="Turn 1.", summary="T1")
+    turn_save(session_id=sid, narration="Turn 2.", summary="T2")
+    manual_save(session_id=sid, name="My Save")
+    result = save_list(session_id=sid)
+    assert "My Save" in result
+    # Auto-saves should not appear
+    assert "Turn 1" not in result
+
+
+def test_save_load_restores_state(make_session, make_character):
+    sid = make_session()
+    cid = make_character(sid, name="Hero", level=1)
+    turn_save(session_id=sid, narration="Turn 1.", summary="T1")
+    manual_save(session_id=sid, name="Early game")
+    character_sheet_update(character_id=cid, level=10)
+    turn_save(session_id=sid, narration="Turn 2.", summary="T2")
+    # Load the save — should restore level 1
+    result = save_load(session_id=sid, name="Early game")
+    assert "SAVE_LOADED" in result
+    view = character_view(character_id=cid)
+    assert "LEVEL: 1" in view
+
+
+def test_save_load_across_branches(make_session):
+    """Loading a save on a different branch should work."""
+    sid = make_session()
+    turn_save(session_id=sid, narration="Turn 1.", summary="T1")
+    manual_save(session_id=sid, name="Checkpoint A")
+    turn_save(session_id=sid, narration="Turn 2.", summary="T2")
+    # Revert and fork
+    turn_revert(session_id=sid, steps=2)
+    turn_save(session_id=sid, narration="Alt.", summary="Alt")
+    # Now on branch 2. Load save from branch 1.
+    result = save_load(session_id=sid, name="Checkpoint A")
+    assert "SAVE_LOADED" in result
+    listing = timeline_list(session_id=sid)
+    assert "Turn 1." in listing
+    assert "Alt." not in listing
+
+
+def test_save_rename(make_session):
+    sid = make_session()
+    turn_save(session_id=sid, narration="Turn 1.", summary="T1")
+    manual_save(session_id=sid, name="Old Name")
+    result = save_rename(session_id=sid, old_name="Old Name", new_name="New Name")
+    assert "SAVE_RENAMED" in result
+    listing = save_list(session_id=sid)
+    assert "New Name" in listing
+    assert "Old Name" not in listing
+
+
+def test_save_delete_removes_from_list(make_session):
+    sid = make_session()
+    turn_save(session_id=sid, narration="Turn 1.", summary="T1")
+    manual_save(session_id=sid, name="Temp Save")
+    result = save_delete(session_id=sid, name="Temp Save")
+    assert "SAVE_DELETED" in result
+    listing = save_list(session_id=sid)
+    assert "Temp Save" not in listing
+
+
+def test_save_delete_preserves_checkpoint(make_session):
+    """Deleting a save should preserve the underlying checkpoint for undo."""
+    sid = make_session()
+    turn_save(session_id=sid, narration="Turn 1.", summary="T1")
+    count_before = _checkpoint_count(sid)
+    manual_save(session_id=sid, name="Temp")
+    save_delete(session_id=sid, name="Temp")
+    # Checkpoint count should not decrease
+    assert _checkpoint_count(sid) >= count_before
+
+
+def test_save_load_then_play_forks(make_session):
+    """Playing after a load should fork automatically."""
+    sid = make_session()
+    turn_save(session_id=sid, narration="Turn 1.", summary="T1")
+    manual_save(session_id=sid, name="Save Point")
+    turn_save(session_id=sid, narration="Turn 2.", summary="T2")
+    save_load(session_id=sid, name="Save Point")
+    turn_save(session_id=sid, narration="New path.", summary="New")
+    assert _branch_count(sid) == 2
+    listing = timeline_list(session_id=sid)
+    assert "New path." in listing
+    assert "Turn 2." not in listing

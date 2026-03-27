@@ -179,13 +179,23 @@ CREATE TABLE IF NOT EXISTS embeddings (
     UNIQUE(source, source_id)
 );
 
+CREATE TABLE IF NOT EXISTS checkpoint_branches (
+    id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id         INTEGER NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+    parent_branch_id   INTEGER REFERENCES checkpoint_branches(id),
+    fork_checkpoint_id INTEGER REFERENCES checkpoints(id),
+    created_at         TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
+);
+
 CREATE TABLE IF NOT EXISTS checkpoints (
     id              INTEGER PRIMARY KEY AUTOINCREMENT,
     session_id      INTEGER NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+    branch_id       INTEGER REFERENCES checkpoint_branches(id),
+    parent_id       INTEGER REFERENCES checkpoints(id),
+    name            TEXT,
     timeline_max_id INTEGER NOT NULL DEFAULT 0,
     journal_max_id  INTEGER NOT NULL DEFAULT 0,
     snapshot        TEXT    NOT NULL,
-    kind            TEXT    NOT NULL DEFAULT 'auto',
     created_at      TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
 );
 
@@ -248,6 +258,8 @@ CREATE INDEX IF NOT EXISTS idx_regions_session ON regions(session_id);
 CREATE INDEX IF NOT EXISTS idx_combat_state ON combat_state(character_id);
 CREATE INDEX IF NOT EXISTS idx_embeddings_session ON embeddings(session_id, source);
 CREATE INDEX IF NOT EXISTS idx_checkpoints_session ON checkpoints(session_id);
+CREATE INDEX IF NOT EXISTS idx_checkpoints_branch ON checkpoints(branch_id);
+CREATE INDEX IF NOT EXISTS idx_checkpoint_branches_session ON checkpoint_branches(session_id);
 CREATE INDEX IF NOT EXISTS idx_encounter_state_session ON encounter_state(session_id);
 CREATE INDEX IF NOT EXISTS idx_encounter_zones ON encounter_zones(encounter_id);
 CREATE INDEX IF NOT EXISTS idx_character_zone ON character_zone(encounter_id);
@@ -276,13 +288,20 @@ ADD_COLUMN_MIGRATIONS = [
     ("combat_state", "metadata", "ALTER TABLE combat_state ADD COLUMN metadata TEXT"),
     ("timeline", "scope", "ALTER TABLE timeline ADD COLUMN scope TEXT NOT NULL DEFAULT 'participants'"),
     ("journal", "scope", "ALTER TABLE journal ADD COLUMN scope TEXT NOT NULL DEFAULT 'participants'"),
-    ("checkpoints", "kind", "ALTER TABLE checkpoints ADD COLUMN kind TEXT NOT NULL DEFAULT 'auto'"),
     ("characters", "prefetch", "ALTER TABLE characters ADD COLUMN prefetch INTEGER NOT NULL DEFAULT 0"),
+    (
+        "checkpoints",
+        "branch_id",
+        "ALTER TABLE checkpoints ADD COLUMN branch_id INTEGER REFERENCES checkpoint_branches(id)",
+    ),
+    ("checkpoints", "parent_id", "ALTER TABLE checkpoints ADD COLUMN parent_id INTEGER REFERENCES checkpoints(id)"),
+    ("checkpoints", "name", "ALTER TABLE checkpoints ADD COLUMN name TEXT"),
 ]
 
 DROP_COLUMN_MIGRATIONS = [
     ("timeline", "speaker", "ALTER TABLE timeline DROP COLUMN speaker"),
     ("timeline", "npc_id", "ALTER TABLE timeline DROP COLUMN npc_id"),
+    ("checkpoints", "kind", "ALTER TABLE checkpoints DROP COLUMN kind"),
 ]
 
 
@@ -577,10 +596,23 @@ def _needs_cascade_migration(conn):
     return "ON DELETE CASCADE" not in ddl[0]
 
 
+_NEW_TABLE_MIGRATIONS = [
+    """CREATE TABLE IF NOT EXISTS checkpoint_branches (
+        id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+        session_id         INTEGER NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+        parent_branch_id   INTEGER REFERENCES checkpoint_branches(id),
+        fork_checkpoint_id INTEGER REFERENCES checkpoints(id),
+        created_at         TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
+    )""",
+]
+
+
 def _run_migrations(db_path):
     """Run column migrations on an existing database (fast, idempotent)."""
     conn = get_db(db_path)
     changed = False
+    for sql in _NEW_TABLE_MIGRATIONS:
+        conn.execute(sql)
     for table, column, sql in ADD_COLUMN_MIGRATIONS:
         cols = [row[1] for row in conn.execute(f"PRAGMA table_info({table})").fetchall()]
         if column not in cols:
@@ -594,6 +626,36 @@ def _run_migrations(db_path):
     # Data migration: backfill prefetch=1 for existing PCs
     if changed:
         conn.execute("UPDATE characters SET prefetch = 1 WHERE type = 'pc' AND prefetch = 0")
+    # Data migration: delete auto-checkpoints (kind column may already be dropped)
+    cols = [row[1] for row in conn.execute("PRAGMA table_info(checkpoints)").fetchall()]
+    if "kind" in cols:
+        conn.execute("DELETE FROM checkpoints WHERE kind != 'turn'")
+        changed = True
+    # Data migration: create default branch for checkpoints without one
+    has_orphans = conn.execute("SELECT 1 FROM checkpoints WHERE branch_id IS NULL LIMIT 1").fetchone()
+    if has_orphans:
+        for (sid,) in conn.execute("SELECT DISTINCT session_id FROM checkpoints WHERE branch_id IS NULL").fetchall():
+            conn.execute("INSERT INTO checkpoint_branches (session_id) VALUES (?)", (sid,))
+            branch_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+            conn.execute(
+                "UPDATE checkpoints SET branch_id = ? WHERE session_id = ? AND branch_id IS NULL", (branch_id, sid)
+            )
+            # Set parent_id chain
+            cp_ids = [
+                r[0]
+                for r in conn.execute(
+                    "SELECT id FROM checkpoints WHERE session_id = ? ORDER BY id ASC", (sid,)
+                ).fetchall()
+            ]
+            for i in range(1, len(cp_ids)):
+                conn.execute("UPDATE checkpoints SET parent_id = ? WHERE id = ?", (cp_ids[i - 1], cp_ids[i]))
+            # Set cursor_branch_id
+            conn.execute(
+                "INSERT OR IGNORE INTO session_meta (session_id, key, value) VALUES (?, 'cursor_branch_id', ?)",
+                (sid, str(branch_id)),
+            )
+        changed = True
+    if changed:
         conn.commit()
     conn.close()
 

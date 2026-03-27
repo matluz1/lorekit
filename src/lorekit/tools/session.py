@@ -198,12 +198,13 @@ def session_resume(session_id: int) -> str:
     try:
         parts = []
 
-        # Roll back dirty state from interrupted turns (e.g. Ctrl+C mid-combat)
-        from lorekit.support.checkpoint import restore_to_last_turn
-
-        recovery_msg = restore_to_last_turn(db, session_id)
-        if recovery_msg:
-            parts.append(recovery_msg)
+        # Show save count if any manual saves exist
+        save_count = db.execute(
+            "SELECT COUNT(*) FROM checkpoints WHERE session_id = ? AND name IS NOT NULL",
+            (session_id,),
+        ).fetchone()[0]
+        if save_count:
+            parts.append(f"📁 {save_count} save(s) available — use save_list to view")
             parts.append("")
 
         # Active encounter first (so it appears in truncated previews)

@@ -110,11 +110,6 @@ def resolve_area_action(
     # Condition-based action limit (dazed, stunned, incapacitated, etc.)
     _check_condition_action_limit(db, attacker_id, pack)
 
-    # Auto-checkpoint
-    from lorekit.support.checkpoint import create_checkpoint
-
-    create_checkpoint(db, attacker.session_id)
-
     action_def = _get_action_def(pack, attacker, action)
     action_def.setdefault("_action_name", action)
 

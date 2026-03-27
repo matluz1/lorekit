@@ -645,11 +645,6 @@ def resolve_action(
     if not is_free:
         _check_condition_action_limit(db, attacker_id, pack)
 
-    # Auto-checkpoint before resolution so turn_revert can undo combat actions
-    from lorekit.support.checkpoint import create_checkpoint
-
-    create_checkpoint(db, attacker.session_id)
-
     # Check if action is a gm_assisted effect before looking up action defs
     try:
         action_def = _get_action_def(pack, attacker, action)

@@ -97,12 +97,12 @@ def timeline_set_summary(timeline_id: int, summary: str) -> str:
 
 @mcp.tool()
 def turn_revert(session_id: int, steps: int = 1) -> str:
-    """Revert saved turns. Restores all game state (characters, items,
-    attributes, story, regions, metadata) and removes timeline/journal entries
-    created since the target checkpoint.
+    """Revert saved turns within the current branch. Restores all game state
+    (characters, items, attributes, story, regions, metadata) and removes
+    timeline/journal entries created since the target checkpoint.
 
-    Jumps directly to turn boundaries — auto-checkpoints created during
-    combat resolution are skipped automatically.
+    Saving after a revert automatically forks into a new branch — the old
+    path is preserved and can be revisited via save_load.
 
     steps: how many turns to go back (default 1).
     """
@@ -113,14 +113,72 @@ def turn_revert(session_id: int, steps: int = 1) -> str:
 
 @mcp.tool()
 def turn_advance(session_id: int, steps: int = 1) -> str:
-    """Redo previously reverted turns. Only works if no new action was
-    taken since the revert (future turn checkpoints still exist).
+    """Redo previously reverted turns on the current branch. Only works if
+    future checkpoints exist on this branch.
 
     steps: how many turns to go forward (default 1).
     """
     from lorekit.support.checkpoint import advance_to_next
 
     return _run_with_db(advance_to_next, session_id, steps)
+
+
+@mcp.tool()
+def manual_save(session_id: int, name: str = "") -> str:
+    """Create a named save at the current game state. Players can load saves
+    to return to any saved moment. If name is empty, auto-generates 'Save N'.
+    """
+    from lorekit.support.checkpoint import manual_save as _manual_save
+
+    return _run_with_db(_manual_save, session_id, name or None)
+
+
+@mcp.tool()
+def save_list(session_id: int) -> str:
+    """List all named saves for the session."""
+    from lorekit.db import require_db
+    from lorekit.support.checkpoint import save_list as _save_list
+
+    db = require_db()
+    try:
+        saves = _save_list(db, session_id)
+        if not saves:
+            return "No saves yet."
+        lines = ["SAVES", "━" * 32]
+        for i, (name, created_at) in enumerate(saves, 1):
+            lines.append(f"{i}. {name}")
+        return "\n".join(lines)
+    finally:
+        db.close()
+
+
+@mcp.tool()
+def save_load(session_id: int, name: str) -> str:
+    """Load a named save, restoring all game state to that moment.
+    Continuing to play after a load will automatically preserve the
+    current path — nothing is lost.
+    """
+    from lorekit.support.checkpoint import save_load as _save_load
+
+    return _run_with_db(_save_load, session_id, name)
+
+
+@mcp.tool()
+def save_rename(session_id: int, old_name: str, new_name: str) -> str:
+    """Rename an existing save."""
+    from lorekit.support.checkpoint import save_rename as _save_rename
+
+    return _run_with_db(_save_rename, session_id, old_name, new_name)
+
+
+@mcp.tool()
+def save_delete(session_id: int, name: str) -> str:
+    """Delete a named save. The underlying game state is preserved for
+    undo/redo — only the save slot is removed.
+    """
+    from lorekit.support.checkpoint import save_delete as _save_delete
+
+    return _run_with_db(_save_delete, session_id, name)
 
 
 @mcp.tool()
@@ -202,7 +260,6 @@ def turn_save(
     player_choice: str = "",
     narrative_time: str = "",
     scope: str = "participants",
-    force: bool = False,
 ) -> str:
     """Save a game turn: narration + player choice + last_gm_message in one call.
 
@@ -219,13 +276,9 @@ def turn_save(
       "gm" — hidden from all NPCs (secrets, plot hooks, GM notes).
     Always call turn_save as your last action before the player acts.
     During combat, encounter_advance_turn reminds you when a PC turn begins.
-    force: if True and the cursor is behind the tip, delete future checkpoints
-      and save here (like making a new git commit after checkout — the old branch
-      is lost). Without force, the call is rejected to prevent accidental data loss.
 
-    WARNING: After a turn_revert, do NOT call turn_save until you have advanced
-    back to the desired checkpoint with turn_advance (if needed), unless you pass
-    force=True to confirm you want to discard the future checkpoints.
+    After a turn_revert, calling turn_save will automatically create a new
+    branch — the old path is preserved and can be revisited via save_load.
     """
     if not narration and not player_choice:
         return "ERROR: Provide at least one of narration or player_choice"
@@ -243,7 +296,7 @@ def turn_save(
             (session_id,),
         ).fetchone()
         if not has_cp:
-            create_checkpoint(db, session_id, kind="turn")
+            create_checkpoint(db, session_id)
 
         results = []
         saved_entries = []  # (source, source_id, text) for entity auto-tagging
@@ -310,7 +363,7 @@ def turn_save(
                 )
 
         # Checkpoint after writing (the "approved" state after this turn)
-        create_checkpoint(db, session_id, force=force, kind="turn")
+        create_checkpoint(db, session_id)
 
         return "\n".join(results)
     except LoreKitError as e:

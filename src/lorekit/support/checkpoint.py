@@ -1,9 +1,11 @@
-"""checkpoint.py -- Turn checkpoint system for precise undo.
+"""checkpoint.py -- Branching checkpoint system with save/load.
 
-Each turn_save creates a checkpoint capturing the full mutable session state.
-turn_revert pops the latest checkpoint and restores the previous one, undoing
-all changes (timeline, journal, characters, items, attributes, abilities,
-stories, acts, regions, metadata) made since that checkpoint.
+Each turn_save creates an auto-save checkpoint on the current branch.
+If the cursor is behind the tip (after a revert), saving forks into a new
+branch automatically — preserving the old path.
+
+Players interact via manual saves (named checkpoints) and loads.
+Undo/redo walks auto-saves within the current branch.
 """
 
 import json
@@ -16,11 +18,12 @@ def snapshot_session(db, session_id):
     """Read all mutable session state into a dict for checkpointing."""
     snap = {}
 
-    # Session metadata (exclude cursor_checkpoint_id — managed outside snapshot)
+    # Session metadata (exclude cursor keys — managed outside snapshot)
     snap["session_meta"] = [
         {"id": r[0], "key": r[1], "value": r[2]}
         for r in db.execute(
-            "SELECT id, key, value FROM session_meta WHERE session_id = ? AND key != 'cursor_checkpoint_id'",
+            "SELECT id, key, value FROM session_meta WHERE session_id = ? "
+            "AND key NOT IN ('cursor_checkpoint_id', 'cursor_branch_id')",
             (session_id,),
         ).fetchall()
     ]
@@ -566,60 +569,133 @@ def restore_snapshot(db, session_id, snapshot):
 
 
 def _get_cursor(db, session_id):
-    """Return the current cursor checkpoint ID, or the latest checkpoint if unset."""
-    row = db.execute(
+    """Return (checkpoint_id, branch_id) for the current cursor."""
+    cp_row = db.execute(
         "SELECT value FROM session_meta WHERE session_id = ? AND key = 'cursor_checkpoint_id'",
         (session_id,),
     ).fetchone()
-    if row:
-        cp_id = int(row[0])
-        # Validate it still exists
-        exists = db.execute("SELECT 1 FROM checkpoints WHERE id = ?", (cp_id,)).fetchone()
-        if exists:
-            return cp_id
-    # Fallback: latest checkpoint
-    row = db.execute("SELECT MAX(id) FROM checkpoints WHERE session_id = ?", (session_id,)).fetchone()
-    return row[0] if row and row[0] is not None else None
-
-
-def _set_cursor(db, session_id, checkpoint_id):
-    """Upsert cursor_checkpoint_id in session_meta."""
-    existing = db.execute(
-        "SELECT id FROM session_meta WHERE session_id = ? AND key = 'cursor_checkpoint_id'",
+    br_row = db.execute(
+        "SELECT value FROM session_meta WHERE session_id = ? AND key = 'cursor_branch_id'",
         (session_id,),
     ).fetchone()
-    if existing:
-        db.execute(
-            "UPDATE session_meta SET value = ? WHERE id = ?",
-            (str(checkpoint_id), existing[0]),
-        )
-    else:
-        db.execute(
-            "INSERT INTO session_meta (session_id, key, value) VALUES (?, 'cursor_checkpoint_id', ?)",
-            (session_id, str(checkpoint_id)),
-        )
+
+    cp_id = None
+    if cp_row:
+        cp_id = int(cp_row[0])
+        if not db.execute("SELECT 1 FROM checkpoints WHERE id = ?", (cp_id,)).fetchone():
+            cp_id = None
+
+    branch_id = None
+    if br_row:
+        branch_id = int(br_row[0])
+        if not db.execute("SELECT 1 FROM checkpoint_branches WHERE id = ?", (branch_id,)).fetchone():
+            branch_id = None
+
+    # Fallback: latest checkpoint and its branch
+    if cp_id is None:
+        row = db.execute(
+            "SELECT id, branch_id FROM checkpoints WHERE session_id = ? ORDER BY id DESC LIMIT 1",
+            (session_id,),
+        ).fetchone()
+        if row:
+            cp_id, branch_id = row[0], row[1]
+
+    return cp_id, branch_id
 
 
-def create_checkpoint(db, session_id, *, force: bool = False, kind: str = "auto"):
+def _set_cursor(db, session_id, checkpoint_id, branch_id):
+    """Upsert cursor_checkpoint_id and cursor_branch_id in session_meta."""
+    for key, value in [("cursor_checkpoint_id", str(checkpoint_id)), ("cursor_branch_id", str(branch_id))]:
+        existing = db.execute(
+            "SELECT id FROM session_meta WHERE session_id = ? AND key = ?",
+            (session_id, key),
+        ).fetchone()
+        if existing:
+            db.execute("UPDATE session_meta SET value = ? WHERE id = ?", (value, existing[0]))
+        else:
+            db.execute(
+                "INSERT INTO session_meta (session_id, key, value) VALUES (?, ?, ?)",
+                (session_id, key, value),
+            )
+
+
+def _get_or_create_branch(db, session_id):
+    """Return the default branch for a session, creating it if needed."""
+    row = db.execute(
+        "SELECT id FROM checkpoint_branches WHERE session_id = ? ORDER BY id ASC LIMIT 1",
+        (session_id,),
+    ).fetchone()
+    if row:
+        return row[0]
+    cur = db.execute(
+        "INSERT INTO checkpoint_branches (session_id) VALUES (?)",
+        (session_id,),
+    )
+    return cur.lastrowid
+
+
+def get_branch_history(db, session_id, branch_id):
+    """Return ordered checkpoint IDs for a branch, including inherited ancestors."""
+    branch = db.execute(
+        "SELECT parent_branch_id, fork_checkpoint_id FROM checkpoint_branches WHERE id = ?",
+        (branch_id,),
+    ).fetchone()
+    if branch is None:
+        return []
+
+    own_cps = [
+        r[0]
+        for r in db.execute(
+            "SELECT id FROM checkpoints WHERE branch_id = ? ORDER BY id ASC",
+            (branch_id,),
+        ).fetchall()
+    ]
+
+    if branch[0] is None:  # root branch, no parent
+        return own_cps
+
+    parent_history = get_branch_history(db, session_id, branch[0])
+    fork_cp = branch[1]
+    if fork_cp in parent_history:
+        fork_idx = parent_history.index(fork_cp)
+        return parent_history[: fork_idx + 1] + own_cps
+    return parent_history + own_cps
+
+
+def _get_branch_tip(db, branch_id):
+    """Return the latest checkpoint ID on a branch, or None."""
+    row = db.execute(
+        "SELECT id FROM checkpoints WHERE branch_id = ? ORDER BY id DESC LIMIT 1",
+        (branch_id,),
+    ).fetchone()
+    return row[0] if row else None
+
+
+def create_checkpoint(db, session_id):
     """Snapshot current state and save as a checkpoint. Returns checkpoint id.
 
-    kind: 'turn' for turn_save checkpoints (stable narrative+mechanical boundary),
-          'auto' for combat auto-checkpoints (undo points within a turn).
+    If the cursor is behind the tip of the current branch, a new branch is
+    created automatically (fork-on-save) — the old branch is preserved.
     """
-    # Branch truncation: if cursor is behind tip, delete future checkpoints
-    cursor = _get_cursor(db, session_id)
-    if cursor is not None:
-        tip = db.execute("SELECT MAX(id) FROM checkpoints WHERE session_id = ?", (session_id,)).fetchone()[0]
-        if tip is not None and cursor < tip:
-            if not force:
-                raise LoreKitError(
-                    "Cursor is behind tip — calling turn_save will delete future checkpoints. "
-                    "Use turn_advance to move forward, or pass force=True to confirm."
-                )
-            db.execute(
-                "DELETE FROM checkpoints WHERE session_id = ? AND id > ?",
-                (session_id, cursor),
+    cursor_cp, cursor_branch = _get_cursor(db, session_id)
+
+    # Ensure we have a branch
+    if cursor_branch is None:
+        cursor_branch = _get_or_create_branch(db, session_id)
+
+    parent_id = cursor_cp
+    branch_id = cursor_branch
+
+    # Fork detection: cursor is behind the tip of the current branch
+    if cursor_cp is not None:
+        tip = _get_branch_tip(db, cursor_branch)
+        if tip is not None and cursor_cp < tip:
+            # Fork: create a new branch from the cursor position
+            cur = db.execute(
+                "INSERT INTO checkpoint_branches (session_id, parent_branch_id, fork_checkpoint_id) VALUES (?, ?, ?)",
+                (session_id, cursor_branch, cursor_cp),
             )
+            branch_id = cur.lastrowid
 
     tl_max = db.execute(
         "SELECT COALESCE(MAX(id), 0) FROM timeline WHERE session_id = ?",
@@ -634,168 +710,178 @@ def create_checkpoint(db, session_id, *, force: bool = False, kind: str = "auto"
     snap = snapshot_session(db, session_id)
 
     cur = db.execute(
-        "INSERT INTO checkpoints (session_id, timeline_max_id, journal_max_id, snapshot, kind) VALUES (?, ?, ?, ?, ?)",
-        (session_id, tl_max, jn_max, json.dumps(snap), kind),
+        "INSERT INTO checkpoints (session_id, branch_id, parent_id, timeline_max_id, journal_max_id, snapshot) "
+        "VALUES (?, ?, ?, ?, ?, ?)",
+        (session_id, branch_id, parent_id, tl_max, jn_max, json.dumps(snap)),
     )
     new_id = cur.lastrowid
-    _set_cursor(db, session_id, new_id)
+    _set_cursor(db, session_id, new_id, branch_id)
     db.commit()
     return new_id
 
 
-def _find_turn_index(turn_ids: list[int], cursor: int | None) -> int:
-    """Find the index in turn_ids that the cursor is at or just after.
-
-    If the cursor sits on a turn checkpoint, return that index.
-    If it sits on an auto-checkpoint between two turns, return the
-    index of the preceding turn checkpoint.
-    If cursor is None or before all turns, return the last index.
-    """
-    if cursor is None:
-        return len(turn_ids) - 1
-    # Exact match — cursor is on a turn checkpoint
-    if cursor in turn_ids:
-        return turn_ids.index(cursor)
-    # Cursor is on an auto-checkpoint — find the preceding turn
-    for i in range(len(turn_ids) - 1, -1, -1):
-        if turn_ids[i] < cursor:
-            return i
-    return len(turn_ids) - 1
-
-
-def _delete_auto_checkpoints_between(db, session_id: int, after_id: int, up_to_id: int | None):
-    """Delete auto-checkpoints (kind != 'turn') in the range (after_id, up_to_id].
-
-    Called after revert to clean up within-turn undo points that are no longer
-    meaningful once the turn boundary is restored.
-    """
-    if up_to_id is None:
-        return
-    db.execute(
-        "DELETE FROM checkpoints WHERE session_id = ? AND kind != 'turn' AND id > ? AND id <= ?",
-        (session_id, after_id, up_to_id),
-    )
-
-
 def revert_to_previous(db, session_id, steps=1):
-    """Move cursor back by *steps* turn checkpoints and restore that state.
+    """Move cursor back by *steps* checkpoints within the current branch.
 
-    Only kind='turn' checkpoints count as steps — auto-checkpoints (within-turn
-    undo points) are skipped. Turn checkpoints are preserved (not deleted) so
-    redo is possible, but auto-checkpoints between the old and new cursor
-    positions are cleaned up.
-
+    Checkpoints are preserved (not deleted) so redo is possible.
     Returns a summary string.
     """
-    turn_cps = db.execute(
-        "SELECT id FROM checkpoints WHERE session_id = ? AND kind = 'turn' ORDER BY id ASC",
-        (session_id,),
-    ).fetchall()
-    turn_ids = [r[0] for r in turn_cps]
+    cursor_cp, cursor_branch = _get_cursor(db, session_id)
+    if cursor_branch is None:
+        raise LoreKitError("Nothing to revert -- no checkpoints")
 
-    if len(turn_ids) < 2:
+    history = get_branch_history(db, session_id, cursor_branch)
+
+    if len(history) < 2:
         raise LoreKitError("Nothing to revert -- not enough checkpoints")
 
-    cursor = _get_cursor(db, session_id)
-    # Find which turn checkpoint the cursor is at or just after
-    current_turn_idx = _find_turn_index(turn_ids, cursor)
+    if cursor_cp is None or cursor_cp not in history:
+        current_idx = len(history) - 1
+    else:
+        current_idx = history.index(cursor_cp)
 
-    target_idx = current_turn_idx - steps
+    target_idx = current_idx - steps
     if target_idx < 0:
         target_idx = 0
-    if target_idx == current_turn_idx:
+    if target_idx == current_idx:
         raise LoreKitError("Nothing to revert -- already at earliest checkpoint")
 
-    target_id = turn_ids[target_idx]
+    target_id = history[target_idx]
     snapshot_json = db.execute("SELECT snapshot FROM checkpoints WHERE id = ?", (target_id,)).fetchone()[0]
     snapshot = json.loads(snapshot_json)
 
     restore_snapshot(db, session_id, snapshot)
-    _set_cursor(db, session_id, target_id)
-
-    # Clean up auto-checkpoints between target and the previous cursor position
-    _delete_auto_checkpoints_between(db, session_id, target_id, cursor)
-
+    _set_cursor(db, session_id, target_id, cursor_branch)
     db.commit()
 
-    actual_steps = current_turn_idx - target_idx
+    actual_steps = current_idx - target_idx
     skipped = f" (skipped {actual_steps - 1})" if actual_steps > 1 else ""
     return f"TURN_REVERTED: restored to checkpoint #{target_id}{skipped}"
 
 
-def restore_to_last_turn(db, session_id):
-    """Roll back to the most recent kind='turn' checkpoint if the cursor is past it.
-
-    Called on session_resume to discard dirty mechanical state left by an
-    interrupted turn (e.g. Ctrl+C after NPC combat but before turn_save).
-    Returns a message if a rollback happened, or None if state was clean.
-    """
-    cursor = _get_cursor(db, session_id)
-    if cursor is None:
-        return None
-
-    # Find the most recent turn checkpoint
-    row = db.execute(
-        "SELECT id FROM checkpoints WHERE session_id = ? AND kind = 'turn' ORDER BY id DESC LIMIT 1",
-        (session_id,),
-    ).fetchone()
-    if row is None:
-        return None
-
-    last_turn_id = row[0]
-    if cursor <= last_turn_id:
-        # Cursor is at or before the last turn checkpoint — no dirty state
-        return None
-
-    # Dirty state detected: auto-checkpoints exist past the last turn checkpoint.
-    # Restore to the turn checkpoint and delete the orphan auto-checkpoints.
-    snapshot_json = db.execute("SELECT snapshot FROM checkpoints WHERE id = ?", (last_turn_id,)).fetchone()[0]
-    snapshot = json.loads(snapshot_json)
-
-    restore_snapshot(db, session_id, snapshot)
-    _set_cursor(db, session_id, last_turn_id)
-    db.execute(
-        "DELETE FROM checkpoints WHERE session_id = ? AND id > ?",
-        (session_id, last_turn_id),
-    )
-    db.commit()
-
-    return f"⚠ RECOVERY: rolled back to last stable checkpoint #{last_turn_id} (discarded uncommitted combat state)"
-
-
 def advance_to_next(db, session_id, steps=1):
-    """Move cursor forward by *steps* turn checkpoints (redo) and restore that state.
+    """Move cursor forward by *steps* checkpoints within the current branch (redo).
 
-    Only kind='turn' checkpoints count as steps. Only works if future turn
-    checkpoints exist (no new action since revert).
+    Only works if future checkpoints exist on this branch.
     Returns a summary string.
     """
-    turn_cps = db.execute(
-        "SELECT id FROM checkpoints WHERE session_id = ? AND kind = 'turn' ORDER BY id ASC",
-        (session_id,),
-    ).fetchall()
-    turn_ids = [r[0] for r in turn_cps]
-
-    if not turn_ids:
+    cursor_cp, cursor_branch = _get_cursor(db, session_id)
+    if cursor_branch is None:
         raise LoreKitError("Nothing to redo -- no checkpoints")
 
-    cursor = _get_cursor(db, session_id)
-    current_turn_idx = _find_turn_index(turn_ids, cursor)
+    history = get_branch_history(db, session_id, cursor_branch)
 
-    target_idx = current_turn_idx + steps
-    if target_idx >= len(turn_ids):
-        target_idx = len(turn_ids) - 1
-    if target_idx == current_turn_idx:
+    if not history:
+        raise LoreKitError("Nothing to redo -- no checkpoints")
+
+    if cursor_cp is None or cursor_cp not in history:
+        current_idx = len(history) - 1
+    else:
+        current_idx = history.index(cursor_cp)
+
+    target_idx = current_idx + steps
+    if target_idx >= len(history):
+        target_idx = len(history) - 1
+    if target_idx == current_idx:
         raise LoreKitError("Nothing to redo -- already at latest checkpoint")
 
-    target_id = turn_ids[target_idx]
+    target_id = history[target_idx]
     snapshot_json = db.execute("SELECT snapshot FROM checkpoints WHERE id = ?", (target_id,)).fetchone()[0]
     snapshot = json.loads(snapshot_json)
 
     restore_snapshot(db, session_id, snapshot)
-    _set_cursor(db, session_id, target_id)
+    _set_cursor(db, session_id, target_id, cursor_branch)
     db.commit()
 
-    actual_steps = target_idx - current_turn_idx
+    actual_steps = target_idx - current_idx
     skipped = f" (skipped {actual_steps - 1})" if actual_steps > 1 else ""
     return f"TURN_ADVANCED: restored to checkpoint #{target_id}{skipped}"
+
+
+# -- Save/Load (player-facing) --
+
+
+def manual_save(db, session_id, name=None):
+    """Create a named save at the current position.
+
+    If the latest checkpoint already captures the current state, just tag it
+    with the name instead of creating a duplicate.
+    """
+    if name is None:
+        count = db.execute(
+            "SELECT COUNT(*) FROM checkpoints WHERE session_id = ? AND name IS NOT NULL",
+            (session_id,),
+        ).fetchone()[0]
+        name = f"Save {count + 1}"
+
+    cursor_cp, cursor_branch = _get_cursor(db, session_id)
+    if cursor_cp is not None:
+        tip = _get_branch_tip(db, cursor_branch)
+        if cursor_cp == tip:
+            # Current state is already captured — just tag the checkpoint
+            db.execute("UPDATE checkpoints SET name = ? WHERE id = ?", (name, cursor_cp))
+            db.commit()
+            return name
+
+    # State may have changed since last checkpoint — create a new one and tag it
+    cp_id = create_checkpoint(db, session_id)
+    db.execute("UPDATE checkpoints SET name = ? WHERE id = ?", (name, cp_id))
+    db.commit()
+    return name
+
+
+def save_list(db, session_id):
+    """Return a list of named saves: [(name, created_at), ...]."""
+    return db.execute(
+        "SELECT name, created_at FROM checkpoints WHERE session_id = ? AND name IS NOT NULL ORDER BY created_at ASC",
+        (session_id,),
+    ).fetchall()
+
+
+def save_load(db, session_id, name):
+    """Load a named save. Returns a summary string.
+
+    Restores the checkpoint's state and moves the cursor there.
+    The next turn_save after a load will fork automatically if needed.
+    """
+    row = db.execute(
+        "SELECT id, branch_id FROM checkpoints WHERE session_id = ? AND name = ?",
+        (session_id, name),
+    ).fetchone()
+    if row is None:
+        raise LoreKitError(f"Save not found: {name}")
+
+    target_id, target_branch = row
+    snapshot_json = db.execute("SELECT snapshot FROM checkpoints WHERE id = ?", (target_id,)).fetchone()[0]
+    snapshot = json.loads(snapshot_json)
+
+    restore_snapshot(db, session_id, snapshot)
+    _set_cursor(db, session_id, target_id, target_branch)
+    db.commit()
+    return f"SAVE_LOADED: restored '{name}' (checkpoint #{target_id})"
+
+
+def save_rename(db, session_id, old_name, new_name):
+    """Rename a save."""
+    row = db.execute(
+        "SELECT id FROM checkpoints WHERE session_id = ? AND name = ?",
+        (session_id, old_name),
+    ).fetchone()
+    if row is None:
+        raise LoreKitError(f"Save not found: {old_name}")
+    db.execute("UPDATE checkpoints SET name = ? WHERE id = ?", (new_name, row[0]))
+    db.commit()
+    return f"SAVE_RENAMED: '{old_name}' → '{new_name}'"
+
+
+def save_delete(db, session_id, name):
+    """Remove a save name. The underlying checkpoint is preserved for undo/redo."""
+    row = db.execute(
+        "SELECT id FROM checkpoints WHERE session_id = ? AND name = ?",
+        (session_id, name),
+    ).fetchone()
+    if row is None:
+        raise LoreKitError(f"Save not found: {name}")
+    db.execute("UPDATE checkpoints SET name = NULL WHERE id = ?", (row[0],))
+    db.commit()
+    return f"SAVE_DELETED: '{name}'"

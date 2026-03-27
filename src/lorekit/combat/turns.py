@@ -33,11 +33,6 @@ def end_turn(db, character_id: int, pack_dir: str) -> str:
     if not pack.end_turn:
         return f"END TURN: {char.name} — no end_turn config in system pack"
 
-    # Auto-checkpoint before ticking so turn_revert can undo
-    from lorekit.support.checkpoint import create_checkpoint
-
-    create_checkpoint(db, char.session_id)
-
     # Load all active combat_state rows for this character
     rows = db.execute(
         "SELECT id, source, target_stat, value, duration_type, duration, "

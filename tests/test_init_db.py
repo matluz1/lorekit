@@ -32,6 +32,7 @@ def test_creates_all_tables():
         "character_inventory",
         "character_zone",
         "characters",
+        "checkpoint_branches",
         "checkpoints",
         "combat_state",
         "embeddings",
