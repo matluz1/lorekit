@@ -10,15 +10,15 @@ as **data** in system packs.
 └────────────────────────┬────────────────────────────────┘
                          │ tool calls (stdio or HTTP)
 ┌────────────────────────▼────────────────────────────────┐
-│  server.py — 49 MCP tools (FastMCP)                     │
-│  (session, character, combat, encounter, NPC, narrative) │
+│  server.py — entrypoint (FastMCP via _mcp_app.py)       │
+│  tools/* — 49 @mcp.tool() across 8 domain modules       │
 └────────────────────────┬────────────────────────────────┘
                          │
       ┌──────────────────┼──────────────────┐
       ▼                  ▼                  ▼
 ┌───────────┐   ┌──────────────┐   ┌──────────────┐
 │ rules.py  │   │ narrative/*  │   │   npc/*      │
-│ combat.py │   │ session.py   │   │ prefetch.py  │
+│ combat/*  │   │ session.py   │   │ prefetch.py  │
 │encounter.py│  │ story.py     │   │ postprocess  │
 │  rest.py  │   │ timeline.py  │   │ reflect.py   │
 │character.py│  │ journal.py   │   │ combat.py    │
@@ -65,15 +65,48 @@ All domain knowledge lives in system pack JSON files.
 
 ## Server Infrastructure
 
-### MCP Server (`server.py`)
+### MCP Server
 
-Single global `FastMCP("lorekit")` instance supporting two transport modes:
+`_mcp_app.py` creates the single `FastMCP("lorekit")` instance. `server.py`
+is the entrypoint — it imports `lorekit.tools` (which triggers all
+`@mcp.tool()` registrations) and runs the server. Two transport modes:
 
 - **stdio** (default) — GM's Claude session connects via stdin/stdout
 - **`--http`** — streamable-http on port 3847 for NPC subprocess connections
 
 The embedding model (`intfloat/multilingual-e5-small`) is eagerly loaded at
 startup to avoid cold-start penalty on first semantic search.
+
+### Tool Modules (`tools/`)
+
+49 MCP tools organized by domain:
+
+| Module | Responsibility |
+|--------|---------------|
+| `session.py` | Session lifecycle, metadata, setup, resume |
+| `character.py` | Character CRUD, build, sheet update, templates |
+| `narrative.py` | Story, region, timeline, journal, time, turn save |
+| `encounter.py` | Zone-based combat positioning |
+| `rules.py` | System info, checks, resolution, modifiers |
+| `npc.py` | NPC interaction, memory, reflection, combat turns |
+| `utility.py` | Dice, recall search, export, rest |
+| `_helpers.py` | Shared helpers: character resolution, DB wrappers, system path resolution |
+
+### Combat Modules (`combat/`)
+
+Action resolution and turn lifecycle, split by responsibility:
+
+| Module | Responsibility |
+|--------|---------------|
+| `resolve.py` | Main entry point `resolve_action`, threshold/degree strategies |
+| `conditions.py` | Condition detection, action limits, modifier sync |
+| `effects.py` | On-hit effects, damage, degree effects, contagious |
+| `options.py` | Combat options, trade modifiers, team bonuses, pre-resolution |
+| `reactions.py` | Reaction policy and dispatch at named hooks |
+| `turns.py` | End-of-turn and start-of-turn lifecycle |
+| `powers.py` | Power activation, deactivation, alternate switching |
+| `area.py` | Area effect resolution and avoidance |
+| `helpers.py` | Stat read/write, action lookup, crit detection |
 
 ### Database Connection Lifecycle
 
@@ -139,14 +172,14 @@ Every rules-related tool follows the same pattern:
 ```mermaid
 sequenceDiagram
     participant Client
-    participant Server as server.py
+    participant Tools as tools/rules.py
     participant Rules as rules.py
     participant Cruncher as cruncher
     participant DB as SQLite
 
-    Client->>Server: tool call (e.g. rules_resolve)
-    Server->>DB: require_db()
-    Server->>Rules: orchestration function
+    Client->>Tools: tool call (e.g. rules_resolve)
+    Tools->>DB: require_db()
+    Tools->>Rules: orchestration function
 
     Rules->>DB: load_character_data(char_id)
     DB-->>Rules: CharacterData (attrs, abilities, equipped items only)
