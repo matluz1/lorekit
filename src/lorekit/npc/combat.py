@@ -783,7 +783,7 @@ def _validate_sequence(
 
     # Condition-based overrides (e.g. staggered → max_total: 1)
     if condition_rules:
-        from lorekit.combat import get_active_conditions
+        from lorekit.combat.conditions import get_active_conditions
 
         active_conditions = get_active_conditions(db, npc_id, condition_rules, condition_thresholds)
         for cond_name in active_conditions:
@@ -841,7 +841,7 @@ def execute_combat_turn(
     Returns list of result lines.
     """
     from cruncher.system_pack import load_system_pack
-    from lorekit.combat import resolve_action
+    from lorekit.combat.resolve import resolve_action
     from lorekit.encounter import (
         _get_character_zone,
         _require_active_encounter,

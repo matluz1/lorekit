@@ -112,7 +112,7 @@ class TestCombatModifierAutoRecalc:
 
     def test_add_recalcs(self, rules_session, make_character):
         from lorekit.db import require_db
-        from lorekit.server import combat_modifier
+        from lorekit.tools.rules import combat_modifier
 
         db = require_db()
         cid = make_character(rules_session, name="Fighter")
@@ -141,7 +141,7 @@ class TestCombatModifierAutoRecalc:
 
     def test_remove_recalcs(self, rules_session, make_character):
         from lorekit.db import require_db
-        from lorekit.server import combat_modifier
+        from lorekit.tools.rules import combat_modifier
 
         db = require_db()
         cid = make_character(rules_session, name="Fighter")
@@ -173,7 +173,7 @@ class TestCombatModifierAutoRecalc:
 
     def test_clear_recalcs(self, rules_session, make_character):
         from lorekit.db import require_db
-        from lorekit.server import combat_modifier
+        from lorekit.tools.rules import combat_modifier
 
         db = require_db()
         cid = make_character(rules_session, name="Fighter")
@@ -335,7 +335,7 @@ class TestApplyOnHitAutoRecalc:
 
     def test_grapple_applies_modifier_and_recalcs(self, rules_session, make_character):
         """Grapple applies -2 bonus_defense to defender, derived defense updates."""
-        from lorekit.combat import resolve_action
+        from lorekit.combat.resolve import resolve_action
         from lorekit.db import require_db
         from lorekit.encounter import start_encounter
 
@@ -389,7 +389,8 @@ class TestCharacterViewAfterModifier:
 
     def test_view_reflects_modifier(self, rules_session, make_character):
         from lorekit.db import require_db
-        from lorekit.server import character_view, combat_modifier
+        from lorekit.tools.character import character_view
+        from lorekit.tools.rules import combat_modifier
 
         db = require_db()
         cid = make_character(rules_session, name="Fighter")
@@ -422,13 +423,8 @@ class TestFullCombatIntegration:
 
     def test_full_combat_flow(self, rules_session, make_character):
         from lorekit.db import require_db
-        from lorekit.server import (
-            combat_modifier,
-            encounter_advance_turn,
-            encounter_end,
-            encounter_start,
-            rules_resolve,
-        )
+        from lorekit.tools.encounter import encounter_advance_turn, encounter_end, encounter_start
+        from lorekit.tools.rules import combat_modifier, rules_resolve
 
         db = require_db()
         pc = make_character(rules_session, name="Fighter", char_type="pc")
@@ -565,13 +561,8 @@ class TestFullCombatIntegrationMM3e:
 
     def test_mm3e_degree_combat_flow(self, mm3e_session, make_character):
         from lorekit.db import require_db
-        from lorekit.server import (
-            combat_modifier,
-            encounter_advance_turn,
-            encounter_end,
-            encounter_start,
-            rules_resolve,
-        )
+        from lorekit.tools.encounter import encounter_advance_turn, encounter_end, encounter_start
+        from lorekit.tools.rules import combat_modifier, rules_resolve
 
         db = require_db()
         hero = make_character(mm3e_session, name="Paragon", char_type="pc")
@@ -661,7 +652,7 @@ class TestAdvanceTurnAutoEndTurn:
     def test_modifiers_tick_on_advance(self, rules_session, make_character):
         from lorekit.db import require_db
         from lorekit.encounter import advance_turn, start_encounter
-        from lorekit.server import combat_modifier
+        from lorekit.tools.rules import combat_modifier
 
         db = require_db()
         c1 = make_character(rules_session, name="Fighter")
@@ -854,7 +845,7 @@ class TestCombatHUD:
     def test_hud_shows_modifiers(self, rules_session, make_character):
         from lorekit.db import require_db
         from lorekit.encounter import get_status, start_encounter
-        from lorekit.server import combat_modifier
+        from lorekit.tools.rules import combat_modifier
 
         db = require_db()
         cid = make_character(rules_session, name="Fighter")
@@ -1412,7 +1403,7 @@ class TestRest:
     def test_clears_modifiers(self, rules_session, make_character):
         from lorekit.db import require_db
         from lorekit.rest import rest
-        from lorekit.server import combat_modifier
+        from lorekit.tools.rules import combat_modifier
 
         db = require_db()
         cid = make_character(rules_session, name="Fighter")
@@ -1564,7 +1555,7 @@ class TestCharacterLookupByName:
     """Tools accept character name instead of numeric ID."""
 
     def test_character_view_by_name(self, make_session, make_character):
-        from lorekit.server import character_view
+        from lorekit.tools.character import character_view
 
         sid = make_session()
         cid = make_character(sid, name="Valeria")
@@ -1574,7 +1565,7 @@ class TestCharacterLookupByName:
         assert f"ID: {cid}" in result
 
     def test_case_insensitive(self, make_session, make_character):
-        from lorekit.server import character_view
+        from lorekit.tools.character import character_view
 
         sid = make_session()
         make_character(sid, name="Valeria")
@@ -1583,7 +1574,7 @@ class TestCharacterLookupByName:
         assert "Valeria" in result
 
     def test_numeric_passthrough(self, make_session, make_character):
-        from lorekit.server import character_view
+        from lorekit.tools.character import character_view
 
         sid = make_session()
         cid = make_character(sid, name="Valeria")
@@ -1592,7 +1583,7 @@ class TestCharacterLookupByName:
         assert "Valeria" in result
 
     def test_numeric_string_passthrough(self, make_session, make_character):
-        from lorekit.server import character_view
+        from lorekit.tools.character import character_view
 
         sid = make_session()
         cid = make_character(sid, name="Valeria")
@@ -1601,7 +1592,7 @@ class TestCharacterLookupByName:
         assert "Valeria" in result
 
     def test_not_found(self, make_session, make_character):
-        from lorekit.server import character_view
+        from lorekit.tools.character import character_view
 
         sid = make_session()
         make_character(sid, name="Valeria")
@@ -1611,7 +1602,7 @@ class TestCharacterLookupByName:
         assert "not found" in result
 
     def test_ambiguous(self, make_session, make_character):
-        from lorekit.server import character_view
+        from lorekit.tools.character import character_view
 
         sid = make_session()
         make_character(sid, name="Goblin")
@@ -1622,7 +1613,7 @@ class TestCharacterLookupByName:
         assert "Ambiguous" in result
 
     def test_combat_modifier_by_name(self, make_session, make_character):
-        from lorekit.server import combat_modifier
+        from lorekit.tools.rules import combat_modifier
 
         sid = make_session()
         make_character(sid, name="Fighter")
@@ -1640,7 +1631,7 @@ class TestCharacterLookupByName:
         """Verify name resolution works (mock subprocess to avoid LLM call)."""
         from unittest.mock import patch
 
-        from lorekit.server import npc_interact
+        from lorekit.tools.npc import npc_interact
 
         sid = make_session()
         make_character(sid, name="Bartender", char_type="npc", model=npc_model)
@@ -1658,7 +1649,7 @@ class TestNoRecalcWithoutSystem:
     """Sessions without rules_system skip recalc silently."""
 
     def test_combat_modifier_no_system(self, make_session, make_character):
-        from lorekit.server import combat_modifier
+        from lorekit.tools.rules import combat_modifier
 
         sid = make_session()
         cid = make_character(sid)

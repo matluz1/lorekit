@@ -2,7 +2,7 @@
 
 import re
 
-from lorekit.server import (
+from lorekit.tools.session import (
     session_create,
     session_list,
     session_meta_get,

@@ -6,11 +6,7 @@ import pytest
 
 pytest.importorskip("sqlite_vec")
 
-from lorekit.server import (  # noqa: E402
-    turn_advance,
-    turn_revert,
-    turn_save,
-)
+from lorekit.tools.narrative import turn_advance, turn_revert, turn_save  # noqa: E402
 
 
 def _get_db():
@@ -59,7 +55,7 @@ class TestRevertSkipsAuto:
         assert "TURN_REVERTED" in result
 
         # Should be at Turn 1 state, not at the auto-checkpoint
-        from lorekit.server import timeline_list
+        from lorekit.tools.narrative import timeline_list
 
         listing = timeline_list(session_id=sid)
         assert "Turn 1." in listing
@@ -98,7 +94,7 @@ class TestAdvanceSkipsAuto:
         result = turn_advance(session_id=sid)
         assert "TURN_ADVANCED" in result
 
-        from lorekit.server import timeline_list
+        from lorekit.tools.narrative import timeline_list
 
         listing = timeline_list(session_id=sid)
         assert "Turn 1." in listing
@@ -119,7 +115,7 @@ class TestAdvanceSkipsAuto:
         result = turn_revert(session_id=sid, steps=2)
         assert "TURN_REVERTED" in result
 
-        from lorekit.server import timeline_list
+        from lorekit.tools.narrative import timeline_list
 
         listing = timeline_list(session_id=sid)
         assert "Turn 1." in listing

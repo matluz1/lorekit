@@ -127,13 +127,8 @@ class TestFullCombatHarness:
 
     def test_full_combat_flow(self, pack_name, system_path, config, make_session, make_character):
         from lorekit.db import require_db
-        from lorekit.server import (
-            combat_modifier,
-            encounter_advance_turn,
-            encounter_end,
-            encounter_start,
-            rules_resolve,
-        )
+        from lorekit.tools.encounter import encounter_advance_turn, encounter_end, encounter_start
+        from lorekit.tools.rules import combat_modifier, rules_resolve
 
         sid, link_path = _make_rules_session(make_session, pack_name, system_path)
         try:
@@ -355,7 +350,7 @@ class TestInitiativeAutoRollHarness:
     """Initiative auto-roll using pack's initiative_stat."""
 
     def test_auto_initiative(self, pack_name, system_path, config, make_session, make_character):
-        from lorekit.server import encounter_start
+        from lorekit.tools.encounter import encounter_start
 
         system_data = _load_system_json(system_path)
         combat_cfg = system_data.get("combat", {})
@@ -400,7 +395,7 @@ class TestHudVitalHarness:
     """HUD vital stats using pack's hud config."""
 
     def test_encounter_status_shows_vitals(self, pack_name, system_path, config, make_session, make_character):
-        from lorekit.server import encounter_start, encounter_status
+        from lorekit.tools.encounter import encounter_start, encounter_status
 
         system_data = _load_system_json(system_path)
         hud_cfg = system_data.get("combat", {}).get("hud", {})
@@ -449,7 +444,7 @@ class TestEncounterTemplateHarness:
     """Encounter template using first template in pack's encounter_templates."""
 
     def test_template_start(self, pack_name, system_path, config, make_session, make_character):
-        from lorekit.server import encounter_start
+        from lorekit.tools.encounter import encounter_start
 
         system_data = _load_system_json(system_path)
         templates = system_data.get("encounter_templates", {})

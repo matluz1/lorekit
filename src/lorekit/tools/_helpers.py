@@ -220,7 +220,7 @@ def _sync_condition_modifiers_for(db, character_id: int) -> str:
     if not system_path:
         return ""
     from cruncher.system_pack import load_system_pack
-    from lorekit.combat import sync_condition_modifiers
+    from lorekit.combat.conditions import sync_condition_modifiers
 
     try:
         pack = load_system_pack(system_path)

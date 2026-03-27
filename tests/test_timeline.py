@@ -6,10 +6,7 @@ import pytest
 
 pytest.importorskip("sqlite_vec")
 
-from lorekit.server import (  # noqa: E402
-    recall_search,
-    session_meta_get,
-    session_meta_set,
+from lorekit.tools.narrative import (  # noqa: E402
     timeline_add,
     timeline_list,
     timeline_search,
@@ -17,6 +14,8 @@ from lorekit.server import (  # noqa: E402
     turn_revert,
     turn_save,
 )
+from lorekit.tools.session import session_meta_get, session_meta_set  # noqa: E402
+from lorekit.tools.utility import recall_search  # noqa: E402
 
 # -- Happy Path --
 

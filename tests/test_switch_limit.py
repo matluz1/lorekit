@@ -5,11 +5,7 @@ import os
 
 import pytest
 
-from lorekit.combat import (
-    _check_switch_limit,
-    _increment_switches,
-    switch_alternate,
-)
+from lorekit.combat.powers import _check_switch_limit, _increment_switches, switch_alternate
 from lorekit.encounter import advance_turn, start_encounter
 
 FIXTURES = os.path.join(os.path.dirname(__file__), "fixtures")

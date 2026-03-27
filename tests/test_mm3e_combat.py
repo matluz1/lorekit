@@ -392,7 +392,7 @@ class TestActionOverride:
     def test_character_override_used_over_system(self, make_session, make_character):
         """Character with action_override uses it instead of system action."""
         from lorekit.character import set_attr
-        from lorekit.combat import resolve_action
+        from lorekit.combat.resolve import resolve_action
         from lorekit.db import require_db
 
         db = require_db()
@@ -434,7 +434,7 @@ class TestActionOverride:
     def test_effect_rank_direct(self, make_session, make_character):
         """Action with effect_rank uses it directly instead of damage_rank_stat."""
         from lorekit.character import set_attr
-        from lorekit.combat import resolve_action
+        from lorekit.combat.resolve import resolve_action
         from lorekit.db import require_db
 
         db = require_db()
@@ -477,7 +477,7 @@ class TestActionOverride:
     def test_resistance_stat_override(self, make_session, make_character):
         """Action with resistance_stat targets fortitude instead of toughness."""
         from lorekit.character import set_attr
-        from lorekit.combat import resolve_action
+        from lorekit.combat.resolve import resolve_action
         from lorekit.db import require_db
 
         db = require_db()
@@ -522,7 +522,7 @@ class TestActionOverride:
     def test_cap_warning(self, make_session, make_character):
         """Action where attack + effect_rank > cap max_stat shows warning."""
         from lorekit.character import set_attr
-        from lorekit.combat import resolve_action
+        from lorekit.combat.resolve import resolve_action
         from lorekit.db import require_db
 
         db = require_db()
@@ -569,7 +569,7 @@ class TestActionOverride:
     def test_cap_clean(self, make_session, make_character):
         """Action within cap limits shows no warning."""
         from lorekit.character import set_attr
-        from lorekit.combat import resolve_action
+        from lorekit.combat.resolve import resolve_action
         from lorekit.db import require_db
 
         db = require_db()

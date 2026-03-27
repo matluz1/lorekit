@@ -30,7 +30,7 @@ def make_npc(make_session):
     def _make(name="Test NPC", session_id=None):
         if session_id is None:
             session_id = make_session()
-        from lorekit.server import character_build
+        from lorekit.tools.character import character_build
 
         result = character_build(session=session_id, name=name, level=1, type="npc")
         npc_id = _extract_id(result)
@@ -281,7 +281,7 @@ class TestReflectAll:
         """reflect_all with mixed NPCs only triggers for those above threshold."""
         sid = make_session()
         from lorekit.db import require_db
-        from lorekit.server import character_build
+        from lorekit.tools.character import character_build
 
         # Create two NPCs
         npc1_id = _extract_id(character_build(session=sid, name="Active NPC", level=1, type="npc"))
@@ -307,7 +307,7 @@ class TestReflectAll:
         """threshold=0.0 reflects on all NPCs with any memories."""
         sid = make_session()
         from lorekit.db import require_db
-        from lorekit.server import character_build
+        from lorekit.tools.character import character_build
 
         npc1_id = _extract_id(character_build(session=sid, name="NPC1", level=1, type="npc"))
         npc2_id = _extract_id(character_build(session=sid, name="NPC2", level=1, type="npc"))
@@ -409,7 +409,8 @@ class TestAutoTriggers:
     def test_time_advance_triggers_reflection(self, mock_reflect, make_session):
         """Advancing > 7 days triggers reflect_all."""
         sid = make_session()
-        from lorekit.server import session_meta_set, time_advance
+        from lorekit.tools.narrative import time_advance
+        from lorekit.tools.session import session_meta_set
 
         # Need narrative time set first
         session_meta_set(session_id=sid, key="narrative_time", value="1347-03-15T14:00")
@@ -425,7 +426,8 @@ class TestAutoTriggers:
     def test_time_advance_small_skip_checks_threshold(self, mock_reflect, make_session):
         """Any time advance calls reflect_all (threshold gates actual reflection)."""
         sid = make_session()
-        from lorekit.server import session_meta_set, time_advance
+        from lorekit.tools.narrative import time_advance
+        from lorekit.tools.session import session_meta_set
 
         session_meta_set(session_id=sid, key="narrative_time", value="1347-03-15T14:00")
 
@@ -436,7 +438,7 @@ class TestAutoTriggers:
     def test_session_update_finished_triggers(self, mock_reflect, make_session):
         """Status='finished' triggers reflect_all with threshold=0.0."""
         sid = make_session()
-        from lorekit.server import session_update
+        from lorekit.tools.session import session_update
 
         result = session_update(session_id=sid, status="finished")
         mock_reflect.assert_called_once()
@@ -448,7 +450,7 @@ class TestAutoTriggers:
     def test_session_update_active_no_trigger(self, mock_reflect, make_session):
         """Status='active' should not trigger reflection."""
         sid = make_session()
-        from lorekit.server import session_update
+        from lorekit.tools.session import session_update
 
         session_update(session_id=sid, status="active")
         mock_reflect.assert_not_called()

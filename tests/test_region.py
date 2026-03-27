@@ -2,7 +2,7 @@
 
 import re
 
-from lorekit.server import (
+from lorekit.tools.narrative import (
     region_create,
     region_list,
     region_update,

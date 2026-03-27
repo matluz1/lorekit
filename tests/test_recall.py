@@ -4,13 +4,8 @@ import pytest
 
 pytest.importorskip("sqlite_vec")
 
-from lorekit.server import (  # noqa: E402
-    journal_add,
-    recall_reindex,
-    recall_search,
-    timeline_add,
-    timeline_set_summary,
-)
+from lorekit.tools.narrative import journal_add, timeline_add, timeline_set_summary  # noqa: E402
+from lorekit.tools.utility import recall_reindex, recall_search  # noqa: E402
 
 # -- Reindex --
 

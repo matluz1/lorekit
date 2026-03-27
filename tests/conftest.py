@@ -52,7 +52,7 @@ def make_session():
     """Factory that creates a session and returns its integer ID."""
 
     def _make(name="Test Campaign", setting="Fantasy World", system="d20 Fantasy"):
-        from lorekit.server import session_create
+        from lorekit.tools.session import session_create
 
         result = session_create(name=name, setting=setting, system=system)
         return _extract_id(result)
@@ -71,7 +71,7 @@ def make_character():
     """Factory that creates a character and returns its integer ID."""
 
     def _make(session_id, name="Test Hero", char_type="pc", region=None, level=1, model=None):
-        from lorekit.server import character_create
+        from lorekit.tools.character import character_create
 
         kwargs = dict(session=session_id, name=name, level=level, type=char_type)
         if region:
@@ -96,7 +96,7 @@ def make_region():
     """Factory that creates a region and returns its integer ID."""
 
     def _make(session_id, name="Test Region", desc="A test region"):
-        from lorekit.server import region_create
+        from lorekit.tools.narrative import region_create
 
         result = region_create(session_id=session_id, name=name, desc=desc)
         return _extract_id(result)

@@ -1,6 +1,6 @@
 """Tests for dice rolling."""
 
-from lorekit.server import roll_dice
+from lorekit.tools.utility import roll_dice
 
 # -- Happy Path --
 

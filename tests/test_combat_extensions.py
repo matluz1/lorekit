@@ -14,16 +14,11 @@ from unittest.mock import patch
 import cruncher_mm3e
 import pytest
 
-from lorekit.combat import (
-    _apply_degree_effect,
-    _check_pre_resolution,
-    _fire_damage_triggers,
-    activate_power,
-    deactivate_power,
-    end_turn,
-    resolve_action,
-    switch_alternate,
-)
+from lorekit.combat.effects import _apply_degree_effect, _fire_damage_triggers
+from lorekit.combat.options import _check_pre_resolution
+from lorekit.combat.powers import activate_power, deactivate_power, switch_alternate
+from lorekit.combat.resolve import resolve_action
+from lorekit.combat.turns import end_turn
 
 MM3E_SYSTEM = cruncher_mm3e.pack_path()
 
@@ -1215,7 +1210,7 @@ class TestCombatModifierActivate:
     def test_activate_via_mcp(self, make_session, make_character):
         """combat_modifier action=activate activates a sustained power."""
         from lorekit.db import require_db
-        from lorekit.server import combat_modifier
+        from lorekit.tools.rules import combat_modifier
 
         db = require_db()
         try:
@@ -1254,7 +1249,7 @@ class TestCombatModifierActivate:
     def test_deactivate_via_mcp(self, make_session, make_character):
         """combat_modifier action=deactivate removes sustained modifiers."""
         from lorekit.db import require_db
-        from lorekit.server import combat_modifier
+        from lorekit.tools.rules import combat_modifier
 
         db = require_db()
         try:
@@ -1297,7 +1292,7 @@ class TestAutoRegisterReactions:
     def test_reaction_registered_at_encounter_start(self, make_session, make_character):
         """Abilities with reaction metadata auto-register at encounter start."""
         from lorekit.db import require_db
-        from lorekit.server import encounter_start
+        from lorekit.tools.encounter import encounter_start
 
         db = require_db()
         try:

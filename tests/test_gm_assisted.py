@@ -33,7 +33,7 @@ def _make_character(db, session_id, make_character, name, char_type="npc", **sta
 class TestGmHints:
     def test_gm_assisted_effect_returns_hints(self, make_session, make_character):
         """Calling resolve_action with a gm_assisted effect returns hints instead of error."""
-        from lorekit.combat import resolve_action
+        from lorekit.combat.resolve import resolve_action
         from lorekit.db import require_db
 
         db = require_db()
@@ -52,7 +52,7 @@ class TestGmHints:
 
     def test_gm_hints_include_check_info(self, make_session, make_character):
         """Illusion gm_hints should include check type and DC formula."""
-        from lorekit.combat import resolve_action
+        from lorekit.combat.resolve import resolve_action
         from lorekit.db import require_db
 
         db = require_db()
@@ -70,7 +70,7 @@ class TestGmHints:
 
     def test_unknown_action_still_errors(self, make_session, make_character):
         """A truly unknown action (not in actions or effects) should still error."""
-        from lorekit.combat import resolve_action
+        from lorekit.combat.resolve import resolve_action
         from lorekit.db import LoreKitError, require_db
 
         db = require_db()
@@ -86,7 +86,7 @@ class TestGmHints:
 
     def test_non_gm_assisted_effect_still_errors(self, make_session, make_character):
         """An engine-resolved effect used as action name should error (not return hints)."""
-        from lorekit.combat import resolve_action
+        from lorekit.combat.resolve import resolve_action
         from lorekit.db import LoreKitError, require_db
 
         db = require_db()

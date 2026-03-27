@@ -176,7 +176,7 @@ class TestMCPCombatModifier:
     """Test the combat_modifier MCP tool."""
 
     def test_add_and_list(self, make_session, make_character):
-        from lorekit.server import combat_modifier
+        from lorekit.tools.rules import combat_modifier
 
         sid = make_session()
         cid = make_character(sid)
@@ -197,7 +197,7 @@ class TestMCPCombatModifier:
         assert "+1" in listing
 
     def test_remove(self, make_session, make_character):
-        from lorekit.server import combat_modifier
+        from lorekit.tools.rules import combat_modifier
 
         sid = make_session()
         cid = make_character(sid)
@@ -210,7 +210,7 @@ class TestMCPCombatModifier:
         assert "No active modifiers" in listing
 
     def test_clear(self, make_session, make_character):
-        from lorekit.server import combat_modifier
+        from lorekit.tools.rules import combat_modifier
 
         sid = make_session()
         cid = make_character(sid)

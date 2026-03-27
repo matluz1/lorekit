@@ -2,7 +2,7 @@
 
 import re
 
-from lorekit.server import (
+from lorekit.tools.narrative import (
     story_add_act,
     story_advance,
     story_set,

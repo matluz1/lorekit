@@ -5,7 +5,7 @@
 
 
 def test_run_with_db():
-    from lorekit.server import _run_with_db
+    from lorekit.tools._helpers import _run_with_db
 
     def _check_db(db, args):
         assert db is not None
@@ -18,7 +18,7 @@ def test_run_with_db():
 
 def test_run_with_db_catches_error():
     from lorekit.db import LoreKitError
-    from lorekit.server import _run_with_db
+    from lorekit.tools._helpers import _run_with_db
 
     def _raise_error(db, args):
         raise LoreKitError("test error")
@@ -31,7 +31,7 @@ def test_run_with_db_catches_error():
 
 
 def test_init_db():
-    from lorekit.server import init_db
+    from lorekit.tools.session import init_db
 
     result = init_db()
     assert "Database initialized" in result
@@ -41,7 +41,7 @@ def test_init_db():
 
 
 def test_session_list():
-    from lorekit.server import session_list, session_setup
+    from lorekit.tools.session import session_list, session_setup
 
     session_setup(name="Test", setting="Fantasy", system="d20")
     result = session_list()
@@ -49,7 +49,7 @@ def test_session_list():
 
 
 def test_session_update():
-    from lorekit.server import session_setup, session_update
+    from lorekit.tools.session import session_setup, session_update
 
     session_setup(name="Test", setting="Fantasy", system="d20")
     result = session_update(session_id=1, status="finished")
@@ -57,7 +57,7 @@ def test_session_update():
 
 
 def test_session_meta():
-    from lorekit.server import session_meta_get, session_meta_set, session_setup
+    from lorekit.tools.session import session_meta_get, session_meta_set, session_setup
 
     session_setup(name="Test", setting="Fantasy", system="d20")
     session_meta_set(session_id=1, key="lang", value="en")
@@ -69,7 +69,8 @@ def test_session_meta():
 
 
 def test_story_set_and_view():
-    from lorekit.server import session_setup, story_set, story_view
+    from lorekit.tools.narrative import story_set, story_view
+    from lorekit.tools.session import session_setup
 
     session_setup(name="Test", setting="Fantasy", system="d20")
     result = story_set(session_id=1, size="short", premise="A dark forest")
@@ -79,7 +80,8 @@ def test_story_set_and_view():
 
 
 def test_story_view_act():
-    from lorekit.server import session_setup, story_add_act, story_set, story_view
+    from lorekit.tools.narrative import story_add_act, story_set, story_view
+    from lorekit.tools.session import session_setup
 
     session_setup(name="Test", setting="Fantasy", system="d20")
     story_set(session_id=1, size="short", premise="Test")
@@ -90,7 +92,8 @@ def test_story_view_act():
 
 
 def test_story_add_act_and_advance():
-    from lorekit.server import session_setup, story_add_act, story_advance, story_set, story_update_act
+    from lorekit.tools.narrative import story_add_act, story_advance, story_set, story_update_act
+    from lorekit.tools.session import session_setup
 
     session_setup(name="Test", setting="Fantasy", system="d20")
     story_set(session_id=1, size="short", premise="Test")
@@ -108,7 +111,8 @@ def test_story_add_act_and_advance():
 def test_character_build_and_view():
     import json
 
-    from lorekit.server import character_build, character_view, session_setup
+    from lorekit.tools.character import character_build, character_view
+    from lorekit.tools.session import session_setup
 
     session_setup(name="Test", setting="Fantasy", system="d20")
     result = character_build(
@@ -132,7 +136,8 @@ def test_character_build_and_view():
 
 
 def test_region_create_and_view():
-    from lorekit.server import region_create, region_list, region_view, session_setup
+    from lorekit.tools.narrative import region_create, region_list, region_view
+    from lorekit.tools.session import session_setup
 
     session_setup(name="Test", setting="Fantasy", system="d20")
     result = region_create(session_id=1, name="Ashar", desc="A village")
@@ -147,7 +152,8 @@ def test_region_create_and_view():
 
 
 def test_turn_save_and_list():
-    from lorekit.server import session_setup, timeline_list, turn_save
+    from lorekit.tools.narrative import timeline_list, turn_save
+    from lorekit.tools.session import session_setup
 
     session_setup(name="Test", setting="Fantasy", system="d20")
     result = turn_save(session_id=1, narration="The forest darkens.", summary="Forest darkens")
@@ -157,7 +163,9 @@ def test_turn_save_and_list():
 
 
 def test_recall_keyword_search():
-    from lorekit.server import recall_search, session_setup, turn_save
+    from lorekit.tools.narrative import turn_save
+    from lorekit.tools.session import session_setup
+    from lorekit.tools.utility import recall_search
 
     session_setup(name="Test", setting="Fantasy", system="d20")
     turn_save(session_id=1, narration="A dragon appears in the sky.", summary="Dragon appears")
@@ -169,7 +177,8 @@ def test_recall_keyword_search():
 
 
 def test_journal_add_and_list():
-    from lorekit.server import journal_add, journal_list, session_setup
+    from lorekit.tools.narrative import journal_add, journal_list
+    from lorekit.tools.session import session_setup
 
     session_setup(name="Test", setting="Fantasy", system="d20")
     result = journal_add(session_id=1, type="note", content="Player likes puzzles")
@@ -182,7 +191,7 @@ def test_journal_add_and_list():
 
 
 def test_roll_dice_single():
-    from lorekit.server import roll_dice
+    from lorekit.tools.utility import roll_dice
 
     result = roll_dice(expression="d20")
     assert "TOTAL:" in result
@@ -191,7 +200,7 @@ def test_roll_dice_single():
 
 
 def test_roll_dice_multiple():
-    from lorekit.server import roll_dice
+    from lorekit.tools.utility import roll_dice
 
     result = roll_dice(expression="d6 d8")
     assert "--- d6 ---" in result
@@ -199,7 +208,7 @@ def test_roll_dice_multiple():
 
 
 def test_roll_dice_modifier():
-    from lorekit.server import roll_dice
+    from lorekit.tools.utility import roll_dice
 
     result = roll_dice(expression="1d2+5")
     assert "MODIFIER: +5" in result
@@ -208,7 +217,7 @@ def test_roll_dice_modifier():
 
 
 def test_roll_dice_keep_highest():
-    from lorekit.server import roll_dice
+    from lorekit.tools.utility import roll_dice
 
     result = roll_dice(expression="4d6kh3")
     assert "ROLLS:" in result
@@ -216,7 +225,7 @@ def test_roll_dice_keep_highest():
 
 
 def test_roll_dice_invalid():
-    from lorekit.server import roll_dice
+    from lorekit.tools.utility import roll_dice
 
     result = roll_dice(expression="invalid")
     assert "ERROR" in result
@@ -226,7 +235,9 @@ def test_roll_dice_invalid():
 
 
 def test_recall_search():
-    from lorekit.server import recall_search, session_setup, turn_save
+    from lorekit.tools.narrative import turn_save
+    from lorekit.tools.session import session_setup
+    from lorekit.tools.utility import recall_search
 
     session_setup(name="Test", setting="Fantasy", system="d20")
     turn_save(session_id=1, narration="The ancient temple crumbles.", summary="Temple crumbles")
@@ -236,7 +247,9 @@ def test_recall_search():
 
 
 def test_recall_reindex():
-    from lorekit.server import recall_reindex, session_setup, turn_save
+    from lorekit.tools.narrative import turn_save
+    from lorekit.tools.session import session_setup
+    from lorekit.tools.utility import recall_reindex
 
     session_setup(name="Test", setting="Fantasy", system="d20")
     turn_save(session_id=1, narration="Test entry for reindex.", summary="Test entry")
@@ -248,7 +261,8 @@ def test_recall_reindex():
 
 
 def test_export_dump_and_clean(tmp_path):
-    from lorekit.server import export_clean, export_dump, session_setup
+    from lorekit.tools.session import session_setup
+    from lorekit.tools.utility import export_clean, export_dump
 
     session_setup(name="Test", setting="Fantasy", system="d20")
     result = export_dump(session_id=1)
@@ -264,7 +278,8 @@ def test_ability_from_template_blast():
     """Template instantiation creates a power ability with merged overrides."""
     import json
 
-    from lorekit.server import ability_from_template, character_build, session_meta_set, session_setup
+    from lorekit.tools.character import ability_from_template, character_build
+    from lorekit.tools.session import session_meta_set, session_setup
 
     session_setup(name="MM3e Test", setting="Supers", system="mm3e")
     session_meta_set(session_id=1, key="rules_system", value="mm3e")
@@ -281,7 +296,8 @@ def test_ability_from_template_blast():
 
 def test_ability_from_template_unknown():
     """Unknown template returns an error with available keys."""
-    from lorekit.server import ability_from_template, character_build, session_meta_set, session_setup
+    from lorekit.tools.character import ability_from_template, character_build
+    from lorekit.tools.session import session_meta_set, session_setup
 
     session_setup(name="MM3e Test", setting="Supers", system="mm3e")
     session_meta_set(session_id=1, key="rules_system", value="mm3e")
@@ -295,7 +311,8 @@ def test_ability_from_template_unknown():
 
 def test_ability_from_template_no_system():
     """Template without rules_system set returns an error."""
-    from lorekit.server import ability_from_template, character_build, session_setup
+    from lorekit.tools.character import ability_from_template, character_build
+    from lorekit.tools.session import session_setup
 
     session_setup(name="NoRules", setting="Test", system="generic")
     character_build(session=1, name="Hero", level=1)
@@ -308,7 +325,7 @@ def test_ability_from_template_no_system():
 
 
 def test_session_resume_not_found():
-    from lorekit.server import session_resume
+    from lorekit.tools.session import session_resume
 
     result = session_resume(session_id=999)
     assert "ERROR" in result

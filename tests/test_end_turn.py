@@ -5,7 +5,7 @@ from unittest.mock import patch
 
 import pytest
 
-from lorekit.combat import end_turn
+from lorekit.combat.turns import end_turn
 
 FIXTURES = os.path.join(os.path.dirname(__file__), "fixtures")
 TEST_SYSTEM = os.path.join(FIXTURES, "test_system")
@@ -383,7 +383,7 @@ class TestStartTurn:
     def test_removes_until_next_turn_modifiers(self, make_session, make_character):
         """start_turn removes modifiers with duration_type until_next_turn."""
         from lorekit.character import set_attr
-        from lorekit.combat import start_turn
+        from lorekit.combat.turns import start_turn
         from lorekit.db import require_db
 
         db = require_db()
@@ -413,7 +413,7 @@ class TestStartTurn:
     def test_skips_other_duration_types(self, make_session, make_character):
         """start_turn leaves rounds and encounter modifiers untouched."""
         from lorekit.character import set_attr
-        from lorekit.combat import start_turn
+        from lorekit.combat.turns import start_turn
         from lorekit.db import require_db
 
         db = require_db()
@@ -448,7 +448,7 @@ class TestStartTurn:
     def test_no_config_returns_empty(self, make_session, make_character):
         """System pack without start_turn config returns empty string."""
         from lorekit.character import set_attr
-        from lorekit.combat import start_turn
+        from lorekit.combat.turns import start_turn
         from lorekit.db import require_db
 
         db = require_db()
@@ -476,7 +476,7 @@ class TestStartTurn:
     def test_triggers_recompute(self, make_session, make_character):
         """Removing until_next_turn modifier triggers stat recompute."""
         from lorekit.character import set_attr
-        from lorekit.combat import start_turn
+        from lorekit.combat.turns import start_turn
         from lorekit.db import require_db
 
         db = require_db()

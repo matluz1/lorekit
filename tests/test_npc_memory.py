@@ -19,7 +19,7 @@ def make_npc(make_session):
     def _make(name="Test NPC", session_id=None):
         if session_id is None:
             session_id = make_session()
-        from lorekit.server import character_build
+        from lorekit.tools.character import character_build
 
         result = character_build(session=session_id, name=name, level=1, type="npc")
         npc_id = _extract_id(result)
@@ -124,7 +124,7 @@ class TestNpcMemoryAdd:
         """Add memory, verify in DB, verify embedding created."""
         session_id, npc_id = make_npc()
 
-        from lorekit.server import npc_memory_add
+        from lorekit.tools.npc import npc_memory_add
 
         result = npc_memory_add(
             session_id=session_id,
@@ -155,7 +155,7 @@ class TestNpcMemoryAdd:
         """Can add memory by NPC name instead of ID."""
         session_id, npc_id = make_npc(name="Bartender Bob")
 
-        from lorekit.server import npc_memory_add
+        from lorekit.tools.npc import npc_memory_add
 
         result = npc_memory_add(
             session_id=session_id,
@@ -169,7 +169,7 @@ class TestNpcMemoryAdd:
         """Invalid memory_type should error."""
         session_id, npc_id = make_npc()
 
-        from lorekit.server import npc_memory_add
+        from lorekit.tools.npc import npc_memory_add
 
         result = npc_memory_add(
             session_id=session_id,
@@ -185,7 +185,7 @@ class TestNpcMemoryAdd:
         sid = make_session()
         pc_id = make_character(sid, name="PC Hero", char_type="pc")
 
-        from lorekit.server import npc_memory_add
+        from lorekit.tools.npc import npc_memory_add
 
         result = npc_memory_add(session_id=sid, npc_id=pc_id, content="test", narrative_time="")
         assert "ERROR" in result
@@ -203,7 +203,7 @@ class TestCharacterViewNpc:
         session_id, npc_id = make_npc()
 
         # Set core identity
-        from lorekit.server import character_sheet_update
+        from lorekit.tools.character import character_sheet_update
 
         result = character_sheet_update(
             character_id=npc_id,
@@ -218,7 +218,7 @@ class TestCharacterViewNpc:
         assert "NPC_CORE_SET" in result
 
         # Add some memories
-        from lorekit.server import npc_memory_add
+        from lorekit.tools.npc import npc_memory_add
 
         npc_memory_add(
             session_id=session_id,
@@ -235,7 +235,7 @@ class TestCharacterViewNpc:
             narrative_time="day 2",
         )
 
-        from lorekit.server import character_view
+        from lorekit.tools.character import character_view
 
         view = character_view(npc_id)
         assert "--- NPC CORE ---" in view
@@ -249,7 +249,7 @@ class TestCharacterViewNpc:
         sid = make_session()
         pc_id = make_character(sid, name="Hero")
 
-        from lorekit.server import character_view
+        from lorekit.tools.character import character_view
 
         view = character_view(pc_id)
         assert "--- NPC CORE ---" not in view
@@ -266,7 +266,7 @@ class TestSheetUpdateCore:
         """character_sheet_update with core sets npc_core."""
         session_id, npc_id = make_npc()
 
-        from lorekit.server import character_sheet_update
+        from lorekit.tools.character import character_sheet_update
 
         result = character_sheet_update(
             character_id=npc_id,
@@ -290,7 +290,7 @@ class TestSheetUpdateCore:
 
         long_text = "x" * 3000
 
-        from lorekit.server import character_sheet_update
+        from lorekit.tools.character import character_sheet_update
 
         character_sheet_update(
             character_id=npc_id,
@@ -309,7 +309,7 @@ class TestSheetUpdateCore:
         """Setting core twice updates existing row."""
         session_id, npc_id = make_npc()
 
-        from lorekit.server import character_sheet_update
+        from lorekit.tools.character import character_sheet_update
 
         character_sheet_update(
             character_id=npc_id,
@@ -340,7 +340,7 @@ class TestBuildWithCore:
         """character_build with core creates npc_core row."""
         sid = make_session()
 
-        from lorekit.server import character_build
+        from lorekit.tools.character import character_build
 
         result = character_build(
             session=sid,
@@ -372,7 +372,7 @@ class TestBuildWithCore:
         """character_build for PC ignores core param."""
         sid = make_session()
 
-        from lorekit.server import character_build
+        from lorekit.tools.character import character_build
 
         result = character_build(
             session=sid,
@@ -398,7 +398,8 @@ class TestCheckpointNpcMemory:
         from lorekit.db import require_db
 
         # Set up core and memories
-        from lorekit.server import character_sheet_update, npc_memory_add
+        from lorekit.tools.character import character_sheet_update
+        from lorekit.tools.npc import npc_memory_add
 
         character_sheet_update(
             character_id=npc_id,

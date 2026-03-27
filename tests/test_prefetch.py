@@ -19,7 +19,7 @@ def make_npc(make_session, npc_model):
     def _make(name="Test NPC", session_id=None, core=None, aliases=None, model=None):
         if session_id is None:
             session_id = make_session()
-        from lorekit.server import character_build
+        from lorekit.tools.character import character_build
 
         kwargs = dict(session=session_id, name=name, level=1, type="npc")
         if core:
@@ -61,7 +61,7 @@ def seed_memories(make_npc):
             aliases=["Rod", "the merchant"],
         )
 
-        from lorekit.server import npc_memory_add
+        from lorekit.tools.npc import npc_memory_add
 
         memories = [
             ("The hero saved my village from bandits", 0.9, "experience", '["Hero", "Village"]'),
@@ -96,7 +96,7 @@ class TestCharacterAliases:
     def test_build_with_aliases(self, make_session):
         """character_build with aliases creates alias rows."""
         sid = make_session()
-        from lorekit.server import character_build
+        from lorekit.tools.character import character_build
 
         result = character_build(
             session=sid,
@@ -122,7 +122,7 @@ class TestCharacterAliases:
         """character_sheet_update replaces aliases."""
         session_id, npc_id = make_npc(name="Merchant", aliases=["Merch"])
 
-        from lorekit.server import character_sheet_update
+        from lorekit.tools.character import character_sheet_update
 
         result = character_sheet_update(
             character_id=npc_id,
@@ -148,7 +148,7 @@ class TestCharacterAliases:
         from lorekit.db import require_db
 
         db = require_db()
-        from lorekit.server import _resolve_character
+        from lorekit.tools._helpers import _resolve_character
 
         resolved = _resolve_character(db, "Bob", session_id)
         db.close()
@@ -166,7 +166,7 @@ class TestEntityTagging:
         sid = make_session()
         pc_id = make_character(sid, name="Valeria")
 
-        from lorekit.server import turn_save
+        from lorekit.tools.narrative import turn_save
 
         result = turn_save(
             session_id=sid,
@@ -191,7 +191,8 @@ class TestEntityTagging:
         sid = make_session()
         pc_id = make_character(sid, name="Valeria")
 
-        from lorekit.server import entry_untag, turn_save
+        from lorekit.tools.narrative import turn_save
+        from lorekit.tools.npc import entry_untag
 
         turn_save(
             session_id=sid,
@@ -493,7 +494,7 @@ class TestPreFetch:
         """Recent timeline entries appear in context."""
         session_id, npc_id = seed_memories()
 
-        from lorekit.server import turn_save
+        from lorekit.tools.narrative import turn_save
 
         turn_save(
             session_id=session_id,
@@ -524,7 +525,7 @@ class TestNpcPromptIntegration:
         session_id, npc_id = seed_memories()
 
         from lorekit.db import require_db
-        from lorekit.server import _build_npc_prompt
+        from lorekit.tools.npc import _build_npc_prompt
 
         db = require_db()
         import sqlite3
@@ -541,6 +542,6 @@ class TestNpcPromptIntegration:
 
     def test_npc_allowed_tools_empty(self):
         """NPCs should have no allowed tools."""
-        from lorekit.server import _NPC_ALLOWED_TOOLS
+        from lorekit.tools.npc import _NPC_ALLOWED_TOOLS
 
         assert _NPC_ALLOWED_TOOLS == []

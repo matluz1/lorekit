@@ -281,7 +281,7 @@ class TestMaxMove:
 class TestEscapeCheck:
     def test_escape_check_succeeds_removes_modifier(self, make_session, make_character):
         """Successful escape check removes the until_escape modifier."""
-        from lorekit.combat import end_turn
+        from lorekit.combat.turns import end_turn
         from lorekit.db import require_db
 
         db = require_db()
@@ -327,7 +327,7 @@ class TestEscapeCheck:
 
     def test_escape_check_fails_keeps_modifier(self, make_session, make_character):
         """Failed escape check keeps the until_escape modifier."""
-        from lorekit.combat import end_turn
+        from lorekit.combat.turns import end_turn
         from lorekit.db import require_db
 
         db = require_db()

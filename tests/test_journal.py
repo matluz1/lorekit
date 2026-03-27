@@ -2,7 +2,7 @@
 
 import re
 
-from lorekit.server import (
+from lorekit.tools.narrative import (
     journal_add,
     journal_list,
     journal_search,

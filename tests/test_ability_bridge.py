@@ -76,7 +76,7 @@ def _start_encounter(db, session_id, characters, zones, placements, adjacency=No
 class TestActionField:
     def test_build_creates_action_override(self, make_session):
         """Ability with 'action' field auto-creates action_override attribute."""
-        from lorekit.server import character_build
+        from lorekit.tools.character import character_build
 
         sid = make_session()
         result = character_build(
@@ -125,7 +125,7 @@ class TestActionField:
 
     def test_action_override_resolves_in_combat(self, make_session, make_character):
         """Action override created from ability is usable in resolve_action."""
-        from lorekit.combat import resolve_action
+        from lorekit.combat.resolve import resolve_action
         from lorekit.db import require_db
 
         db = require_db()
@@ -157,7 +157,7 @@ class TestActionField:
 
     def test_action_key_defaults_to_name(self, make_session):
         """When 'key' is omitted from action, ability name is slugified."""
-        from lorekit.server import character_build
+        from lorekit.tools.character import character_build
 
         sid = make_session()
         character_build(
@@ -203,7 +203,7 @@ class TestActionField:
 class TestUsesAction:
     def test_build_embeds_uses_action(self, make_session):
         """Ability with 'uses_action' embeds it in the description JSON."""
-        from lorekit.server import character_build
+        from lorekit.tools.character import character_build
 
         sid = make_session()
         character_build(
@@ -282,7 +282,7 @@ class TestUsesAction:
 class TestMovementMode:
     def test_build_creates_movement_mode(self, make_session):
         """Ability with 'movement' field stores movement_mode attribute."""
-        from lorekit.server import character_build
+        from lorekit.tools.character import character_build
 
         sid = make_session()
         character_build(

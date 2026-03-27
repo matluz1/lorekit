@@ -7,11 +7,9 @@ from unittest.mock import patch
 import pytest
 
 from cruncher.system_pack import load_system_pack
-from lorekit.combat import (
-    _check_on_hit_resist,
-    _get_reaction_policy,
-    resolve_action,
-)
+from lorekit.combat.effects import _check_on_hit_resist
+from lorekit.combat.reactions import _get_reaction_policy
+from lorekit.combat.resolve import resolve_action
 from lorekit.rules import load_character_data
 
 FIXTURES = os.path.join(os.path.dirname(__file__), "fixtures")

@@ -7,7 +7,8 @@ from unittest.mock import patch
 import cruncher_mm3e
 import pytest
 
-from lorekit.combat import resolve_action, resolve_area_action
+from lorekit.combat.area import resolve_area_action
+from lorekit.combat.resolve import resolve_action
 
 FIXTURES = os.path.join(os.path.dirname(__file__), "fixtures")
 TEST_SYSTEM = os.path.join(FIXTURES, "test_system")
@@ -1004,7 +1005,7 @@ class TestRelocateOnHit:
         from cruncher.system_pack import SystemPack, load_system_pack
         from cruncher.types import CharacterData
         from lorekit.character import set_attr
-        from lorekit.combat import _apply_on_hit
+        from lorekit.combat.effects import _apply_on_hit
         from lorekit.db import require_db
         from lorekit.encounter import (
             _get_character_zone,
@@ -1280,7 +1281,7 @@ class TestCombatOptions:
     def test_expand_named_options(self):
         """Named combat options expand into trade dicts."""
         from cruncher.system_pack import load_system_pack
-        from lorekit.combat import _expand_combat_options
+        from lorekit.combat.options import _expand_combat_options
 
         pack = load_system_pack(MM3E_SYSTEM)
 
@@ -1316,7 +1317,7 @@ class TestCombatOptions:
     def test_clamp_to_max(self):
         """Value exceeding max is clamped."""
         from cruncher.system_pack import load_system_pack
-        from lorekit.combat import _expand_combat_options
+        from lorekit.combat.options import _expand_combat_options
 
         pack = load_system_pack(MM3E_SYSTEM)
 

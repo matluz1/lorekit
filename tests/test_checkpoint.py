@@ -7,18 +7,16 @@ import pytest
 
 pytest.importorskip("sqlite_vec")
 
-from lorekit.server import (  # noqa: E402
-    character_build,
-    character_sheet_update,
-    character_view,
+from lorekit.tools.character import character_build, character_sheet_update, character_view  # noqa: E402
+from lorekit.tools.narrative import (  # noqa: E402
     journal_add,
     journal_list,
-    session_meta_get,
     timeline_list,
     turn_advance,
     turn_revert,
     turn_save,
 )
+from lorekit.tools.session import session_meta_get  # noqa: E402
 
 
 def _get_db():
@@ -112,12 +110,12 @@ def test_revert_removes_journal_entries(make_session):
 
 def test_revert_restores_narrative_time(make_session):
     sid = make_session()
-    from lorekit.server import time_get, time_set
+    from lorekit.tools.narrative import time_get, time_set
 
     time_set(session_id=sid, datetime="1347-03-15T08:00")
     turn_save(session_id=sid, narration="Morning.", summary="Morning")
     # Advance time between turns
-    from lorekit.server import time_advance
+    from lorekit.tools.narrative import time_advance
 
     time_advance(session_id=sid, amount=12, unit="hours")
     turn_save(session_id=sid, narration="Evening.", summary="Evening")

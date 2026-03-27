@@ -51,7 +51,7 @@ def _make_character(db, session_id, make_character, name, char_type="npc", **sta
 class TestFreeAction:
     def test_free_action_skips_counter(self, make_session, make_character):
         """resolve_action with free_action=True doesn't increment action counter."""
-        from lorekit.combat import resolve_action
+        from lorekit.combat.resolve import resolve_action
         from lorekit.db import require_db
 
         db = require_db()
@@ -87,7 +87,7 @@ class TestFreeAction:
 
     def test_normal_action_still_blocked_when_dazed(self, make_session, make_character):
         """Without free_action, second action while dazed is blocked."""
-        from lorekit.combat import resolve_action
+        from lorekit.combat.resolve import resolve_action
         from lorekit.db import LoreKitError, require_db
 
         db = require_db()
@@ -121,7 +121,7 @@ class TestOnHitActions:
     def test_on_hit_actions_triggers_grab(self, make_session, make_character):
         """close_attack with Fast Grab ability auto-resolves grab on hit."""
         from lorekit.character import set_ability
-        from lorekit.combat import resolve_action
+        from lorekit.combat.resolve import resolve_action
         from lorekit.db import require_db
 
         db = require_db()
@@ -152,7 +152,7 @@ class TestOnHitActions:
 
     def test_on_hit_actions_skipped_without_ability(self, make_session, make_character):
         """close_attack without Fast Grab does NOT trigger follow-up grab."""
-        from lorekit.combat import resolve_action
+        from lorekit.combat.resolve import resolve_action
         from lorekit.db import require_db
 
         db = require_db()
@@ -173,7 +173,7 @@ class TestOnHitActions:
     def test_on_hit_actions_skipped_on_miss(self, make_session, make_character):
         """close_attack miss with Fast Grab does NOT trigger follow-up."""
         from lorekit.character import set_ability
-        from lorekit.combat import resolve_action
+        from lorekit.combat.resolve import resolve_action
         from lorekit.db import require_db
 
         db = require_db()
@@ -196,7 +196,7 @@ class TestOnHitActions:
     def test_free_grab_while_dazed(self, make_session, make_character):
         """Fast Grab follow-up works even when attacker is dazed."""
         from lorekit.character import set_ability, set_attr
-        from lorekit.combat import resolve_action
+        from lorekit.combat.resolve import resolve_action
         from lorekit.db import require_db
 
         db = require_db()

@@ -104,7 +104,7 @@ def _switch_to_base(db, char_ids: list[int], category: str, pack_dir: str | None
     if not pack_dir:
         return []
 
-    from lorekit.combat import switch_alternate
+    from lorekit.combat.powers import switch_alternate
 
     lines = []
     for cid in char_ids:
@@ -823,7 +823,7 @@ def move_character(
     # Check if active conditions prevent movement (e.g. immobile, grab → max_move: 0)
     condition_rules = cfg.get("condition_rules", {})
     if condition_rules:
-        from lorekit.combat import expand_conditions, get_active_conditions
+        from lorekit.combat.conditions import expand_conditions, get_active_conditions
 
         thresholds = cfg.get("condition_thresholds")
         combined = cfg.get("combined_conditions", {})
@@ -924,7 +924,7 @@ def advance_turn(db, session_id: int, combat_cfg: dict | None = None) -> str:
     ending_char_id = init_order[current_turn]
     system_path = _resolve_system_path(db, session_id)
     if system_path:
-        from lorekit.combat import end_turn as _end_turn
+        from lorekit.combat.turns import end_turn as _end_turn
 
         end_result = _end_turn(db, ending_char_id, system_path)
         lines.append(end_result)
@@ -956,7 +956,7 @@ def advance_turn(db, session_id: int, combat_cfg: dict | None = None) -> str:
     # Auto-skip characters that cannot act (incapacitated, stunned, etc.)
     if system_path:
         from cruncher.system_pack import load_system_pack as _load_pack
-        from lorekit.combat import is_incapacitated
+        from lorekit.combat.conditions import is_incapacitated
 
         _pack = _load_pack(system_path)
         incap, cond_name = is_incapacitated(db, char_id, _pack)
@@ -972,7 +972,7 @@ def advance_turn(db, session_id: int, combat_cfg: dict | None = None) -> str:
 
     # Start-of-turn processing for the character whose turn is beginning
     if system_path:
-        from lorekit.combat import start_turn as _start_turn
+        from lorekit.combat.turns import start_turn as _start_turn
 
         start_result = _start_turn(db, char_id, system_path)
         if start_result:
@@ -1171,7 +1171,7 @@ def execute_ready(
 
     # Resolve the action
     if target_id and pack_dir:
-        from lorekit.combat import resolve_action
+        from lorekit.combat.resolve import resolve_action
 
         result = resolve_action(
             db,
@@ -1248,7 +1248,7 @@ def delay_turn(db, session_id: int, character_id: int) -> str:
 
     system_path = _resolve_system_path(db, session_id)
     if system_path:
-        from lorekit.combat import start_turn as _start_turn
+        from lorekit.combat.turns import start_turn as _start_turn
 
         start_result = _start_turn(db, next_char_id, system_path)
         if start_result:
@@ -1305,7 +1305,7 @@ def undelay(db, session_id: int, character_id: int, combat_cfg: dict | None = No
 
     system_path = _resolve_system_path(db, session_id)
     if system_path:
-        from lorekit.combat import start_turn as _start_turn
+        from lorekit.combat.turns import start_turn as _start_turn
 
         start_result = _start_turn(db, character_id, system_path)
         if start_result:

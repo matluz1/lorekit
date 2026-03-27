@@ -111,7 +111,7 @@ def rules_resolve(
         # Area effect: options contains "area" dict
         area = opts.pop("area", None)
         if area:
-            from lorekit.combat import resolve_area_action
+            from lorekit.combat.area import resolve_area_action
 
             radius = area.get("radius", 0)
             center = area.get("center", "target")
@@ -151,7 +151,7 @@ def rules_resolve(
                 opts,
             )
 
-        from lorekit.combat import resolve_action
+        from lorekit.combat.resolve import resolve_action
 
         return resolve_action(db, attacker_id, defender_id, action, system_path, opts)
     except LoreKitError as e:
@@ -212,7 +212,7 @@ def end_turn(character_id: int | str, system_path: str = "") -> str:
             if err:
                 return err
 
-        from lorekit.combat import end_turn as _end_turn
+        from lorekit.combat.turns import end_turn as _end_turn
 
         return _end_turn(db, character_id, system_path)
     except LoreKitError as e:
@@ -349,7 +349,7 @@ def combat_modifier(
             if not source:
                 return "ERROR: 'activate' requires source (ability name)"
             system_path = _resolve_system_path_for_session(db, _session_for_character(db, character_id))
-            from lorekit.combat import activate_power
+            from lorekit.combat.powers import activate_power
 
             return activate_power(db, character_id, source, system_path)
 
@@ -357,7 +357,7 @@ def combat_modifier(
             if not source:
                 return "ERROR: 'deactivate' requires source (ability name)"
             system_path = _resolve_system_path_for_session(db, _session_for_character(db, character_id))
-            from lorekit.combat import deactivate_power
+            from lorekit.combat.powers import deactivate_power
 
             return deactivate_power(db, character_id, source, system_path)
 
@@ -365,7 +365,7 @@ def combat_modifier(
             if not source or not target_stat:
                 return "ERROR: 'switch_alternate' requires source (array name) and target_stat (alternate name)"
             system_path = _resolve_system_path_for_session(db, _session_for_character(db, character_id))
-            from lorekit.combat import switch_alternate
+            from lorekit.combat.powers import switch_alternate
 
             return switch_alternate(db, character_id, source, target_stat, system_path)
 
