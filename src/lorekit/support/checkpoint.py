@@ -93,12 +93,14 @@ def snapshot_session(db, session_id):
                 "duration": r[8],
                 "save_stat": r[9],
                 "save_dc": r[10],
-                "created_at": r[11],
+                "applied_by": r[11],
+                "metadata": r[12],
+                "created_at": r[13],
             }
             for r in db.execute(
                 f"SELECT id, character_id, source, target_stat, modifier_type, "
                 f"value, bonus_type, duration_type, duration, save_stat, save_dc, "
-                f"created_at FROM combat_state WHERE character_id IN ({ph})",
+                f"applied_by, metadata, created_at FROM combat_state WHERE character_id IN ({ph})",
                 char_ids,
             ).fetchall()
         ]
@@ -455,8 +457,8 @@ def restore_snapshot(db, session_id, snapshot):
             db.execute(
                 "INSERT INTO combat_state (id, character_id, source, target_stat, "
                 "modifier_type, value, bonus_type, duration_type, duration, "
-                "save_stat, save_dc, created_at) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                "save_stat, save_dc, applied_by, metadata, created_at) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (
                     r["id"],
                     r["character_id"],
@@ -469,6 +471,8 @@ def restore_snapshot(db, session_id, snapshot):
                     r["duration"],
                     r["save_stat"],
                     r["save_dc"],
+                    r.get("applied_by"),
+                    r.get("metadata"),
                     r["created_at"],
                 ),
             )
