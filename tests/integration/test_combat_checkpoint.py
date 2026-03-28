@@ -32,7 +32,7 @@ from lorekit.tools.narrative import (  # noqa: E402
 from lorekit.tools.rules import rules_resolve  # noqa: E402
 from lorekit.tools.session import session_meta_set  # noqa: E402
 
-FIXTURES = os.path.join(os.path.dirname(__file__), "fixtures")
+FIXTURES = os.path.join(os.path.dirname(__file__), "../fixtures")
 TEST_SYSTEM = os.path.join(FIXTURES, "test_system")
 
 

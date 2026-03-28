@@ -4,7 +4,7 @@ import os
 
 import pytest
 
-FIXTURES = os.path.join(os.path.dirname(__file__), "fixtures")
+FIXTURES = os.path.join(os.path.dirname(__file__), "../fixtures")
 TEST_SYSTEM = os.path.join(FIXTURES, "test_system")
 
 

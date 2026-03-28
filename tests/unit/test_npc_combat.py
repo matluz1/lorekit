@@ -11,7 +11,7 @@ from unittest.mock import patch
 
 import pytest
 
-TEST_SYSTEM = os.path.join(os.path.dirname(__file__), "fixtures", "test_system")
+TEST_SYSTEM = os.path.join(os.path.dirname(__file__), "../fixtures", "test_system")
 
 COMBAT_CFG = {
     "zone_scale": 30,

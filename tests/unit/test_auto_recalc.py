@@ -11,7 +11,7 @@ import os
 import cruncher_mm3e
 import pytest
 
-FIXTURES = os.path.join(os.path.dirname(__file__), "fixtures")
+FIXTURES = os.path.join(os.path.dirname(__file__), "../fixtures")
 TEST_SYSTEM = os.path.join(FIXTURES, "test_system")
 
 COMBAT_CFG = {
@@ -50,7 +50,7 @@ def rules_session(make_session, tmp_path):
     db = require_db()
 
     # Create symlink: <project>/systems/test_system -> tests/fixtures/test_system
-    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     link_path = os.path.join(project_root, "systems", "test_system")
     if not os.path.exists(link_path):
         os.symlink(TEST_SYSTEM, link_path)

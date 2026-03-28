@@ -10,7 +10,7 @@ import pytest
 from cruncher.build import BuildResult, process_build
 
 PF2E_SYSTEM = cruncher_pf2e.pack_path()
-FIXTURES = os.path.join(os.path.dirname(__file__), "fixtures")
+FIXTURES = os.path.join(os.path.dirname(__file__), "../fixtures")
 TEST_SYSTEM = os.path.join(FIXTURES, "test_system")
 
 

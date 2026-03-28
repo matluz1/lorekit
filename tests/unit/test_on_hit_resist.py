@@ -12,7 +12,7 @@ from lorekit.combat.reactions import _get_reaction_policy
 from lorekit.combat.resolve import resolve_action
 from lorekit.rules import load_character_data
 
-FIXTURES = os.path.join(os.path.dirname(__file__), "fixtures")
+FIXTURES = os.path.join(os.path.dirname(__file__), "../fixtures")
 TEST_SYSTEM = os.path.join(FIXTURES, "test_system")
 
 

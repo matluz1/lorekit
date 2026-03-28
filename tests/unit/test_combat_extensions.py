@@ -1194,7 +1194,7 @@ def _setup_mm3e_session(db, sid):
     import os
 
     pack_name = "mm3e"
-    systems_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "systems")
+    systems_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "systems")
     link_path = os.path.join(systems_dir, pack_name)
     if not os.path.exists(link_path):
         os.symlink(MM3E_SYSTEM, link_path)

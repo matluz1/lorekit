@@ -9,8 +9,8 @@ import os
 
 import pytest
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-FIXTURES = os.path.join(os.path.dirname(__file__), "fixtures")
+ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+FIXTURES = os.path.join(os.path.dirname(__file__), "../fixtures")
 
 
 # ---------------------------------------------------------------------------

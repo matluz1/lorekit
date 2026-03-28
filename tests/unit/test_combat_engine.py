@@ -10,7 +10,7 @@ import pytest
 from lorekit.combat.area import resolve_area_action
 from lorekit.combat.resolve import resolve_action
 
-FIXTURES = os.path.join(os.path.dirname(__file__), "fixtures")
+FIXTURES = os.path.join(os.path.dirname(__file__), "../fixtures")
 TEST_SYSTEM = os.path.join(FIXTURES, "test_system")
 TEST_SYSTEM_AREA = os.path.join(FIXTURES, "test_system_area")
 MM3E_SYSTEM = cruncher_mm3e.pack_path()
