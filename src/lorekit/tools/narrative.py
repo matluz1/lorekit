@@ -164,7 +164,7 @@ def save_load(session_id: int, name: str) -> str:
 
 
 @mcp.tool()
-def unsaved_turn_count(session_id: int) -> str:
+def client_unsaved_turn_count(session_id: int) -> str:
     """Check how many unsaved turns exist after the current position.
     Returns 0 if at the tip. Used to warn before loading a save.
     """

@@ -57,8 +57,8 @@ const app = render(
       sessionId: claudeSessionId,
       allowedTools: ["mcp__lorekit__*"],
       disallowedTools: [
-        "mcp__lorekit__active_session_id",
-        "mcp__lorekit__unsaved_turn_count",
+        "mcp__lorekit__client_active_session_id",
+        "mcp__lorekit__client_unsaved_turn_count",
       ],
       persist: true,
     }}

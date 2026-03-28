@@ -34,7 +34,7 @@ let cachedSessionId: number | null = null;
 
 async function getSessionId(): Promise<number> {
   if (cachedSessionId !== null) return cachedSessionId;
-  const result = await mcpCall("active_session_id", {});
+  const result = await mcpCall("client_active_session_id", {});
   const id = parseInt(result, 10);
   if (isNaN(id)) throw new Error("No active session found");
   cachedSessionId = id;
@@ -55,7 +55,7 @@ export async function mcpSaveList(): Promise<string> {
 
 export async function mcpUnsavedCount(): Promise<number> {
   const sid = await getSessionId();
-  const result = await mcpCall("unsaved_turn_count", { session_id: sid });
+  const result = await mcpCall("client_unsaved_turn_count", { session_id: sid });
   return parseInt(result, 10) || 0;
 }
 

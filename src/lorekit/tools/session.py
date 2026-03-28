@@ -28,7 +28,7 @@ def session_view(session_id: int) -> str:
 
 
 @mcp.tool()
-def active_session_id() -> str:
+def client_active_session_id() -> str:
     """Return the ID of the most recently active session, or empty if none."""
     from lorekit.db import require_db
 

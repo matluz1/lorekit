@@ -11,7 +11,7 @@ as **data** in system packs.
                          │ tool calls (stdio or HTTP)
 ┌────────────────────────▼────────────────────────────────┐
 │  server.py — entrypoint (FastMCP via _mcp_app.py)       │
-│  tools/* — 49 @mcp.tool() across 8 domain modules       │
+│  tools/* — 51 @mcp.tool() across 8 domain modules       │
 └────────────────────────┬────────────────────────────────┘
                          │
       ┌──────────────────┼──────────────────┐
@@ -79,7 +79,7 @@ startup to avoid cold-start penalty on first semantic search.
 
 ### Tool Modules (`tools/`)
 
-49 MCP tools organized by domain:
+51 MCP tools organized by domain:
 
 | Module | Responsibility |
 |--------|---------------|
@@ -610,7 +610,7 @@ flowchart TD
     F -->|Save| O["manual_save — tag current checkpoint with a name"]
     O --> E
 
-    F -->|Load| P["save_load — restore named save, fork-on-next-save if needed"]
+    F -->|Load| P["save_load — restore named save, fork-or-truncate on next save"]
     P --> E
 ```
 
@@ -662,8 +662,9 @@ flowchart LR
 
 ### Branching
 
-Saving after a revert **forks** into a new branch automatically — the old path
-is preserved. No branch truncation, nothing is deleted.
+Saving after a revert uses **smart truncation**: if the old path has named saves
+ahead, it **forks** into a new branch (preserving the old path). If no named
+saves exist ahead, the old checkpoints are **truncated** (deleted).
 
 - `checkpoint_branches` table tracks the tree structure (parent branch + fork point)
 - `get_branch_history()` computes the full ordered checkpoint list for any branch,
@@ -689,7 +690,7 @@ nearest anchor and applying deltas forward.
 1. Add timeline entries (player_choice before narration for ordering)
 2. Auto-tag entities in entries (NPC name extraction from text)
 3. Snapshot all mutable state, compress, apply anchor policy
-4. If cursor is behind tip: fork (create new branch), else append to current branch
+4. If cursor is behind tip: fork if named saves exist ahead, else truncate old checkpoints
 
 **turn_revert / turn_advance:**
 - Move cursor back/forward within the current branch's history
@@ -698,7 +699,7 @@ nearest anchor and applying deltas forward.
 
 **save_load:**
 - Find the named checkpoint, reconstruct its state, restore it
-- Move cursor to that checkpoint's branch — next `turn_save` will fork if behind tip
+- Move cursor to that checkpoint's branch — next `turn_save` will fork or truncate (see branching rules above)
 
 **manual_save:**
 - Tag the current checkpoint with a name (or create a new one if state has changed)
@@ -1098,11 +1099,11 @@ Key behavioral rules from SHARED_GUIDE:
 
 ---
 
-## MCP Tools (49 total)
+## MCP Tools (51 total)
 
-### Session (6)
+### Session (7)
 `session_setup`, `session_resume`, `session_list`, `session_update`,
-`session_meta_set`, `session_meta_get`
+`session_meta_set`, `session_meta_get`, `client_active_session_id`
 
 ### Story (1, multi-action)
 `story` → set, view, add_act, update_act, advance
@@ -1110,8 +1111,9 @@ Key behavioral rules from SHARED_GUIDE:
 ### Character (4)
 `character_view`, `character_list`, `character_build`, `character_sheet_update`
 
-### Turn & Checkpoint (8)
-`turn_save`, `turn_revert`, `turn_advance`, `manual_save`, `save_list`, `save_load`, `save_rename`, `save_delete`
+### Turn & Checkpoint (9)
+`turn_save`, `turn_revert`, `turn_advance`, `manual_save`, `save_list`,
+`save_load`, `save_rename`, `save_delete`, `client_unsaved_turn_count`
 
 ### Timeline & Journal (5)
 `timeline_list`, `timeline_set_summary`, `journal_add`, `journal_list`,

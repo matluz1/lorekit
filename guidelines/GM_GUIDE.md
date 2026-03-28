@@ -201,7 +201,7 @@ After reverting, the next `turn_save` will automatically handle the old path:
 
 ### Player save/load commands
 
-Players use `/save`, `/load`, and `/saves` commands in the TUI. These are
+Players use `/save`, `/load`, and `/saves` commands in the client. These are
 handled directly by the client (not routed through you). After a `/load`,
 the game state changes — if the player speaks next, treat it as continuing
 from the restored state.
