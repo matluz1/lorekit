@@ -5638,5 +5638,922 @@
     "description": "Your divine power purges the target's illness or toxin. Attempt a counteract check against one poison or disease afflicting the target. On a success, you counteract the affliction.",
     "uses": "per_day",
     "source": "player_core"
+  },
+  "aerial_form": {
+    "name": "Aerial Form",
+    "rank": 4,
+    "traditions": [
+      "arcane",
+      "primal"
+    ],
+    "cast": "2 actions",
+    "components": [
+      "somatic",
+      "verbal"
+    ],
+    "traits": [
+      "concentrate",
+      "manipulate",
+      "polymorph",
+      "transmutation"
+    ],
+    "duration": "1 minute",
+    "uses": "per_day",
+    "description": "You transform into a Medium bat, bird, or wasp battle form. You gain AC 21, attack modifier +13, and a fly Speed of 60 feet. You gain a primary attack with the statistics of the chosen form. While in this form you can't cast spells, activate items, or use actions that have the concentrate trait except to Sustain a Spell.",
+    "heightened": {
+      "5": {
+        "description": "You can become Large size and gain a +2 bonus to attack rolls in addition to the other benefits."
+      },
+      "6": {
+        "description": "You can become Huge size."
+      }
+    },
+    "source": "player_core"
+  },
+  "air_walk": {
+    "name": "Air Walk",
+    "rank": 4,
+    "traditions": [
+      "divine",
+      "primal"
+    ],
+    "cast": "2 actions",
+    "components": [
+      "somatic",
+      "verbal"
+    ],
+    "traits": [
+      "air",
+      "concentrate",
+      "manipulate",
+      "transmutation"
+    ],
+    "range": "touch",
+    "targets": "1 creature",
+    "duration": "5 minutes",
+    "uses": "per_day",
+    "description": "The target can walk on air as if it were solid ground. The target can ascend and descend at a 45-degree angle. The target can't use this ability to fly faster than its normal Speed.",
+    "source": "player_core"
+  },
+  "blight": {
+    "name": "Blight",
+    "rank": 4,
+    "traditions": [
+      "primal"
+    ],
+    "cast": "2 actions",
+    "components": [
+      "somatic",
+      "verbal"
+    ],
+    "traits": [
+      "concentrate",
+      "manipulate",
+      "necromancy"
+    ],
+    "range": "40 feet",
+    "area": "40-foot emanation",
+    "defense": "fortitude",
+    "uses": "per_day",
+    "description": "You poison all plant life in the area. Plant creatures in the area take 6d8 poison damage with a basic Fortitude save. Non-creature plants wither and die. The spell has no effect in areas without plant life.",
+    "heightened": {
+      "+1": {
+        "damage": "+2d8"
+      }
+    },
+    "action": {
+      "key": "blight",
+      "attack_stat": "spell_dc",
+      "defense_stat": "fortitude",
+      "range": "ranged",
+      "area": true,
+      "on_hit": {
+        "damage_roll": {
+          "dice": "6d8",
+          "type": "poison"
+        },
+        "subtract_from": "current_hp"
+      }
+    },
+    "source": "player_core"
+  },
+  "clairvoyance": {
+    "name": "Clairvoyance",
+    "rank": 4,
+    "traditions": [
+      "arcane",
+      "occult"
+    ],
+    "cast": "1 minute",
+    "components": [
+      "material",
+      "somatic",
+      "verbal"
+    ],
+    "traits": [
+      "concentrate",
+      "divination",
+      "manipulate",
+      "scrying"
+    ],
+    "range": "500 feet",
+    "duration": "10 minutes",
+    "uses": "per_day",
+    "description": "You create an invisible floating eye at a location you can see within range. You can see from that eye's perspective as if you were standing there, and you can look in any direction. You can Sustain the spell to move the eye up to 30 feet.",
+    "source": "player_core"
+  },
+  "confusion": {
+    "name": "Confusion",
+    "rank": 4,
+    "traditions": [
+      "arcane",
+      "occult"
+    ],
+    "cast": "2 actions",
+    "components": [
+      "somatic",
+      "verbal"
+    ],
+    "traits": [
+      "concentrate",
+      "emotion",
+      "enchantment",
+      "manipulate",
+      "mental"
+    ],
+    "range": "30 feet",
+    "targets": "1 creature",
+    "defense": "will",
+    "duration": "1 minute",
+    "uses": "per_day",
+    "description": "You befuddle the target's mind with a mental assault. The target must attempt a Will save. On a failure, the target is confused for 1 minute. On a critical failure, the target is confused for 1 minute and must immediately spend its reaction to attack its nearest ally.",
+    "heightened": {
+      "8": {
+        "description": "You can target up to 10 creatures."
+      }
+    },
+    "action": {
+      "key": "confusion",
+      "attack_stat": "spell_dc",
+      "defense_stat": "will",
+      "range": "ranged",
+      "on_hit": {
+        "apply_modifiers": [
+          {
+            "source": "confusion",
+            "condition": "confused",
+            "value": 1,
+            "duration_type": "encounter"
+          }
+        ]
+      }
+    },
+    "source": "player_core"
+  },
+  "creation": {
+    "name": "Creation",
+    "rank": 4,
+    "traditions": [
+      "arcane",
+      "primal"
+    ],
+    "cast": "1 minute",
+    "components": [
+      "material",
+      "somatic",
+      "verbal"
+    ],
+    "traits": [
+      "concentrate",
+      "conjuration",
+      "manipulate"
+    ],
+    "duration": "1 hour",
+    "uses": "per_day",
+    "description": "You conjure a temporary object of nonliving matter up to 5 cubic feet in volume. The object can have moving parts but can't be a magic item or contain precious materials worth more than 1 gp. The object is clearly artificial.",
+    "source": "player_core"
+  },
+  "detect_scrying": {
+    "name": "Detect Scrying",
+    "rank": 4,
+    "traditions": [
+      "arcane",
+      "occult"
+    ],
+    "cast": "2 actions",
+    "components": [
+      "somatic",
+      "verbal"
+    ],
+    "traits": [
+      "concentrate",
+      "detection",
+      "divination",
+      "manipulate"
+    ],
+    "area": "40-foot emanation",
+    "duration": "1 hour",
+    "uses": "per_day",
+    "description": "You detect all active scrying sensors in the area. You sense the presence of any active scrying spell or similar magical sensor in the emanation, and can attempt to identify the scrying magic with a Recall Knowledge check.",
+    "source": "player_core"
+  },
+  "divine_wrath": {
+    "name": "Divine Wrath",
+    "rank": 4,
+    "traditions": [
+      "divine"
+    ],
+    "cast": "2 actions",
+    "components": [
+      "somatic",
+      "verbal"
+    ],
+    "traits": [
+      "concentrate",
+      "manipulate"
+    ],
+    "range": "120 feet",
+    "area": "20-foot burst",
+    "defense": "fortitude",
+    "uses": "per_day",
+    "description": "You pour divine wrath down upon your foes. Choose an alignment your deity has (chaotic, evil, good, or lawful). Creatures in the area that have the opposing alignment take 4d10 spirit damage with a basic Fortitude save. On a failure, they're also sickened 1. On a critical failure, they're sickened 2 instead.",
+    "heightened": {
+      "+1": {
+        "damage": "+1d10"
+      }
+    },
+    "action": {
+      "key": "divine_wrath",
+      "attack_stat": "spell_dc",
+      "defense_stat": "fortitude",
+      "range": "ranged",
+      "area": true,
+      "on_hit": {
+        "damage_roll": {
+          "dice": "4d10",
+          "type": "spirit"
+        },
+        "subtract_from": "current_hp"
+      }
+    },
+    "source": "player_core"
+  },
+  "fire_shield": {
+    "name": "Fire Shield",
+    "rank": 4,
+    "traditions": [
+      "arcane",
+      "primal"
+    ],
+    "cast": "2 actions",
+    "components": [
+      "somatic",
+      "verbal"
+    ],
+    "traits": [
+      "concentrate",
+      "evocation",
+      "fire",
+      "manipulate"
+    ],
+    "duration": "1 minute",
+    "uses": "per_day",
+    "description": "Flames coat your body, providing warmth against cold and dealing fire damage to any creature that hits you with a melee attack. You gain resistance 5 to cold damage, and any creature that hits you with a melee attack takes 2d6 fire damage.",
+    "action": {
+      "key": "fire_shield",
+      "range": "self",
+      "on_hit": {
+        "apply_modifiers": [
+          {
+            "source": "fire_shield",
+            "target_stat": "resistance_cold",
+            "value": 5,
+            "modifier_type": "status",
+            "duration_type": "rounds",
+            "rounds": 10
+          }
+        ]
+      }
+    },
+    "source": "player_core"
+  },
+  "freedom_of_movement": {
+    "name": "Freedom of Movement",
+    "rank": 4,
+    "traditions": [
+      "arcane",
+      "divine",
+      "occult",
+      "primal"
+    ],
+    "cast": "2 actions",
+    "components": [
+      "somatic",
+      "verbal"
+    ],
+    "traits": [
+      "abjuration",
+      "concentrate",
+      "manipulate"
+    ],
+    "range": "touch",
+    "targets": "1 creature",
+    "duration": "10 minutes",
+    "uses": "per_day",
+    "description": "The target's movement is unimpeded. The target ignores difficult terrain, is immune to the immobilized and paralyzed conditions, and can always move at full speed through any magically altered terrain or effects that slow or stop movement.",
+    "action": {
+      "key": "freedom_of_movement",
+      "range": "ranged",
+      "on_hit": {
+        "apply_modifiers": [
+          {
+            "source": "freedom_of_movement",
+            "condition": "freedom_of_movement",
+            "value": 1,
+            "duration_type": "encounter"
+          }
+        ]
+      }
+    },
+    "source": "player_core"
+  },
+  "gaseous_form": {
+    "name": "Gaseous Form",
+    "rank": 4,
+    "traditions": [
+      "arcane",
+      "occult",
+      "primal"
+    ],
+    "cast": "2 actions",
+    "components": [
+      "somatic",
+      "verbal"
+    ],
+    "traits": [
+      "concentrate",
+      "manipulate",
+      "polymorph",
+      "transmutation"
+    ],
+    "range": "touch",
+    "targets": "1 willing creature",
+    "duration": "5 minutes",
+    "uses": "per_day",
+    "description": "The target transforms into a vaporous form. It gains a fly Speed of 10 feet and can move through tight spaces. The target can't make Strikes and is immune to physical damage, but has weakness 5 to electricity and weakness 5 to wind effects.",
+    "source": "player_core"
+  },
+  "hallucinatory_terrain": {
+    "name": "Hallucinatory Terrain",
+    "rank": 4,
+    "traditions": [
+      "arcane",
+      "occult",
+      "primal"
+    ],
+    "cast": "10 minutes",
+    "components": [
+      "material",
+      "somatic",
+      "verbal"
+    ],
+    "traits": [
+      "concentrate",
+      "illusion",
+      "manipulate"
+    ],
+    "range": "500 feet",
+    "area": "50-foot burst",
+    "duration": "24 hours",
+    "uses": "per_day",
+    "description": "You make natural terrain look, sound, feel, and smell like a different kind of natural terrain. The illusory terrain appears real to all senses. A creature that physically interacts with the terrain can attempt a Perception check against your spell DC to disbelieve the illusion.",
+    "source": "player_core"
+  },
+  "mountain_resilience": {
+    "name": "Mountain Resilience",
+    "rank": 4,
+    "traditions": [
+      "arcane",
+      "primal"
+    ],
+    "cast": "2 actions",
+    "components": [
+      "somatic",
+      "verbal"
+    ],
+    "traits": [
+      "abjuration",
+      "concentrate",
+      "earth",
+      "manipulate"
+    ],
+    "range": "touch",
+    "targets": "1 creature",
+    "duration": "1 hour",
+    "uses": "per_day",
+    "description": "The target's skin becomes as hard as stone. The target gains resistance 5 to physical damage (except adamantine). This resistance is reduced to 0 while the target is wearing armor.",
+    "action": {
+      "key": "mountain_resilience",
+      "range": "ranged",
+      "on_hit": {
+        "apply_modifiers": [
+          {
+            "source": "mountain_resilience",
+            "target_stat": "resistance_physical",
+            "value": 5,
+            "modifier_type": "status",
+            "duration_type": "encounter"
+          }
+        ]
+      }
+    },
+    "source": "player_core_2"
+  },
+  "nightmare": {
+    "name": "Nightmare",
+    "rank": 4,
+    "traditions": [
+      "arcane",
+      "occult"
+    ],
+    "cast": "10 minutes",
+    "components": [
+      "material",
+      "somatic",
+      "verbal"
+    ],
+    "traits": [
+      "concentrate",
+      "illusion",
+      "manipulate",
+      "mental",
+      "sleep"
+    ],
+    "range": "planetary",
+    "targets": "1 creature you know by name",
+    "duration": "until next daily preparations",
+    "uses": "per_day",
+    "description": "You send a terrifying dream to a creature you know by name. The target must attempt a Will save when it next falls asleep. On a failure, the target gains no benefit from sleep and is fatigued upon waking. On a critical failure, the target also takes 4d10 mental damage upon waking.",
+    "source": "player_core"
+  },
+  "outcast_curse": {
+    "name": "Outcast's Curse",
+    "rank": 4,
+    "traditions": [
+      "arcane",
+      "divine",
+      "occult"
+    ],
+    "cast": "2 actions",
+    "components": [
+      "somatic",
+      "verbal"
+    ],
+    "traits": [
+      "concentrate",
+      "curse",
+      "enchantment",
+      "manipulate",
+      "mental",
+      "misfortune"
+    ],
+    "range": "30 feet",
+    "targets": "1 creature",
+    "defense": "will",
+    "duration": "until counteracted",
+    "uses": "per_day",
+    "description": "You lay a curse of social isolation upon the target. The target must attempt a Will save. On a failure, the target takes a –2 status penalty to Charisma-based checks, and other creatures are unfriendly to the target unless their starting attitude would be hostile.",
+    "action": {
+      "key": "outcast_curse",
+      "attack_stat": "spell_dc",
+      "defense_stat": "will",
+      "range": "ranged",
+      "on_hit": {
+        "apply_modifiers": [
+          {
+            "source": "outcast_curse",
+            "condition": "cursed",
+            "value": 1,
+            "duration_type": "permanent"
+          }
+        ]
+      }
+    },
+    "source": "player_core"
+  },
+  "phantasmal_killer": {
+    "name": "Phantasmal Killer",
+    "rank": 4,
+    "traditions": [
+      "arcane",
+      "occult"
+    ],
+    "cast": "2 actions",
+    "components": [
+      "somatic",
+      "verbal"
+    ],
+    "traits": [
+      "concentrate",
+      "death",
+      "emotion",
+      "fear",
+      "illusion",
+      "manipulate",
+      "mental"
+    ],
+    "range": "120 feet",
+    "targets": "1 living creature",
+    "defense": "will",
+    "uses": "per_day",
+    "description": "You create a phantasmal image of the target's greatest fear and show it to the creature. The target must attempt a Will save. On a critical success, the target is unaffected. On a success, the target takes 2d6 mental damage. On a failure, the target takes 6d6 mental damage and is frightened 2. On a critical failure, the target takes 12d6 mental damage, is frightened 4, and must attempt a Fortitude save or die.",
+    "heightened": {
+      "+1": {
+        "damage": "+1d6 (success) / +2d6 (failure)"
+      }
+    },
+    "action": {
+      "key": "phantasmal_killer",
+      "attack_stat": "spell_dc",
+      "defense_stat": "will",
+      "range": "ranged",
+      "on_hit": {
+        "damage_roll": {
+          "dice": "6d6",
+          "type": "mental"
+        },
+        "subtract_from": "current_hp"
+      }
+    },
+    "source": "player_core"
+  },
+  "read_omens": {
+    "name": "Read Omens",
+    "rank": 4,
+    "traditions": [
+      "divine",
+      "occult"
+    ],
+    "cast": "10 minutes",
+    "components": [
+      "material",
+      "somatic",
+      "verbal"
+    ],
+    "traits": [
+      "concentrate",
+      "divination",
+      "manipulate",
+      "prediction"
+    ],
+    "targets": "you",
+    "uses": "per_day",
+    "description": "You open your mind to omens and visions of the future. You gain a general sense of what will happen during the next day. The information is cryptic but truthful — the GM provides a vague impression of events, hazards, or opportunities ahead.",
+    "source": "player_core"
+  },
+  "resilient_sphere": {
+    "name": "Resilient Sphere",
+    "rank": 4,
+    "traditions": [
+      "arcane"
+    ],
+    "cast": "2 actions",
+    "components": [
+      "somatic",
+      "verbal"
+    ],
+    "traits": [
+      "abjuration",
+      "concentrate",
+      "force",
+      "manipulate"
+    ],
+    "range": "30 feet",
+    "targets": "1 creature",
+    "defense": "reflex",
+    "duration": "1 minute",
+    "uses": "per_day",
+    "description": "You create an immobile, resilient sphere of force around the target. The target must attempt a Reflex save. On a failure, the sphere forms around the target, trapping them inside. The sphere is immune to all damage and effects, and the creature inside can't be affected by anything outside the sphere. The creature inside can try to Escape (DC equals your spell DC).",
+    "action": {
+      "key": "resilient_sphere",
+      "attack_stat": "spell_dc",
+      "defense_stat": "reflex",
+      "range": "ranged",
+      "on_hit": {
+        "apply_modifiers": [
+          {
+            "source": "resilient_sphere",
+            "condition": "immobilized",
+            "value": 1,
+            "duration_type": "encounter"
+          }
+        ]
+      }
+    },
+    "source": "player_core"
+  },
+  "shape_stone": {
+    "name": "Shape Stone",
+    "rank": 4,
+    "traditions": [
+      "arcane",
+      "primal"
+    ],
+    "cast": "2 actions",
+    "components": [
+      "somatic",
+      "verbal"
+    ],
+    "traits": [
+      "concentrate",
+      "earth",
+      "manipulate",
+      "transmutation"
+    ],
+    "range": "touch",
+    "targets": "1 cubic yard of stone",
+    "duration": "1 hour",
+    "uses": "per_day",
+    "description": "You shape a cube of stone up to 1 cubic yard in volume. You can mold it into any shape, including objects. Formed objects are functional but cannot be made to have moving parts. The stone reverts to its original shape after the duration.",
+    "source": "player_core"
+  },
+  "solid_fog": {
+    "name": "Solid Fog",
+    "rank": 4,
+    "traditions": [
+      "arcane"
+    ],
+    "cast": "3 actions",
+    "components": [
+      "material",
+      "somatic",
+      "verbal"
+    ],
+    "traits": [
+      "concentrate",
+      "conjuration",
+      "manipulate",
+      "water"
+    ],
+    "range": "60 feet",
+    "area": "20-foot burst",
+    "duration": "1 minute",
+    "uses": "per_day",
+    "description": "You call forth a billowing cloud of thick, gluelike fog that's nearly impossible to move through. The fog is difficult terrain and heavily obscures creatures within it. A creature attempting to move through the fog must spend 4 feet of movement for every 1 foot it moves.",
+    "source": "player_core"
+  },
+  "spell_immunity": {
+    "name": "Spell Immunity",
+    "rank": 4,
+    "traditions": [
+      "arcane",
+      "divine",
+      "occult"
+    ],
+    "cast": "2 actions",
+    "components": [
+      "somatic",
+      "verbal"
+    ],
+    "traits": [
+      "abjuration",
+      "concentrate",
+      "manipulate"
+    ],
+    "range": "touch",
+    "targets": "1 creature",
+    "duration": "until next daily preparations",
+    "uses": "per_day",
+    "description": "You name a single spell when casting this spell. The target gains immunity to that spell until your next daily preparations. You can't name a spell of a higher rank than spell immunity's rank.",
+    "source": "player_core"
+  },
+  "stoneskin": {
+    "name": "Stoneskin",
+    "rank": 4,
+    "traditions": [
+      "arcane",
+      "primal"
+    ],
+    "cast": "2 actions",
+    "components": [
+      "material",
+      "somatic",
+      "verbal"
+    ],
+    "traits": [
+      "abjuration",
+      "concentrate",
+      "earth",
+      "manipulate"
+    ],
+    "range": "touch",
+    "targets": "1 creature",
+    "duration": "20 minutes",
+    "uses": "per_day",
+    "description": "The target's skin becomes rough and stone-like. The target gains resistance 5 to physical damage (except adamantine). Each time the target takes physical damage, reduce the resistance by 1 (minimum 0).",
+    "action": {
+      "key": "stoneskin",
+      "range": "ranged",
+      "on_hit": {
+        "apply_modifiers": [
+          {
+            "source": "stoneskin",
+            "target_stat": "resistance_physical",
+            "value": 5,
+            "modifier_type": "circumstance",
+            "duration_type": "encounter"
+          }
+        ]
+      }
+    },
+    "source": "player_core"
+  },
+  "suggestion": {
+    "name": "Suggestion",
+    "rank": 4,
+    "traditions": [
+      "arcane",
+      "occult"
+    ],
+    "cast": "2 actions",
+    "components": [
+      "somatic",
+      "verbal"
+    ],
+    "traits": [
+      "concentrate",
+      "enchantment",
+      "incapacitation",
+      "linguistic",
+      "manipulate",
+      "mental"
+    ],
+    "range": "30 feet",
+    "targets": "1 creature",
+    "defense": "will",
+    "duration": "varies",
+    "uses": "per_day",
+    "description": "You suggest a course of action to the target. The target must attempt a Will save. On a critical success, the target is unaffected. On a success, the target is unaffected but knows it was targeted by this spell. On a failure, the target follows the suggestion to the best of its ability for 1 minute. On a critical failure, the target follows the suggestion for 1 hour.",
+    "heightened": {
+      "8": {
+        "description": "You can target up to 10 creatures."
+      }
+    },
+    "action": {
+      "key": "suggestion",
+      "attack_stat": "spell_dc",
+      "defense_stat": "will",
+      "range": "ranged",
+      "on_hit": {
+        "apply_modifiers": [
+          {
+            "source": "suggestion",
+            "condition": "controlled",
+            "value": 1,
+            "duration_type": "encounter"
+          }
+        ]
+      }
+    },
+    "source": "player_core"
+  },
+  "translocate": {
+    "name": "Translocate",
+    "rank": 4,
+    "traditions": [
+      "arcane",
+      "occult"
+    ],
+    "cast": "1 action",
+    "components": [
+      "verbal"
+    ],
+    "traits": [
+      "concentrate",
+      "conjuration",
+      "teleportation"
+    ],
+    "range": "120 feet",
+    "targets": "you",
+    "uses": "per_day",
+    "description": "You instantly transport yourself to a clear space within range that you can see. You carry only what you can carry. If the destination space is occupied, the spell fails.",
+    "source": "player_core"
+  },
+  "vital_beacon": {
+    "name": "Vital Beacon",
+    "rank": 4,
+    "traditions": [
+      "divine",
+      "primal"
+    ],
+    "cast": "2 actions",
+    "components": [
+      "somatic",
+      "verbal"
+    ],
+    "traits": [
+      "concentrate",
+      "healing",
+      "manipulate",
+      "necromancy",
+      "positive"
+    ],
+    "duration": "10 minutes",
+    "uses": "per_day",
+    "description": "You radiate an aura of life force. Each time a living creature within 30 feet of you is healed, it recovers an additional 1d6 hit points. Each time you or an ally within 30 feet casts a healing spell, the healed creature regains an additional 1d6 hit points.",
+    "heightened": {
+      "+1": {
+        "description": "The additional healing increases by 1d6."
+      }
+    },
+    "source": "player_core"
+  },
+  "wall_of_fire": {
+    "name": "Wall of Fire",
+    "rank": 4,
+    "traditions": [
+      "arcane",
+      "primal"
+    ],
+    "cast": "3 actions",
+    "components": [
+      "material",
+      "somatic",
+      "verbal"
+    ],
+    "traits": [
+      "concentrate",
+      "evocation",
+      "fire",
+      "manipulate"
+    ],
+    "range": "60 feet",
+    "area": "a straight wall up to 60 feet long and 10 feet high",
+    "duration": "1 minute",
+    "uses": "per_day",
+    "description": "You conjure a wall of flame that burns those who pass through it. The wall deals 4d6 fire damage to each creature that passes through it. Any creature that starts its turn adjacent to the wall takes 2d6 fire damage.",
+    "heightened": {
+      "+1": {
+        "damage": "+1d6"
+      }
+    },
+    "action": {
+      "key": "wall_of_fire",
+      "attack_stat": "spell_dc",
+      "defense_stat": "reflex",
+      "range": "ranged",
+      "area": true,
+      "on_hit": {
+        "damage_roll": {
+          "dice": "4d6",
+          "type": "fire"
+        },
+        "subtract_from": "current_hp"
+      }
+    },
+    "source": "player_core"
+  },
+  "weapon_storm": {
+    "name": "Weapon Storm",
+    "rank": 4,
+    "traditions": [
+      "arcane",
+      "primal"
+    ],
+    "cast": "2 actions",
+    "components": [
+      "somatic",
+      "verbal"
+    ],
+    "traits": [
+      "concentrate",
+      "evocation",
+      "manipulate"
+    ],
+    "range": "30 feet",
+    "area": "30-foot cone or 20-foot burst",
+    "defense": "reflex",
+    "uses": "per_day",
+    "description": "You swing a held weapon in a wide arc that magically replicates. All creatures in the area take 4d12 damage of the weapon's damage type with a basic Reflex save. The weapon must be a melee weapon.",
+    "heightened": {
+      "+1": {
+        "damage": "+1d12"
+      }
+    },
+    "action": {
+      "key": "weapon_storm",
+      "attack_stat": "spell_dc",
+      "defense_stat": "reflex",
+      "range": "ranged",
+      "area": true,
+      "on_hit": {
+        "damage_roll": {
+          "dice": "4d12",
+          "type": "slashing"
+        },
+        "subtract_from": "current_hp"
+      }
+    },
+    "source": "player_core"
   }
 }
