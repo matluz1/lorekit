@@ -46,11 +46,10 @@ pre-commit install
 ## Testing
 
 ```bash
-pytest tests/ --npc-model=MODEL_NAME
+pytest                       # all 876 tests
+pytest tests/unit/           # fast — single-module tests
+pytest tests/integration/    # cross-module interaction tests
 ```
-
-740 tests covering both packages, all system packs, and the full MCP tool
-surface.
 
 ## Playing
 
@@ -76,9 +75,9 @@ lorekit/
 │       └── types.py          CharacterData, error types
 │
 ├── src/lorekit/              Full game engine (pip install lorekit)
-│   ├── server.py             MCP server — 40+ tools for the GM agent
+│   ├── server.py             MCP server — 51 tools for the GM agent
 │   ├── rules.py              DB glue: load → cruncher → write back
-│   ├── combat.py             Action resolution, conditions, turn lifecycle
+│   ├── combat/               Action resolution, conditions, turn lifecycle
 │   ├── encounter.py          Zone-based positioning, movement, initiative
 │   ├── rest.py               Rest rules orchestration
 │   ├── character.py          Character CRUD
@@ -94,7 +93,7 @@ lorekit/
 │   │   ├── time.py           Narrative clock
 │   │   └── region.py         Hierarchical regions
 │   └── support/              Persistence & search
-│       ├── checkpoint.py     Full-state undo/redo
+│       ├── checkpoint.py     Branching save/load with compression + deltas
 │       ├── export.py         Human-readable session export
 │       ├── recall.py         Hybrid semantic + keyword search
 │       └── vectordb.py       sqlite-vec embeddings
@@ -104,7 +103,7 @@ lorekit/
 │   └── mm3e/                 d20 Hero SRD 3e (OGL 1.0a)
 │
 ├── guidelines/               Agent guidelines (GM, NPC, shared)
-├── tests/                    740 tests
+├── tests/                    876 tests (unit/ + integration/)
 ├── tui/                      Terminal UI (TypeScript/React/Ink)
 └── data/game.db              SQLite database (created by init_db)
 ```
