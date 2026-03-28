@@ -2918,5 +2918,533 @@
     "effects": {},
     "note": "When you Sneak, you can Hide at end of Stride.",
     "source": "player_core"
+  },
+  "beast_trainer": {
+    "name": "Beast Trainer",
+    "category": "ancestry",
+    "prereqs": {
+      "ancestry": "orc",
+      "level": 1
+    },
+    "effects": {},
+    "note": "Gain trained in Nature and your choice of the Pet general feat or the Train Animal skill feat.",
+    "source": "player_core"
+  },
+  "iron_fists": {
+    "name": "Iron Fists",
+    "category": "ancestry",
+    "prereqs": {
+      "ancestry": "orc",
+      "level": 1
+    },
+    "effects": {},
+    "note": "Your fist unarmed attacks lose the nonlethal trait and gain the shove weapon trait.",
+    "source": "player_core"
+  },
+  "orc_ferocity": {
+    "name": "Orc Ferocity",
+    "category": "ancestry",
+    "prereqs": {
+      "ancestry": "orc",
+      "level": 1
+    },
+    "effects": {},
+    "note": "Reaction (1/day): when reduced to 0 HP but not killed, instead remain at 1 HP; wounded condition increases by 1.",
+    "source": "player_core"
+  },
+  "orc_lore": {
+    "name": "Orc Lore",
+    "category": "ancestry",
+    "prereqs": {
+      "ancestry": "orc",
+      "level": 1
+    },
+    "effects": {},
+    "note": "Gain trained in Athletics and Survival (or a skill of choice if already trained); gain Additional Lore (Orc Lore).",
+    "source": "player_core"
+  },
+  "orc_superstition": {
+    "name": "Orc Superstition",
+    "category": "ancestry",
+    "prereqs": {
+      "ancestry": "orc",
+      "level": 1
+    },
+    "effects": {},
+    "note": "Reaction: when you attempt a save vs a spell or magical effect before rolling, gain +1 circumstance bonus to that save.",
+    "source": "player_core"
+  },
+  "orc_weapon_familiarity": {
+    "name": "Orc Weapon Familiarity",
+    "category": "ancestry",
+    "prereqs": {
+      "ancestry": "orc",
+      "level": 1
+    },
+    "effects": {},
+    "note": "Gain access to orc weapons; treat martial orc weapons as simple and advanced orc weapons as martial. At 5th level, gain critical specialization with these weapons.",
+    "source": "player_core"
+  },
+  "athletic_might": {
+    "name": "Athletic Might",
+    "category": "ancestry",
+    "prereqs": {
+      "ancestry": "orc",
+      "level": 5
+    },
+    "effects": {},
+    "note": "When you succeed on an Athletics check to Climb or Swim, treat it as a critical success instead.",
+    "source": "player_core"
+  },
+  "defy_death": {
+    "name": "Defy Death",
+    "category": "ancestry",
+    "prereqs": {
+      "ancestry": "orc",
+      "level": 5
+    },
+    "effects": {},
+    "note": "Recovery check DC is 9 + your dying value (8 + if you have Toughness). You avoid the debilitation from revival magic.",
+    "source": "player_core"
+  },
+  "victorious_vigor": {
+    "name": "Victorious Vigor",
+    "category": "ancestry",
+    "prereqs": {
+      "ancestry": "orc",
+      "level": 5
+    },
+    "effects": {},
+    "note": "Reaction: when you reduce a foe to 0 HP, gain temporary HP equal to your Constitution modifier until end of your next turn.",
+    "source": "player_core"
+  },
+  "pervasive_superstition": {
+    "name": "Pervasive Superstition",
+    "category": "ancestry",
+    "prereqs": {
+      "ancestry": "orc",
+      "level": 9
+    },
+    "effects": {},
+    "note": "Requires Orc Superstition. Gain a +1 circumstance bonus to saving throws against spells and magical effects at all times.",
+    "source": "player_core"
+  },
+  "incredible_ferocity": {
+    "name": "Incredible Ferocity",
+    "category": "ancestry",
+    "prereqs": {
+      "ancestry": "orc",
+      "level": 13
+    },
+    "effects": {},
+    "note": "Requires Orc Ferocity. You can use Orc Ferocity once per hour instead of once per day.",
+    "source": "player_core"
+  },
+  "orc_weapon_expertise": {
+    "name": "Orc Weapon Expertise",
+    "category": "ancestry",
+    "prereqs": {
+      "ancestry": "orc",
+      "level": 13
+    },
+    "effects": {},
+    "note": "Requires Orc Weapon Familiarity. Whenever you gain expert or greater proficiency in a weapon category, you also gain that proficiency with falchions, greataxes, and orc weapons.",
+    "source": "player_core"
+  },
+  "grasping_reach": {
+    "name": "Grasping Reach",
+    "category": "ancestry",
+    "prereqs": {
+      "ancestry": "leshy",
+      "level": 1
+    },
+    "effects": {},
+    "note": "Interact to extend vines on a two-handed melee weapon, giving it reach 10 feet but reducing its damage die by 1 step.",
+    "source": "player_core"
+  },
+  "harmlessly_cute": {
+    "name": "Harmlessly Cute",
+    "category": "ancestry",
+    "prereqs": {
+      "ancestry": "leshy",
+      "level": 1
+    },
+    "effects": {},
+    "note": "Gain Shameless Request skill feat and +1 circumstance to initiative when rolling Deception for initiative.",
+    "source": "player_core"
+  },
+  "leshy_lore": {
+    "name": "Leshy Lore",
+    "category": "ancestry",
+    "prereqs": {
+      "ancestry": "leshy",
+      "level": 1
+    },
+    "effects": {},
+    "note": "Gain trained in Nature and Stealth (or a skill of choice if already trained); gain Additional Lore (Leshy Lore).",
+    "source": "player_core"
+  },
+  "leshy_superstition": {
+    "name": "Leshy Superstition",
+    "category": "ancestry",
+    "prereqs": {
+      "ancestry": "leshy",
+      "level": 1
+    },
+    "effects": {},
+    "note": "Reaction: when you attempt a save vs a spell or magical effect before rolling, gain +1 circumstance bonus to that save.",
+    "source": "player_core"
+  },
+  "seedpod": {
+    "name": "Seedpod",
+    "category": "ancestry",
+    "prereqs": {
+      "ancestry": "leshy",
+      "level": 1
+    },
+    "effects": {},
+    "note": "Gain a seedpod ranged unarmed attack (30-ft range, 1d4 bludgeoning). Critical hit imposes -10-foot penalty to target's Speed until start of your next turn.",
+    "source": "player_core"
+  },
+  "undaunted": {
+    "name": "Undaunted",
+    "category": "ancestry",
+    "prereqs": {
+      "ancestry": "leshy",
+      "level": 1
+    },
+    "effects": {},
+    "note": "+1 circumstance bonus to saves against emotion effects. On a save success vs an emotion effect, treat it as a critical success.",
+    "source": "player_core"
+  },
+  "anchoring_roots": {
+    "name": "Anchoring Roots",
+    "category": "ancestry",
+    "prereqs": {
+      "ancestry": "leshy",
+      "level": 5
+    },
+    "effects": {},
+    "note": "Gain Steady Balance feat. Anchor action: +2 circumstance bonus to Fortitude/Reflex DC vs Reposition, Shove, or Trip; if moved, travel only half distance.",
+    "source": "player_core"
+  },
+  "speak_with_kindred": {
+    "name": "Speak with Kindred",
+    "category": "ancestry",
+    "prereqs": {
+      "ancestry": "leshy",
+      "level": 5
+    },
+    "effects": {},
+    "note": "Ask questions of and use Diplomacy with plants and fungi. +2 circumstance to Diplomacy with plants or fungi matching your heritage type.",
+    "source": "player_core"
+  },
+  "bark_and_tendril": {
+    "name": "Bark and Tendril",
+    "category": "ancestry",
+    "prereqs": {
+      "ancestry": "leshy",
+      "level": 9
+    },
+    "effects": {},
+    "note": "Gain entangling flora and oaken resilience as 2nd-rank primal innate spells, each usable once per day.",
+    "source": "player_core"
+  },
+  "lucky_keepsake": {
+    "name": "Lucky Keepsake",
+    "category": "ancestry",
+    "prereqs": {
+      "ancestry": "leshy",
+      "level": 9
+    },
+    "effects": {},
+    "note": "Requires Leshy Superstition. Gain +1 circumstance bonus to saves against spells and magical effects at all times.",
+    "source": "player_core"
+  },
+  "call_of_the_green_man": {
+    "name": "Call of the Green Man",
+    "category": "ancestry",
+    "prereqs": {
+      "ancestry": "leshy",
+      "level": 13
+    },
+    "effects": {},
+    "note": "Once per day, cast plant form as a 5th-rank primal innate spell (6th rank at 17th level).",
+    "source": "player_core"
+  },
+  "cloak_of_poison": {
+    "name": "Cloak of Poison",
+    "category": "ancestry",
+    "prereqs": {
+      "ancestry": "leshy",
+      "level": 13
+    },
+    "effects": {},
+    "note": "2 actions, once per day: for 1 minute, creatures that touch you or damage you with a melee attack without reach take 3d6 poison damage.",
+    "source": "player_core"
+  },
+  "cats_luck": {
+    "name": "Cat's Luck",
+    "category": "ancestry",
+    "prereqs": {
+      "ancestry": "catfolk",
+      "level": 1
+    },
+    "effects": {},
+    "note": "Reaction (1/day): when you fail a Reflex save, reroll it and use the better result.",
+    "source": "player_core_2"
+  },
+  "catfolk_lore": {
+    "name": "Catfolk Lore",
+    "category": "ancestry",
+    "prereqs": {
+      "ancestry": "catfolk",
+      "level": 1
+    },
+    "effects": {},
+    "note": "Gain trained in Acrobatics and Survival (or a skill of choice if already trained); gain Additional Lore (Catfolk Lore).",
+    "source": "player_core_2"
+  },
+  "catfolk_weapon_familiarity": {
+    "name": "Catfolk Weapon Familiarity",
+    "category": "ancestry",
+    "prereqs": {
+      "ancestry": "catfolk",
+      "level": 1
+    },
+    "effects": {},
+    "note": "Gain access to catfolk weapons; treat martial catfolk weapons as simple and advanced catfolk weapons as martial.",
+    "source": "player_core_2"
+  },
+  "saber_teeth": {
+    "name": "Saber Teeth",
+    "category": "ancestry",
+    "prereqs": {
+      "ancestry": "catfolk",
+      "level": 1
+    },
+    "effects": {},
+    "note": "Gain a jaws unarmed attack dealing 1d6 piercing damage with the unarmed trait.",
+    "source": "player_core_2"
+  },
+  "springing_leaper": {
+    "name": "Springing Leaper",
+    "category": "ancestry",
+    "prereqs": {
+      "ancestry": "catfolk",
+      "level": 1
+    },
+    "effects": {},
+    "note": "Gain the Quick Jump skill feat. When you jump, the height you can jump increases based on how far you move before jumping.",
+    "source": "player_core_2"
+  },
+  "focused_cat_nap": {
+    "name": "Focused Cat Nap",
+    "category": "ancestry",
+    "prereqs": {
+      "ancestry": "catfolk",
+      "level": 5
+    },
+    "effects": {},
+    "note": "When you spend 10 minutes resting or napping, you can attempt to recover a Focus Point as if you spent 10 minutes using a refocus activity.",
+    "source": "player_core_2"
+  },
+  "nine_lives": {
+    "name": "Nine Lives",
+    "category": "ancestry",
+    "prereqs": {
+      "ancestry": "catfolk",
+      "level": 9
+    },
+    "effects": {},
+    "note": "When you would die from a critical hit or critical failure on a death save, you survive with 1 HP instead. This can only occur once per day.",
+    "source": "player_core_2"
+  },
+  "catfolk_weapon_expertise": {
+    "name": "Catfolk Weapon Expertise",
+    "category": "ancestry",
+    "prereqs": {
+      "ancestry": "catfolk",
+      "level": 13
+    },
+    "effects": {},
+    "note": "Requires Catfolk Weapon Familiarity. Whenever you gain expert or greater proficiency in a weapon category, you also gain that proficiency with catfolk weapons.",
+    "source": "player_core_2"
+  },
+  "kobold_lore": {
+    "name": "Kobold Lore",
+    "category": "ancestry",
+    "prereqs": {
+      "ancestry": "kobold",
+      "level": 1
+    },
+    "effects": {},
+    "note": "Gain trained in Stealth and Thievery (or a skill of choice if already trained); gain Additional Lore (Kobold Lore).",
+    "source": "player_core_2"
+  },
+  "kobold_breath": {
+    "name": "Kobold Breath",
+    "category": "ancestry",
+    "prereqs": {
+      "ancestry": "kobold",
+      "level": 1
+    },
+    "effects": {},
+    "note": "2 actions (1/day): breathe a 30-foot line or 15-foot cone of energy (type based on draconic exemplar) dealing 1d4 damage per level (basic Reflex save).",
+    "source": "player_core_2"
+  },
+  "scamper": {
+    "name": "Scamper",
+    "category": "ancestry",
+    "prereqs": {
+      "ancestry": "kobold",
+      "level": 1
+    },
+    "effects": {},
+    "note": "Reaction: when an enemy moves adjacent to you, Step or Stride up to half your Speed.",
+    "source": "player_core_2"
+  },
+  "snare_setter": {
+    "name": "Snare Setter",
+    "category": "ancestry",
+    "prereqs": {
+      "ancestry": "kobold",
+      "level": 1
+    },
+    "effects": {},
+    "note": "Gain trained in Crafting and the Snare Crafting skill feat.",
+    "source": "player_core_2"
+  },
+  "kobold_weapon_familiarity": {
+    "name": "Kobold Weapon Familiarity",
+    "category": "ancestry",
+    "prereqs": {
+      "ancestry": "kobold",
+      "level": 1
+    },
+    "effects": {},
+    "note": "Gain access to kobold weapons; treat martial kobold weapons as simple and advanced kobold weapons as martial.",
+    "source": "player_core_2"
+  },
+  "dragons_presence": {
+    "name": "Dragon's Presence",
+    "category": "ancestry",
+    "prereqs": {
+      "ancestry": "kobold",
+      "level": 9
+    },
+    "effects": {},
+    "note": "Emanate draconic might in a 10-foot emanation. Enemies entering or starting their turn there must succeed at a Will save or become frightened 1 (frightened 2 on critical failure).",
+    "source": "player_core_2"
+  },
+  "winglets": {
+    "name": "Winglets",
+    "category": "ancestry",
+    "prereqs": {
+      "ancestry": "kobold",
+      "level": 9
+    },
+    "effects": {},
+    "note": "Gain a fly Speed of 10 feet. If you already have a fly Speed, increase it by 10 feet.",
+    "source": "player_core_2"
+  },
+  "kobold_weapon_expertise": {
+    "name": "Kobold Weapon Expertise",
+    "category": "ancestry",
+    "prereqs": {
+      "ancestry": "kobold",
+      "level": 13
+    },
+    "effects": {},
+    "note": "Requires Kobold Weapon Familiarity. Whenever you gain expert or greater proficiency in a weapon category, you also gain that proficiency with kobold weapons.",
+    "source": "player_core_2"
+  },
+  "tengu_lore": {
+    "name": "Tengu Lore",
+    "category": "ancestry",
+    "prereqs": {
+      "ancestry": "tengu",
+      "level": 1
+    },
+    "effects": {},
+    "note": "Gain trained in Acrobatics and Society (or a skill of choice if already trained); gain Additional Lore (Tengu Lore).",
+    "source": "player_core_2"
+  },
+  "tengu_weapon_familiarity": {
+    "name": "Tengu Weapon Familiarity",
+    "category": "ancestry",
+    "prereqs": {
+      "ancestry": "tengu",
+      "level": 1
+    },
+    "effects": {},
+    "note": "Gain access to tengu weapons and all swords; treat martial tengu and sword weapons as simple and advanced tengu and sword weapons as martial.",
+    "source": "player_core_2"
+  },
+  "scavengers_search": {
+    "name": "Scavenger's Search",
+    "category": "ancestry",
+    "prereqs": {
+      "ancestry": "tengu",
+      "level": 1
+    },
+    "effects": {},
+    "note": "When you Seek, you can search a 10-foot burst. In exploration mode you can Search while using another exploration activity.",
+    "source": "player_core_2"
+  },
+  "squawk": {
+    "name": "Squawk!",
+    "category": "ancestry",
+    "prereqs": {
+      "ancestry": "tengu",
+      "level": 1
+    },
+    "effects": {},
+    "note": "Reaction: when you critically fail an attack roll, you let out a startling squawk, causing the triggering attack to become a regular failure instead.",
+    "source": "player_core_2"
+  },
+  "storms_lash": {
+    "name": "Storm's Lash",
+    "category": "ancestry",
+    "prereqs": {
+      "ancestry": "tengu",
+      "level": 1
+    },
+    "effects": {},
+    "note": "Gain an electric wind unarmed attack (1d6 electricity damage, sweep trait) with the thrown 20 feet trait.",
+    "source": "player_core_2"
+  },
+  "eclectic_sword_training": {
+    "name": "Eclectic Sword Training",
+    "category": "ancestry",
+    "prereqs": {
+      "ancestry": "tengu",
+      "level": 5
+    },
+    "effects": {},
+    "note": "Requires Tengu Weapon Familiarity. Once per day during daily prep, change which sword group you apply Tengu Weapon Familiarity to for that day.",
+    "source": "player_core_2"
+  },
+  "long_nosed_form": {
+    "name": "Long-Nosed Form",
+    "category": "ancestry",
+    "prereqs": {
+      "ancestry": "tengu",
+      "level": 9
+    },
+    "effects": {},
+    "note": "Once per day, cast humanoid form as a 4th-rank occult innate spell to take the form of a tengu in human guise.",
+    "source": "player_core_2"
+  },
+  "tengu_weapon_expertise": {
+    "name": "Tengu Weapon Expertise",
+    "category": "ancestry",
+    "prereqs": {
+      "ancestry": "tengu",
+      "level": 13
+    },
+    "effects": {},
+    "note": "Requires Tengu Weapon Familiarity. Whenever you gain expert or greater proficiency in a weapon category, you also gain that proficiency with tengu and sword weapons.",
+    "source": "player_core_2"
   }
 }
