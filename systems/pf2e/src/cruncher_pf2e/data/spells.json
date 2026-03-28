@@ -9307,5 +9307,503 @@
       }
     },
     "source": "player_core_2"
+  },
+  "disjunction": {
+    "name": "Disjunction",
+    "rank": 9,
+    "traditions": [
+      "arcane",
+      "occult"
+    ],
+    "cast": "2 actions",
+    "components": [
+      "somatic",
+      "verbal"
+    ],
+    "traits": [
+      "abjuration",
+      "concentrate",
+      "manipulate"
+    ],
+    "range": "120 feet",
+    "targets": "1 object or 1 spell effect",
+    "defense": "will",
+    "uses": "per_day",
+    "description": "You attempt to destroy a magical item or dispel a spell effect. If you target a magic item, the item's owner can attempt a Will save to protect it; on a failure, the item loses all magical properties and becomes mundane. If you target a spell effect of rank 9 or lower, the effect ends automatically. For a spell of rank 10 or higher, make a counteract check against the caster's spell DC.",
+    "source": "player_core"
+  },
+  "foresight": {
+    "name": "Foresight",
+    "rank": 9,
+    "traditions": [
+      "arcane",
+      "divine",
+      "occult"
+    ],
+    "cast": "2 actions",
+    "components": [
+      "somatic",
+      "verbal"
+    ],
+    "traits": [
+      "concentrate",
+      "divination",
+      "manipulate",
+      "mental",
+      "prediction"
+    ],
+    "range": "touch",
+    "targets": "1 creature",
+    "duration": "1 hour",
+    "uses": "per_day",
+    "description": "You grant the target an uncanny ability to anticipate danger. The target gains a +2 status bonus to initiative rolls, Perception checks, Reflex saves, and AC. Whenever the target would be surprised, they are not. The first time each round that the target would be hit by a strike, the target can use a reaction to force the attacker to reroll the attack roll and use the lower result.",
+    "source": "player_core"
+  },
+  "implosion": {
+    "name": "Implosion",
+    "rank": 9,
+    "traditions": [
+      "arcane",
+      "primal"
+    ],
+    "cast": "2 actions",
+    "components": [
+      "somatic",
+      "verbal"
+    ],
+    "traits": [
+      "concentrate",
+      "evocation",
+      "manipulate"
+    ],
+    "range": "30 feet",
+    "targets": "1 creature",
+    "defense": "fortitude",
+    "duration": "sustained up to 1 minute",
+    "uses": "per_day",
+    "description": "You crush the target by causing it to collapse inward upon itself. The target takes 75 bludgeoning damage with a basic Fortitude save. If the target fails its save and is still alive, it becomes the target of implosion again on your next turn automatically when you Sustain the spell, without needing to spend an action to target it. A creature that critically succeeds at its save is unaffected and the spell ends.",
+    "heightened": {
+      "per_1": {
+        "damage": "+15"
+      }
+    },
+    "action": {
+      "key": "implosion",
+      "attack_stat": "spell_dc",
+      "defense_stat": "fortitude",
+      "range": "ranged",
+      "on_hit": {
+        "damage_roll": {
+          "dice": "75",
+          "type": "bludgeoning"
+        },
+        "subtract_from": "current_hp"
+      }
+    },
+    "source": "player_core"
+  },
+  "massacre": {
+    "name": "Massacre",
+    "rank": 9,
+    "traditions": [
+      "arcane",
+      "divine",
+      "occult",
+      "primal"
+    ],
+    "cast": "2 actions",
+    "components": [
+      "somatic",
+      "verbal"
+    ],
+    "traits": [
+      "concentrate",
+      "death",
+      "evocation",
+      "manipulate",
+      "void"
+    ],
+    "area": "60-foot line",
+    "defense": "fortitude",
+    "uses": "per_day",
+    "description": "You unleash a wave of deadly void energy in a 60-foot line. Creatures in the area take 9d12 void damage with a basic Fortitude save. A living creature reduced to 0 HP by this damage is killed outright. Undead creatures in the area are unaffected.",
+    "heightened": {
+      "per_1": {
+        "damage": "+1d12"
+      }
+    },
+    "action": {
+      "key": "massacre",
+      "attack_stat": "spell_dc",
+      "defense_stat": "fortitude",
+      "range": "ranged",
+      "area": true,
+      "on_hit": {
+        "damage_roll": {
+          "dice": "9d12",
+          "type": "void"
+        },
+        "subtract_from": "current_hp"
+      }
+    },
+    "source": "player_core"
+  },
+  "meteor_swarm": {
+    "name": "Meteor Swarm",
+    "rank": 9,
+    "traditions": [
+      "arcane",
+      "primal"
+    ],
+    "cast": "2 actions",
+    "components": [
+      "somatic",
+      "verbal"
+    ],
+    "traits": [
+      "concentrate",
+      "evocation",
+      "fire",
+      "manipulate"
+    ],
+    "range": "500 feet",
+    "area": "four 10-foot bursts",
+    "defense": "reflex",
+    "uses": "per_day",
+    "description": "You call four meteors from the sky, each of which strikes a different target point you can see within range. Each meteor explodes in a 10-foot burst dealing 6d10 bludgeoning damage and 6d10 fire damage with a basic Reflex save. The areas of different meteors can overlap, and a creature in multiple areas takes damage from each meteor that hits it.",
+    "heightened": {
+      "per_1": {
+        "damage": "+1d10 bludgeoning and +1d10 fire"
+      }
+    },
+    "action": {
+      "key": "meteor_swarm",
+      "attack_stat": "spell_dc",
+      "defense_stat": "reflex",
+      "range": "ranged",
+      "area": true,
+      "on_hit": {
+        "damage_roll": {
+          "dice": "6d10",
+          "type": "fire"
+        },
+        "subtract_from": "current_hp"
+      }
+    },
+    "source": "player_core"
+  },
+  "natures_enmity": {
+    "name": "Nature's Enmity",
+    "rank": 9,
+    "traditions": [
+      "primal"
+    ],
+    "cast": "2 actions",
+    "components": [
+      "somatic",
+      "verbal"
+    ],
+    "traits": [
+      "concentrate",
+      "manipulate",
+      "primal"
+    ],
+    "range": "120 feet",
+    "targets": "1 creature",
+    "duration": "1 minute",
+    "uses": "per_day",
+    "description": "You cause the natural world to turn against the target. Animals, plants, and fungi in the area attack the target with the following effects: animals attack or flee from the target (predators attack, others flee), plants animate and attempt to entangle and harm the target (treating the target as if it were in a patch of dangerous terrain), the target takes a –4 status penalty to all saves against effects from animals, plants, or fungi.",
+    "source": "player_core"
+  },
+  "overwhelming_presence": {
+    "name": "Overwhelming Presence",
+    "rank": 9,
+    "traditions": [
+      "divine",
+      "occult"
+    ],
+    "cast": "2 actions",
+    "components": [
+      "somatic",
+      "verbal"
+    ],
+    "traits": [
+      "auditory",
+      "concentrate",
+      "enchantment",
+      "incapacitation",
+      "manipulate",
+      "mental",
+      "visual"
+    ],
+    "range": "120 feet",
+    "area": "40-foot burst",
+    "defense": "will",
+    "uses": "per_day",
+    "description": "You manifest your presence across all nearby creatures. Each creature in the area must attempt a Will save. Critical Success: The creature is unaffected. Success: The creature is awestruck, becoming stupefied 1 for 1 round and must spend its next action to pay some form of homage to you. Failure: The creature is stupefied 2 for 1 minute, kneels or bows to you and must spend its next two actions paying homage. Critical Failure: The creature is stupefied 3 for 1 minute, prostrates itself, and is unable to take hostile actions against you for 1 minute.",
+    "action": {
+      "key": "overwhelming_presence",
+      "attack_stat": "spell_dc",
+      "defense_stat": "will",
+      "range": "ranged",
+      "area": true,
+      "on_hit": {
+        "apply_modifiers": [
+          {
+            "source": "overwhelming_presence",
+            "condition": "stupefied",
+            "value": 2,
+            "duration_type": "encounter"
+          }
+        ]
+      }
+    },
+    "source": "player_core"
+  },
+  "execute": {
+    "name": "Execute",
+    "rank": 9,
+    "traditions": [
+      "arcane",
+      "divine",
+      "occult",
+      "primal"
+    ],
+    "cast": "1 action",
+    "components": [
+      "verbal"
+    ],
+    "traits": [
+      "auditory",
+      "concentrate",
+      "death",
+      "enchantment",
+      "incapacitation",
+      "linguistic",
+      "mental"
+    ],
+    "range": "30 feet",
+    "targets": "1 living creature",
+    "defense": "fortitude",
+    "uses": "per_day",
+    "description": "You speak a single word of death that can slay a living creature. The target must succeed at a Fortitude save or die. A creature that succeeds at its save is instead stunned 1. A creature immune to death effects is unaffected by this spell.",
+    "source": "player_core"
+  },
+  "prismatic_sphere": {
+    "name": "Prismatic Sphere",
+    "rank": 9,
+    "traditions": [
+      "arcane",
+      "occult"
+    ],
+    "cast": "2 actions",
+    "components": [
+      "somatic",
+      "verbal"
+    ],
+    "traits": [
+      "abjuration",
+      "concentrate",
+      "light",
+      "manipulate"
+    ],
+    "area": "10-foot-radius sphere centered on you",
+    "duration": "10 minutes",
+    "uses": "per_day",
+    "description": "You surround yourself with a scintillating sphere of light that protects against all attacks. The sphere has seven layers corresponding to the colors of the rainbow, each with different effects on creatures that try to pass through. Any creature attempting to pass through the sphere is subjected to each layer from the outside inward. Spells and other ranged attacks that target you or pass through the sphere are automatically negated by the outer layer.",
+    "source": "player_core"
+  },
+  "shapechange": {
+    "name": "Shapechange",
+    "rank": 9,
+    "traditions": [
+      "arcane",
+      "primal"
+    ],
+    "cast": "2 actions",
+    "components": [
+      "somatic",
+      "verbal"
+    ],
+    "traits": [
+      "concentrate",
+      "manipulate",
+      "polymorph",
+      "transmutation"
+    ],
+    "duration": "1 hour",
+    "uses": "per_day",
+    "description": "You take the form of any creature of the same size category or smaller, from Tiny to Huge, including creatures not normally available as polymorph forms. You gain the creature's physical ability scores, Speeds, natural attacks, and special abilities as detailed in the spell. You can change shape once per round by spending a single action. You retain your mental ability scores, Hit Points, class features, and the ability to speak.",
+    "source": "player_core"
+  },
+  "storm_of_vengeance": {
+    "name": "Storm of Vengeance",
+    "rank": 9,
+    "traditions": [
+      "primal"
+    ],
+    "cast": "3 actions",
+    "components": [
+      "material",
+      "somatic",
+      "verbal"
+    ],
+    "traits": [
+      "air",
+      "concentrate",
+      "electricity",
+      "evocation",
+      "manipulate",
+      "sonic",
+      "water"
+    ],
+    "range": "800 feet",
+    "area": "360-foot burst",
+    "defense": "fortitude",
+    "duration": "sustained up to 1 minute",
+    "uses": "per_day",
+    "description": "You call a massive storm into being. When you cast this spell, you choose the storm's form from the following: acid rain, blizzard, lightning storm, or sandstorm. Each round you Sustain the spell, you can change the storm's form. At the start of each of your turns, all creatures in the area are affected based on the chosen form. Creatures in the area take 4d6 damage of the type associated with the chosen storm with a basic Fortitude save.",
+    "heightened": {
+      "per_1": {
+        "damage": "+1d6"
+      }
+    },
+    "action": {
+      "key": "storm_of_vengeance",
+      "attack_stat": "spell_dc",
+      "defense_stat": "fortitude",
+      "range": "ranged",
+      "area": true,
+      "on_hit": {
+        "damage_roll": {
+          "dice": "4d6",
+          "type": "electricity"
+        },
+        "subtract_from": "current_hp"
+      }
+    },
+    "source": "player_core"
+  },
+  "telepathic_demand": {
+    "name": "Telepathic Demand",
+    "rank": 9,
+    "traditions": [
+      "arcane",
+      "divine",
+      "occult"
+    ],
+    "cast": "2 actions",
+    "components": [
+      "somatic",
+      "verbal"
+    ],
+    "traits": [
+      "auditory",
+      "concentrate",
+      "enchantment",
+      "incapacitation",
+      "linguistic",
+      "manipulate",
+      "mental"
+    ],
+    "range": "planetary",
+    "targets": "1 creature you are familiar with",
+    "defense": "will",
+    "uses": "per_day",
+    "description": "You contact the target over any distance as long as it is on the same plane and deliver a message of up to 25 words. You can also include a telepathic suggestion in the message. The target must attempt a Will save. On a failure, the target must follow the suggestion to the best of its ability for 1 day or until completed; on a critical failure, the duration extends to 10 days. The suggestion must not be obviously harmful to the target.",
+    "source": "player_core"
+  },
+  "wail_of_the_banshee": {
+    "name": "Wail of the Banshee",
+    "rank": 9,
+    "traditions": [
+      "divine",
+      "occult"
+    ],
+    "cast": "2 actions",
+    "components": [
+      "somatic",
+      "verbal"
+    ],
+    "traits": [
+      "auditory",
+      "concentrate",
+      "death",
+      "evocation",
+      "manipulate",
+      "sonic"
+    ],
+    "area": "40-foot emanation",
+    "defense": "fortitude",
+    "uses": "per_day",
+    "description": "You emit a soul-rending shriek. Each living creature in the area must attempt a Fortitude save. Critical Success: The creature is unaffected. Success: The creature takes 7d10 sonic damage. Failure: The creature takes 14d10 sonic damage and is doomed 1. Critical Failure: The creature is killed outright. If the creature has too many HP to be killed outright, it instead takes 14d10 sonic damage and is doomed 2.",
+    "heightened": {
+      "per_1": {
+        "damage": "+2d10"
+      }
+    },
+    "action": {
+      "key": "wail_of_the_banshee",
+      "attack_stat": "spell_dc",
+      "defense_stat": "fortitude",
+      "range": "ranged",
+      "area": true,
+      "on_hit": {
+        "damage_roll": {
+          "dice": "14d10",
+          "type": "sonic"
+        },
+        "subtract_from": "current_hp"
+      }
+    },
+    "source": "player_core"
+  },
+  "weird": {
+    "name": "Weird",
+    "rank": 9,
+    "traditions": [
+      "arcane",
+      "occult"
+    ],
+    "cast": "2 actions",
+    "components": [
+      "somatic",
+      "verbal"
+    ],
+    "traits": [
+      "concentrate",
+      "death",
+      "emotion",
+      "enchantment",
+      "fear",
+      "illusion",
+      "incapacitation",
+      "manipulate",
+      "mental"
+    ],
+    "range": "120 feet",
+    "targets": "any number of creatures",
+    "defense": "will",
+    "uses": "per_day",
+    "description": "You fill the targets' minds with their deepest fears, potentially killing them from fright. Each target must attempt a Will save. Critical Success: The target is unaffected. Success: The target takes 7d10 mental damage and is frightened 1. Failure: The target believes it has died from the illusion and actually dies if it critically fails. If it simply fails, it takes 10d10 mental damage and is frightened 2. Critical Failure: The target dies from fright.",
+    "heightened": {
+      "per_1": {
+        "damage": "+2d10"
+      }
+    },
+    "action": {
+      "key": "weird",
+      "attack_stat": "spell_dc",
+      "defense_stat": "will",
+      "range": "ranged",
+      "on_hit": {
+        "damage_roll": {
+          "dice": "7d10",
+          "type": "mental"
+        },
+        "subtract_from": "current_hp"
+      }
+    },
+    "source": "player_core"
   }
 }
