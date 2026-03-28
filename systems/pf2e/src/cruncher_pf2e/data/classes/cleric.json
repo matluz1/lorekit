@@ -5,6 +5,7 @@
     "key_ability": ["wis"],
     "trained_skills": 2,
     "description": "Devout followers of a deity who channel divine power to heal allies and smite foes.",
+    "source": "player_core",
     "progressions": {
       "prof_perception":       "cleric_prof_perception",
       "prof_fortitude":        "cleric_prof_fortitude",

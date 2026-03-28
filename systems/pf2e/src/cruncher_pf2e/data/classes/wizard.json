@@ -5,6 +5,7 @@
     "key_ability": ["int"],
     "trained_skills": 2,
     "description": "Scholarly spellcasters who command arcane magic through intensive study and practice.",
+    "source": "player_core",
     "progressions": {
       "prof_perception":       "wizard_prof_perception",
       "prof_fortitude":        "wizard_prof_fortitude",

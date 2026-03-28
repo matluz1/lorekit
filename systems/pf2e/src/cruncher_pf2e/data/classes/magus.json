@@ -5,6 +5,7 @@
     "key_ability": ["str", "dex"],
     "trained_skills": 2,
     "description": "Hybrid warriors who weave arcane magic into devastating weapon strikes.",
+    "source": "player_core_2",
     "progressions": {
       "prof_perception":       "magus_prof_perception",
       "prof_fortitude":        "magus_prof_fortitude",

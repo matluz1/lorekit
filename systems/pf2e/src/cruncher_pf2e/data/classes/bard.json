@@ -5,6 +5,7 @@
     "key_ability": ["cha"],
     "trained_skills": 4,
     "description": "Scholars of occult lore who compose and perform powerful compositions to aid their allies and hinder their foes.",
+    "source": "player_core",
     "progressions": {
       "prof_perception":       "bard_prof_perception",
       "prof_fortitude":        "bard_prof_fortitude",

@@ -5,6 +5,7 @@
     "key_ability": ["dex"],
     "trained_skills": 7,
     "description": "Cunning combatants who strike from the shadows with precision and guile.",
+    "source": "player_core",
     "progressions": {
       "prof_perception":       "rogue_prof_perception",
       "prof_fortitude":        "rogue_prof_fortitude",

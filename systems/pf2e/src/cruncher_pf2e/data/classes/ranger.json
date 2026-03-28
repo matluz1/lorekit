@@ -5,6 +5,7 @@
     "key_ability": ["str", "dex"],
     "trained_skills": 4,
     "description": "Cunning trackers and hunters who use their knowledge of the natural world and martial prowess to protect the wilds and stalk their prey.",
+    "source": "player_core",
     "progressions": {
       "prof_perception":       "ranger_prof_perception",
       "prof_fortitude":        "ranger_prof_fortitude",

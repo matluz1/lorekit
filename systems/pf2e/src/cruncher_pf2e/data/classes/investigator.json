@@ -5,6 +5,7 @@
     "key_ability": ["int"],
     "trained_skills": 4,
     "description": "Keen-minded sleuths who use deductive reasoning and strategic strikes.",
+    "source": "player_core_2",
     "progressions": {
       "prof_perception":       "investigator_prof_perception",
       "prof_fortitude":        "investigator_prof_fortitude",

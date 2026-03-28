@@ -5,6 +5,7 @@
     "key_ability": ["cha"],
     "trained_skills": 3,
     "description": "Enigmatic divine casters burdened by mysterious curses that grant great power.",
+    "source": "player_core_2",
     "progressions": {
       "prof_perception":      "oracle_prof_perception",
       "prof_fortitude":       "oracle_prof_fortitude",

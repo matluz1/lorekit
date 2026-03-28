@@ -5,6 +5,7 @@
     "key_ability": ["int"],
     "trained_skills": 3,
     "description": "Spellcasters who draw their magic from a mysterious patron, using their familiar as a conduit to channel hexes and powerful spells.",
+    "source": "player_core",
     "progressions": {
       "prof_perception":       "witch_prof_perception",
       "prof_fortitude":        "witch_prof_fortitude",

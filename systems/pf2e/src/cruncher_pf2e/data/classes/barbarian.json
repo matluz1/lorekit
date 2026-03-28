@@ -5,6 +5,7 @@
     "key_ability": ["str"],
     "trained_skills": 3,
     "description": "Fierce warriors who channel their fury into devastating attacks.",
+    "source": "player_core_2",
     "progressions": {
       "prof_perception":       "barbarian_prof_perception",
       "prof_fortitude":        "barbarian_prof_fortitude",

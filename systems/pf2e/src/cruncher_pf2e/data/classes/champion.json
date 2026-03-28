@@ -5,6 +5,7 @@
     "key_ability": ["str", "dex"],
     "trained_skills": 2,
     "description": "Divine warriors who uphold sacred oaths and protect their allies.",
+    "source": "player_core_2",
     "progressions": {
       "prof_perception":       "champion_prof_perception",
       "prof_fortitude":        "champion_prof_fortitude",

@@ -5,6 +5,7 @@
     "key_ability": ["wis"],
     "trained_skills": 2,
     "description": "Devotees of nature who draw upon the power of the natural world, channeling primal magic to protect the wilds and their allies.",
+    "source": "player_core",
     "progressions": {
       "prof_perception":       "druid_prof_perception",
       "prof_fortitude":        "druid_prof_fortitude",

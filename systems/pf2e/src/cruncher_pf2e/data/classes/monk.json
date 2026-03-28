@@ -5,6 +5,7 @@
     "key_ability": ["str", "dex"],
     "trained_skills": 4,
     "description": "Disciplined martial artists who channel ki into devastating unarmed strikes.",
+    "source": "player_core_2",
     "progressions": {
       "prof_perception":      "monk_prof_perception",
       "prof_fortitude":       "monk_prof_fortitude",

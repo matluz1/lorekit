@@ -5,6 +5,7 @@
     "key_ability": ["dex"],
     "trained_skills": 4,
     "description": "Daring combatants who use wit, charm, and acrobatic flair in battle.",
+    "source": "player_core_2",
     "progressions": {
       "prof_perception":      "swashbuckler_prof_perception",
       "prof_fortitude":       "swashbuckler_prof_fortitude",

@@ -5,6 +5,7 @@
     "key_ability": ["cha"],
     "trained_skills": 2,
     "description": "Innate spellcasters who draw magic from a powerful bloodline.",
+    "source": "player_core_2",
     "progressions": {
       "prof_perception":      "sorcerer_prof_perception",
       "prof_fortitude":       "sorcerer_prof_fortitude",

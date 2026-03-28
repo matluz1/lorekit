@@ -5,6 +5,7 @@
     "key_ability": ["str", "dex"],
     "trained_skills": 3,
     "description": "Masters of weaponry who use their superior martial skill to dominate the battlefield.",
+    "source": "player_core",
     "progressions": {
       "prof_perception":       "fighter_prof_perception",
       "prof_fortitude":        "fighter_prof_fortitude",
