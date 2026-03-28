@@ -11,8 +11,8 @@ import os
 import cruncher_mm3e
 import pytest
 
-FIXTURES = os.path.join(os.path.dirname(__file__), "../fixtures")
-TEST_SYSTEM = os.path.join(FIXTURES, "test_system")
+ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+TEST_SYSTEM = os.path.join(ROOT, "systems", "basic")
 
 COMBAT_CFG = {
     "zone_scale": 30,

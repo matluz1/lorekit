@@ -14,8 +14,8 @@ from cruncher.system_pack import load_system_pack
 from cruncher.types import CharacterData
 from lorekit.rules import load_character_data, rules_calc, rules_check, write_derived
 
-FIXTURES = os.path.join(os.path.dirname(__file__), "../fixtures")
-TEST_SYSTEM = os.path.join(FIXTURES, "test_system")
+ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+TEST_SYSTEM = os.path.join(ROOT, "systems", "basic")
 
 
 # ---------------------------------------------------------------------------
@@ -26,7 +26,7 @@ TEST_SYSTEM = os.path.join(FIXTURES, "test_system")
 class TestLoadSystemPack:
     def test_loads_meta(self):
         pack = load_system_pack(TEST_SYSTEM)
-        assert pack.name == "Test System"
+        assert pack.name == "Basic d20"
         assert pack.dice == "d20"
 
     def test_loads_defaults(self):

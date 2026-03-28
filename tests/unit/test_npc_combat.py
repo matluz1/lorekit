@@ -11,7 +11,8 @@ from unittest.mock import patch
 
 import pytest
 
-TEST_SYSTEM = os.path.join(os.path.dirname(__file__), "../fixtures", "test_system")
+ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+TEST_SYSTEM = os.path.join(ROOT, "systems", "basic")
 
 COMBAT_CFG = {
     "zone_scale": 30,
@@ -88,7 +89,7 @@ def _set_session_system(db, session_id):
     """Point session at the test system pack so build_combat_context can find it."""
     db.execute(
         "INSERT OR REPLACE INTO session_meta (session_id, key, value) VALUES (?, 'rules_system', ?)",
-        (session_id, "../tests/fixtures/test_system"),
+        (session_id, "basic"),
     )
     db.commit()
 
