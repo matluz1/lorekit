@@ -242,7 +242,7 @@ def try_rules_calc(db, character_id: int) -> str:
 
     system_name = get_session_meta(db, session_id, "rules_system")
     if system_name is None:
-        return ""
+        raise LoreKitError(f"Session {session_id} has no rules_system configured")
 
     system_path = resolve_system_path(system_name)
 

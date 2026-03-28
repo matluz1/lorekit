@@ -748,12 +748,13 @@ def parse_combat_intent(response: str, schema: dict | None = None) -> dict:
 
 def _resolve_system_path_internal(db, session_id: int) -> str | None:
     """Resolve system pack path from session metadata."""
+    from lorekit.db import LoreKitError
     from lorekit.queries import get_session_meta
     from lorekit.rules import resolve_system_path
 
     system_name = get_session_meta(db, session_id, "rules_system")
     if system_name is None:
-        return None
+        raise LoreKitError(f"Session {session_id} has no rules_system configured")
     return resolve_system_path(system_name)
 
 

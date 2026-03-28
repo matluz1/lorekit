@@ -21,14 +21,15 @@ from lorekit.db import LoreKitError
 def _resolve_system_path(db, session_id: int) -> str | None:
     """Resolve the system pack directory from session metadata.
 
-    Returns the full path, or None if no rules_system is configured.
+    Returns the full path, or None if the pack can't be found on disk.
     """
+    from lorekit.db import LoreKitError
     from lorekit.queries import get_session_meta
     from lorekit.rules import resolve_system_path
 
     system_name = get_session_meta(db, session_id, "rules_system")
     if system_name is None:
-        return None
+        raise LoreKitError(f"Session {session_id} has no rules_system configured")
     return resolve_system_path(system_name)
 
 

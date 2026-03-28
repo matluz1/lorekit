@@ -184,11 +184,12 @@ def _embed_ability_metadata(ab: dict) -> str:
 
 def _resolve_system_path_for_session(db, session_id: int) -> str:
     """Resolve system pack path from session metadata."""
+    from lorekit.db import LoreKitError
     from lorekit.queries import get_session_meta
 
     system_name = get_session_meta(db, session_id, "rules_system")
     if system_name is None:
-        return ""
+        raise LoreKitError(f"Session {session_id} has no rules_system configured")
     return resolve_system_path(system_name) or ""
 
 
@@ -204,8 +205,6 @@ def _resolve_system_path_for_character(db, character_id: int) -> tuple[str, int,
     if session_id is None:
         return "", 0, f"ERROR: Character {character_id} not found"
     system_path = _resolve_system_path_for_session(db, session_id)
-    if not system_path:
-        return "", session_id, "ERROR: No rules_system set for this session. Use session_meta_set to configure it."
     return system_path, session_id, None
 
 
