@@ -16,9 +16,9 @@ pytest tests/integration/    # cross-module interactions
 pytest                       # everything
 ```
 
-## Current coverage (861 tests)
+## Current coverage (876 tests)
 
-### Unit tests (`tests/unit/`)
+### Unit tests (`tests/unit/`) — 856 tests
 
 | Area | Files | What it validates |
 |------|-------|-------------------|
@@ -33,18 +33,13 @@ pytest                       # everything
 | **System packs** | `test_system_harness.py`, `test_pf2e_system.py`, `test_system_info.py` | Engine behavior across packs, pack content validation |
 | **Infrastructure** | `test_init_db.py`, `test_ability_bridge.py` | Schema init, ability template bridge |
 
-### Integration tests (`tests/integration/`)
+### Integration tests (`tests/integration/`) — 20 tests
 
 | Area | Files | What it validates |
 |------|-------|-------------------|
 | **Combat + checkpoint** | `test_combat_checkpoint.py` | Save/load/revert preserves full encounter state (round, turn, zones, positions, HP, modifiers) across branches |
-
-## What's missing (integration)
-
-| Test scenario | What it catches |
-|---------------|-----------------|
-| Turn revert undoes NPC memories | `turn_save` → insert NPC memories → `turn_revert` → verify memories gone. Checkpoint captures NPC state correctly. |
-| Entity auto-tagging | `turn_save` with character names in narration → verify `entry_entities` rows created. Tests the turn_save → extract_entities pipeline. |
-| Rest clears modifiers | `combat_modifier` add → `rest` → verify modifier gone and stats restored. Tests the rest → clear → recalc pipeline. |
-| NPC postprocess regression suite | Replay captured LLM responses (from real play sessions) through store → prefetch pipeline. Fixture-driven, no LLM calls. Catches parsing edge cases. |
-| NPC memory accumulation | 5+ interactions of stored memories → verify prefetch still assembles correct context. Tests prefetch math under load. |
+| **NPC + checkpoint** | `test_npc_checkpoint.py` | Turn revert undoes NPC memories and restores npc_core identity |
+| **Entity tagging** | `test_entity_tagging.py` | turn_save auto-tags character and region names in narration via entry_entities |
+| **Rest + modifiers** | `test_rest_modifiers.py` | Short/long rest clears combat modifiers by duration type and restores HP |
+| **NPC postprocess** | `test_npc_postprocess_regression.py` | Parses [MEMORIES] and [STATE_CHANGES] blocks, stores memories, applies core updates, fallback on missing blocks |
+| **NPC prefetch** | `test_npc_prefetch_accumulation.py` | Context assembly respects token budget, includes high-importance memories, boosts entity-matched memories, includes core identity |
