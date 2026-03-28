@@ -162,7 +162,9 @@
     "grab_dc": "class_dc",
 
     "bulk_limit": "5 + str_mod",
-    "bulk_over": "max(0, total_bulk - bulk_limit)"
+    "bulk_over": "max(0, total_bulk - bulk_limit)",
+
+    "power_attack_extra": "if(level >= 18, 3, if(level >= 10, 2, 1))"
   },
 
   "resolution": {
@@ -233,6 +235,18 @@
         "apply_modifiers": [
           {"source": "trip", "target_stat": "bonus_ac", "value": -2, "modifier_type": "circumstance", "duration_type": "until_escape"}
         ]
+      }
+    },
+    "power_attack": {
+      "attack_stat": "melee_attack",
+      "defense_stat": "armor_class",
+      "range": "melee",
+      "on_hit": {
+        "damage_roll": [
+          {"dice_attr": "weapon_damage_die", "bonus_stat": "str_mod"},
+          {"dice_attr": "weapon_damage_die", "count_stat": "power_attack_extra"}
+        ],
+        "subtract_from": "current_hp"
       }
     }
   },

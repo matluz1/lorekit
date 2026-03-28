@@ -258,6 +258,22 @@ class TestPF2EFighterCalc:
         assert result.derived["bulk_limit"] == 7
         assert result.derived["bulk_over"] == 3
 
+    def test_power_attack_extra_scaling(self):
+        """Power Attack extra dice scales with level."""
+        pack = load_system_pack(PF2E_SYSTEM)
+        # Level 1: 1 extra die
+        char = self._make_fighter(level=1)
+        result = recalculate(pack, char)
+        assert result.derived["power_attack_extra"] == 1
+        # Level 10: 2 extra dice
+        char = self._make_fighter(level=10)
+        result = recalculate(pack, char)
+        assert result.derived["power_attack_extra"] == 2
+        # Level 18: 3 extra dice
+        char = self._make_fighter(level=18, str_score=20, con_score=16, dex_score=14, wis_score=12)
+        result = recalculate(pack, char)
+        assert result.derived["power_attack_extra"] == 3
+
 
 class TestPF2EWizardCalc:
     """Test derived stat calculation for a PF2e Wizard."""
