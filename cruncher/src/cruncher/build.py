@@ -655,7 +655,13 @@ def _process_source(
         if has_effects:
             ability_category = rules.get("ability_category", "")
             effect_cost, covered_stats = _apply_effects(
-                source_data, char_abilities, result, cost_per_rank, category=ability_category
+                source_data,
+                char_abilities,
+                result,
+                cost_per_rank,
+                category=ability_category,
+                char_attrs=char_attrs,
+                level=level,
             )
             if effect_cost > 0:
                 result.costs[category] = result.costs.get(category, 0) + effect_cost
@@ -719,12 +725,66 @@ def _apply_progressions(progressions_path: str, source_data: dict, level: int, r
         result.attributes[var_name] = table[level - 1]
 
 
+def _check_prereqs(
+    prereqs: dict,
+    char_attrs: dict[str, dict[str, str]],
+    char_abilities: list[dict[str, str]],
+    level: int,
+    feat_name: str,
+    result: BuildResult,
+) -> None:
+    """Check feat prerequisites against character state. Adds warnings for failures."""
+    for key, required in prereqs.items():
+        # Special case: level is on CharacterData, not in attributes
+        if key == "level":
+            if level < required:
+                result.warnings.append(
+                    f"\u26a0 PREREQ: '{feat_name}' requires level >= {required} (character is level {level})"
+                )
+            continue
+
+        # Boolean prereq: check if character has a feat/ability with that name
+        if required is True:
+            ability_names = {a["name"].lower().replace(" ", "_").replace("-", "_") for a in char_abilities}
+            if key not in ability_names:
+                result.warnings.append(f"\u26a0 PREREQ: '{feat_name}' requires feat '{key}'")
+            continue
+
+        # Generic attribute lookup: search across all categories
+        found_value = None
+        for cat_attrs in char_attrs.values():
+            if key in cat_attrs:
+                found_value = cat_attrs[key]
+                break
+
+        if found_value is None:
+            # Attribute not found — can't validate, skip silently
+            continue
+
+        # Numeric comparison
+        if isinstance(required, (int, float)):
+            try:
+                actual = float(found_value)
+            except (ValueError, TypeError):
+                continue
+            if actual < required:
+                result.warnings.append(f"\u26a0 PREREQ: '{feat_name}' requires {key} >= {required} (has {int(actual)})")
+        # String equality
+        elif isinstance(required, str):
+            if str(found_value).lower() != required.lower():
+                result.warnings.append(
+                    f"\u26a0 PREREQ: '{feat_name}' requires {key} == '{required}' (has '{found_value}')"
+                )
+
+
 def _apply_effects(
     source_data: dict,
     char_abilities: list[dict[str, str]],
     result: BuildResult,
     cost_per_rank: float = 0,
     category: str = "",
+    char_attrs: dict[str, dict[str, str]] | None = None,
+    level: int = 0,
 ) -> tuple[float, set[str]]:
     """Aggregate effects from character abilities into result attributes.
 
@@ -764,6 +824,11 @@ def _apply_effects(
                 if explicit_cost:
                     total_cost += explicit_cost
             continue
+
+        # Check prerequisites
+        prereqs = item_def.get("prereqs")
+        if prereqs and char_attrs is not None:
+            _check_prereqs(prereqs, char_attrs, char_abilities, level, ability_key, result)
 
         # Extract rank from ability name suffix (e.g. "Close Attack 6" → 6)
         rank = 1

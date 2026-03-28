@@ -963,3 +963,174 @@ class TestSingleSelectEffects:
         result = process_build(pack_dir, char_attrs, [], level=1)
         assert result.attributes.get("prof_religion") == 2
         assert result.attributes.get("prof_stealth", 0) == 0
+
+
+# ---------------------------------------------------------------------------
+# Feat prerequisite validation tests
+# ---------------------------------------------------------------------------
+
+
+def _prereq_system(tmp_path, feat_data):
+    """Helper: write a minimal system + feats file for prereq tests."""
+    system_data = {
+        "meta": {"name": "Test", "dice": "d20"},
+        "defaults": {},
+        "derived": {},
+        "build": {"feat": {"source": "feats.json", "select": "multiple", "effects": True}},
+    }
+    with open(tmp_path / "system.json", "w") as f:
+        json.dump(system_data, f)
+    with open(tmp_path / "feats.json", "w") as f:
+        json.dump(feat_data, f)
+    return str(tmp_path)
+
+
+class TestFeatPrereqValidation:
+    """Feat prerequisite validation produces warnings for unmet prereqs."""
+
+    def test_level_prereq_met_no_warning(self, tmp_path):
+        pack_dir = _prereq_system(
+            tmp_path,
+            {
+                "power_attack": {
+                    "name": "Power Attack",
+                    "prereqs": {"level": 1},
+                    "effects": {},
+                }
+            },
+        )
+        result = process_build(
+            pack_dir, {"info": {"class": "fighter"}}, [{"name": "Power Attack", "category": "feat"}], level=1
+        )
+        prereq_warnings = [w for w in result.warnings if "PREREQ" in w]
+        assert len(prereq_warnings) == 0
+
+    def test_level_prereq_not_met_warns(self, tmp_path):
+        pack_dir = _prereq_system(
+            tmp_path,
+            {
+                "knockdown": {
+                    "name": "Knockdown",
+                    "prereqs": {"level": 4, "class": "fighter"},
+                    "effects": {},
+                }
+            },
+        )
+        result = process_build(
+            pack_dir, {"info": {"class": "fighter"}}, [{"name": "Knockdown", "category": "feat"}], level=2
+        )
+        prereq_warnings = [w for w in result.warnings if "PREREQ" in w]
+        assert len(prereq_warnings) == 1
+        assert "level >= 4" in prereq_warnings[0]
+
+    def test_class_prereq_not_met_warns(self, tmp_path):
+        pack_dir = _prereq_system(
+            tmp_path,
+            {
+                "power_attack": {
+                    "name": "Power Attack",
+                    "prereqs": {"level": 1, "class": "fighter"},
+                    "effects": {},
+                }
+            },
+        )
+        result = process_build(
+            pack_dir, {"info": {"class": "wizard"}}, [{"name": "Power Attack", "category": "feat"}], level=1
+        )
+        prereq_warnings = [w for w in result.warnings if "PREREQ" in w]
+        assert len(prereq_warnings) == 1
+        assert "class" in prereq_warnings[0]
+        assert "fighter" in prereq_warnings[0]
+
+    def test_numeric_prereq_not_met_warns(self, tmp_path):
+        pack_dir = _prereq_system(
+            tmp_path,
+            {
+                "titan_wrestler": {
+                    "name": "Titan Wrestler",
+                    "prereqs": {"prof_athletics": 2},
+                    "effects": {},
+                }
+            },
+        )
+        result = process_build(pack_dir, {}, [{"name": "Titan Wrestler", "category": "feat"}], level=1)
+        prereq_warnings = [w for w in result.warnings if "PREREQ" in w]
+        # prof_athletics not in char_attrs at all — skipped silently
+        assert len(prereq_warnings) == 0
+
+    def test_numeric_prereq_present_but_low_warns(self, tmp_path):
+        pack_dir = _prereq_system(
+            tmp_path,
+            {
+                "titan_wrestler": {
+                    "name": "Titan Wrestler",
+                    "prereqs": {"prof_athletics": 4},
+                    "effects": {},
+                }
+            },
+        )
+        result = process_build(
+            pack_dir, {"skill": {"prof_athletics": "2"}}, [{"name": "Titan Wrestler", "category": "feat"}], level=1
+        )
+        prereq_warnings = [w for w in result.warnings if "PREREQ" in w]
+        assert len(prereq_warnings) == 1
+        assert "prof_athletics" in prereq_warnings[0]
+
+    def test_feat_prereq_not_met_warns(self, tmp_path):
+        pack_dir = _prereq_system(
+            tmp_path,
+            {
+                "improved_knockdown": {
+                    "name": "Improved Knockdown",
+                    "prereqs": {"level": 16, "knockdown": True},
+                    "effects": {},
+                }
+            },
+        )
+        # Does NOT have knockdown feat
+        result = process_build(pack_dir, {}, [{"name": "Improved Knockdown", "category": "feat"}], level=16)
+        prereq_warnings = [w for w in result.warnings if "PREREQ" in w]
+        assert any("knockdown" in w for w in prereq_warnings)
+
+    def test_feat_prereq_met_no_warning(self, tmp_path):
+        pack_dir = _prereq_system(
+            tmp_path,
+            {
+                "knockdown": {
+                    "name": "Knockdown",
+                    "effects": {},
+                },
+                "improved_knockdown": {
+                    "name": "Improved Knockdown",
+                    "prereqs": {"knockdown": True},
+                    "effects": {},
+                },
+            },
+        )
+        # Has knockdown feat in abilities
+        result = process_build(
+            pack_dir,
+            {},
+            [{"name": "Knockdown", "category": "feat"}, {"name": "Improved Knockdown", "category": "feat"}],
+            level=16,
+        )
+        prereq_warnings = [w for w in result.warnings if "PREREQ" in w]
+        assert len(prereq_warnings) == 0
+
+    def test_effects_still_apply_despite_failed_prereq(self, tmp_path):
+        pack_dir = _prereq_system(
+            tmp_path,
+            {
+                "power_attack": {
+                    "name": "Power Attack",
+                    "prereqs": {"level": 10},
+                    "effects": {"bonus_melee_damage": 2},
+                }
+            },
+        )
+        result = process_build(pack_dir, {}, [{"name": "Power Attack", "category": "feat"}], level=1)
+        # Warning present
+        prereq_warnings = [w for w in result.warnings if "PREREQ" in w]
+        assert len(prereq_warnings) == 1
+        # Effects still applied
+        assert result.attributes.get("bonus_melee_damage") == 2
