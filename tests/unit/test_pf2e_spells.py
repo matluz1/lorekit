@@ -123,3 +123,61 @@ class TestSpellCatalogCoverage:
                 traditions_present.update(s["traditions"])
             for t in VALID_TRADITIONS:
                 assert t in traditions_present, f"Rank {rank} missing tradition: {t}"
+
+
+class TestSpellSpotChecks:
+    """Spot-check specific spells for data accuracy."""
+
+    def test_fireball_basics(self, spells):
+        fb = spells["fireball"]
+        assert fb["name"] == "Fireball"
+        assert fb["rank"] == 3
+        assert set(fb["traditions"]) == {"arcane", "primal"}
+        assert "fire" in fb["traits"]
+        assert fb["action"]["defense_stat"] == "reflex"
+        assert fb["action"]["on_hit"]["damage_roll"]["dice"] == "6d6"
+
+    def test_heal_is_healing(self, spells):
+        h = spells["heal"]
+        assert h["rank"] == 1
+        assert "healing" in h["traits"]
+        assert h["action"]["on_hit"]["add_to"] == "current_hp"
+
+    def test_electric_arc_cantrip(self, spells):
+        ea = spells["electric_arc"]
+        assert ea["rank"] == 0
+        assert ea["uses"] == "at_will"
+        assert ea["auto_heighten"] is True
+
+    def test_fear_applies_frightened(self, spells):
+        f = spells["fear"]
+        assert f["rank"] == 1
+        mods = f["action"]["on_hit"]["apply_modifiers"]
+        conditions = [m.get("condition") for m in mods]
+        assert "frightened" in conditions
+
+    def test_lay_on_hands_is_focus(self, spells):
+        loh = spells["lay_on_hands"]
+        assert loh["focus"] is True
+        assert loh["uses"] == "per_encounter"
+        assert loh["class"] == "champion"
+
+    def test_shield_cantrip_buff(self, spells):
+        s = spells["shield"]
+        assert s["rank"] == 0
+        assert s["uses"] == "at_will"
+        mods = s["action"]["on_hit"]["apply_modifiers"]
+        assert any(m["target_stat"] == "bonus_ac" for m in mods)
+
+    def test_magic_missile_auto_hit(self, spells):
+        mm = spells["magic_missile"]
+        assert "attack_stat" not in mm["action"]
+        assert "defense_stat" not in mm["action"]
+        assert mm["action"]["on_hit"]["subtract_from"] == "current_hp"
+
+    def test_haste_buff(self, spells):
+        h = spells["haste"]
+        assert h["rank"] == 3
+        mods = h["action"]["on_hit"]["apply_modifiers"]
+        conditions = [m.get("condition") for m in mods]
+        assert "quickened" in conditions
