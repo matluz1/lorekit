@@ -569,6 +569,38 @@ def test_delta_composite_keys():
     assert len(reconstructed["zone_adjacency"]) == 2
 
 
+def test_delta_composite_keys_after_json_roundtrip():
+    """Delta with composite keys must survive JSON serialization (tuples become lists)."""
+    import json
+
+    from lorekit.support.checkpoint import apply_delta_forward, compute_delta
+
+    old = {
+        "character_zone": [
+            {"encounter_id": 1, "character_id": 1, "zone_id": 1, "team": "ally"},
+            {"encounter_id": 1, "character_id": 2, "zone_id": 1, "team": "enemy"},
+        ],
+        "zone_adjacency": [{"zone_a": 1, "zone_b": 2, "weight": 1}],
+    }
+    new = {
+        "character_zone": [
+            {"encounter_id": 1, "character_id": 1, "zone_id": 2, "team": "ally"},
+        ],
+        "zone_adjacency": [
+            {"zone_a": 1, "zone_b": 2, "weight": 1},
+            {"zone_a": 2, "zone_b": 3, "weight": 1},
+        ],
+    }
+    delta = compute_delta(old, new)
+    # Simulate DB round-trip: JSON serialize then deserialize (tuples → lists)
+    delta = json.loads(json.dumps(delta))
+    reconstructed = apply_delta_forward(old, delta)
+
+    assert len(reconstructed["character_zone"]) == 1
+    assert reconstructed["character_zone"][0]["zone_id"] == 2
+    assert len(reconstructed["zone_adjacency"]) == 2
+
+
 def test_reconstruct_state_resolves_deltas(make_session, make_character):
     """reconstruct_state should resolve delta chains correctly."""
     sid = make_session()
