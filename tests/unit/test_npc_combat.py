@@ -1,6 +1,6 @@
 """Tests for NPC combat orchestration (npc_combat.py).
 
-System-agnostic tests using fixtures/test_system. Validates the
+System-agnostic tests using the basic system pack. Validates the
 orchestration wiring: parse_combat_intent, build_combat_context,
 execute_combat_turn (schema-driven sequencing, error handling).
 """

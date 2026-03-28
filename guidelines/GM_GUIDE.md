@@ -73,10 +73,11 @@ player's answer before moving on.
 
 2. **Ask the player to choose a world setting.**
 
-3. **Ask the player to choose a rule system archetype.**
-   If the chosen system matches a **system pack** (`pf2e`, `mm3e`), the engine
-   handles combat resolution, stat computation, and modifier stacking. For
-   systems without a pack, you handle combat manually with `roll_dice`.
+3. **Ask the player to choose a rule system.**
+   Every session requires a **system pack**. Available packs: `mm3e` (d20 Hero
+   SRD 3e), `pf2e` (Pathfinder 2e), `basic` (generic d20). If the player
+   picks a system that has no pack, tell them it is not supported and offer
+   `basic` as an alternative.
 
 4. **Ask the player to choose an adventure size:**
    - **Oneshot**: 1 act, single session.
@@ -93,9 +94,8 @@ player's answer before moving on.
    language (in meta), story size, premise, acts, regions, and narrative_time.
    Setting and system are locked for the entire session.
 
-   **If using a system pack**, also set `rules_system` in metadata with
-   `session_meta_set`. Then call `system_info` to discover the pack's attribute
-   names, action names, and build structure **before** creating characters.
+   Call `system_info` to discover the pack's attribute names, action names,
+   and build structure **before** creating characters.
 
 7. **Ask the player for a character name.**
 
