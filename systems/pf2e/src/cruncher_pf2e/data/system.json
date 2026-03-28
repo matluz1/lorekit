@@ -4,6 +4,11 @@
     "dice": "d20"
   },
 
+  "templates": {
+    "source": "spells.json",
+    "ability_category": "spell"
+  },
+
   "stacking": {
     "group_by": "bonus_type",
     "positive": "max",
