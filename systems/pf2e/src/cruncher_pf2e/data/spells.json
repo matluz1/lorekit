@@ -9805,5 +9805,304 @@
       }
     },
     "source": "player_core"
+  },
+  "alter_reality": {
+    "name": "Alter Reality",
+    "rank": 10,
+    "traditions": [
+      "occult"
+    ],
+    "cast": "3 actions",
+    "components": [
+      "material",
+      "somatic",
+      "verbal"
+    ],
+    "traits": [
+      "concentrate",
+      "manipulate",
+      "occult"
+    ],
+    "uses": "per_day",
+    "description": "You warp reality to match your desires, duplicating any occult spell of rank 9 or lower. You can produce any of the following effects: duplicate the effects of any occult spell of rank 9 or lower; reverse certain effects, such as conditions, petrification, or polymorph; undo misfortune; transport creatures; grant a creature a +1 circumstance bonus to attack rolls, saving throws, skill checks, or ability checks for 1 day; or create a non-magical item worth 25,000 gp or less. The GM determines the exact effects.",
+    "source": "player_core_2"
+  },
+  "cataclysm": {
+    "name": "Cataclysm",
+    "rank": 10,
+    "traditions": [
+      "primal"
+    ],
+    "cast": "2 actions",
+    "components": [
+      "somatic",
+      "verbal"
+    ],
+    "traits": [
+      "acid",
+      "air",
+      "cold",
+      "concentrate",
+      "earth",
+      "electricity",
+      "evocation",
+      "fire",
+      "manipulate",
+      "water"
+    ],
+    "range": "1000 feet",
+    "area": "60-foot burst",
+    "defense": "reflex",
+    "uses": "per_day",
+    "description": "You call upon the most destructive forces of nature, raining devastation down on your foes. Creatures in the area take 3d10 acid damage, 3d10 cold damage, 3d10 electricity damage, 3d10 fire damage, and 3d10 bludgeoning damage (from rock and hail), with a basic Reflex save.",
+    "action": {
+      "key": "cataclysm",
+      "attack_stat": "spell_dc",
+      "defense_stat": "reflex",
+      "range": "ranged",
+      "area": true,
+      "on_hit": {
+        "damage_roll": {
+          "dice": "15d10",
+          "type": "untyped"
+        },
+        "subtract_from": "current_hp"
+      }
+    },
+    "source": "player_core"
+  },
+  "divine_intervention": {
+    "name": "Divine Intervention",
+    "rank": 10,
+    "traditions": [
+      "divine"
+    ],
+    "cast": "3 actions",
+    "components": [
+      "material",
+      "somatic",
+      "verbal"
+    ],
+    "traits": [
+      "concentrate",
+      "divine",
+      "manipulate"
+    ],
+    "uses": "per_day",
+    "description": "You call upon your deity to intervene directly, duplicating any divine spell of rank 9 or lower. You can produce any of the following effects: duplicate the effects of any divine spell of rank 9 or lower; reverse certain effects, including conditions, curses, petrification, or polymorph effects; bestow a blessing granting a +1 circumstance bonus to attack rolls, saving throws, skill checks, or ability checks for 1 day; transport creatures to a location your deity favors; create a non-magical item worth 25,000 gp or less; or resurrect a dead creature. The GM determines the exact effects.",
+    "source": "player_core_2"
+  },
+  "fabricated_truth": {
+    "name": "Fabricated Truth",
+    "rank": 10,
+    "traditions": [
+      "occult"
+    ],
+    "cast": "2 actions",
+    "components": [
+      "somatic",
+      "verbal"
+    ],
+    "traits": [
+      "concentrate",
+      "enchantment",
+      "incapacitation",
+      "manipulate",
+      "mental"
+    ],
+    "range": "100 feet",
+    "targets": "up to 10 creatures",
+    "defense": "will",
+    "duration": "until the next time you make your daily preparations",
+    "uses": "per_day",
+    "description": "You implant a false belief in the targets' minds so convincingly that they believe it to be a fundamental truth of reality. Choose a statement that isn't disproven by the targets' direct sensory information. Each target must attempt a Will save. Critical Success: The target is unaffected. Success: The target disbelieves the false truth and is unaffected. Failure: The target believes the false truth as if it were fact. Critical Failure: The target believes the false truth so completely that even direct contradictory evidence won't change its mind for the spell's duration.",
+    "action": {
+      "key": "fabricated_truth",
+      "attack_stat": "spell_dc",
+      "defense_stat": "will",
+      "range": "ranged",
+      "on_hit": {
+        "apply_modifiers": [
+          {
+            "source": "fabricated_truth",
+            "condition": "controlled",
+            "value": 1,
+            "duration_type": "encounter"
+          }
+        ]
+      }
+    },
+    "source": "player_core"
+  },
+  "gate": {
+    "name": "Gate",
+    "rank": 10,
+    "traditions": [
+      "arcane",
+      "divine",
+      "occult"
+    ],
+    "cast": "2 actions",
+    "components": [
+      "somatic",
+      "verbal"
+    ],
+    "traits": [
+      "concentrate",
+      "conjuration",
+      "manipulate",
+      "teleportation"
+    ],
+    "range": "120 feet",
+    "duration": "sustained up to 1 minute",
+    "uses": "per_day",
+    "description": "You tear open a rift to another plane of existence. The gate is a two-way portal, 10 feet in diameter, which allows any creature to pass through to the other plane or back. You must know the destination plane; if you attempt to open a gate to a specific location on that plane, you must succeed at a DC 30 Arcana, Nature, Occultism, or Religion check (as appropriate) or the gate opens to a random location on the plane. If you open the gate to a specific creature, that creature can attempt a Will save to avoid being pulled through.",
+    "source": "player_core"
+  },
+  "nature_incarnate": {
+    "name": "Nature Incarnate",
+    "rank": 10,
+    "traditions": [
+      "primal"
+    ],
+    "cast": "2 actions",
+    "components": [
+      "somatic",
+      "verbal"
+    ],
+    "traits": [
+      "concentrate",
+      "manipulate",
+      "polymorph",
+      "primal",
+      "transmutation"
+    ],
+    "duration": "1 minute",
+    "uses": "per_day",
+    "description": "You transform into a massive embodiment of nature's power. You gain the effects of a 6th-rank pest form and additionally become Large. You gain 60 temporary Hit Points, a +5 status bonus to Strength-based checks and DCs, and resistance 10 to physical damage. Your unarmed attacks deal 4d6 bludgeoning damage. While in this form, you can use primal innate spells of rank 4 or lower at will, and you can cast primal spells up to rank 5 that you already have prepared.",
+    "source": "player_core"
+  },
+  "primal_phenomenon": {
+    "name": "Primal Phenomenon",
+    "rank": 10,
+    "traditions": [
+      "primal"
+    ],
+    "cast": "3 actions",
+    "components": [
+      "material",
+      "somatic",
+      "verbal"
+    ],
+    "traits": [
+      "concentrate",
+      "manipulate",
+      "primal"
+    ],
+    "uses": "per_day",
+    "description": "You invoke a primal phenomenon of absolute power, duplicating any primal spell of rank 9 or lower. You can produce any of the following effects: duplicate the effects of any primal spell of rank 9 or lower; reverse certain afflictions or conditions of primal origin; transport creatures to a natural location; call powerful natural entities such as an elder elemental; grant a creature a +1 circumstance bonus to attack rolls, saving throws, skill checks, or ability checks for 1 day; or create a non-magical item worth 25,000 gp or less. The GM determines the exact effects.",
+    "source": "player_core_2"
+  },
+  "remake": {
+    "name": "Remake",
+    "rank": 10,
+    "traditions": [
+      "arcane"
+    ],
+    "cast": "1 hour",
+    "components": [
+      "material",
+      "somatic",
+      "verbal"
+    ],
+    "traits": [
+      "concentrate",
+      "conjuration",
+      "manipulate"
+    ],
+    "uses": "per_day",
+    "description": "You spend an hour in careful magical work to completely reconstruct a destroyed object. The original item must have been completely destroyed; if any piece of it remains, you can't use remake to restore it (use mend instead). You perfectly recreate the item in its undamaged state, including any magical properties it had. The item can be no larger than 10 cubic feet and worth no more than 25,000 gp.",
+    "source": "player_core"
+  },
+  "revival": {
+    "name": "Revival",
+    "rank": 10,
+    "traditions": [
+      "divine",
+      "primal"
+    ],
+    "cast": "2 actions",
+    "components": [
+      "somatic",
+      "verbal"
+    ],
+    "traits": [
+      "concentrate",
+      "healing",
+      "manipulate",
+      "vitality"
+    ],
+    "range": "30 feet",
+    "area": "30-foot emanation",
+    "duration": "1 minute",
+    "uses": "per_day",
+    "description": "You unleash a surge of life energy that pulls creatures back from the edge of death. All living creatures in the area are healed for 10d8+40 Hit Points. All dead creatures in the area with enough of their bodies intact are immediately returned to life as if you had cast a 9th-rank resurrect ritual on them, except that the recovery is instantaneous and they return at full Hit Points. A creature returned to life this way does not gain the wounded condition.",
+    "action": {
+      "key": "revival",
+      "attack_stat": "spell_dc",
+      "defense_stat": "fortitude",
+      "range": "ranged",
+      "area": true,
+      "on_hit": {
+        "damage_roll": {
+          "dice": "10d8",
+          "type": "vitality"
+        },
+        "add_to": "current_hp"
+      }
+    },
+    "source": "player_core_2"
+  },
+  "time_stop": {
+    "name": "Time Stop",
+    "rank": 10,
+    "traditions": [
+      "arcane"
+    ],
+    "cast": "2 actions",
+    "components": [
+      "somatic",
+      "verbal"
+    ],
+    "traits": [
+      "concentrate",
+      "manipulate",
+      "transmutation"
+    ],
+    "duration": "special",
+    "uses": "per_day",
+    "description": "You temporarily stop time for everyone but yourself. You gain 1d4+1 additional turns, during which time you can act normally. Other creatures and most effects are frozen in time during these extra turns; you can't deal damage to other creatures, but you can move, cast spells, and take other actions. Effects you create during time stop that would affect other creatures take effect after time stop ends. After the additional turns, time resumes normally.",
+    "source": "player_core"
+  },
+  "wish": {
+    "name": "Wish",
+    "rank": 10,
+    "traditions": [
+      "arcane"
+    ],
+    "cast": "3 actions",
+    "components": [
+      "material",
+      "somatic",
+      "verbal"
+    ],
+    "traits": [
+      "concentrate",
+      "divination",
+      "manipulate"
+    ],
+    "uses": "per_day",
+    "description": "You utter a powerful wish, duplicating any arcane spell of rank 9 or lower. You can produce any of the following effects: duplicate the effects of any arcane spell of rank 9 or lower; reverse certain effects, such as conditions, petrification, or polymorph; undo misfortune; transport creatures; grant a creature a +1 circumstance bonus to attack rolls, saving throws, skill checks, or ability checks for 1 day; create a non-magical item worth 25,000 gp or less; or produce any other effect the GM deems appropriate for a wish. The GM determines the exact effects and may interpret the wish in unexpected ways.",
+    "source": "player_core"
   }
 }
