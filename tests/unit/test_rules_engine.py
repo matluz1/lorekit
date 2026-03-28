@@ -634,3 +634,70 @@ class TestBudgetReporting:
             assert "WARNING" not in output
         finally:
             db.close()
+
+
+# ---------------------------------------------------------------------------
+# Skill templates
+# ---------------------------------------------------------------------------
+
+
+class TestSkillTemplates:
+    """Skill templates auto-generate derived formulas from patterns."""
+
+    def test_template_instantiates_lore_skill(self):
+        pack = SystemPack()
+        pack.defaults = {"int": 14}
+        pack.derived = {"int_mod": "floor((int - 10) / 2)"}
+        pack.derived_patterns = {
+            "lore": {
+                "formula": "int_mod + if(prof_{slug} > 0, prof_{slug} + level, 0) + bonus_{slug}",
+                "default_prof": 0,
+                "default_bonus": 0,
+            }
+        }
+        char = CharacterData(character_id=1, session_id=1, name="Test", level=3, char_type="pc")
+        char.attributes["build"] = {"prof_lore_scribing": "2"}
+        result = recalculate(pack, char)
+        # int_mod = floor((14-10)/2) = 2
+        # skill_lore_scribing = 2 + if(2>0, 2+3, 0) + 0 = 2 + 5 = 7
+        assert result.derived["skill_lore_scribing"] == 7
+
+    def test_template_does_not_fire_without_matching_attr(self):
+        pack = SystemPack()
+        pack.defaults = {"int": 14}
+        pack.derived = {"int_mod": "floor((int - 10) / 2)"}
+        pack.derived_patterns = {
+            "lore": {
+                "formula": "int_mod + if(prof_{slug} > 0, prof_{slug} + level, 0) + bonus_{slug}",
+                "default_prof": 0,
+                "default_bonus": 0,
+            }
+        }
+        char = CharacterData(character_id=1, session_id=1, name="Test", level=1, char_type="pc")
+        result = recalculate(pack, char)
+        assert "skill_lore_scribing" not in result.derived
+
+    def test_no_templates_section_is_fine(self):
+        pack = SystemPack()
+        pack.defaults = {"str": 10}
+        pack.derived = {"str_mod": "floor((str - 10) / 2)"}
+        char = CharacterData(character_id=1, session_id=1, name="Test", level=1, char_type="pc")
+        result = recalculate(pack, char)
+        assert result.derived["str_mod"] == 0
+
+    def test_multiple_lore_skills(self):
+        pack = SystemPack()
+        pack.defaults = {"int": 14}
+        pack.derived = {"int_mod": "floor((int - 10) / 2)"}
+        pack.derived_patterns = {
+            "lore": {
+                "formula": "int_mod + if(prof_{slug} > 0, prof_{slug} + level, 0) + bonus_{slug}",
+                "default_prof": 0,
+                "default_bonus": 0,
+            }
+        }
+        char = CharacterData(character_id=1, session_id=1, name="Test", level=5, char_type="pc")
+        char.attributes["build"] = {"prof_lore_scribing": "2", "prof_lore_warfare": "4"}
+        result = recalculate(pack, char)
+        assert result.derived["skill_lore_scribing"] == 9  # 2 + (2+5) + 0
+        assert result.derived["skill_lore_warfare"] == 11  # 2 + (4+5) + 0

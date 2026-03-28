@@ -86,6 +86,36 @@ def _topo_sort(graph: dict[str, set[str]]) -> list[str]:
 # ---------------------------------------------------------------------------
 
 
+def _instantiate_derived_patterns(
+    templates: dict[str, dict[str, Any]],
+    ctx: FormulaContext,
+    derived: dict[str, str],
+) -> None:
+    """Auto-generate derived formulas from skill templates.
+
+    Scans context values for prof_{template}_{instance} keys and
+    instantiates the template formula for each match.
+    """
+    for template_name, template_def in templates.items():
+        prefix = f"prof_{template_name}_"
+        formula_tpl = template_def["formula"]
+        default_prof = template_def.get("default_prof", 0)
+        default_bonus = template_def.get("default_bonus", 0)
+
+        for key in list(ctx.values.keys()):
+            if not key.startswith(prefix):
+                continue
+            slug = key[len("prof_") :]  # e.g. "lore_scribing"
+            skill_key = f"skill_{slug}"
+            if skill_key in derived:
+                continue
+            # Register defaults
+            ctx.values.setdefault(f"prof_{slug}", default_prof)
+            ctx.values.setdefault(f"bonus_{slug}", default_bonus)
+            # Instantiate formula
+            derived[skill_key] = formula_tpl.replace("{slug}", slug)
+
+
 @dataclass
 class CalcResult:
     """Result of a rules recalculation."""
@@ -169,7 +199,7 @@ def recalculate(
     """
     result = CalcResult()
 
-    if not pack.derived:
+    if not pack.derived and not pack.derived_patterns:
         return result
 
     # Build evaluation context
@@ -180,13 +210,18 @@ def recalculate(
     if "derived" in char.attributes:
         old_derived = dict(char.attributes["derived"])
 
+    # Instantiate skill templates (adds to derived before topo sort)
+    derived = dict(pack.derived)
+    if pack.derived_patterns:
+        _instantiate_derived_patterns(pack.derived_patterns, ctx, derived)
+
     # Topological sort of derived stats
-    dep_graph = _build_dep_graph(pack.derived)
+    dep_graph = _build_dep_graph(derived)
     eval_order = _topo_sort(dep_graph)
 
     # Evaluate each derived stat in order
     for stat in eval_order:
-        formula = pack.derived[stat]
+        formula = derived[stat]
         try:
             value = calc(formula, ctx)
             # Ensure numeric results are clean ints where possible

@@ -65,6 +65,9 @@ class SystemPack:
     # NPC combat intent schema: {"steps": {...}, "default_sequence": [...], "sequence_rules": {...}, ...}
     intent: dict[str, Any] = field(default_factory=dict)
 
+    # Skill templates for dynamic derived stats: {"lore": {"formula": "...", ...}, ...}
+    derived_patterns: dict[str, dict[str, Any]] = field(default_factory=dict)
+
 
 # ---------------------------------------------------------------------------
 # JSON loader
@@ -129,5 +132,8 @@ def load_system_pack(pack_dir: str) -> SystemPack:
 
     # NPC combat intent schema
     pack.intent = dict(data.get("intent", {}))
+
+    # Skill templates
+    pack.derived_patterns = dict(data.get("derived_patterns", {}))
 
     return pack
