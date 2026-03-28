@@ -6555,5 +6555,851 @@
       }
     },
     "source": "player_core"
+  },
+  "banishment": {
+    "name": "Banishment",
+    "rank": 5,
+    "traditions": [
+      "arcane",
+      "divine",
+      "occult",
+      "primal"
+    ],
+    "cast": "2 actions",
+    "components": [
+      "somatic",
+      "verbal"
+    ],
+    "traits": [
+      "abjuration",
+      "concentrate",
+      "manipulate"
+    ],
+    "range": "30 feet",
+    "targets": "1 extraplanar creature",
+    "defense": "will",
+    "uses": "per_day",
+    "description": "You send the target back to its home plane. The target must attempt a Will save. On a success, the spell has no effect. On a failure, the creature is banished to its home plane. On a critical failure, the creature is banished and can't return to the plane you banished it from for 1 year.",
+    "heightened": {
+      "9": {
+        "description": "You can target any creature, not just extraplanar ones."
+      }
+    },
+    "action": {
+      "key": "banishment",
+      "attack_stat": "spell_dc",
+      "defense_stat": "will",
+      "range": "ranged",
+      "on_hit": {
+        "apply_modifiers": [
+          {
+            "source": "banishment",
+            "condition": "banished",
+            "value": 1,
+            "duration_type": "permanent"
+          }
+        ]
+      }
+    },
+    "source": "player_core"
+  },
+  "black_tentacles": {
+    "name": "Black Tentacles",
+    "rank": 5,
+    "traditions": [
+      "arcane",
+      "occult"
+    ],
+    "cast": "2 actions",
+    "components": [
+      "somatic",
+      "verbal"
+    ],
+    "traits": [
+      "concentrate",
+      "conjuration",
+      "manipulate"
+    ],
+    "range": "120 feet",
+    "area": "20-foot burst",
+    "defense": "fortitude",
+    "duration": "1 minute",
+    "uses": "per_day",
+    "description": "Oily black tentacles rise from the ground and writhe in the area. Each creature in the area when the spell is cast or that moves into the area must attempt a Fortitude save. On a failure, the creature is grabbed by the tentacles. Each round a grabbed creature can attempt to Escape (DC equals your spell DC). Grabbed creatures take 3d6 bludgeoning damage at the start of each of their turns.",
+    "action": {
+      "key": "black_tentacles",
+      "attack_stat": "spell_dc",
+      "defense_stat": "fortitude",
+      "range": "ranged",
+      "area": true,
+      "on_hit": {
+        "damage_roll": {
+          "dice": "3d6",
+          "type": "bludgeoning"
+        },
+        "subtract_from": "current_hp"
+      }
+    },
+    "source": "player_core"
+  },
+  "breath_of_life": {
+    "name": "Breath of Life",
+    "rank": 5,
+    "traditions": [
+      "divine",
+      "primal"
+    ],
+    "cast": "reaction",
+    "components": [
+      "verbal"
+    ],
+    "traits": [
+      "concentrate",
+      "healing",
+      "vitality"
+    ],
+    "range": "60 feet",
+    "targets": "1 living creature that was just reduced to 0 HP",
+    "uses": "per_day",
+    "description": "Your blessing restores life to a creature on the brink of death. You cast this spell as a reaction when a living creature within range would be reduced to 0 Hit Points. The target instead regains 5d8 Hit Points and is not reduced to 0 HP.",
+    "heightened": {
+      "+1": {
+        "description": "The healing increases by 1d8."
+      }
+    },
+    "action": {
+      "key": "breath_of_life",
+      "range": "ranged",
+      "on_hit": {
+        "damage_roll": {
+          "dice": "5d8",
+          "type": "healing"
+        },
+        "add_to": "current_hp"
+      }
+    },
+    "source": "player_core"
+  },
+  "chromatic_wall": {
+    "name": "Chromatic Wall",
+    "rank": 5,
+    "traditions": [
+      "arcane",
+      "occult"
+    ],
+    "cast": "3 actions",
+    "components": [
+      "material",
+      "somatic",
+      "verbal"
+    ],
+    "traits": [
+      "abjuration",
+      "concentrate",
+      "manipulate"
+    ],
+    "range": "120 feet",
+    "area": "a wall up to 60 feet long and 30 feet tall",
+    "duration": "10 minutes",
+    "uses": "per_day",
+    "description": "You create a shimmering wall of colored light. When you cast the spell, roll 1d8 to determine the wall's color: 1 red (fire damage), 2 orange (acid damage), 3 yellow (electricity damage), 4 green (poison damage), 5 blue (cold damage), 6 indigo (petrification), 7 violet (transported to another plane), 8 roll twice. Any creature passing through the wall takes 7d8 damage of the appropriate type or is affected by the listed effect.",
+    "heightened": {
+      "7": {
+        "description": "The wall affects two colors simultaneously (roll twice)."
+      }
+    },
+    "source": "player_core"
+  },
+  "toxic_cloud": {
+    "name": "Toxic Cloud",
+    "rank": 5,
+    "traditions": [
+      "arcane",
+      "primal"
+    ],
+    "cast": "2 actions",
+    "components": [
+      "somatic",
+      "verbal"
+    ],
+    "traits": [
+      "concentrate",
+      "conjuration",
+      "manipulate",
+      "poison"
+    ],
+    "range": "120 feet",
+    "area": "20-foot burst",
+    "defense": "fortitude",
+    "duration": "1 minute",
+    "uses": "per_day",
+    "description": "You conjure a bank of thick, poisonous fog. The cloud is difficult terrain and heavily obscured. Each creature that enters or starts its turn in the cloud must attempt a Fortitude save. On a failure, the creature takes 2d6 poison damage and is sickened 1. On a critical failure, the creature takes 4d6 poison damage and is sickened 2.",
+    "heightened": {
+      "+1": {
+        "description": "The damage increases by 1d6."
+      }
+    },
+    "action": {
+      "key": "toxic_cloud",
+      "attack_stat": "spell_dc",
+      "defense_stat": "fortitude",
+      "range": "ranged",
+      "area": true,
+      "on_hit": {
+        "damage_roll": {
+          "dice": "2d6",
+          "type": "poison"
+        },
+        "subtract_from": "current_hp"
+      }
+    },
+    "source": "player_core"
+  },
+  "cone_of_cold": {
+    "name": "Cone of Cold",
+    "rank": 5,
+    "traditions": [
+      "arcane",
+      "primal"
+    ],
+    "cast": "2 actions",
+    "components": [
+      "somatic",
+      "verbal"
+    ],
+    "traits": [
+      "cold",
+      "concentrate",
+      "evocation",
+      "manipulate"
+    ],
+    "area": "60-foot cone",
+    "defense": "reflex",
+    "uses": "per_day",
+    "description": "A cone of bitterly cold air shoots from your hands. Creatures in the area take 12d6 cold damage with a basic Reflex save.",
+    "heightened": {
+      "+1": {
+        "damage": "+2d6"
+      }
+    },
+    "action": {
+      "key": "cone_of_cold",
+      "attack_stat": "spell_dc",
+      "defense_stat": "reflex",
+      "range": "ranged",
+      "area": true,
+      "on_hit": {
+        "damage_roll": {
+          "dice": "12d6",
+          "type": "cold"
+        },
+        "subtract_from": "current_hp"
+      }
+    },
+    "source": "player_core"
+  },
+  "control_water": {
+    "name": "Control Water",
+    "rank": 5,
+    "traditions": [
+      "arcane",
+      "primal"
+    ],
+    "cast": "2 actions",
+    "components": [
+      "somatic",
+      "verbal"
+    ],
+    "traits": [
+      "concentrate",
+      "manipulate",
+      "transmutation",
+      "water"
+    ],
+    "range": "500 feet",
+    "area": "up to 50-foot-burst, 10 feet deep",
+    "duration": "10 minutes",
+    "uses": "per_day",
+    "description": "You can raise or lower water in the area, or part water to create a trench. You can raise or lower the water level by up to 20 feet. Creatures caught in rapidly rising or falling water must succeed at a Fortitude save or be swept along with the current.",
+    "source": "player_core"
+  },
+  "wave_of_despair": {
+    "name": "Wave of Despair",
+    "rank": 5,
+    "traditions": [
+      "arcane",
+      "divine",
+      "occult"
+    ],
+    "cast": "2 actions",
+    "components": [
+      "somatic",
+      "verbal"
+    ],
+    "traits": [
+      "concentrate",
+      "emotion",
+      "enchantment",
+      "manipulate",
+      "mental"
+    ],
+    "area": "30-foot cone",
+    "defense": "will",
+    "duration": "1 minute",
+    "uses": "per_day",
+    "description": "You unleash a wave of crushing despair. Each creature in the area must attempt a Will save. On a critical success, the creature is unaffected. On a success, the creature is stupefied 1 for 1 round. On a failure, the creature is stupefied 2 for 1 minute. On a critical failure, the creature is stupefied 4 for 1 minute.",
+    "heightened": {
+      "7": {
+        "description": "You can affect creatures within a 60-foot cone."
+      }
+    },
+    "action": {
+      "key": "wave_of_despair",
+      "attack_stat": "spell_dc",
+      "defense_stat": "will",
+      "range": "ranged",
+      "area": true,
+      "on_hit": {
+        "apply_modifiers": [
+          {
+            "source": "wave_of_despair",
+            "condition": "stupefied",
+            "value": 2,
+            "duration_type": "encounter"
+          }
+        ]
+      }
+    },
+    "source": "player_core"
+  },
+  "death_ward": {
+    "name": "Death Ward",
+    "rank": 5,
+    "traditions": [
+      "divine",
+      "occult",
+      "primal"
+    ],
+    "cast": "2 actions",
+    "components": [
+      "somatic",
+      "verbal"
+    ],
+    "traits": [
+      "abjuration",
+      "concentrate",
+      "manipulate"
+    ],
+    "range": "touch",
+    "targets": "1 creature",
+    "duration": "8 hours",
+    "uses": "per_day",
+    "description": "You surround the target with a protective ward against death effects. The target gains a +4 status bonus to saves against death effects and negative energy. If the target would be reduced to 0 Hit Points by a death effect, it instead is reduced to 1 Hit Point and the spell ends.",
+    "action": {
+      "key": "death_ward",
+      "range": "ranged",
+      "on_hit": {
+        "apply_modifiers": [
+          {
+            "source": "death_ward",
+            "target_stat": "bonus_saves",
+            "value": 4,
+            "modifier_type": "status",
+            "duration_type": "until_next_preparation"
+          }
+        ]
+      }
+    },
+    "source": "player_core"
+  },
+  "drop_dead": {
+    "name": "Drop Dead",
+    "rank": 5,
+    "traditions": [
+      "arcane",
+      "divine"
+    ],
+    "cast": "reaction",
+    "components": [
+      "somatic"
+    ],
+    "traits": [
+      "concentrate",
+      "illusion",
+      "visual"
+    ],
+    "range": "60 feet",
+    "targets": "1 creature",
+    "duration": "5 rounds",
+    "uses": "per_day",
+    "description": "You create an illusion that the target has died, causing it to instantly collapse and appear dead. The target appears dead to all observers. Attackers that succeed at a Perception check vs. your Spell DC can disbelieve the illusion. The spell ends when the target takes a hostile action, at the end of 5 rounds, or if you Dismiss it.",
+    "source": "player_core"
+  },
+  "elemental_form": {
+    "name": "Elemental Form",
+    "rank": 5,
+    "traditions": [
+      "arcane",
+      "primal"
+    ],
+    "cast": "2 actions",
+    "components": [
+      "somatic",
+      "verbal"
+    ],
+    "traits": [
+      "concentrate",
+      "manipulate",
+      "polymorph",
+      "transmutation"
+    ],
+    "duration": "1 minute",
+    "uses": "per_day",
+    "description": "You transform into a Medium air, earth, fire, or water elemental battle form. You gain resistance 5 to the associated damage type, a speed appropriate to the form, and the attacks of that elemental. Your AC is 22, and your attack modifier is +14.",
+    "heightened": {
+      "6": {
+        "description": "You can become a Large elemental with a +2 bonus to attack rolls."
+      }
+    },
+    "source": "player_core"
+  },
+  "flame_strike": {
+    "name": "Flame Strike",
+    "rank": 5,
+    "traditions": [
+      "divine"
+    ],
+    "cast": "2 actions",
+    "components": [
+      "somatic",
+      "verbal"
+    ],
+    "traits": [
+      "concentrate",
+      "evocation",
+      "fire",
+      "manipulate"
+    ],
+    "range": "120 feet",
+    "area": "10-foot-radius, 40-foot-tall cylinder",
+    "defense": "reflex",
+    "uses": "per_day",
+    "description": "A column of divine fire descends from the heavens. Creatures in the area take 8d6 fire damage with a basic Reflex save. Half the damage is fire damage and half is spirit damage, so fire resistance applies to only half the damage.",
+    "heightened": {
+      "+1": {
+        "damage": "+2d6"
+      }
+    },
+    "action": {
+      "key": "flame_strike",
+      "attack_stat": "spell_dc",
+      "defense_stat": "reflex",
+      "range": "ranged",
+      "area": true,
+      "on_hit": {
+        "damage_roll": {
+          "dice": "8d6",
+          "type": "fire"
+        },
+        "subtract_from": "current_hp"
+      }
+    },
+    "source": "player_core"
+  },
+  "hallucination": {
+    "name": "Hallucination",
+    "rank": 5,
+    "traditions": [
+      "arcane",
+      "occult"
+    ],
+    "cast": "2 actions",
+    "components": [
+      "somatic",
+      "verbal"
+    ],
+    "traits": [
+      "concentrate",
+      "illusion",
+      "manipulate",
+      "mental"
+    ],
+    "range": "30 feet",
+    "targets": "1 creature",
+    "defense": "will",
+    "duration": "1 hour",
+    "uses": "per_day",
+    "description": "The target perceives a different world than the one around it. You choose what the target senses differently—for instance, you might cause it to see an ally as an enemy or make an open field look like a forest. The target must attempt a Will save. On a failure, it perceives the world as you dictate for 1 hour.",
+    "heightened": {
+      "6": {
+        "description": "You can affect up to 10 creatures."
+      }
+    },
+    "action": {
+      "key": "hallucination",
+      "attack_stat": "spell_dc",
+      "defense_stat": "will",
+      "range": "ranged",
+      "on_hit": {
+        "apply_modifiers": [
+          {
+            "source": "hallucination",
+            "condition": "confused",
+            "value": 1,
+            "duration_type": "encounter"
+          }
+        ]
+      }
+    },
+    "source": "player_core"
+  },
+  "illusory_scene": {
+    "name": "Illusory Scene",
+    "rank": 5,
+    "traditions": [
+      "arcane",
+      "occult"
+    ],
+    "cast": "10 minutes",
+    "components": [
+      "material",
+      "somatic",
+      "verbal"
+    ],
+    "traits": [
+      "auditory",
+      "concentrate",
+      "illusion",
+      "manipulate",
+      "olfactory",
+      "visual"
+    ],
+    "range": "500 feet",
+    "area": "30-foot burst",
+    "duration": "1 hour",
+    "uses": "per_day",
+    "description": "You create a complex, three-dimensional illusion that fills the area. The scene can include multiple creatures, objects, sounds, smells, and other details. Creatures that study the area can attempt to disbelieve the illusion with a Perception check vs. your Spell DC.",
+    "heightened": {
+      "6": {
+        "description": "The duration increases to 8 hours."
+      }
+    },
+    "source": "player_core"
+  },
+  "mariners_curse": {
+    "name": "Mariner's Curse",
+    "rank": 5,
+    "traditions": [
+      "arcane",
+      "occult",
+      "primal"
+    ],
+    "cast": "2 actions",
+    "components": [
+      "somatic",
+      "verbal"
+    ],
+    "traits": [
+      "concentrate",
+      "curse",
+      "enchantment",
+      "manipulate",
+      "mental"
+    ],
+    "range": "30 feet",
+    "targets": "1 creature",
+    "defense": "will",
+    "duration": "until removed",
+    "uses": "per_day",
+    "description": "You lay a curse of the open sea upon the target. The target must attempt a Will save. On a failure, the target is afflicted with the mariner's curse: it gains the clumsy 1 condition and is sickened 1 whenever it is not on open water. On a critical failure, the target is clumsy 2 and sickened 2.",
+    "action": {
+      "key": "mariners_curse",
+      "attack_stat": "spell_dc",
+      "defense_stat": "will",
+      "range": "ranged",
+      "on_hit": {
+        "apply_modifiers": [
+          {
+            "source": "mariners_curse",
+            "condition": "clumsy",
+            "value": 1,
+            "duration_type": "permanent"
+          }
+        ]
+      }
+    },
+    "source": "player_core"
+  },
+  "passwall": {
+    "name": "Passwall",
+    "rank": 5,
+    "traditions": [
+      "arcane",
+      "occult",
+      "primal"
+    ],
+    "cast": "2 actions",
+    "components": [
+      "somatic",
+      "verbal"
+    ],
+    "traits": [
+      "concentrate",
+      "manipulate",
+      "transmutation"
+    ],
+    "range": "touch",
+    "duration": "1 hour",
+    "uses": "per_day",
+    "description": "You create a tunnel through a wall of wood, stone, or similar material. The tunnel is up to 10 feet wide, 10 feet tall, and 20 feet long. The passage is open for the duration; when the spell ends, the wall returns to its original state.",
+    "heightened": {
+      "7": {
+        "description": "The tunnel can extend up to 30 feet long."
+      }
+    },
+    "source": "player_core"
+  },
+  "sending": {
+    "name": "Sending",
+    "rank": 5,
+    "traditions": [
+      "arcane",
+      "divine",
+      "occult"
+    ],
+    "cast": "3 actions",
+    "components": [
+      "material",
+      "somatic",
+      "verbal"
+    ],
+    "traits": [
+      "concentrate",
+      "divination",
+      "manipulate",
+      "mental"
+    ],
+    "targets": "1 creature you are familiar with",
+    "uses": "per_day",
+    "description": "You project a mental message of 25 words or fewer to a creature you are familiar with on the same plane of existence. The creature can respond with a message of 25 words or fewer. The communication is instantaneous.",
+    "source": "player_core"
+  },
+  "shadow_siphon": {
+    "name": "Shadow Siphon",
+    "rank": 5,
+    "traditions": [
+      "arcane",
+      "occult"
+    ],
+    "cast": "reaction",
+    "components": [
+      "somatic",
+      "verbal"
+    ],
+    "traits": [
+      "concentrate",
+      "illusion",
+      "shadow"
+    ],
+    "range": "60 feet",
+    "targets": "the triggering spell or effect",
+    "uses": "per_day",
+    "description": "You siphon the damage of a spell into shadow magic, reducing its potency. When a creature in range would take damage from a spell, you can cast Shadow Siphon to reduce that damage by half, replacing it with shadow damage instead. The remaining half damage becomes shadow damage.",
+    "source": "player_core"
+  },
+  "subconscious_suggestion": {
+    "name": "Subconscious Suggestion",
+    "rank": 5,
+    "traditions": [
+      "arcane",
+      "occult"
+    ],
+    "cast": "2 actions",
+    "components": [
+      "somatic",
+      "verbal"
+    ],
+    "traits": [
+      "concentrate",
+      "enchantment",
+      "linguistic",
+      "manipulate",
+      "mental"
+    ],
+    "range": "30 feet",
+    "targets": "1 creature",
+    "defense": "will",
+    "duration": "until triggered or 1 week",
+    "uses": "per_day",
+    "description": "You implant a subconscious suggestion in the target's mind. You specify a trigger and an action up to 1 minute long. When the trigger occurs, the target follows the suggestion. The target must attempt a Will save. On a failure, it carries out the suggestion when triggered, believing the suggestion to be its own idea.",
+    "action": {
+      "key": "subconscious_suggestion",
+      "attack_stat": "spell_dc",
+      "defense_stat": "will",
+      "range": "ranged",
+      "on_hit": {
+        "apply_modifiers": [
+          {
+            "source": "subconscious_suggestion",
+            "condition": "controlled",
+            "value": 1,
+            "duration_type": "permanent"
+          }
+        ]
+      }
+    },
+    "source": "player_core"
+  },
+  "summon_dragon": {
+    "name": "Summon Dragon",
+    "rank": 5,
+    "traditions": [
+      "arcane",
+      "primal"
+    ],
+    "cast": "3 actions",
+    "components": [
+      "material",
+      "somatic",
+      "verbal"
+    ],
+    "traits": [
+      "concentrate",
+      "conjuration",
+      "manipulate"
+    ],
+    "range": "30 feet",
+    "duration": "1 minute",
+    "uses": "per_day",
+    "description": "You summon a young dragon to fight alongside you. The dragon is a common dragon species and acts on your initiative. You can Command the dragon each round; if you don't, it uses the default monster actions.",
+    "heightened": {
+      "6": {
+        "description": "You can summon an adult dragon."
+      }
+    },
+    "source": "player_core"
+  },
+  "truespeech": {
+    "name": "Truespeech",
+    "rank": 5,
+    "traditions": [
+      "arcane",
+      "divine",
+      "occult"
+    ],
+    "cast": "2 actions",
+    "components": [
+      "somatic",
+      "verbal"
+    ],
+    "traits": [
+      "concentrate",
+      "divination",
+      "manipulate"
+    ],
+    "range": "touch",
+    "targets": "1 creature",
+    "duration": "1 hour",
+    "uses": "per_day",
+    "description": "You grant the target the ability to speak and understand all languages for the duration. Additionally, the target can understand and be understood by any creature that communicates through language.",
+    "source": "player_core"
+  },
+  "tree_stride": {
+    "name": "Tree Stride",
+    "rank": 5,
+    "traditions": [
+      "primal"
+    ],
+    "cast": "2 actions",
+    "components": [
+      "somatic",
+      "verbal"
+    ],
+    "traits": [
+      "concentrate",
+      "conjuration",
+      "manipulate",
+      "plant",
+      "teleportation"
+    ],
+    "range": "5 feet",
+    "targets": "1 living tree of your size or larger",
+    "uses": "per_day",
+    "description": "You meld into a living tree and can teleport to any other living tree of your size or larger within 5 miles. You must be familiar with the destination tree. The teleportation is instantaneous, and you emerge from the destination tree.",
+    "heightened": {
+      "6": {
+        "description": "You can teleport to any tree you're familiar with within 50 miles."
+      }
+    },
+    "source": "player_core"
+  },
+  "wall_of_ice": {
+    "name": "Wall of Ice",
+    "rank": 5,
+    "traditions": [
+      "arcane",
+      "primal"
+    ],
+    "cast": "3 actions",
+    "components": [
+      "material",
+      "somatic",
+      "verbal"
+    ],
+    "traits": [
+      "cold",
+      "concentrate",
+      "evocation",
+      "manipulate",
+      "water"
+    ],
+    "range": "120 feet",
+    "duration": "1 minute",
+    "uses": "per_day",
+    "description": "You create a wall of ice up to 60 feet long and 10 feet tall, or a hemisphere of ice up to 20 feet in diameter. The wall has AC 10, Hardness 10, and 40 HP. A creature that passes through the wall takes 3d6 cold damage with a basic Reflex save.",
+    "heightened": {
+      "+2": {
+        "description": "The wall's HP increases by 20."
+      }
+    },
+    "action": {
+      "key": "wall_of_ice",
+      "attack_stat": "spell_dc",
+      "defense_stat": "reflex",
+      "range": "ranged",
+      "on_hit": {
+        "damage_roll": {
+          "dice": "3d6",
+          "type": "cold"
+        },
+        "subtract_from": "current_hp"
+      }
+    },
+    "source": "player_core"
+  },
+  "wall_of_stone": {
+    "name": "Wall of Stone",
+    "rank": 5,
+    "traditions": [
+      "arcane",
+      "primal"
+    ],
+    "cast": "3 actions",
+    "components": [
+      "material",
+      "somatic",
+      "verbal"
+    ],
+    "traits": [
+      "concentrate",
+      "earth",
+      "evocation",
+      "manipulate"
+    ],
+    "range": "120 feet",
+    "duration": "1 hour",
+    "uses": "per_day",
+    "description": "You create a wall of stone up to 120 feet long and 20 feet tall, or a shorter, thicker wall. The wall is 6 inches thick and merges with surrounding stone. It has AC 10, Hardness 14, and 60 HP. The wall can be shaped, curved, or have openings.",
+    "source": "player_core"
   }
 }
