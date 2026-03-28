@@ -234,3 +234,367 @@ class TestSaveMidCombatLoadRestores:
         initiative_line = next((ln for ln in status.splitlines() if "Initiative" in ln), "")
         assert "Fighter" in initiative_line
         assert initiative_line.index("Fighter") < initiative_line.index("Goblin")
+
+
+class TestRevertMidCombatUndoesActions:
+    """Revert undoes the latest combat action's effects (damage + modifiers)."""
+
+    def test_revert_removes_grapple_modifier(self, make_session, make_character):
+        sid = _setup_session(make_session)
+        fighter = _setup_fighter(sid, make_character, "Fighter", 30)
+        goblin = _setup_fighter(sid, make_character, "Goblin", 20)
+
+        _start_encounter_arena(sid, fighter, goblin)
+
+        # -- Turn 0: initial state --
+        turn_save(session_id=sid, narration="Combat begins.", summary="Start")
+
+        # -- Turn 1: Fighter attacks Goblin (d20=18, d8=6 → 10 dmg) --
+        rolls = iter([17, 5])
+        with patch("secrets.randbelow", side_effect=rolls):
+            result = rules_resolve(
+                attacker_id=fighter,
+                defender_id=goblin,
+                action="melee_attack",
+                system_path=TEST_SYSTEM,
+            )
+        assert "HIT" in result
+        turn_save(session_id=sid, narration="Fighter attacks.", summary="T1")
+
+        # -- Turn 2: Fighter grapples Goblin (contested melee_attack) --
+        # Attacker d20=15 + 9 = 24, Defender d20=5 + 9 = 14 → HIT
+        # Applies -2 defense modifier (encounter duration)
+        rolls = iter([14, 4])  # attacker d20=15, defender d20=5
+        with patch("secrets.randbelow", side_effect=rolls):
+            result = rules_resolve(
+                attacker_id=fighter,
+                defender_id=goblin,
+                action="grapple",
+                system_path=TEST_SYSTEM,
+            )
+        assert "HIT" in result or "wins by" in result
+        turn_save(session_id=sid, narration="Fighter grapples Goblin.", summary="T2")
+
+        # Verify grapple modifier exists before revert
+        db = _get_db()
+        grapple_mods = db.execute(
+            "SELECT source FROM combat_state WHERE character_id = ? AND source = 'grapple'",
+            (goblin,),
+        ).fetchall()
+        db.close()
+        assert len(grapple_mods) > 0
+
+        # -- Revert --
+        result = turn_revert(session_id=sid)
+        assert "TURN_REVERTED" in result
+
+        # -- Assertions --
+        # Goblin HP = 10 (turn 1 damage stays)
+        goblin_view = character_view(character_id=goblin)
+        assert any("current_hp" in line and "10" in line for line in goblin_view.splitlines())
+
+        # Grapple modifier gone
+        db = _get_db()
+        grapple_mods = db.execute(
+            "SELECT source FROM combat_state WHERE character_id = ? AND source = 'grapple'",
+            (goblin,),
+        ).fetchall()
+        db.close()
+        assert len(grapple_mods) == 0
+
+        # Timeline: has turn 1 but not turn 2
+        timeline = timeline_list(session_id=sid)
+        assert "Fighter attacks." in timeline
+        assert "Fighter grapples Goblin." not in timeline
+
+
+class TestSaveBranchLoadCrossBranch:
+    """Save on branch A during combat, fork to B, load branch A save."""
+
+    def test_cross_branch_load_restores_correct_state(self, make_session, make_character):
+        sid = _setup_session(make_session)
+        fighter = _setup_fighter(sid, make_character, "Fighter", 30)
+        goblin = _setup_fighter(sid, make_character, "Goblin", 20)
+
+        _start_encounter_arena(sid, fighter, goblin)
+
+        # -- Checkpoint #0 + #1: initial state --
+        turn_save(session_id=sid, narration="Combat begins.", summary="Start")
+
+        # -- Turn 1: Fighter attacks Goblin (d20=18, d8=6 → 10 dmg, HP 20→10) --
+        rolls = iter([17, 5])
+        with patch("secrets.randbelow", side_effect=rolls):
+            result = rules_resolve(
+                attacker_id=fighter,
+                defender_id=goblin,
+                action="melee_attack",
+                system_path=TEST_SYSTEM,
+            )
+        assert "HIT" in result
+        turn_save(session_id=sid, narration="Fighter hits Goblin.", summary="T1")
+
+        # Save on branch 1
+        manual_save(session_id=sid, name="Branch Point")
+
+        # -- Turn 2: Fighter attacks again (d20=17, d8=4 → 8 dmg, HP 10→2) --
+        rolls = iter([16, 3])
+        with patch("secrets.randbelow", side_effect=rolls):
+            result = rules_resolve(
+                attacker_id=fighter,
+                defender_id=goblin,
+                action="melee_attack",
+                system_path=TEST_SYSTEM,
+            )
+        assert "HIT" in result
+        turn_save(session_id=sid, narration="Fighter hits again.", summary="T2")
+
+        # -- Revert 2 steps (back to initial game state, Goblin HP=20) --
+        result = turn_revert(session_id=sid, steps=2)
+        assert "TURN_REVERTED" in result
+
+        # -- Alt turn: Fighter attacks and MISSES (d20=2) --
+        rolls = iter([1])  # d20=2, miss (2+9=11 < AC 12)
+        with patch("secrets.randbelow", side_effect=rolls):
+            result = rules_resolve(
+                attacker_id=fighter,
+                defender_id=goblin,
+                action="melee_attack",
+                system_path=TEST_SYSTEM,
+            )
+        assert "MISS" in result
+        turn_save(session_id=sid, narration="Fighter misses.", summary="Alt")
+
+        # Verify we're on branch 2
+        assert _branch_count(sid) == 2
+
+        # Goblin HP should be 20 (miss on this branch)
+        goblin_view = character_view(character_id=goblin)
+        assert any("current_hp" in line and "20" in line for line in goblin_view.splitlines())
+
+        # -- Load "Branch Point" from branch 1 --
+        result = save_load(session_id=sid, name="Branch Point")
+        assert "SAVE_LOADED" in result
+
+        # -- Assertions --
+        # Goblin HP = 10 (branch 1 state after first hit)
+        goblin_view = character_view(character_id=goblin)
+        assert any("current_hp" in line and "10" in line for line in goblin_view.splitlines())
+
+        # Encounter still active
+        status = encounter_status(session_id=sid)
+        assert "Round" in status
+        assert "Fighter" in status
+
+        # Both branches preserved
+        assert _branch_count(sid) == 2
+
+        # Timeline shows branch 1 content
+        timeline = timeline_list(session_id=sid)
+        assert "Fighter hits Goblin." in timeline
+        assert "Fighter misses." not in timeline
+
+
+class TestSaveBeforeCombatLoadAfterStarted:
+    """Save during exploration, start combat, load — encounter disappears."""
+
+    def test_load_pre_combat_save_removes_encounter(self, make_session, make_character):
+        sid = _setup_session(make_session)
+        fighter = _setup_fighter(sid, make_character, "Fighter", 30)
+        goblin = _setup_fighter(sid, make_character, "Goblin", 20)
+
+        # -- Save before combat --
+        turn_save(session_id=sid, narration="Exploring the dungeon.", summary="Explore")
+        manual_save(session_id=sid, name="Exploration")
+
+        # -- Start combat --
+        result = _start_encounter_arena(sid, fighter, goblin)
+        assert "ENCOUNTER STARTED" in result
+
+        # -- Fighter attacks Goblin (d20=18, d8=6 → 10 dmg) --
+        rolls = iter([17, 5])
+        with patch("secrets.randbelow", side_effect=rolls):
+            result = rules_resolve(
+                attacker_id=fighter,
+                defender_id=goblin,
+                action="melee_attack",
+                system_path=TEST_SYSTEM,
+            )
+        assert "HIT" in result
+        turn_save(session_id=sid, narration="Combat rages.", summary="Combat")
+
+        # Verify encounter is active
+        status = encounter_status(session_id=sid)
+        assert "Round" in status
+
+        # -- Load pre-combat save --
+        result = save_load(session_id=sid, name="Exploration")
+        assert "SAVE_LOADED" in result
+
+        # -- Assertions --
+        # No active encounter
+        db = _get_db()
+        active_enc = db.execute(
+            "SELECT COUNT(*) FROM encounter_state WHERE session_id = ? AND status = 'active'",
+            (sid,),
+        ).fetchone()[0]
+        assert active_enc == 0
+
+        # No zone placements
+        zone_count = db.execute(
+            "SELECT COUNT(*) FROM character_zone cz "
+            "JOIN encounter_state es ON cz.encounter_id = es.id "
+            "WHERE es.session_id = ?",
+            (sid,),
+        ).fetchone()[0]
+        assert zone_count == 0
+
+        # No encounter zones
+        enc_zones = db.execute(
+            "SELECT COUNT(*) FROM encounter_zones ez "
+            "JOIN encounter_state es ON ez.encounter_id = es.id "
+            "WHERE es.session_id = ?",
+            (sid,),
+        ).fetchone()[0]
+        assert enc_zones == 0
+
+        # No combat modifiers
+        combat_mods = db.execute(
+            "SELECT COUNT(*) FROM combat_state WHERE character_id IN (?, ?)",
+            (fighter, goblin),
+        ).fetchone()[0]
+        assert combat_mods == 0
+        db.close()
+
+        # Characters exist with pre-combat HP
+        fighter_view = character_view(character_id=fighter)
+        goblin_view = character_view(character_id=goblin)
+        assert any("current_hp" in line and "30" in line for line in fighter_view.splitlines())
+        assert any("current_hp" in line and "20" in line for line in goblin_view.splitlines())
+
+        # Timeline: exploration narration present, combat narration gone
+        timeline = timeline_list(session_id=sid)
+        assert "Exploring the dungeon." in timeline
+        assert "Combat rages." not in timeline
+
+
+class TestSaveDuringCombatLoadAfterEnded:
+    """Save during combat, end combat, load — encounter is active again."""
+
+    def test_load_mid_combat_save_reactivates_encounter(self, make_session, make_character):
+        sid = _setup_session(make_session)
+        fighter = _setup_fighter(sid, make_character, "Fighter", 30)
+        goblin = _setup_fighter(sid, make_character, "Goblin", 20)
+
+        # -- Start combat with terrain tags for modifier testing --
+        zones = json.dumps(
+            [
+                {"name": "Courtyard"},
+                {"name": "Ramparts", "tags": ["cover"]},
+            ]
+        )
+        initiative = json.dumps(
+            [
+                {"character_id": fighter, "roll": 20},
+                {"character_id": goblin, "roll": 10},
+            ]
+        )
+        placements = json.dumps(
+            [
+                {"character_id": fighter, "zone": "Courtyard"},
+                {"character_id": goblin, "zone": "Ramparts"},
+            ]
+        )
+        result = encounter_start(
+            session_id=sid,
+            zones=zones,
+            initiative=initiative,
+            placements=placements,
+        )
+        assert "ENCOUNTER STARTED" in result
+
+        # -- Initial save --
+        turn_save(session_id=sid, narration="Battle at the fort.", summary="Start")
+
+        # -- Fighter uses fireball on Goblin (ranged, cross-zone OK) --
+        # ranged_attack=7, d20=18 → 18+7=25 vs AC 12 → HIT
+        # d8=6 → 6+4=10 dmg. Goblin HP: 20 → 10
+        rolls = iter([17, 5])
+        with patch("secrets.randbelow", side_effect=rolls):
+            result = rules_resolve(
+                attacker_id=fighter,
+                defender_id=goblin,
+                action="fireball",
+                system_path=TEST_SYSTEM,
+            )
+        assert "HIT" in result
+        turn_save(session_id=sid, narration="Fighter strikes.", summary="T1")
+        manual_save(session_id=sid, name="In Battle")
+
+        # Verify Goblin has terrain modifier from Ramparts (cover → +2 bonus_defense)
+        db = _get_db()
+        terrain_mods = db.execute(
+            "SELECT source FROM combat_state WHERE character_id = ? AND source LIKE 'zone:%'",
+            (goblin,),
+        ).fetchall()
+        db.close()
+        has_terrain = len(terrain_mods) > 0
+
+        # -- End combat --
+        result = encounter_end(session_id=sid)
+        assert "COMBAT ENDED" in result
+        turn_save(session_id=sid, narration="Combat over.", summary="End")
+
+        # Verify no active encounter
+        db = _get_db()
+        active = db.execute(
+            "SELECT COUNT(*) FROM encounter_state WHERE session_id = ? AND status = 'active'",
+            (sid,),
+        ).fetchone()[0]
+        db.close()
+        assert active == 0
+
+        # -- Load mid-combat save --
+        result = save_load(session_id=sid, name="In Battle")
+        assert "SAVE_LOADED" in result
+
+        # -- Assertions --
+        # Encounter is active again
+        status = encounter_status(session_id=sid)
+        assert "Round" in status
+        assert "Fighter" in status
+        assert "Goblin" in status
+
+        # Zone positions restored
+        assert "Courtyard" in status
+        assert "Ramparts" in status
+
+        # Goblin HP = 10 (post-attack)
+        goblin_view = character_view(character_id=goblin)
+        assert any("current_hp" in line and "10" in line for line in goblin_view.splitlines())
+
+        # Terrain modifiers restored (if they existed before end_encounter)
+        if has_terrain:
+            db = _get_db()
+            restored_mods = db.execute(
+                "SELECT source FROM combat_state WHERE character_id = ? AND source LIKE 'zone:%'",
+                (goblin,),
+            ).fetchall()
+            db.close()
+            assert len(restored_mods) > 0
+
+        # Zone adjacency restored
+        db = _get_db()
+        adj_count = db.execute(
+            "SELECT COUNT(*) FROM zone_adjacency za "
+            "JOIN encounter_zones ez ON za.zone_a = ez.id "
+            "JOIN encounter_state es ON ez.encounter_id = es.id "
+            "WHERE es.session_id = ?",
+            (sid,),
+        ).fetchone()[0]
+        db.close()
+        assert adj_count > 0
+
+        # Timeline: "Battle at the fort" present, "Combat over" gone
+        timeline = timeline_list(session_id=sid)
+        assert "Battle at the fort." in timeline
+        assert "Combat over." not in timeline

@@ -801,8 +801,20 @@ def create_checkpoint(db, session_id):
                 )
                 branch_id = cur.lastrowid
                 is_fork = True
-                # Promote fork point to anchor if it isn't already
-                db.execute("UPDATE checkpoints SET is_anchor = 1 WHERE id = ?", (cursor_cp,))
+                # Promote fork point to anchor if it isn't already.
+                # Must also replace the snapshot with a full snapshot so that
+                # reconstruct_state can use it as a base without walking further.
+                _is_already_anchor = db.execute(
+                    "SELECT is_anchor FROM checkpoints WHERE id = ?", (cursor_cp,)
+                ).fetchone()
+                if _is_already_anchor and not _is_already_anchor[0]:
+                    _full_snap = reconstruct_state(db, cursor_cp)
+                    db.execute(
+                        "UPDATE checkpoints SET is_anchor = 1, snapshot = ? WHERE id = ?",
+                        (_compress(_full_snap), cursor_cp),
+                    )
+                else:
+                    db.execute("UPDATE checkpoints SET is_anchor = 1 WHERE id = ?", (cursor_cp,))
             else:
                 # Truncate: no named saves to preserve, delete future checkpoints
                 db.execute(
