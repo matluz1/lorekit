@@ -277,8 +277,7 @@ def test_character_sheet_update_attrs(make_session, make_character):
     assert "ATTRS_SET: 2" in result
 
     view = character_view(character_id=cid)
-    assert "hp" in view
-    assert "hp   25" in view
+    assert any("hp" in line and "25" in line for line in view.splitlines())
 
 
 def test_character_sheet_update_level_and_items(make_session, make_character):
