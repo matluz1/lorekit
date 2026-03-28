@@ -70,7 +70,7 @@ def apply_delta_forward(base_snap: dict, delta: dict) -> dict:
         for r in changes.get("removed", []):
             rows_by_key.pop(_row_key(table, r), None)
         for entry in changes.get("modified", []):
-            rows_by_key[entry["key"]] = entry["new"]
+            rows_by_key[_row_key(table, entry["new"])] = entry["new"]
         for r in changes.get("added", []):
             rows_by_key[_row_key(table, r)] = r
         result[table] = list(rows_by_key.values())

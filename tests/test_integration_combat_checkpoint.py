@@ -111,3 +111,126 @@ def _branch_count(session_id):
     ).fetchone()[0]
     db.close()
     return count
+
+
+class TestSaveMidCombatLoadRestores:
+    """Save mid-combat, change more state, load the save — full state restored."""
+
+    def test_load_restores_full_combat_state(self, make_session, make_character):
+        sid = _setup_session(make_session)
+        fighter = _setup_fighter(sid, make_character, "Fighter", 30)
+        goblin = _setup_fighter(sid, make_character, "Goblin", 20)
+
+        # Start encounter: 3 zones, both in Front (melee_range=0 requires same zone)
+        zones = json.dumps([{"name": "Front"}, {"name": "Middle"}, {"name": "Back"}])
+        initiative = json.dumps(
+            [
+                {"character_id": fighter, "roll": 20},
+                {"character_id": goblin, "roll": 10},
+            ]
+        )
+        placements = json.dumps(
+            [
+                {"character_id": fighter, "zone": "Front"},
+                {"character_id": goblin, "zone": "Front"},
+            ]
+        )
+        result = encounter_start(
+            session_id=sid,
+            zones=zones,
+            initiative=initiative,
+            placements=placements,
+        )
+        assert "ENCOUNTER STARTED" in result
+
+        # -- Turn 0: initial state --
+        turn_save(session_id=sid, narration="Combat begins.", summary="Start")
+
+        # -- Turn 1: Fighter attacks Goblin (melee, same zone) --
+        # melee_attack=9, d20=18 → 18+9=27 vs AC 12 → HIT
+        # d8=6 → 6+4=10 dmg. Goblin HP: 20 → 10
+        rolls = iter([17, 5])  # d20=18, d8=6
+        with patch("secrets.randbelow", side_effect=rolls):
+            result = rules_resolve(
+                attacker_id=fighter,
+                defender_id=goblin,
+                action="melee_attack",
+                system_path=TEST_SYSTEM,
+            )
+        assert "HIT" in result
+
+        # Move Goblin to Middle (to test position save/load)
+        encounter_move(character_id=goblin, target_zone="Middle")
+        turn_save(session_id=sid, narration="Fighter strikes Goblin.", summary="T1")
+
+        # -- Turn 2: Advance to Goblin's turn, Goblin uses fireball (ranged, no range limit) --
+        encounter_advance_turn(session_id=sid)
+        # ranged_attack=7, d20=15 → 15+7=22 vs AC 12 → HIT
+        # d8=4 → 4+4=8 dmg. Fighter HP: 30 → 22
+        rolls = iter([14, 3])  # d20=15, d8=4
+        with patch("secrets.randbelow", side_effect=rolls):
+            result = rules_resolve(
+                attacker_id=goblin,
+                defender_id=fighter,
+                action="fireball",
+                system_path=TEST_SYSTEM,
+            )
+        assert "HIT" in result
+        turn_save(session_id=sid, narration="Goblin retaliates.", summary="T2")
+
+        # -- Save here --
+        manual_save(session_id=sid, name="Mid Combat")
+
+        # -- Turn 3: Advance to Fighter's turn, move to Middle, melee attack --
+        encounter_advance_turn(session_id=sid)
+        encounter_move(character_id=fighter, target_zone="Middle")
+        # melee_attack=9, d20=19 → 19+9=28 vs AC 12 → HIT
+        # d8=7 → 7+4=11 dmg. Goblin HP: 10 → -1
+        rolls = iter([18, 6])  # d20=19, d8=7
+        with patch("secrets.randbelow", side_effect=rolls):
+            result = rules_resolve(
+                attacker_id=fighter,
+                defender_id=goblin,
+                action="melee_attack",
+                system_path=TEST_SYSTEM,
+            )
+        assert "HIT" in result
+        turn_save(session_id=sid, narration="Fighter finishes Goblin.", summary="T3")
+
+        # -- Load the save --
+        result = save_load(session_id=sid, name="Mid Combat")
+        assert "SAVE_LOADED" in result
+
+        # -- Assertions --
+        # Encounter status
+        status = encounter_status(session_id=sid)
+        assert "Round" in status
+        assert "Fighter" in status
+        assert "Goblin" in status
+
+        # Zone positions: Goblin in Middle (moved in T1), Fighter in Front (not Middle)
+        # Fighter was moved to Middle in T3, but load restored T2 state
+        assert "Middle" in status
+        assert "Front" in status
+
+        # HP values — character_view renders attributes as a table (category, key, value columns)
+        fighter_view = character_view(character_id=fighter)
+        goblin_view = character_view(character_id=goblin)
+        assert any("current_hp" in line and "22" in line for line in fighter_view.splitlines()), (
+            f"Expected current_hp=22 in fighter view:\n{fighter_view}"
+        )
+        assert any("current_hp" in line and "10" in line for line in goblin_view.splitlines()), (
+            f"Expected current_hp=10 in goblin view:\n{goblin_view}"
+        )
+
+        # Timeline: should have turns 1-2 but NOT turn 3
+        timeline = timeline_list(session_id=sid)
+        assert "Fighter strikes Goblin." in timeline
+        assert "Goblin retaliates." in timeline
+        assert "Fighter finishes Goblin." not in timeline
+
+        # Initiative order preserved (Fighter first, Goblin second)
+        # Status format: "Initiative: Fighter, Goblin" — check within that line
+        initiative_line = next((ln for ln in status.splitlines() if "Initiative" in ln), "")
+        assert "Fighter" in initiative_line
+        assert initiative_line.index("Fighter") < initiative_line.index("Goblin")
