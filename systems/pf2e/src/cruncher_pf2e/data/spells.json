@@ -1764,5 +1764,894 @@
     "heightened": {
       "2": {"description": "The duration increases to 1 hour."}
     }
+  },
+
+  "acid_arrow": {
+    "name": "Acid Arrow",
+    "rank": 2,
+    "traditions": ["arcane", "primal"],
+    "cast": "2 actions",
+    "components": ["somatic", "verbal"],
+    "traits": ["acid", "attack", "concentrate", "manipulate"],
+    "range": "120 feet",
+    "targets": "1 creature",
+    "uses": "per_day",
+    "description": "You fire an arrow of acid that deals 3d8 acid damage plus 1d6 persistent acid damage on a hit. On a critical hit, double the initial damage and the persistent damage increases to 2d6.",
+    "heightened": {
+      "per_2": {"damage": "+2d8 acid and +1d6 persistent acid"}
+    },
+    "action": {
+      "key": "acid_arrow",
+      "attack_stat": "spell_attack",
+      "defense_stat": "armor_class",
+      "range": "ranged",
+      "on_hit": {
+        "damage_roll": {"dice": "3d8", "type": "acid"},
+        "subtract_from": "current_hp"
+      }
+    }
+  },
+
+  "animal_messenger": {
+    "name": "Animal Messenger",
+    "rank": 2,
+    "traditions": ["primal"],
+    "cast": "1 minute",
+    "components": ["somatic", "verbal"],
+    "traits": ["concentrate", "manipulate"],
+    "range": "touch",
+    "targets": "1 Tiny animal",
+    "duration": "24 hours",
+    "uses": "per_day",
+    "description": "You compel a Tiny animal to carry a message to a location or creature you describe. The animal travels to the destination by the most direct route, ignoring terrain hazards. When it arrives, it waits up to 1 hour for the recipient. It returns to you after delivering the message if given a reply."
+  },
+
+  "barkskin": {
+    "name": "Barkskin",
+    "rank": 2,
+    "traditions": ["primal"],
+    "cast": "2 actions",
+    "components": ["somatic", "verbal"],
+    "traits": ["concentrate", "manipulate", "plant"],
+    "range": "touch",
+    "targets": "1 willing creature",
+    "duration": "10 minutes",
+    "uses": "per_day",
+    "description": "The target's skin toughens and becomes bark-like. The target gains a +2 status bonus to its AC and a +2 status bonus to saving throws against physical damage while the spell is in effect.",
+    "action": {
+      "key": "barkskin",
+      "range": "melee",
+      "on_hit": {
+        "apply_modifiers": [
+          {"source": "barkskin", "target_stat": "bonus_ac", "value": 2, "modifier_type": "status", "duration_type": "encounter"}
+        ]
+      }
+    }
+  },
+
+  "blazing_bolt": {
+    "name": "Blazing Bolt",
+    "rank": 2,
+    "traditions": ["arcane", "primal"],
+    "cast": "1 to 3 actions",
+    "components": ["somatic", "verbal"],
+    "traits": ["attack", "concentrate", "fire", "manipulate"],
+    "range": "60 feet",
+    "targets": "1 or more creatures",
+    "uses": "per_day",
+    "description": "You shoot a bolt of fire at a creature. Make a ranged spell attack roll. On a hit, the target takes 2d6 fire damage. For each additional action spent, you fire one more bolt at the same or a different target.",
+    "heightened": {
+      "per_1": {"damage": "+1d6"}
+    },
+    "action": {
+      "key": "blazing_bolt",
+      "attack_stat": "spell_attack",
+      "defense_stat": "armor_class",
+      "range": "ranged",
+      "on_hit": {
+        "damage_roll": {"dice": "2d6", "type": "fire"},
+        "subtract_from": "current_hp"
+      }
+    }
+  },
+
+  "blur": {
+    "name": "Blur",
+    "rank": 2,
+    "traditions": ["arcane", "occult"],
+    "cast": "2 actions",
+    "components": ["somatic", "verbal"],
+    "traits": ["concentrate", "illusion", "manipulate", "visual"],
+    "range": "touch",
+    "targets": "1 creature",
+    "duration": "1 minute",
+    "uses": "per_day",
+    "description": "The target's form blurs and wavers, making it harder to strike. The target becomes concealed (attackers must succeed at a DC 5 flat check). This does not make the target undetected.",
+    "action": {
+      "key": "blur",
+      "range": "melee",
+      "on_hit": {
+        "apply_modifiers": [
+          {"source": "blur", "condition": "concealed", "value": 1, "duration_type": "encounter"}
+        ]
+      }
+    }
+  },
+
+  "calm_emotions": {
+    "name": "Calm Emotions",
+    "rank": 2,
+    "traditions": ["divine", "occult"],
+    "cast": "2 actions",
+    "components": ["somatic", "verbal"],
+    "traits": ["concentrate", "emotion", "incapacitation", "manipulate", "mental"],
+    "range": "120 feet",
+    "area": "10-foot burst",
+    "defense": "will",
+    "duration": "1 minute",
+    "uses": "per_day",
+    "description": "You force calm upon the minds of creatures in the area. Each creature must attempt a Will save. On a failure, the creature is calmed and can't use hostile actions for the duration. Any hostile action ends the effect on that creature.",
+    "action": {
+      "key": "calm_emotions",
+      "attack_stat": "spell_dc",
+      "defense_stat": "will",
+      "range": "ranged",
+      "area": true,
+      "on_hit": {
+        "apply_modifiers": [
+          {"source": "calm_emotions", "condition": "calmed", "value": 1, "duration_type": "encounter"}
+        ]
+      }
+    }
+  },
+
+  "comprehend_language": {
+    "name": "Comprehend Language",
+    "rank": 2,
+    "traditions": ["arcane", "divine", "occult"],
+    "cast": "2 actions",
+    "components": ["somatic", "verbal"],
+    "traits": ["concentrate", "manipulate"],
+    "range": "touch",
+    "targets": "1 creature",
+    "duration": "1 hour",
+    "uses": "per_day",
+    "description": "The target can understand all languages it hears or reads for the duration, though it can't speak or write additional languages. The target must be able to hear or see the language to understand it."
+  },
+
+  "continual_flame": {
+    "name": "Continual Flame",
+    "rank": 2,
+    "traditions": ["arcane", "divine", "occult", "primal"],
+    "cast": "3 actions",
+    "components": ["material", "somatic", "verbal"],
+    "traits": ["concentrate", "light", "manipulate"],
+    "range": "touch",
+    "targets": "1 object",
+    "duration": "unlimited",
+    "uses": "per_day",
+    "description": "A magical flame, equivalent in brightness to a torch, springs forth from an object. The flame looks like a regular flame but creates no heat and doesn't use oxygen. The flame lasts indefinitely until the spell is dismissed."
+  },
+
+  "darkness": {
+    "name": "Darkness",
+    "rank": 2,
+    "traditions": ["arcane", "divine", "occult", "primal"],
+    "cast": "3 actions",
+    "components": ["material", "somatic", "verbal"],
+    "traits": ["concentrate", "darkness", "manipulate"],
+    "range": "120 feet",
+    "area": "20-foot burst",
+    "duration": "1 minute",
+    "uses": "per_day",
+    "description": "You create a shroud of darkness that extinguishes all mundane light and even suppresses magical light of your spell rank or lower within the area. Creatures in the area have the blinded condition unless they have darkvision.",
+    "heightened": {
+      "4": {"description": "You can sustain the spell for up to 1 hour."}
+    }
+  },
+
+  "darkvision": {
+    "name": "Darkvision",
+    "rank": 2,
+    "traditions": ["arcane", "divine", "occult", "primal"],
+    "cast": "2 actions",
+    "components": ["somatic", "verbal"],
+    "traits": ["concentrate", "manipulate"],
+    "range": "touch",
+    "targets": "1 creature",
+    "duration": "1 hour",
+    "uses": "per_day",
+    "description": "You grant the target the ability to see in darkness for the duration. The target gains darkvision, allowing it to see in darkness as clearly as in dim light.",
+    "heightened": {
+      "3": {"description": "The duration increases to 8 hours."}
+    }
+  },
+
+  "deafness": {
+    "name": "Deafness",
+    "rank": 2,
+    "traditions": ["arcane", "divine", "occult", "primal"],
+    "cast": "2 actions",
+    "components": ["somatic", "verbal"],
+    "traits": ["concentrate", "manipulate"],
+    "range": "30 feet",
+    "targets": "1 creature",
+    "defense": "fortitude",
+    "duration": "1 minute",
+    "uses": "per_day",
+    "description": "You deafen the target. The target must attempt a Fortitude save. On a failure, the target is deafened for 1 minute. On a critical failure, the target is deafened permanently until healed.",
+    "action": {
+      "key": "deafness",
+      "attack_stat": "spell_dc",
+      "defense_stat": "fortitude",
+      "range": "ranged",
+      "on_hit": {
+        "apply_modifiers": [
+          {"source": "deafness", "condition": "deafened", "value": 1, "duration_type": "encounter"}
+        ]
+      }
+    }
+  },
+
+  "dispel_magic": {
+    "name": "Dispel Magic",
+    "rank": 2,
+    "traditions": ["arcane", "divine", "occult", "primal"],
+    "cast": "2 actions",
+    "components": ["somatic", "verbal"],
+    "traits": ["concentrate", "manipulate"],
+    "range": "120 feet",
+    "targets": "1 spell effect or unattended magic item",
+    "uses": "per_day",
+    "description": "You unravel the magic in a spell effect or magic item. Make a counteract check. On a success, the spell effect ends or the magic item becomes nonmagical for 10 minutes. The DC is 14 + the spell rank or item level.",
+    "heightened": {
+      "per_1": {"description": "Your counteract bonus increases."}
+    }
+  },
+
+  "enlarge": {
+    "name": "Enlarge",
+    "rank": 2,
+    "traditions": ["arcane", "primal"],
+    "cast": "2 actions",
+    "components": ["somatic", "verbal"],
+    "traits": ["concentrate", "manipulate", "transmutation"],
+    "range": "30 feet",
+    "targets": "1 willing creature",
+    "duration": "5 minutes",
+    "uses": "per_day",
+    "description": "You increase the target's size by one category (typically from Medium to Large). The target gains a +2 status bonus to melee damage rolls and its reach increases by 5 feet. Weapons and carried items also grow.",
+    "heightened": {
+      "4": {"description": "You can target up to 10 willing creatures."}
+    },
+    "action": {
+      "key": "enlarge",
+      "range": "ranged",
+      "on_hit": {
+        "apply_modifiers": [
+          {"source": "enlarge", "target_stat": "bonus_damage", "value": 2, "modifier_type": "status", "duration_type": "encounter"}
+        ]
+      }
+    }
+  },
+
+  "faerie_fire": {
+    "name": "Faerie Fire",
+    "rank": 2,
+    "traditions": ["arcane", "divine", "occult", "primal"],
+    "cast": "2 actions",
+    "components": ["somatic", "verbal"],
+    "traits": ["concentrate", "light", "manipulate"],
+    "range": "120 feet",
+    "area": "10-foot burst",
+    "duration": "5 minutes",
+    "uses": "per_day",
+    "description": "Colorful light coats the creatures and objects in the area, causing them to outline in a glowing aura. Affected creatures become visible and can't benefit from concealment or invisibility. They shed dim light in a 10-foot radius.",
+    "action": {
+      "key": "faerie_fire",
+      "range": "ranged",
+      "area": true,
+      "on_hit": {
+        "apply_modifiers": [
+          {"source": "faerie_fire", "condition": "outlined", "value": 1, "duration_type": "encounter"}
+        ]
+      }
+    }
+  },
+
+  "false_life": {
+    "name": "False Life",
+    "rank": 2,
+    "traditions": ["arcane", "occult"],
+    "cast": "2 actions",
+    "components": ["somatic", "verbal"],
+    "traits": ["concentrate", "manipulate"],
+    "range": "self",
+    "duration": "8 hours",
+    "uses": "per_day",
+    "description": "You gain 1d8+4 temporary Hit Points. These temporary HP last until the spell ends or until they are spent.",
+    "heightened": {
+      "per_1": {"description": "+3 temporary HP"}
+    }
+  },
+
+  "flame_wisp": {
+    "name": "Flame Wisp",
+    "rank": 2,
+    "traditions": ["arcane", "primal"],
+    "cast": "2 actions",
+    "components": ["somatic", "verbal"],
+    "traits": ["concentrate", "fire", "manipulate"],
+    "range": "self",
+    "duration": "1 minute",
+    "uses": "per_day",
+    "description": "You conjure a small flame wisp that orbits you. As a free action on each of your turns, you can send the wisp to strike a creature within 30 feet, dealing 1d4 fire damage automatically. At the start of each of your turns, a new wisp appears, to a maximum of 4.",
+    "heightened": {
+      "per_1": {"damage": "+1d4 per wisp"}
+    },
+    "action": {
+      "key": "flame_wisp",
+      "range": "ranged",
+      "on_hit": {
+        "damage_roll": {"dice": "1d4", "type": "fire"},
+        "subtract_from": "current_hp"
+      }
+    }
+  },
+
+  "gentle_repose": {
+    "name": "Gentle Repose",
+    "rank": 2,
+    "traditions": ["arcane", "divine", "occult", "primal"],
+    "cast": "2 actions",
+    "components": ["somatic", "verbal"],
+    "traits": ["concentrate", "manipulate"],
+    "range": "touch",
+    "targets": "1 corpse",
+    "duration": "10 days",
+    "uses": "per_day",
+    "description": "You preserve a corpse in its current state, preventing it from decaying or becoming undead. If the creature died within the last 3 days and could be resurrected, the spell extends the time limit by the spell's duration."
+  },
+
+  "ghoulish_cravings": {
+    "name": "Ghoulish Cravings",
+    "rank": 2,
+    "traditions": ["divine", "occult"],
+    "cast": "2 actions",
+    "components": ["somatic", "verbal"],
+    "traits": ["concentrate", "disease", "manipulate", "void"],
+    "range": "touch",
+    "targets": "1 living creature",
+    "defense": "fortitude",
+    "duration": "1 minute",
+    "uses": "per_day",
+    "description": "You afflict the target with the desire to consume flesh. The target must attempt a Fortitude save. On a failure, the target is slowed 1 and takes 2d6 void damage per round unless it uses an action to bite a creature adjacent to it. On a critical failure, the target is also paralyzed for 1 round.",
+    "action": {
+      "key": "ghoulish_cravings",
+      "attack_stat": "spell_dc",
+      "defense_stat": "fortitude",
+      "range": "melee",
+      "on_hit": {
+        "apply_modifiers": [
+          {"source": "ghoulish_cravings", "condition": "slowed", "value": 1, "duration_type": "encounter"}
+        ]
+      }
+    }
+  },
+
+  "glitterdust": {
+    "name": "Glitterdust",
+    "rank": 2,
+    "traditions": ["arcane", "primal"],
+    "cast": "2 actions",
+    "components": ["somatic", "verbal"],
+    "traits": ["concentrate", "manipulate"],
+    "range": "120 feet",
+    "area": "10-foot burst",
+    "defense": "reflex",
+    "duration": "1 minute",
+    "uses": "per_day",
+    "description": "A cloud of golden particles covers the area. Each creature in the area must attempt a Reflex save. On a failure, the creature is blinded for 1 round and outlined in glittering light, negating concealment. On a critical failure, the creature is blinded for 1 minute.",
+    "action": {
+      "key": "glitterdust",
+      "attack_stat": "spell_dc",
+      "defense_stat": "reflex",
+      "range": "ranged",
+      "area": true,
+      "on_hit": {
+        "apply_modifiers": [
+          {"source": "glitterdust", "condition": "blinded", "value": 1, "duration_type": "rounds", "rounds": 1}
+        ]
+      }
+    }
+  },
+
+  "hideous_laughter": {
+    "name": "Hideous Laughter",
+    "rank": 2,
+    "traditions": ["arcane", "occult"],
+    "cast": "2 actions",
+    "components": ["somatic", "verbal"],
+    "traits": ["concentrate", "emotion", "incapacitation", "manipulate", "mental"],
+    "range": "30 feet",
+    "targets": "1 creature",
+    "defense": "will",
+    "duration": "1 minute",
+    "uses": "per_day",
+    "description": "The target is overcome with uncontrollable laughter. The target must attempt a Will save. On a failure, the target falls prone and is incapacitated for 1 round. On a critical failure, the target continues to be incapacitated for the full duration.",
+    "action": {
+      "key": "hideous_laughter",
+      "attack_stat": "spell_dc",
+      "defense_stat": "will",
+      "range": "ranged",
+      "on_hit": {
+        "apply_modifiers": [
+          {"source": "hideous_laughter", "condition": "incapacitated", "value": 1, "duration_type": "encounter"}
+        ]
+      }
+    }
+  },
+
+  "humanoid_form": {
+    "name": "Humanoid Form",
+    "rank": 2,
+    "traditions": ["arcane", "occult", "primal"],
+    "cast": "2 actions",
+    "components": ["somatic", "verbal"],
+    "traits": ["concentrate", "manipulate", "polymorph", "transmutation"],
+    "range": "self",
+    "duration": "1 hour",
+    "uses": "per_day",
+    "description": "You transform into a specific Medium humanoid of a common ancestry. You retain your statistics but gain the physical appearance of the chosen ancestry. You can mimic a specific individual's appearance, though observers can attempt Perception checks against your spell DC to see through the disguise."
+  },
+
+  "invisibility": {
+    "name": "Invisibility",
+    "rank": 2,
+    "traditions": ["arcane", "occult"],
+    "cast": "2 actions",
+    "components": ["material", "somatic"],
+    "traits": ["concentrate", "illusion", "manipulate"],
+    "range": "touch",
+    "targets": "1 creature",
+    "duration": "10 minutes",
+    "uses": "per_day",
+    "description": "The target becomes invisible. The target is undetected to creatures without special senses. The spell ends if the target makes an attack or uses a hostile action.",
+    "heightened": {
+      "4": {"description": "The invisibility doesn't end when the target uses hostile actions."}
+    }
+  },
+
+  "knock": {
+    "name": "Knock",
+    "rank": 2,
+    "traditions": ["arcane", "occult"],
+    "cast": "2 actions",
+    "components": ["somatic", "verbal"],
+    "traits": ["concentrate", "manipulate", "transmutation"],
+    "range": "30 feet",
+    "targets": "1 locked door, container, or shackle",
+    "uses": "per_day",
+    "description": "You attempt to open the target. Make a counteract check against the lock's Thievery DC or against the spell's DC if the target is magically sealed. On a success, the target is unlocked and opens. A loud knock sounds when you cast this spell."
+  },
+
+  "mirror_image": {
+    "name": "Mirror Image",
+    "rank": 2,
+    "traditions": ["arcane", "occult"],
+    "cast": "2 actions",
+    "components": ["somatic", "verbal"],
+    "traits": ["concentrate", "illusion", "manipulate", "visual"],
+    "range": "self",
+    "duration": "1 minute",
+    "uses": "per_day",
+    "description": "Three illusory duplicates of you appear around you. Each time a creature targets you with a Strike, roll a d4; on a 1, 2, or 3, the attack targets a duplicate instead (the duplicate is destroyed). When all duplicates are gone, the spell ends.",
+    "action": {
+      "key": "mirror_image",
+      "range": "self",
+      "on_hit": {
+        "apply_modifiers": [
+          {"source": "mirror_image", "condition": "mirror_image", "value": 3, "duration_type": "encounter"}
+        ]
+      }
+    }
+  },
+
+  "noise_blast": {
+    "name": "Noise Blast",
+    "rank": 2,
+    "traditions": ["arcane", "divine", "occult"],
+    "cast": "2 actions",
+    "components": ["somatic", "verbal"],
+    "traits": ["auditory", "concentrate", "manipulate", "sonic"],
+    "range": "self",
+    "area": "10-foot burst",
+    "defense": "fortitude",
+    "uses": "per_day",
+    "description": "You unleash a powerful burst of sound. Each creature in the area takes 2d10 sonic damage with a basic Fortitude save. On a critical failure, the creature is also deafened for 1 minute.",
+    "heightened": {
+      "per_1": {"damage": "+1d10"}
+    },
+    "action": {
+      "key": "noise_blast",
+      "attack_stat": "spell_dc",
+      "defense_stat": "fortitude",
+      "range": "melee",
+      "area": true,
+      "on_hit": {
+        "damage_roll": {"dice": "2d10", "type": "sonic"},
+        "subtract_from": "current_hp"
+      }
+    }
+  },
+
+  "paralyze": {
+    "name": "Paralyze",
+    "rank": 2,
+    "traditions": ["arcane", "occult"],
+    "cast": "2 actions",
+    "components": ["somatic", "verbal"],
+    "traits": ["concentrate", "incapacitation", "manipulate", "mental"],
+    "range": "30 feet",
+    "targets": "1 creature",
+    "defense": "will",
+    "duration": "1 round",
+    "uses": "per_day",
+    "description": "You paralyze the target with a mental bolt. The target must attempt a Will save. On a critical failure, the target is paralyzed for 1 minute. On a failure, the target is paralyzed for 1 round. On a success, the target is stunned 1.",
+    "heightened": {
+      "7": {"description": "You can target up to 10 creatures."}
+    },
+    "action": {
+      "key": "paralyze",
+      "attack_stat": "spell_dc",
+      "defense_stat": "will",
+      "range": "ranged",
+      "on_hit": {
+        "apply_modifiers": [
+          {"source": "paralyze", "condition": "paralyzed", "value": 1, "duration_type": "rounds", "rounds": 1}
+        ]
+      }
+    }
+  },
+
+  "resist_energy": {
+    "name": "Resist Energy",
+    "rank": 2,
+    "traditions": ["arcane", "divine", "occult", "primal"],
+    "cast": "2 actions",
+    "components": ["somatic", "verbal"],
+    "traits": ["abjuration", "concentrate", "manipulate"],
+    "range": "touch",
+    "targets": "1 creature",
+    "duration": "10 minutes",
+    "uses": "per_day",
+    "description": "You grant the target resistance 5 to one energy type you choose when casting (acid, cold, electricity, fire, or sonic).",
+    "heightened": {
+      "4": {"description": "Resistance increases to 10."},
+      "7": {"description": "Resistance increases to 15."}
+    },
+    "action": {
+      "key": "resist_energy",
+      "range": "melee",
+      "on_hit": {
+        "apply_modifiers": [
+          {"source": "resist_energy", "target_stat": "bonus_resistance", "value": 5, "modifier_type": "untyped", "duration_type": "encounter"}
+        ]
+      }
+    }
+  },
+
+  "restoration": {
+    "name": "Restoration",
+    "rank": 2,
+    "traditions": ["divine", "occult", "primal"],
+    "cast": "1 minute",
+    "components": ["material", "somatic", "verbal"],
+    "traits": ["concentrate", "healing", "manipulate"],
+    "range": "touch",
+    "targets": "1 creature",
+    "uses": "per_day",
+    "description": "You accelerate the target's natural healing. The target recovers from the clumsy, enfeebled, and stupefied conditions, and gains 1d8 HP per spell rank. Additionally, the spell can remove one poison or disease of your spell rank or lower.",
+    "heightened": {
+      "per_1": {"healing": "+1d8 HP"}
+    },
+    "action": {
+      "key": "restoration",
+      "range": "melee",
+      "on_hit": {
+        "damage_roll": {"dice": "1d8"},
+        "add_to": "current_hp"
+      }
+    }
+  },
+
+  "see_the_unseen": {
+    "name": "See the Unseen",
+    "rank": 2,
+    "traditions": ["arcane", "divine", "occult"],
+    "cast": "2 actions",
+    "components": ["somatic", "verbal"],
+    "traits": ["concentrate", "manipulate", "revelation"],
+    "range": "touch",
+    "targets": "1 creature",
+    "duration": "10 minutes",
+    "uses": "per_day",
+    "description": "The target can see invisible creatures and objects. Invisible creatures are visible to the target but still have the concealed condition.",
+    "heightened": {
+      "5": {"description": "The target can also see into the ethereal plane."}
+    }
+  },
+
+  "shatter": {
+    "name": "Shatter",
+    "rank": 2,
+    "traditions": ["arcane", "occult", "primal"],
+    "cast": "2 actions",
+    "components": ["somatic", "verbal"],
+    "traits": ["concentrate", "manipulate", "sonic"],
+    "range": "30 feet",
+    "targets": "1 object or creature made of crystal, glass, or similar brittle material",
+    "defense": "fortitude",
+    "uses": "per_day",
+    "description": "You shatter the target with a resonant magical frequency. The target takes 4d8 sonic damage with a basic Fortitude save. Objects take double damage and automatically fail their save.",
+    "heightened": {
+      "per_1": {"damage": "+2d8"}
+    },
+    "action": {
+      "key": "shatter",
+      "attack_stat": "spell_dc",
+      "defense_stat": "fortitude",
+      "range": "ranged",
+      "on_hit": {
+        "damage_roll": {"dice": "4d8", "type": "sonic"},
+        "subtract_from": "current_hp"
+      }
+    }
+  },
+
+  "shrink": {
+    "name": "Shrink",
+    "rank": 2,
+    "traditions": ["arcane", "primal"],
+    "cast": "2 actions",
+    "components": ["somatic", "verbal"],
+    "traits": ["concentrate", "manipulate", "transmutation"],
+    "range": "30 feet",
+    "targets": "1 willing creature",
+    "duration": "5 minutes",
+    "uses": "per_day",
+    "description": "You decrease the target's size by one category (typically from Medium to Small). The target takes a –2 status penalty to melee damage rolls and can Squeeze through tight spaces more easily. The target's gear changes size with it.",
+    "heightened": {
+      "4": {"description": "You can target up to 10 willing creatures."}
+    },
+    "action": {
+      "key": "shrink",
+      "range": "ranged",
+      "on_hit": {
+        "apply_modifiers": [
+          {"source": "shrink", "target_stat": "bonus_damage", "value": -2, "modifier_type": "status", "duration_type": "encounter"}
+        ]
+      }
+    }
+  },
+
+  "silence": {
+    "name": "Silence",
+    "rank": 2,
+    "traditions": ["divine", "occult"],
+    "cast": "2 actions",
+    "components": ["somatic", "verbal"],
+    "traits": ["concentrate", "illusion", "manipulate"],
+    "range": "touch",
+    "targets": "1 willing creature",
+    "duration": "1 minute",
+    "uses": "per_day",
+    "description": "The target can't make sounds. Spells with the auditory or linguistic traits have no effect on the target if they require the target to hear them. Creatures within 20 feet of the target can't be heard."
+  },
+
+  "slow": {
+    "name": "Slow",
+    "rank": 2,
+    "traditions": ["arcane", "occult", "primal"],
+    "cast": "2 actions",
+    "components": ["somatic", "verbal"],
+    "traits": ["concentrate", "manipulate", "transmutation"],
+    "range": "30 feet",
+    "targets": "1 creature",
+    "defense": "fortitude",
+    "duration": "1 minute",
+    "uses": "per_day",
+    "description": "You slow the target's actions. The target must attempt a Fortitude save. On a failure, the target is slowed 1 for 1 minute. On a critical failure, the target is slowed 2 for 1 minute.",
+    "heightened": {
+      "7": {"description": "You can target up to 10 creatures."}
+    },
+    "action": {
+      "key": "slow",
+      "attack_stat": "spell_dc",
+      "defense_stat": "fortitude",
+      "range": "ranged",
+      "on_hit": {
+        "apply_modifiers": [
+          {"source": "slow", "condition": "slowed", "value": 1, "duration_type": "encounter"}
+        ]
+      }
+    }
+  },
+
+  "sound_burst": {
+    "name": "Sound Burst",
+    "rank": 2,
+    "traditions": ["divine", "occult"],
+    "cast": "2 actions",
+    "components": ["somatic", "verbal"],
+    "traits": ["auditory", "concentrate", "manipulate", "sonic"],
+    "range": "30 feet",
+    "area": "10-foot burst",
+    "defense": "fortitude",
+    "uses": "per_day",
+    "description": "A cacophonous explosion of sound assaults all creatures in the area. Each creature takes 2d10 sonic damage with a basic Fortitude save. On a critical failure, the creature is deafened for 1 minute and stunned 1.",
+    "heightened": {
+      "per_1": {"damage": "+1d10"}
+    },
+    "action": {
+      "key": "sound_burst",
+      "attack_stat": "spell_dc",
+      "defense_stat": "fortitude",
+      "range": "ranged",
+      "area": true,
+      "on_hit": {
+        "damage_roll": {"dice": "2d10", "type": "sonic"},
+        "subtract_from": "current_hp"
+      }
+    }
+  },
+
+  "spiritual_weapon": {
+    "name": "Spiritual Weapon",
+    "rank": 2,
+    "traditions": ["divine", "occult"],
+    "cast": "2 actions",
+    "components": ["somatic", "verbal"],
+    "traits": ["concentrate", "force", "manipulate"],
+    "range": "120 feet",
+    "duration": "sustained up to 1 minute",
+    "uses": "per_day",
+    "description": "A ghostly weapon appears and attacks foes. When you cast the spell, and each time you Sustain it, the weapon flies to a target within range and makes a Strike using your spell attack modifier. The weapon deals 1d8 force damage plus your spellcasting modifier.",
+    "heightened": {
+      "per_2": {"damage": "+1d8"}
+    },
+    "action": {
+      "key": "spiritual_weapon",
+      "attack_stat": "spell_attack",
+      "defense_stat": "armor_class",
+      "range": "ranged",
+      "on_hit": {
+        "damage_roll": {"dice": "1d8", "type": "force"},
+        "subtract_from": "current_hp"
+      }
+    }
+  },
+
+  "sudden_bolt": {
+    "name": "Sudden Bolt",
+    "rank": 2,
+    "traditions": ["arcane", "primal"],
+    "cast": "2 actions",
+    "components": ["somatic", "verbal"],
+    "traits": ["concentrate", "electricity", "manipulate"],
+    "range": "60 feet",
+    "targets": "1 creature",
+    "defense": "reflex",
+    "uses": "per_day",
+    "description": "You call down a crackling bolt of lightning on the target. The target takes 4d12 electricity damage with a basic Reflex save.",
+    "heightened": {
+      "per_1": {"damage": "+1d12"}
+    },
+    "action": {
+      "key": "sudden_bolt",
+      "attack_stat": "spell_dc",
+      "defense_stat": "reflex",
+      "range": "ranged",
+      "on_hit": {
+        "damage_roll": {"dice": "4d12", "type": "electricity"},
+        "subtract_from": "current_hp"
+      }
+    }
+  },
+
+  "telekinetic_maneuver": {
+    "name": "Telekinetic Maneuver",
+    "rank": 2,
+    "traditions": ["arcane", "occult"],
+    "cast": "2 actions",
+    "components": ["somatic", "verbal"],
+    "traits": ["attack", "concentrate", "manipulate"],
+    "range": "60 feet",
+    "targets": "1 creature",
+    "uses": "per_day",
+    "description": "You grab or trip a foe at a distance using telekinesis. Make a ranged spell attack roll against the target's Fortitude DC. On a hit, you Trip or Disarm the target (your choice). On a critical hit, the target is knocked prone (Trip) or the item is sent flying 10 feet (Disarm).",
+    "action": {
+      "key": "telekinetic_maneuver",
+      "attack_stat": "spell_attack",
+      "defense_stat": "armor_class",
+      "range": "ranged",
+      "on_hit": {
+        "apply_modifiers": [
+          {"source": "telekinetic_maneuver", "condition": "prone", "value": 1, "duration_type": "special"}
+        ]
+      }
+    }
+  },
+
+  "vomit_swarm": {
+    "name": "Vomit Swarm",
+    "rank": 2,
+    "traditions": ["arcane", "occult", "primal"],
+    "cast": "2 actions",
+    "components": ["somatic", "verbal"],
+    "traits": ["concentrate", "manipulate"],
+    "range": "self",
+    "area": "30-foot cone",
+    "defense": "reflex",
+    "uses": "per_day",
+    "description": "You vomit forth a swarm of insects, vermin, or other creatures. Each creature in the area takes 2d8 piercing damage with a basic Reflex save.",
+    "heightened": {
+      "per_1": {"damage": "+2d8"}
+    },
+    "action": {
+      "key": "vomit_swarm",
+      "attack_stat": "spell_dc",
+      "defense_stat": "reflex",
+      "range": "melee",
+      "area": true,
+      "on_hit": {
+        "damage_roll": {"dice": "2d8", "type": "piercing"},
+        "subtract_from": "current_hp"
+      }
+    }
+  },
+
+  "water_breathing": {
+    "name": "Water Breathing",
+    "rank": 2,
+    "traditions": ["arcane", "divine", "primal"],
+    "cast": "2 actions",
+    "components": ["somatic", "verbal"],
+    "traits": ["concentrate", "manipulate", "transmutation"],
+    "range": "30 feet",
+    "targets": "up to 5 creatures",
+    "duration": "1 hour",
+    "uses": "per_day",
+    "description": "The targets can breathe water as easily as they breathe air. They don't lose their ability to breathe air.",
+    "heightened": {
+      "3": {"description": "Duration increases to 8 hours."}
+    }
+  },
+
+  "web": {
+    "name": "Web",
+    "rank": 2,
+    "traditions": ["arcane", "primal"],
+    "cast": "3 actions",
+    "components": ["material", "somatic", "verbal"],
+    "traits": ["concentrate", "manipulate"],
+    "range": "30 feet",
+    "area": "10-foot burst",
+    "defense": "reflex",
+    "duration": "1 minute",
+    "uses": "per_day",
+    "description": "You create a mass of sticky webs. Each creature in the area must attempt a Reflex save. On a failure, the creature is grabbed. On a critical failure, the creature is immobilized. The area becomes difficult terrain.",
+    "action": {
+      "key": "web",
+      "attack_stat": "spell_dc",
+      "defense_stat": "reflex",
+      "range": "ranged",
+      "area": true,
+      "on_hit": {
+        "apply_modifiers": [
+          {"source": "web", "condition": "grabbed", "value": 1, "duration_type": "encounter"}
+        ]
+      }
+    }
   }
 }
