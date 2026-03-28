@@ -706,7 +706,11 @@
       "level": 1
     },
     "combat_option": true,
-    "note": "Stance: ranged Strikes within first range increment ignore volley penalty and get +2 damage.",
+    "array_of": "fighter_stance",
+    "effects": {
+      "bonus_ranged_attack": 2
+    },
+    "note": "Stance: ranged Strikes within first range increment ignore volley penalty and get +2 circumstance bonus to damage.",
     "source": "player_core"
   },
   "reactive_shield": {
@@ -1895,7 +1899,11 @@
       "level": 10
     },
     "combat_option": true,
-    "note": "Stance: enemies provoke reactions from you, but you take -2 AC.",
+    "array_of": "barbarian_stance",
+    "effects": {
+      "bonus_ac": -2
+    },
+    "note": "Stance: enemies provoke reactions from you, but you take -2 circumstance penalty to AC.",
     "source": "player_core_2"
   },
   "dragon_transformation": {
@@ -2013,7 +2021,11 @@
       "level": 1
     },
     "combat_option": true,
-    "note": "Stance: -1d (1d6 B) but +1 AC.",
+    "array_of": "monk_stance",
+    "effects": {
+      "bonus_ac": 1
+    },
+    "note": "Stance: Crane Wing unarmed attack (1d6 B). +1 circumstance bonus to AC. Must have one hand free.",
     "source": "player_core_2"
   },
   "dragon_stance": {
@@ -2024,7 +2036,9 @@
       "level": 1
     },
     "combat_option": true,
-    "note": "Stance: 1d10 damage, ignore first square of difficult terrain on Stride.",
+    "array_of": "monk_stance",
+    "effects": {},
+    "note": "Stance: Dragon Tail unarmed attack (1d10 B). Ignore first square of difficult terrain on Stride.",
     "source": "player_core_2"
   },
   "ki_rush": {

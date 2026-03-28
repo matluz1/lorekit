@@ -156,6 +156,10 @@
         "npc_instruction": "You are unconscious. You CANNOT act. You are unaware of your surroundings.",
         "gm_instruction": "Character drops what they're holding, falls prone, -4 AC, off-guard, blinded. Cannot perceive or act."
       }
+    },
+    "alternate_switching": {
+      "action_cost": "1 action",
+      "max_per_turn": 99
     }
   },
 
