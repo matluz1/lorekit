@@ -37,6 +37,125 @@
       "cover": {"target_stat": "bonus_ac", "value": 2, "modifier_type": "circumstance"},
       "greater_cover": {"target_stat": "bonus_ac", "value": 4, "modifier_type": "circumstance"},
       "elevated": {"target_stat": "bonus_ranged_attack", "value": 1, "modifier_type": "circumstance"}
+    },
+    "condition_rules": {
+      "blinded": {
+        "description": "Cannot see. All terrain is difficult terrain. -4 to Perception. Auto-fail sight-based checks.",
+        "npc_instruction": "You cannot see anything. Move cautiously (all terrain is difficult). Target enemies by sound — expect to miss often. Prioritize recovering from this condition or retreating.",
+        "gm_instruction": "Attacker is off-guard to the blinded creature. Blinded creature treats all creatures as hidden. Flat check DC 11 to target."
+      },
+      "clumsy": {
+        "description": "Penalty to DEX-based checks, AC, and Reflex saves (per rank).",
+        "npc_instruction": "Your agility is impaired. Avoid situations requiring acrobatics or precise movement. Your AC is lower — consider defensive positioning.",
+        "gm_instruction": "Apply -N penalty per rank to all DEX-based checks, AC, and Reflex saves."
+      },
+      "confused": {
+        "description": "Off-guard, can't use reactions, must attack random adjacent target.",
+        "npc_instruction": "You are confused and not in control. Attack a random creature adjacent to you (ally or enemy). You cannot choose your target or use reactions.",
+        "gm_instruction": "The confused character is off-guard and must use their actions to Strike a random adjacent creature. If no adjacent creature, they babble incoherently. Flat check DC 11 at end of turn to recover."
+      },
+      "controlled": {
+        "description": "Another creature determines all your actions.",
+        "npc_instruction": "You have no free will. The controlling creature decides everything you do. Suppress your own goals entirely.",
+        "gm_instruction": "The controller chooses all of the controlled creature's actions. The controlled creature is off-guard."
+      },
+      "dying": {
+        "description": "Unconscious, progressing toward death. Recovery check at start of turn.",
+        "max_total": 0,
+        "npc_instruction": "You are unconscious and dying. You CANNOT act. Your fate depends on allies stabilizing you.",
+        "gm_instruction": "Character is unconscious. At start of each turn, make a flat check (DC 10 + dying value). Success: reduce dying by 1. Failure: increase by 1. Dying 4 = death."
+      },
+      "enfeebled": {
+        "description": "Penalty to STR-based checks and damage (per rank).",
+        "npc_instruction": "Your strength is sapped. Melee attacks and Athletics checks are penalized. Consider ranged options or spellcasting instead.",
+        "gm_instruction": "Apply -N penalty per rank to all STR-based checks, attack rolls using STR, and STR-based damage."
+      },
+      "fascinated": {
+        "description": "Focused on a subject. -2 to Perception and skill checks unrelated to the subject.",
+        "npc_instruction": "You are fixated on the subject of your fascination. You cannot willingly use hostile actions. If threatened or damaged, the fascination breaks.",
+        "gm_instruction": "Character takes -2 to Perception and all skill checks not related to the fascinating subject. Hostile actions break the condition."
+      },
+      "fatigued": {
+        "description": "-1 to AC and saving throws. Cannot explore.",
+        "npc_instruction": "You are exhausted. Your defenses are weakened. If possible, seek rest. Avoid extended combat.",
+        "gm_instruction": "Apply -1 to AC and all saving throws. Recovers after a full night's rest."
+      },
+      "fleeing": {
+        "description": "Must spend all actions trying to escape.",
+        "max_total": 0,
+        "npc_instruction": "You are overcome with the need to flee. Spend ALL your actions moving away from the source of fear. You cannot voluntarily stop fleeing.",
+        "gm_instruction": "Character must use all actions to move away from the source. Cannot use other actions. If cornered, cowers (no actions)."
+      },
+      "frightened": {
+        "description": "Penalty to all checks and DCs (per rank). Reduces by 1 at end of each turn.",
+        "npc_instruction": "You are afraid. Everything you do is penalized. Consider defensive actions or retreating from the source of fear. The fear fades over time.",
+        "gm_instruction": "Apply -N penalty per rank to all checks and DCs. Reduces by 1 automatically at end of the frightened creature's turn."
+      },
+      "grabbed": {
+        "description": "Off-guard and immobilized. Can attempt to Escape.",
+        "max_move": 0,
+        "npc_instruction": "You are held in place and off-guard. You cannot move. Use the Escape action (Athletics or Acrobatics) to break free. This should be your top priority.",
+        "gm_instruction": "Character is off-guard (-2 AC) and immobilized. Can attempt Escape action (Athletics or Acrobatics vs grabber's Athletics DC)."
+      },
+      "immobilized": {
+        "description": "Cannot use actions with the move trait.",
+        "max_move": 0,
+        "npc_instruction": "You cannot move from your current position. Focus on ranged attacks, spells, or actions that don't require movement.",
+        "gm_instruction": "Character cannot Stride, Step, or use any action with the move trait."
+      },
+      "off_guard": {
+        "description": "-2 circumstance penalty to AC.",
+        "npc_instruction": "Your defenses are down — enemies can exploit your vulnerability. Reposition or use defensive actions if possible.",
+        "gm_instruction": "Apply -2 circumstance penalty to AC. Known as flat-footed in legacy rules."
+      },
+      "paralyzed": {
+        "description": "Off-guard, can't act. Flat check DC 11 at end of turn to recover.",
+        "max_total": 0,
+        "npc_instruction": "You are completely paralyzed. You CANNOT act at all. You can only hope to recover at the end of your turn.",
+        "gm_instruction": "Character is off-guard, cannot act. Flat check DC 11 at end of each turn to recover."
+      },
+      "prone": {
+        "description": "-2 to attack rolls. Off-guard. Must Stand (1 action) to get up.",
+        "npc_instruction": "You are on the ground. Your attacks are penalized and you are off-guard. Use the Stand action (1 action) to get up before attacking.",
+        "gm_instruction": "Character takes -2 to melee attack rolls and is off-guard. Standing up costs 1 action."
+      },
+      "quickened": {
+        "description": "Gain 1 extra action per turn (with restrictions).",
+        "npc_instruction": "You have an extra action this turn! Use it wisely — it may be restricted to certain action types (Strike, Stride, or Step).",
+        "gm_instruction": "Character gains 1 additional action. The granting effect usually restricts what the extra action can be used for."
+      },
+      "restrained": {
+        "description": "Off-guard, immobilized, and clumsy 2. Can attempt to Escape.",
+        "max_move": 0,
+        "npc_instruction": "You are heavily restrained — off-guard, immobile, and clumsy. Escaping should be your highest priority. Use Escape action.",
+        "gm_instruction": "Character is off-guard, immobilized, and clumsy 2. Can attempt Escape."
+      },
+      "sickened": {
+        "description": "Penalty to all checks and DCs (per rank). Must save to reduce.",
+        "npc_instruction": "You feel ill. Everything is penalized. You can spend an action to retch (Fortitude save) to try to reduce the sickness.",
+        "gm_instruction": "Apply -N penalty per rank to all checks and DCs. Character can spend an action to attempt a Fortitude save to reduce sickened value by 1."
+      },
+      "slowed": {
+        "description": "Lose actions at start of turn (per rank).",
+        "npc_instruction": "You have fewer actions this turn. Choose carefully — prioritize your most impactful action.",
+        "gm_instruction": "Character loses N actions at the start of their turn. With slowed 1, they have 2 actions instead of 3."
+      },
+      "stunned": {
+        "description": "Lose actions at start of turn. Can't use reactions.",
+        "npc_instruction": "You are stunned and lose actions. You may have very few or no actions this turn. You cannot use reactions.",
+        "gm_instruction": "Character loses N actions at start of turn (stunned value). Cannot use reactions while stunned. Stunned value decreases by actions lost."
+      },
+      "stupefied": {
+        "description": "Penalty to INT/WIS/CHA-based checks and spell DCs (per rank). Flat check to cast spells.",
+        "npc_instruction": "Your mental faculties are impaired. Spellcasting is unreliable — you must make a flat check or the spell fails. Consider non-magical options.",
+        "gm_instruction": "Apply -N penalty per rank to INT/WIS/CHA checks and spell DCs. Casting a spell requires a flat check (DC 5 + stupefied value); failure wastes the spell."
+      },
+      "unconscious": {
+        "description": "Can't act, -4 AC, blinded, off-guard. Drops held items.",
+        "max_total": 0,
+        "npc_instruction": "You are unconscious. You CANNOT act. You are unaware of your surroundings.",
+        "gm_instruction": "Character drops what they're holding, falls prone, -4 AC, off-guard, blinded. Cannot perceive or act."
+      }
     }
   },
 
