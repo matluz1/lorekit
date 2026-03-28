@@ -3,168 +3,196 @@
     "name": "Acolyte",
     "ability_boosts": ["int", "wis", "free"],
     "effects": {"prof_religion": 2, "prof_lore_scribing": 2},
-    "feat": "student_of_the_canon"
+    "feat": "student_of_the_canon",
+    "source": "player_core"
   },
   "artisan": {
     "name": "Artisan",
     "ability_boosts": ["str", "int", "free"],
     "effects": {"prof_crafting": 2, "prof_lore_guild": 2},
-    "feat": "specialty_crafting"
+    "feat": "specialty_crafting",
+    "source": "player_core"
   },
   "criminal": {
     "name": "Criminal",
     "ability_boosts": ["dex", "int", "free"],
     "effects": {"prof_stealth": 2, "prof_lore_underworld": 2},
-    "feat": "experienced_smuggler"
+    "feat": "experienced_smuggler",
+    "source": "player_core"
   },
   "farmhand": {
     "name": "Farmhand",
     "ability_boosts": ["con", "wis", "free"],
     "effects": {"prof_athletics": 2, "prof_lore_farming": 2},
-    "feat": "assurance_athletics"
+    "feat": "assurance_athletics",
+    "source": "player_core"
   },
   "gladiator": {
     "name": "Gladiator",
     "ability_boosts": ["str", "cha", "free"],
     "effects": {"prof_performance": 2, "prof_lore_gladiatorial": 2},
-    "feat": "fascinating_performance"
+    "feat": "fascinating_performance",
+    "source": "player_core"
   },
   "guard": {
     "name": "Guard",
     "ability_boosts": ["str", "cha", "free"],
     "effects": {"prof_intimidation": 2, "prof_lore_legal": 2},
-    "feat": "quick_coercion"
+    "feat": "quick_coercion",
+    "source": "player_core"
   },
   "hermit": {
     "name": "Hermit",
     "ability_boosts": ["con", "int", "free"],
     "effects": {"prof_nature": 2, "prof_lore_terrain": 2},
-    "feat": "dubious_knowledge"
+    "feat": "dubious_knowledge",
+    "source": "player_core"
   },
   "merchant": {
     "name": "Merchant",
     "ability_boosts": ["int", "cha", "free"],
     "effects": {"prof_diplomacy": 2, "prof_lore_mercantile": 2},
-    "feat": "bargain_hunter"
+    "feat": "bargain_hunter",
+    "source": "player_core"
   },
   "noble": {
     "name": "Noble",
     "ability_boosts": ["int", "cha", "free"],
     "effects": {"prof_society": 2, "prof_lore_heraldry": 2},
-    "feat": "courtly_graces"
+    "feat": "courtly_graces",
+    "source": "player_core"
   },
   "scholar": {
     "name": "Scholar",
     "ability_boosts": ["int", "wis", "free"],
     "effects": {"prof_arcana": 2, "prof_lore_academia": 2},
-    "feat": "assurance_arcana"
+    "feat": "assurance_arcana",
+    "source": "player_core"
   },
   "scout": {
     "name": "Scout",
     "ability_boosts": ["dex", "wis", "free"],
     "effects": {"prof_survival": 2, "prof_lore_terrain": 2},
-    "feat": "forager"
+    "feat": "forager",
+    "source": "player_core"
   },
   "warrior": {
     "name": "Warrior",
     "ability_boosts": ["str", "con", "free"],
     "effects": {"prof_intimidation": 2, "prof_lore_warfare": 2},
-    "feat": "intimidating_glare"
+    "feat": "intimidating_glare",
+    "source": "player_core"
   },
   "acrobat": {
     "name": "Acrobat",
     "ability_boosts": ["str", "dex", "free"],
     "effects": {"prof_acrobatics": 2, "prof_lore_circus": 2},
-    "feat": "steady_balance"
+    "feat": "steady_balance",
+    "source": "player_core"
   },
   "animal_whisperer": {
     "name": "Animal Whisperer",
     "ability_boosts": ["wis", "cha", "free"],
     "effects": {"prof_nature": 2, "prof_lore_animal": 2},
-    "feat": "train_animal"
+    "feat": "train_animal",
+    "source": "player_core"
   },
   "barkeep": {
     "name": "Barkeep",
     "ability_boosts": ["con", "cha", "free"],
     "effects": {"prof_diplomacy": 2, "prof_lore_alcohol": 2},
-    "feat": "hobnobber"
+    "feat": "hobnobber",
+    "source": "player_core"
   },
   "charlatan": {
     "name": "Charlatan",
     "ability_boosts": ["int", "cha", "free"],
     "effects": {"prof_deception": 2, "prof_lore_underworld": 2},
-    "feat": "charming_liar"
+    "feat": "charming_liar",
+    "source": "player_core"
   },
   "detective": {
     "name": "Detective",
     "ability_boosts": ["int", "wis", "free"],
     "effects": {"prof_society": 2, "prof_lore_underworld": 2},
-    "feat": "streetwise"
+    "feat": "streetwise",
+    "source": "player_core"
   },
   "emissary": {
     "name": "Emissary",
     "ability_boosts": ["int", "cha", "free"],
     "effects": {"prof_society": 2, "prof_lore_city": 2},
-    "feat": "multilingual"
+    "feat": "multilingual",
+    "source": "player_core"
   },
   "entertainer": {
     "name": "Entertainer",
     "ability_boosts": ["dex", "cha", "free"],
     "effects": {"prof_performance": 2, "prof_lore_theater": 2},
-    "feat": "fascinating_performance"
+    "feat": "fascinating_performance",
+    "source": "player_core"
   },
   "field_medic": {
     "name": "Field Medic",
     "ability_boosts": ["con", "wis", "free"],
     "effects": {"prof_medicine": 2, "prof_lore_medicine": 2},
-    "feat": "battle_medicine"
+    "feat": "battle_medicine",
+    "source": "player_core"
   },
   "fortune_teller": {
     "name": "Fortune Teller",
     "ability_boosts": ["int", "cha", "free"],
     "effects": {"prof_occultism": 2, "prof_lore_fortune_telling": 2},
-    "feat": "oddity_identification"
+    "feat": "oddity_identification",
+    "source": "player_core"
   },
   "gambler": {
     "name": "Gambler",
     "ability_boosts": ["dex", "cha", "free"],
     "effects": {"prof_deception": 2, "prof_lore_games": 2},
-    "feat": "lie_to_me"
+    "feat": "lie_to_me",
+    "source": "player_core"
   },
   "hunter": {
     "name": "Hunter",
     "ability_boosts": ["dex", "wis", "free"],
     "effects": {"prof_survival": 2, "prof_lore_hunting": 2},
-    "feat": "survey_wildlife"
+    "feat": "survey_wildlife",
+    "source": "player_core"
   },
   "laborer": {
     "name": "Laborer",
     "ability_boosts": ["str", "con", "free"],
     "effects": {"prof_athletics": 2, "prof_lore_labor": 2},
-    "feat": "hefty_hauler"
+    "feat": "hefty_hauler",
+    "source": "player_core"
   },
   "martial_disciple": {
     "name": "Martial Disciple",
     "ability_boosts": ["str", "dex", "free"],
     "effects": {"prof_acrobatics": 2, "prof_lore_warfare": 2},
-    "feat": "cat_fall"
+    "feat": "cat_fall",
+    "source": "player_core"
   },
   "nomad": {
     "name": "Nomad",
     "ability_boosts": ["con", "wis", "free"],
     "effects": {"prof_survival": 2, "prof_lore_desert": 2},
-    "feat": "assurance_survival"
+    "feat": "assurance_survival",
+    "source": "player_core"
   },
   "sailor": {
     "name": "Sailor",
     "ability_boosts": ["str", "dex", "free"],
     "effects": {"prof_athletics": 2, "prof_lore_sailing": 2},
-    "feat": "underwater_marauder"
+    "feat": "underwater_marauder",
+    "source": "player_core"
   },
   "street_urchin": {
     "name": "Street Urchin",
     "ability_boosts": ["dex", "con", "free"],
     "effects": {"prof_thievery": 2, "prof_lore_city": 2},
-    "feat": "pickpocket"
+    "feat": "pickpocket",
+    "source": "player_core"
   }
 }
