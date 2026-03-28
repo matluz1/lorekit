@@ -10104,5 +10104,481 @@
     "uses": "per_day",
     "description": "You utter a powerful wish, duplicating any arcane spell of rank 9 or lower. You can produce any of the following effects: duplicate the effects of any arcane spell of rank 9 or lower; reverse certain effects, such as conditions, petrification, or polymorph; undo misfortune; transport creatures; grant a creature a +1 circumstance bonus to attack rolls, saving throws, skill checks, or ability checks for 1 day; create a non-magical item worth 25,000 gp or less; or produce any other effect the GM deems appropriate for a wish. The GM determines the exact effects and may interpret the wish in unexpected ways.",
     "source": "player_core"
+  },
+  "animate_object": {
+    "name": "Animate Object",
+    "rank": 2,
+    "traditions": [],
+    "cast": "1 day",
+    "components": [
+      "material"
+    ],
+    "traits": [
+      "uncommon"
+    ],
+    "ritual": true,
+    "uses": "per_day",
+    "description": "You transform a target object into an animated creature. The creature's level depends on the ritual rank and cost paid. On a critical success, if the animated object is at least 4 levels lower than you, it becomes a minion under your control. Otherwise, you give it one simple command it pursues single-mindedly. On failure, no object is created. On critical failure, the animated object is created but is hostile and attacks you.",
+    "source": "player_core"
+  },
+  "atone": {
+    "name": "Atone",
+    "rank": 4,
+    "traditions": [],
+    "cast": "1 day",
+    "components": [
+      "material"
+    ],
+    "traits": [
+      "uncommon"
+    ],
+    "ritual": true,
+    "uses": "per_day",
+    "description": "You help a penitent creature atone for misdeeds anathema to a shared deity or philosophy. The ritual only works if the target is genuinely penitent; insincere targets automatically critically fail. On critical success, the target receives absolution and must complete a quest set by the deity, gaining divine insight for one month. On critical failure, the target is permanently expelled from the faith.",
+    "source": "player_core"
+  },
+  "awaken_animal": {
+    "name": "Awaken Animal",
+    "rank": 6,
+    "traditions": [],
+    "cast": "1 day",
+    "components": [
+      "material"
+    ],
+    "traits": [
+      "uncommon",
+      "mental"
+    ],
+    "ritual": true,
+    "uses": "per_day",
+    "description": "You grant intelligence to an animal, transforming it into a beast. Animals previously serving as companions or minions can no longer fulfill those roles after awakening. On critical success, the target's Intelligence, Wisdom, and Charisma modifiers increase to +2 and it becomes helpful to you. On success, modifiers increase to +0 and it becomes friendly. On critical failure, it awakens with bestial hatred and becomes hostile.",
+    "source": "player_core"
+  },
+  "blight_ritual": {
+    "name": "Blight",
+    "rank": 4,
+    "traditions": [],
+    "cast": "1 day",
+    "components": [],
+    "traits": [
+      "uncommon",
+      "plant",
+      "void"
+    ],
+    "ritual": true,
+    "uses": "per_day",
+    "description": "You twist and stunt plants in a half-mile-radius area, causing them to wither and reducing crop yields for one year. When cast in an area affected by plant growth, this ritual attempts to counteract that effect instead. On critical success, crops are completely spoiled or yield halved in up to a 1-mile radius. On critical failure, flora changes unexpectedly contrary to your intentions.",
+    "source": "player_core"
+  },
+  "call_spirit": {
+    "name": "Call Spirit",
+    "rank": 5,
+    "traditions": [],
+    "cast": "1 hour",
+    "components": [
+      "material"
+    ],
+    "traits": [
+      "uncommon",
+      "spirit"
+    ],
+    "ritual": true,
+    "uses": "per_day",
+    "description": "You tear the veil to the afterlife and call a spirit from its final resting place by name, requiring a connection such as a possession, garment, or piece of corpse. An unwilling spirit may attempt a Will save. The summoned spirit appears as a wispy form and can answer questions over up to 10 minutes. On critical success, the spirit is cooperative and takes a -2 circumstance penalty to Deception checks. On critical failure, one or more evil spirits appear and attack.",
+    "source": "player_core"
+  },
+  "commune": {
+    "name": "Commune",
+    "rank": 6,
+    "traditions": [],
+    "cast": "1 day",
+    "components": [
+      "material"
+    ],
+    "traits": [
+      "uncommon",
+      "prediction"
+    ],
+    "ritual": true,
+    "uses": "per_day",
+    "description": "You contact a powerful entity to answer up to seven yes-or-no questions. The entity type depends on the skill used: Nature contacts primal spirits knowledgeable about animals and terrain; Occultism reaches planar entities and elementals with forgotten secrets; Religion contacts divine servants of your deity. Answers use brief responses like 'Yes,' 'No,' 'Likely,' or 'Unknown.' On critical success, you contact a powerful aligned entity that answers honestly with up to five-word responses. On critical failure, exposure to cosmic enormity inflicts stupefied 4 for 1 week.",
+    "source": "player_core"
+  },
+  "consecrate": {
+    "name": "Consecrate",
+    "rank": 2,
+    "traditions": [],
+    "cast": "3 days",
+    "components": [
+      "material",
+      "verbal"
+    ],
+    "traits": [
+      "uncommon",
+      "consecration"
+    ],
+    "ritual": true,
+    "uses": "per_day",
+    "description": "You sanctify a site to a deity. Worshippers of that deity within the consecrated area gain a +1 status bonus to attack rolls, skill checks, saving throws, and Perception checks, while creatures anathema to the deity take a -1 penalty. The effect lasts 1 year. On critical success, the consecration lasts 10 years or the radius doubles. The caster may designate the site as holy or unholy based on the deity's sanctification rules.",
+    "source": "player_core"
+  },
+  "control_weather": {
+    "name": "Control Weather",
+    "rank": 8,
+    "traditions": [],
+    "cast": "1 day",
+    "components": [],
+    "traits": [
+      "uncommon"
+    ],
+    "ritual": true,
+    "uses": "per_day",
+    "description": "You alter weather patterns within a 2-mile-radius circle, creating calm seasonal conditions or selecting up to two weather effects based on the current season. You can't specifically control manifestations like the exact path of a tornado or targets of lightning strikes. The effects last 4d12 hours. On critical success, the area expands to a 5-mile radius or the duration extends to up to 16d12 hours. On critical failure, unexpected weather manifests contrary to your intentions.",
+    "source": "player_core"
+  },
+  "create_undead": {
+    "name": "Create Undead",
+    "rank": 2,
+    "traditions": [],
+    "cast": "1 day",
+    "components": [
+      "material"
+    ],
+    "traits": [
+      "uncommon",
+      "unholy"
+    ],
+    "ritual": true,
+    "uses": "per_day",
+    "description": "You transform a corpse into an undead creature of appropriate type. The creature's level is determined by the ritual rank and material cost. On critical success, if 4 or more levels lower than you, it can become a minion. Intelligent undead become helpful on critical success or friendly on success. On critical failure, the undead is created but attacks you out of hatred.",
+    "source": "player_core"
+  },
+  "geas": {
+    "name": "Geas",
+    "rank": 3,
+    "traditions": [],
+    "cast": "1 day",
+    "components": [],
+    "traits": [
+      "uncommon",
+      "curse",
+      "mental"
+    ],
+    "ritual": true,
+    "uses": "per_day",
+    "description": "You impose a magical obligation on a willing target, compelling them to perform or refrain from a specific act. If unable to comply, the target becomes sickened 1, increasing daily up to sickened 4. On critical success, the target gains a +1 status bonus to checks upholding the geas. On critical failure, you become the unwilling geas target instead. At 5th rank and higher, the ritual can affect unwilling creatures with a Will save.",
+    "source": "player_core"
+  },
+  "collective_memories": {
+    "name": "Collective Memories",
+    "rank": 7,
+    "traditions": [],
+    "cast": "1 day",
+    "components": [
+      "material"
+    ],
+    "traits": [
+      "uncommon"
+    ],
+    "ritual": true,
+    "uses": "per_day",
+    "description": "You tap into the collective memories, legends, and lore of others about an important person, place, or thing. On critical success, you gain one hour of mostly coherent memories emphasizing accurate information. On success, you gain one hour of useful but incomplete information, often with contradictory versions. On critical failure, your mind is overwhelmed for one week, and upon recovery you may retrain one skill into a Lore skill related to the subject.",
+    "source": "player_core"
+  },
+  "planar_servitor": {
+    "name": "Planar Servitor",
+    "rank": 5,
+    "traditions": [],
+    "cast": "1 day",
+    "components": [
+      "material"
+    ],
+    "traits": [
+      "uncommon"
+    ],
+    "ritual": true,
+    "uses": "per_day",
+    "description": "You call upon your deity to send a divine servitor from their realm. The servitor's level cannot exceed double the ritual's rank. The servitor requires payment for its services, typically a consumable item of its level for minor tasks or a permanent magic item for combat assistance. On critical success, payment costs are halved. On critical failure, your deity is offended, potentially stripping your divine powers until you atone.",
+    "source": "player_core"
+  },
+  "binding_circle": {
+    "name": "Binding Circle",
+    "rank": 6,
+    "traditions": [],
+    "cast": "1 day",
+    "components": [
+      "material"
+    ],
+    "traits": [
+      "uncommon"
+    ],
+    "ritual": true,
+    "uses": "per_day",
+    "description": "You summon an extraplanar creature of level no greater than double the ritual's rank and negotiate a bargain, typically exchanging payment for services. A creature that doesn't wish to negotiate can attempt a Will save to stay on its home plane. On critical success, the creature is detained for up to one day, enabling better negotiation terms. On critical failure, an unbound malevolent entity appears and attacks immediately.",
+    "source": "player_core"
+  },
+  "plant_growth": {
+    "name": "Plant Growth",
+    "rank": 4,
+    "traditions": [],
+    "cast": "1 day",
+    "components": [],
+    "traits": [
+      "uncommon",
+      "plant",
+      "vitality",
+      "wood"
+    ],
+    "ritual": true,
+    "uses": "per_day",
+    "description": "You cause plants within a half-mile-radius area to become healthier and more fruitful, increasing crop yields for one year. When cast over an area affected by blight, it attempts to counteract that condition instead. On critical success, crop yield doubles or the area expands to 1-mile radius. On critical failure, flora changes unpredictably, generally contrary to your desires.",
+    "source": "player_core"
+  },
+  "primal_call": {
+    "name": "Primal Call",
+    "rank": 6,
+    "traditions": [],
+    "cast": "1 day",
+    "components": [
+      "material"
+    ],
+    "traits": [
+      "uncommon"
+    ],
+    "ritual": true,
+    "uses": "per_day",
+    "description": "This ritual functions similarly to planar servitor, but instead uses a faerie circle to summon an animal, beast, fey, fungus, or plant creature from within 100 miles of the caster. The creature's level cannot exceed double the ritual's rank.",
+    "source": "player_core"
+  },
+  "resurrect": {
+    "name": "Resurrect",
+    "rank": 5,
+    "traditions": [],
+    "cast": "1 day",
+    "components": [
+      "material"
+    ],
+    "traits": [
+      "uncommon",
+      "healing"
+    ],
+    "ritual": true,
+    "uses": "per_day",
+    "description": "You attempt to call forth a dead creature's soul and return it to their body. The target must have died within the past year and the body must be present and relatively intact. If the deity has decided the target's time is complete or the target refuses, the ritual automatically fails. On critical success, the target returns fully restored with a +1 status bonus to attacks, Perception, saves, and skills for one week. On success, the target returns with 1 HP, no spells, and is clumsy 1, drained 1, and enfeebled 1 for one week.",
+    "source": "player_core"
+  },
+  "astral_projection": {
+    "name": "Astral Projection",
+    "rank": 5,
+    "traditions": [],
+    "cast": "1 hour",
+    "components": [
+      "material"
+    ],
+    "traits": [
+      "uncommon"
+    ],
+    "ritual": true,
+    "uses": "per_day",
+    "description": "The ritual projects participants' spiritual forms to the Astral Plane while their physical bodies remain in stasis. Astral forms are duplicates of participants and their equipment. Targets maintain a connection via an incorporeal silver cord; severing this cord kills both forms immediately. Each participant can dismiss their astral form to return to their body. On critical failure, all casters become doomed 1, reduced to 0 HP, and begin dying.",
+    "source": "player_core_2"
+  },
+  "clone": {
+    "name": "Clone",
+    "rank": 9,
+    "traditions": [],
+    "cast": "7 days",
+    "components": [
+      "material"
+    ],
+    "traits": [
+      "rare"
+    ],
+    "ritual": true,
+    "uses": "per_day",
+    "description": "You use biological samples from a willing target to grow a physical duplicate that will house their soul upon death. The duplicate grows over 2d4 months and must remain undisturbed. When the original dies, the soul enters the clone automatically if willing and not prevented by Pharasma's judgment. On critical failure, the clone appears successful but houses a malevolent entity instead of the target's soul.",
+    "source": "player_core_2"
+  },
+  "fantastic_facade": {
+    "name": "Fantastic Facade",
+    "rank": 9,
+    "traditions": [],
+    "cast": "1 week",
+    "components": [
+      "material"
+    ],
+    "traits": [
+      "rare",
+      "illusion"
+    ],
+    "ritual": true,
+    "uses": "per_day",
+    "description": "You create permanent complex illusions over a settlement of up to 1-mile radius, altering the look, sound, feel, and smell of structures, terrain, and creatures. You determine which elements remain static or follow programmed routines. The illusions fade for creatures leaving the area after 1 day. Creatures interacting with the settlement in revealing ways may attempt to disbelieve the illusion.",
+    "source": "player_core_2"
+  },
+  "fortifying_brew": {
+    "name": "Fortifying Brew",
+    "rank": 5,
+    "traditions": [],
+    "cast": "4 hours",
+    "components": [
+      "material"
+    ],
+    "traits": [
+      "uncommon"
+    ],
+    "ritual": true,
+    "uses": "per_day",
+    "description": "You create a large quantity of restorative drink, such as an invigorating tea, refreshing ale, or stimulative alchemical tonic, serving up to 10 people. On critical success, participants gain temporary Hit Points, resistance to disease and poison, and afflictions are counteracted. On success, benefits are reduced. On critical failure, participants become sickened 4 for 12 hours.",
+    "source": "player_core_2"
+  },
+  "gathering_call": {
+    "name": "Gathering Call",
+    "rank": 7,
+    "traditions": [],
+    "cast": "7 days",
+    "components": [
+      "material"
+    ],
+    "traits": [
+      "rare",
+      "teleportation"
+    ],
+    "ritual": true,
+    "uses": "per_day",
+    "description": "You bind up to seven willing creatures to a sanctuary location, allowing them to return there instantly from any distance on the same plane by speaking a designated word. The effect lasts one year. Any participant may dismiss the effect, causing all who choose to return to teleport back simultaneously. On critical failure, the connection forms to an extraplanar location unknowingly and all participants teleport there.",
+    "source": "player_core_2"
+  },
+  "heartbond": {
+    "name": "Heartbond",
+    "rank": 2,
+    "traditions": [],
+    "cast": "1 hour",
+    "components": [
+      "material"
+    ],
+    "traits": [
+      "uncommon"
+    ],
+    "ritual": true,
+    "uses": "per_day",
+    "description": "You create a magical bond between two or more willing creatures who share genuine affection. Participants receive tokens symbolizing their connection and lose the ritual's effects when not wearing the token. On critical success, bonded creatures can sense each other's direction, distance, and conditions once per day, and can cast message as a divine innate spell targeting only other participants. On critical failure, secondary casters become clumsy 2 and stupefied 2 within 30 feet of each other for one week.",
+    "source": "player_core_2"
+  },
+  "inveigle": {
+    "name": "Inveigle",
+    "rank": 2,
+    "traditions": [],
+    "cast": "1 day",
+    "components": [
+      "material"
+    ],
+    "traits": [
+      "uncommon",
+      "mental"
+    ],
+    "ritual": true,
+    "uses": "per_day",
+    "description": "You manipulate a creature's mind, causing them to see you as a close and trusted friend and view your suggestions as reasonable. The target becomes helpful and willing to assist, but will refuse requests against their nature or those causing needless harm. The effect lasts one year or until dismissed. On critical success, the target takes a -4 status penalty to Will saves to end the effect. On critical failure, the target becomes hostile instead.",
+    "source": "player_core_2"
+  },
+  "phantasmal_custodians": {
+    "name": "Phantasmal Custodians",
+    "rank": 3,
+    "traditions": [],
+    "cast": "1 day",
+    "components": [
+      "material"
+    ],
+    "traits": [
+      "uncommon"
+    ],
+    "ritual": true,
+    "uses": "per_day",
+    "description": "You create long-lasting phantasmal entities that perform basic tasks at a fixed location without requiring concentration, lasting one year. On critical success, six minions are created; on success, three are created. Each can be commanded to perform assigned tasks repeatedly. On critical failure, six hostile minions are created that can strike with force damage.",
+    "source": "player_core_2"
+  },
+  "reincarnate": {
+    "name": "Reincarnate",
+    "rank": 3,
+    "traditions": [],
+    "cast": "4 hours",
+    "components": [
+      "material"
+    ],
+    "traits": [
+      "uncommon"
+    ],
+    "ritual": true,
+    "uses": "per_day",
+    "description": "You call forth a deceased creature's soul to inhabit a new body of random ancestry. The target must have died within the past week and be no higher than 8th level. The resurrected creature retains their background, class features, and languages while adopting their new ancestry's physical attributes. On critical success, the target returns with full Hit Points and prepared spells. On critical failure, the soul is trapped in an animal form with Intelligence 1.",
+    "source": "player_core_2"
+  },
+  "rest_eternal": {
+    "name": "Rest Eternal",
+    "rank": 4,
+    "traditions": [],
+    "cast": "1 day",
+    "components": [
+      "material"
+    ],
+    "traits": [
+      "uncommon",
+      "spirit"
+    ],
+    "ritual": true,
+    "uses": "per_day",
+    "description": "You invoke divine and supernatural forces to permanently bar a creature's spirit from returning to life or undeath. A willing spirit can attempt a Will save to resist. On success, attempts to communicate with, resurrect, or transform the creature into undead fail unless the interfering effect has significantly higher counteract rank, originates from artifacts, or comes from deities. On critical failure, all casters become doomed 1 for one week.",
+    "source": "player_core_2"
+  },
+  "shadow_double": {
+    "name": "Shadow Double",
+    "rank": 4,
+    "traditions": [],
+    "cast": "1 day",
+    "components": [
+      "material"
+    ],
+    "traits": [
+      "rare",
+      "illusion"
+    ],
+    "ritual": true,
+    "uses": "per_day",
+    "description": "You create an illusory duplicate of a living creature drawn from the Netherworld's shadows. The shadow double is a 4th-level creature that can impersonate the target but lacks genuine memories and special powers. On critical success, the shadow double becomes a minion under your absolute control with a mental link. On success, it requires verbal commands. On critical failure, the shadow double is hostile and attacks the casters.",
+    "source": "player_core_2"
+  },
+  "teleportation_circle": {
+    "name": "Teleportation Circle",
+    "rank": 7,
+    "traditions": [],
+    "cast": "1 day",
+    "components": [
+      "material"
+    ],
+    "traits": [
+      "uncommon",
+      "teleportation"
+    ],
+    "ritual": true,
+    "uses": "per_day",
+    "description": "You create a 10-foot-diameter circular portal that teleports creatures to a predetermined destination within 1,000 miles on the same plane. Any creature fully entering the circle is instantly transported, though unwilling creatures may attempt Will saves to resist. The circle normally functions one-way; doubling the cost makes it bidirectional. On critical success, creatures arrive at the exact designated point. On critical failure, creatures arrive at a random destination.",
+    "source": "player_core_2"
+  },
+  "ward_domain": {
+    "name": "Ward Domain",
+    "rank": 6,
+    "traditions": [],
+    "cast": "1 day",
+    "components": [
+      "material"
+    ],
+    "traits": [
+      "uncommon"
+    ],
+    "ritual": true,
+    "uses": "per_day",
+    "description": "You protect a 100-foot by 100-foot area for one week by locking all gates, doors, windows, and apertures; obscuring up to six entrances as plain walls; blocking scrying; and counteracting teleportation attempts within the area. Individual effects can be dispelled separately, but successfully dispelling any magic effect ends the entire ritual. On critical success, effects apply to double the area size. On critical failure, the area becomes trapped and hostile to the casters.",
+    "source": "player_core_2"
   }
 }
