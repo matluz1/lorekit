@@ -46,12 +46,19 @@ def main():
 
 
 def create(db, name: str, setting: str, system: str) -> str:
+    if not system or not system.strip():
+        raise LoreKitError("A system pack is required. Use 'basic' for a generic d20 system.")
     cur = db.execute(
         "INSERT INTO sessions (name, setting, system_type) VALUES (?, ?, ?)",
         (name, setting, system),
     )
+    session_id = cur.lastrowid
+    db.execute(
+        "INSERT INTO session_meta (session_id, key, value) VALUES (?, 'rules_system', ?)",
+        (session_id, system),
+    )
     db.commit()
-    return f"SESSION_CREATED: {cur.lastrowid}"
+    return f"SESSION_CREATED: {session_id}"
 
 
 def cmd_create(db, args):

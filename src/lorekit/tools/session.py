@@ -111,6 +111,8 @@ def session_setup(
 ) -> str:
     """Set up an entire session in one call: session + metadata + story + acts + regions + narrative time.
 
+    system: Name of the rules system pack (required). Use "mm3e" for d20 Hero SRD 3e,
+            "basic" for a generic d20 system, or the name of any installed system pack.
     meta: JSON object of key-value pairs, e.g. {"language":"English","house_rules":"..."}.
       Keys prefixed with "lore_" are automatically included in NPC prompts as world knowledge
       (capped at ~800 tokens). Use these for fundamental setting facts that all characters

@@ -321,6 +321,39 @@ def test_ability_from_template_no_system():
     assert "ERROR" in result
 
 
+# ---- session.create() validation -------------------------------------------
+
+
+def test_session_create_rejects_empty_system():
+    """session.create() raises LoreKitError when system is empty."""
+    import pytest
+
+    from lorekit.db import LoreKitError, require_db
+    from lorekit.narrative.session import create
+
+    db = require_db()
+    try:
+        with pytest.raises(LoreKitError, match="system pack is required"):
+            create(db, "Test", "Fantasy", "")
+    finally:
+        db.close()
+
+
+def test_session_create_sets_rules_system_meta():
+    """session.create() automatically sets rules_system in session_meta."""
+    from lorekit.db import require_db
+    from lorekit.narrative.session import create
+    from lorekit.queries import get_session_meta
+
+    db = require_db()
+    try:
+        result = create(db, "Test", "Fantasy", "basic")
+        sid = int(result.split(": ")[1])
+        assert get_session_meta(db, sid, "rules_system") == "basic"
+    finally:
+        db.close()
+
+
 # ---- error handling --------------------------------------------------------
 
 
