@@ -297,15 +297,14 @@ export function App({
         />
       </Box>
 
-      {/* Tool toast */}
-      {toastLine && (
-        <Box paddingX={1}>
-          <Text dimColor>{toastLine}</Text>
-        </Box>
-      )}
-
       {/* Input */}
       <Box marginTop={1} flexDirection="column">
+        {/* Tool toast — right above the prompt */}
+        {toastLine && (
+          <Box paddingX={1}>
+            <Text dimColor>{toastLine}</Text>
+          </Box>
+        )}
         <Input
           onSubmit={handleSubmit}
           disabled={isStreaming}
