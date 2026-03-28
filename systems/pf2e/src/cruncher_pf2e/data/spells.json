@@ -677,5 +677,1092 @@
         "subtract_from": "current_hp"
       }
     }
+  },
+
+  "alarm": {
+    "name": "Alarm",
+    "rank": 1,
+    "traditions": ["arcane", "divine", "occult", "primal"],
+    "cast": "10 minutes",
+    "components": ["somatic", "verbal"],
+    "traits": ["abjuration", "concentrate", "manipulate"],
+    "range": "touch",
+    "area": "20-foot-radius emanation",
+    "duration": "8 hours",
+    "uses": "per_day",
+    "description": "You ward an area against intrusion. When you cast the spell, you designate up to 8 creatures that don't trigger the alarm. The first time a Small or larger creature enters the area without your permission, the alarm is triggered. You can choose a mental alarm (only you hear it) or an audible alarm (a loud bell all creatures nearby can hear).",
+    "heightened": {
+      "3": {"description": "The duration increases to 24 hours."},
+      "7": {"description": "The duration increases to 1 week."}
+    }
+  },
+
+  "bane": {
+    "name": "Bane",
+    "rank": 1,
+    "traditions": ["divine", "occult"],
+    "cast": "2 actions",
+    "components": ["somatic", "verbal"],
+    "traits": ["concentrate", "manipulate", "mental"],
+    "range": "self",
+    "area": "5-foot emanation",
+    "defense": "will",
+    "duration": "1 minute",
+    "uses": "per_day",
+    "description": "You fill the minds of your enemies with doubt. Each enemy in the area must succeed at a Will save or take a –1 status penalty to attack rolls. On a critical failure, the creature takes a –2 status penalty instead.",
+    "action": {
+      "key": "bane",
+      "attack_stat": "spell_dc",
+      "defense_stat": "will",
+      "range": "melee",
+      "area": true,
+      "on_hit": {
+        "apply_modifiers": [
+          {"source": "bane", "condition": "bane", "value": -1, "duration_type": "encounter"}
+        ]
+      }
+    }
+  },
+
+  "bless": {
+    "name": "Bless",
+    "rank": 1,
+    "traditions": ["divine", "occult"],
+    "cast": "2 actions",
+    "components": ["somatic", "verbal"],
+    "traits": ["concentrate", "manipulate", "mental"],
+    "range": "self",
+    "area": "5-foot emanation",
+    "duration": "1 minute",
+    "uses": "per_day",
+    "description": "You bolster your allies' morale. Each ally in the area gains a +1 status bonus to attack rolls. Each round, you can Sustain the spell to extend the emanation by 5 feet.",
+    "action": {
+      "key": "bless",
+      "range": "self",
+      "area": true,
+      "on_hit": {
+        "apply_modifiers": [
+          {"source": "bless", "target_stat": "bonus_attack", "value": 1, "modifier_type": "status", "duration_type": "encounter"}
+        ]
+      }
+    }
+  },
+
+  "breathe_fire": {
+    "name": "Breathe Fire",
+    "rank": 1,
+    "traditions": ["arcane", "primal"],
+    "cast": "2 actions",
+    "components": ["somatic", "verbal"],
+    "traits": ["concentrate", "fire", "manipulate"],
+    "range": "self",
+    "area": "30-foot cone",
+    "defense": "reflex",
+    "uses": "per_day",
+    "description": "You exhale a blast of flame. Each creature in the area takes 2d6 fire damage with a basic Reflex save.",
+    "heightened": {
+      "per_1": {"damage": "+2d6"}
+    },
+    "action": {
+      "key": "breathe_fire",
+      "attack_stat": "spell_dc",
+      "defense_stat": "reflex",
+      "range": "melee",
+      "area": true,
+      "on_hit": {
+        "damage_roll": {"dice": "2d6", "type": "fire"},
+        "subtract_from": "current_hp"
+      }
+    }
+  },
+
+  "burning_hands": {
+    "name": "Burning Hands",
+    "rank": 1,
+    "traditions": ["arcane", "primal"],
+    "cast": "2 actions",
+    "components": ["somatic", "verbal"],
+    "traits": ["concentrate", "fire", "manipulate"],
+    "range": "self",
+    "area": "15-foot cone",
+    "defense": "reflex",
+    "uses": "per_day",
+    "description": "Flames rush out from your hands. Each creature in the area takes 2d6 fire damage with a basic Reflex save.",
+    "heightened": {
+      "per_1": {"damage": "+2d6"}
+    },
+    "action": {
+      "key": "burning_hands",
+      "attack_stat": "spell_dc",
+      "defense_stat": "reflex",
+      "range": "melee",
+      "area": true,
+      "on_hit": {
+        "damage_roll": {"dice": "2d6", "type": "fire"},
+        "subtract_from": "current_hp"
+      }
+    }
+  },
+
+  "charm": {
+    "name": "Charm",
+    "rank": 1,
+    "traditions": ["arcane", "occult", "primal"],
+    "cast": "2 actions",
+    "components": ["somatic", "verbal"],
+    "traits": ["concentrate", "emotion", "incapacitation", "manipulate", "mental"],
+    "range": "30 feet",
+    "targets": "1 creature",
+    "defense": "will",
+    "duration": "1 hour",
+    "uses": "per_day",
+    "description": "You take hold of the target's mind and make it view you as a friend. The target must attempt a Will save. On a failure, the target has the friendly condition toward you (or helpful on a critical failure) for the duration.",
+    "heightened": {
+      "4": {"description": "Range increases to 120 feet, and duration increases to 1 day."},
+      "8": {"description": "Range 120 feet, duration 1 month, targets up to 10 creatures."}
+    },
+    "action": {
+      "key": "charm",
+      "attack_stat": "spell_dc",
+      "defense_stat": "will",
+      "range": "ranged",
+      "on_hit": {
+        "apply_modifiers": [
+          {"source": "charm", "condition": "charmed", "value": 1, "duration_type": "special"}
+        ]
+      }
+    }
+  },
+
+  "color_spray": {
+    "name": "Color Spray",
+    "rank": 1,
+    "traditions": ["arcane", "occult"],
+    "cast": "2 actions",
+    "components": ["somatic", "verbal"],
+    "traits": ["concentrate", "incapacitation", "manipulate", "visual"],
+    "range": "self",
+    "area": "15-foot cone",
+    "defense": "will",
+    "uses": "per_day",
+    "description": "Brilliant light cascades from your hands. Each creature in the area is subject to an effect depending on its Will save result. On a failure, the creature is dazzled for 1 round. On a critical failure, it is blinded for 1 round and dazzled for 1 minute.",
+    "heightened": {
+      "5": {"description": "The area increases to a 30-foot cone."}
+    },
+    "action": {
+      "key": "color_spray",
+      "attack_stat": "spell_dc",
+      "defense_stat": "will",
+      "range": "melee",
+      "area": true,
+      "on_hit": {
+        "apply_modifiers": [
+          {"source": "color_spray", "condition": "dazzled", "value": 1, "duration_type": "rounds", "rounds": 1}
+        ]
+      }
+    }
+  },
+
+  "command": {
+    "name": "Command",
+    "rank": 1,
+    "traditions": ["arcane", "divine", "occult"],
+    "cast": "2 actions",
+    "components": ["somatic", "verbal"],
+    "traits": ["auditory", "concentrate", "linguistic", "manipulate", "mental"],
+    "range": "30 feet",
+    "targets": "1 creature",
+    "defense": "will",
+    "duration": "until end of target's next turn",
+    "uses": "per_day",
+    "description": "You shout a command, compelling the target to obey. The target must attempt a Will save. On a failure, the target must immediately spend its next action to follow your command (approach, drop, fall, flee, halt, release, or stop).",
+    "heightened": {
+      "5": {"description": "You can target up to 10 creatures."}
+    },
+    "action": {
+      "key": "command",
+      "attack_stat": "spell_dc",
+      "defense_stat": "will",
+      "range": "ranged",
+      "on_hit": {
+        "apply_modifiers": [
+          {"source": "command", "condition": "commanded", "value": 1, "duration_type": "until_next_turn"}
+        ]
+      }
+    }
+  },
+
+  "create_water": {
+    "name": "Create Water",
+    "rank": 1,
+    "traditions": ["arcane", "divine", "primal"],
+    "cast": "2 actions",
+    "components": ["somatic", "verbal"],
+    "traits": ["concentrate", "manipulate", "water"],
+    "range": "0 feet",
+    "uses": "per_day",
+    "description": "You conjure 2 gallons of pure water out of thin air. The water can appear in an open container or pour onto the ground."
+  },
+
+  "disguise_self": {
+    "name": "Disguise Self",
+    "rank": 1,
+    "traditions": ["arcane", "occult"],
+    "cast": "2 actions",
+    "components": ["somatic", "verbal"],
+    "traits": ["concentrate", "illusion", "manipulate", "visual"],
+    "range": "self",
+    "duration": "1 hour",
+    "uses": "per_day",
+    "description": "You create an illusory appearance that makes you look like a different creature of the same body shape and roughly the same size. The disguise can include clothing and other accoutrements. Creatures can see through the illusion with a successful Perception check against your spell DC."
+  },
+
+  "enfeeble": {
+    "name": "Enfeeble",
+    "rank": 1,
+    "traditions": ["arcane", "occult"],
+    "cast": "2 actions",
+    "components": ["somatic", "verbal"],
+    "traits": ["concentrate", "manipulate", "necromancy"],
+    "range": "30 feet",
+    "targets": "1 creature",
+    "defense": "fortitude",
+    "duration": "1 minute",
+    "uses": "per_day",
+    "description": "You sap the target's strength. The target must attempt a Fortitude save. On a failure, the target is enfeebled 2 for 1 minute. On a critical failure, the target is enfeebled 3 for 1 minute.",
+    "action": {
+      "key": "enfeeble",
+      "attack_stat": "spell_dc",
+      "defense_stat": "fortitude",
+      "range": "ranged",
+      "on_hit": {
+        "apply_modifiers": [
+          {"source": "enfeeble", "condition": "enfeebled", "value": 2, "duration_type": "encounter"}
+        ]
+      }
+    }
+  },
+
+  "entangle": {
+    "name": "Entangle",
+    "rank": 1,
+    "traditions": ["primal"],
+    "cast": "2 actions",
+    "components": ["somatic", "verbal"],
+    "traits": ["concentrate", "manipulate", "plant"],
+    "range": "120 feet",
+    "area": "20-foot burst",
+    "defense": "reflex",
+    "duration": "1 minute",
+    "uses": "per_day",
+    "description": "Vines, roots, and undergrowth spring up in the area, grabbing and restraining creatures. Each creature in the area when the spell is cast must attempt a Reflex save. On a failure, the creature is immobilized. On a critical failure, the creature is also grabbed. The area becomes difficult terrain for the duration.",
+    "action": {
+      "key": "entangle",
+      "attack_stat": "spell_dc",
+      "defense_stat": "reflex",
+      "range": "ranged",
+      "area": true,
+      "on_hit": {
+        "apply_modifiers": [
+          {"source": "entangle", "condition": "immobilized", "value": 1, "duration_type": "encounter"}
+        ]
+      }
+    }
+  },
+
+  "fear": {
+    "name": "Fear",
+    "rank": 1,
+    "traditions": ["arcane", "divine", "occult", "primal"],
+    "cast": "2 actions",
+    "components": ["somatic", "verbal"],
+    "traits": ["concentrate", "emotion", "manipulate", "mental"],
+    "range": "30 feet",
+    "targets": "1 creature",
+    "defense": "will",
+    "duration": "varies",
+    "uses": "per_day",
+    "description": "You plant fear into the target's mind. The target must attempt a Will save. On a success, the target is unaffected. On a failure, the target is frightened 2. On a critical failure, the target is frightened 3 and fleeing for 1 round.",
+    "heightened": {
+      "3": {"description": "Targets up to 5 creatures in a 30-foot burst."}
+    },
+    "action": {
+      "key": "fear",
+      "attack_stat": "spell_dc",
+      "defense_stat": "will",
+      "range": "ranged",
+      "on_hit": {
+        "apply_modifiers": [
+          {"source": "fear", "condition": "frightened", "value": 2, "duration_type": "special"}
+        ]
+      }
+    }
+  },
+
+  "feather_fall": {
+    "name": "Feather Fall",
+    "rank": 1,
+    "traditions": ["arcane", "primal"],
+    "cast": "reaction",
+    "components": ["verbal"],
+    "traits": ["air", "concentrate"],
+    "range": "60 feet",
+    "targets": "1 falling creature",
+    "duration": "1 minute",
+    "uses": "per_day",
+    "description": "You cause the target to fall slowly, at a rate of 60 feet per round. The target takes no damage from falling and lands on its feet. You can cast this spell as a reaction triggered when a creature within range begins to fall."
+  },
+
+  "fleet_step": {
+    "name": "Fleet Step",
+    "rank": 1,
+    "traditions": ["arcane", "primal"],
+    "cast": "2 actions",
+    "components": ["somatic", "verbal"],
+    "traits": ["concentrate", "manipulate", "transmutation"],
+    "range": "self",
+    "duration": "1 minute",
+    "uses": "per_day",
+    "description": "You enhance your movement, increasing your Speed by 10 feet for the duration.",
+    "action": {
+      "key": "fleet_step",
+      "range": "self",
+      "on_hit": {
+        "apply_modifiers": [
+          {"source": "fleet_step", "target_stat": "bonus_speed", "value": 10, "modifier_type": "status", "duration_type": "encounter"}
+        ]
+      }
+    }
+  },
+
+  "force_barrage": {
+    "name": "Force Barrage",
+    "rank": 1,
+    "traditions": ["arcane", "occult"],
+    "cast": "1 to 3 actions",
+    "components": ["somatic", "verbal"],
+    "traits": ["concentrate", "force", "manipulate"],
+    "range": "20 feet",
+    "targets": "1 or more creatures",
+    "uses": "per_day",
+    "description": "You fire shards of solidified magic force. You can fire one, two, or three shards based on the number of actions spent. Each shard automatically hits and deals 1d4+1 force damage. You can direct the shards at the same target or different ones.",
+    "heightened": {
+      "per_2": {"damage": "+1d4+1 per shard"}
+    },
+    "action": {
+      "key": "force_barrage",
+      "range": "ranged",
+      "on_hit": {
+        "damage_roll": {"dice": "1d4", "bonus": 1, "type": "force"},
+        "subtract_from": "current_hp"
+      }
+    }
+  },
+
+  "goblin_pox": {
+    "name": "Goblin Pox",
+    "rank": 1,
+    "traditions": ["arcane", "primal"],
+    "cast": "2 actions",
+    "components": ["somatic", "verbal"],
+    "traits": ["concentrate", "disease", "manipulate"],
+    "range": "30 feet",
+    "targets": "1 living creature",
+    "defense": "fortitude",
+    "uses": "per_day",
+    "description": "You afflict the target with virulent goblin pox. The target must attempt a Fortitude save. On a failure, the target is sickened 1. On a critical failure, the target is sickened 2 and slowed 1 for 1 round.",
+    "action": {
+      "key": "goblin_pox",
+      "attack_stat": "spell_dc",
+      "defense_stat": "fortitude",
+      "range": "ranged",
+      "on_hit": {
+        "apply_modifiers": [
+          {"source": "goblin_pox", "condition": "sickened", "value": 1, "duration_type": "encounter"}
+        ]
+      }
+    }
+  },
+
+  "grease": {
+    "name": "Grease",
+    "rank": 1,
+    "traditions": ["arcane", "primal"],
+    "cast": "2 actions",
+    "components": ["somatic", "verbal"],
+    "traits": ["concentrate", "manipulate"],
+    "range": "30 feet",
+    "area": "4 contiguous squares on a flat surface",
+    "defense": "reflex",
+    "duration": "1 minute",
+    "uses": "per_day",
+    "description": "You conjure a puddle of grease in the target area. Each creature standing in the area must attempt a Reflex save or fall prone. The area is difficult terrain and creatures entering must also save or fall prone.",
+    "action": {
+      "key": "grease",
+      "attack_stat": "spell_dc",
+      "defense_stat": "reflex",
+      "range": "ranged",
+      "area": true,
+      "on_hit": {
+        "apply_modifiers": [
+          {"source": "grease", "condition": "prone", "value": 1, "duration_type": "special"}
+        ]
+      }
+    }
+  },
+
+  "grim_tendrils": {
+    "name": "Grim Tendrils",
+    "rank": 1,
+    "traditions": ["arcane", "occult"],
+    "cast": "2 actions",
+    "components": ["somatic", "verbal"],
+    "traits": ["concentrate", "manipulate", "void"],
+    "range": "self",
+    "area": "30-foot line",
+    "defense": "fortitude",
+    "uses": "per_day",
+    "description": "Tendrils of darkness curl outward from your fingers. Each living creature in the area takes 2d4 void damage with a basic Fortitude save. Creatures that fail also take 1 persistent void damage.",
+    "heightened": {
+      "per_1": {"damage": "+2d4"}
+    },
+    "action": {
+      "key": "grim_tendrils",
+      "attack_stat": "spell_dc",
+      "defense_stat": "fortitude",
+      "range": "melee",
+      "area": true,
+      "on_hit": {
+        "damage_roll": {"dice": "2d4", "type": "void"},
+        "subtract_from": "current_hp"
+      }
+    }
+  },
+
+  "gust_of_wind": {
+    "name": "Gust of Wind",
+    "rank": 1,
+    "traditions": ["arcane", "primal"],
+    "cast": "2 actions",
+    "components": ["somatic", "verbal"],
+    "traits": ["air", "concentrate", "manipulate"],
+    "range": "self",
+    "area": "60-foot line",
+    "defense": "fortitude",
+    "uses": "per_day",
+    "description": "A violent blast of wind rushes forward in a line. Each creature in the area must attempt a Fortitude save. On a failure, the creature is pushed 30 feet away from you and knocked prone. Small or smaller creatures that fail are pushed 60 feet instead.",
+    "action": {
+      "key": "gust_of_wind",
+      "attack_stat": "spell_dc",
+      "defense_stat": "fortitude",
+      "range": "melee",
+      "area": true,
+      "on_hit": {
+        "apply_modifiers": [
+          {"source": "gust_of_wind", "condition": "pushed", "value": 30, "duration_type": "special"}
+        ]
+      }
+    }
+  },
+
+  "harm": {
+    "name": "Harm",
+    "rank": 1,
+    "traditions": ["divine"],
+    "cast": "1 to 3 actions",
+    "components": ["somatic", "verbal"],
+    "traits": ["concentrate", "manipulate", "void"],
+    "range": "varies",
+    "targets": "varies",
+    "defense": "fortitude",
+    "uses": "per_day",
+    "description": "You channel void energy to harm the living or heal the undead. 1 action (touch): deal 1d8+modifier void damage or restore HP to one undead. 2 actions (30-foot range): same but ranged. 3 actions (30-foot burst): affect all living and undead in area.",
+    "heightened": {
+      "per_1": {"damage": "+1d8"}
+    },
+    "action": {
+      "key": "harm",
+      "attack_stat": "spell_dc",
+      "defense_stat": "fortitude",
+      "range": "ranged",
+      "on_hit": {
+        "damage_roll": {"dice": "1d8", "type": "void"},
+        "subtract_from": "current_hp"
+      }
+    }
+  },
+
+  "heal": {
+    "name": "Heal",
+    "rank": 1,
+    "traditions": ["divine", "primal"],
+    "cast": "1 to 3 actions",
+    "components": ["somatic", "verbal"],
+    "traits": ["concentrate", "healing", "manipulate", "vitality"],
+    "range": "varies",
+    "targets": "varies",
+    "uses": "per_day",
+    "description": "You channel vitality energy to heal the living or harm the undead. 1 action (touch): restore 1d8+modifier HP to a living creature or deal that much vitality damage to undead. 2 actions (30-foot range): same but ranged. 3 actions (30-foot burst): restore 1d8 HP to all living and deal that to undead in area.",
+    "heightened": {
+      "per_1": {"damage_or_healing": "+1d8"}
+    },
+    "action": {
+      "key": "heal",
+      "range": "ranged",
+      "on_hit": {
+        "damage_roll": {"dice": "1d8"},
+        "add_to": "current_hp"
+      }
+    }
+  },
+
+  "hydraulic_push": {
+    "name": "Hydraulic Push",
+    "rank": 1,
+    "traditions": ["arcane", "primal"],
+    "cast": "2 actions",
+    "components": ["somatic", "verbal"],
+    "traits": ["concentrate", "manipulate", "water"],
+    "range": "60 feet",
+    "targets": "1 creature or unattended object",
+    "defense": "fortitude",
+    "uses": "per_day",
+    "description": "You call forth a powerful blast of water that bludgeons the target and knocks it back. The target takes 3d6 bludgeoning damage with a basic Fortitude save. On a failure, the target is also pushed 5 feet (10 feet on a critical failure).",
+    "heightened": {
+      "per_1": {"damage": "+2d6"}
+    },
+    "action": {
+      "key": "hydraulic_push",
+      "attack_stat": "spell_dc",
+      "defense_stat": "fortitude",
+      "range": "ranged",
+      "on_hit": {
+        "damage_roll": {"dice": "3d6", "type": "bludgeoning"},
+        "subtract_from": "current_hp"
+      }
+    }
+  },
+
+  "illusory_disguise": {
+    "name": "Illusory Disguise",
+    "rank": 1,
+    "traditions": ["arcane", "occult"],
+    "cast": "2 actions",
+    "components": ["somatic", "verbal"],
+    "traits": ["concentrate", "illusion", "manipulate", "visual"],
+    "range": "self",
+    "duration": "1 hour",
+    "uses": "per_day",
+    "description": "You create a visual illusion that makes you look like a specific individual. The disguise includes clothing and accoutrements. Creatures can attempt a Perception check against your spell DC to disbelieve.",
+    "heightened": {
+      "2": {"description": "The spell also disguises your voice and smell."},
+      "3": {"description": "The spell also disguises your aura."}
+    }
+  },
+
+  "illusory_object": {
+    "name": "Illusory Object",
+    "rank": 1,
+    "traditions": ["arcane", "occult"],
+    "cast": "2 actions",
+    "components": ["somatic", "verbal"],
+    "traits": ["concentrate", "illusion", "manipulate", "visual"],
+    "range": "500 feet",
+    "area": "up to a 20-foot burst",
+    "duration": "sustained up to 10 minutes",
+    "uses": "per_day",
+    "description": "You create an illusory image of an object, a creature, or a phenomenon. The illusion is purely visual and can fill an area up to 20 feet in every direction. Creatures that investigate the illusion can attempt a Perception check against your spell DC to disbelieve it."
+  },
+
+  "item_facade": {
+    "name": "Item Facade",
+    "rank": 1,
+    "traditions": ["arcane", "occult"],
+    "cast": "2 actions",
+    "components": ["somatic", "verbal"],
+    "traits": ["concentrate", "illusion", "manipulate", "visual"],
+    "range": "touch",
+    "targets": "1 object",
+    "duration": "1 hour",
+    "uses": "per_day",
+    "description": "You make an object look different. You can make it look like another object of similar size and shape, or appear undamaged. Creatures can see through the illusion with a Perception check against your spell DC.",
+    "heightened": {
+      "2": {"description": "Duration increases to 8 hours."},
+      "4": {"description": "Duration increases to 1 week."}
+    }
+  },
+
+  "jump": {
+    "name": "Jump",
+    "rank": 1,
+    "traditions": ["arcane", "primal"],
+    "cast": "1 action",
+    "components": ["somatic"],
+    "traits": ["concentrate", "manipulate", "move", "teleportation"],
+    "range": "self",
+    "uses": "per_day",
+    "description": "You propel yourself through the air. You jump up to 30 feet in any direction without triggering reactions based on movement. You still fall at the end of the jump if not on solid ground.",
+    "heightened": {
+      "5": {"description": "You can fly up to 60 feet as part of the jump."}
+    }
+  },
+
+  "lock": {
+    "name": "Lock",
+    "rank": 1,
+    "traditions": ["arcane", "divine", "occult"],
+    "cast": "2 actions",
+    "components": ["somatic", "verbal"],
+    "traits": ["abjuration", "concentrate", "manipulate"],
+    "range": "touch",
+    "targets": "1 lock, or a door or container with a latch",
+    "duration": "until your next daily preparations",
+    "uses": "per_day",
+    "description": "You magically lock the target. The DC to pick the lock or Force the target Open increases by 4. Once each day, you can unlock the target for 10 minutes by using your hand to make an unlocking gesture near it."
+  },
+
+  "longstrider": {
+    "name": "Longstrider",
+    "rank": 1,
+    "traditions": ["arcane", "primal"],
+    "cast": "2 actions",
+    "components": ["somatic", "verbal"],
+    "traits": ["concentrate", "manipulate", "transmutation"],
+    "range": "self",
+    "duration": "1 hour",
+    "uses": "per_day",
+    "description": "You lengthen your stride, increasing your Speed by 10 feet for the duration.",
+    "heightened": {
+      "2": {"description": "Duration increases to 8 hours."},
+      "3": {"description": "You can target 1 willing creature within 30 feet."}
+    },
+    "action": {
+      "key": "longstrider",
+      "range": "self",
+      "on_hit": {
+        "apply_modifiers": [
+          {"source": "longstrider", "target_stat": "bonus_speed", "value": 10, "modifier_type": "status", "duration_type": "encounter"}
+        ]
+      }
+    }
+  },
+
+  "mage_armor": {
+    "name": "Mage Armor",
+    "rank": 1,
+    "traditions": ["arcane", "occult"],
+    "cast": "2 actions",
+    "components": ["somatic", "verbal"],
+    "traits": ["abjuration", "concentrate", "manipulate"],
+    "range": "self",
+    "duration": "until your next daily preparations",
+    "uses": "per_day",
+    "description": "You ward yourself with shimmering magical force, granting a +1 item bonus to AC and a maximum Dexterity modifier of 5. While under this effect, you can't benefit from armor or other effects that grant an item bonus to AC.",
+    "heightened": {
+      "6": {"description": "+2 item bonus to AC and saving throws."},
+      "8": {"description": "+3 item bonus to AC and saving throws."},
+      "10": {"description": "+4 item bonus to AC and saving throws."}
+    },
+    "action": {
+      "key": "mage_armor",
+      "range": "self",
+      "on_hit": {
+        "apply_modifiers": [
+          {"source": "mage_armor", "target_stat": "bonus_ac", "value": 1, "modifier_type": "item", "duration_type": "encounter"}
+        ]
+      }
+    }
+  },
+
+  "magic_missile": {
+    "name": "Magic Missile",
+    "rank": 1,
+    "traditions": ["arcane", "occult"],
+    "cast": "1 to 3 actions",
+    "components": ["somatic", "verbal"],
+    "traits": ["concentrate", "force", "manipulate"],
+    "range": "120 feet",
+    "targets": "1 or more creatures",
+    "uses": "per_day",
+    "description": "You send a dart of force streaking toward a creature. It automatically hits and deals 1d4+1 force damage. For each additional action spent, you fire one more missile; each can target the same or a different creature.",
+    "heightened": {
+      "per_2": {"damage": "+1d4+1 per missile"}
+    },
+    "action": {
+      "key": "magic_missile",
+      "range": "ranged",
+      "on_hit": {
+        "damage_roll": {"dice": "1d4", "bonus": 1, "type": "force"},
+        "subtract_from": "current_hp"
+      }
+    }
+  },
+
+  "magic_weapon": {
+    "name": "Magic Weapon",
+    "rank": 1,
+    "traditions": ["arcane", "divine", "occult"],
+    "cast": "2 actions",
+    "components": ["somatic", "verbal"],
+    "traits": ["concentrate", "manipulate", "transmutation"],
+    "range": "touch",
+    "targets": "1 weapon",
+    "duration": "1 minute",
+    "uses": "per_day",
+    "description": "You make a weapon temporarily magical. The weapon becomes a +1 striking weapon for the duration, gaining a +1 item bonus to attack rolls and dealing one extra weapon damage die.",
+    "action": {
+      "key": "magic_weapon",
+      "range": "melee",
+      "on_hit": {
+        "apply_modifiers": [
+          {"source": "magic_weapon", "target_stat": "bonus_attack", "value": 1, "modifier_type": "item", "duration_type": "encounter"}
+        ]
+      }
+    }
+  },
+
+  "mystic_armor": {
+    "name": "Mystic Armor",
+    "rank": 1,
+    "traditions": ["arcane", "divine", "occult", "primal"],
+    "cast": "2 actions",
+    "components": ["somatic", "verbal"],
+    "traits": ["abjuration", "concentrate", "manipulate"],
+    "range": "self",
+    "duration": "until your next daily preparations",
+    "uses": "per_day",
+    "description": "You ward yourself with magical energy, granting a +1 item bonus to AC and a maximum Dexterity modifier of 5.",
+    "heightened": {
+      "6": {"description": "+2 item bonus to AC and saving throws."},
+      "8": {"description": "+3 item bonus to AC and saving throws."},
+      "10": {"description": "+4 item bonus to AC and saving throws."}
+    },
+    "action": {
+      "key": "mystic_armor",
+      "range": "self",
+      "on_hit": {
+        "apply_modifiers": [
+          {"source": "mystic_armor", "target_stat": "bonus_ac", "value": 1, "modifier_type": "item", "duration_type": "encounter"}
+        ]
+      }
+    }
+  },
+
+  "phantom_pain": {
+    "name": "Phantom Pain",
+    "rank": 1,
+    "traditions": ["occult"],
+    "cast": "2 actions",
+    "components": ["somatic", "verbal"],
+    "traits": ["concentrate", "illusion", "manipulate", "mental", "nonlethal"],
+    "range": "30 feet",
+    "targets": "1 living creature",
+    "defense": "will",
+    "duration": "1 minute",
+    "uses": "per_day",
+    "description": "Illusory pain wracks the target. The target must attempt a Will save. On a failure, the target takes 2d4 mental damage and is sickened 1. On a critical failure, the target takes 4d4 mental damage and is sickened 2.",
+    "heightened": {
+      "per_1": {"damage": "+2d4"}
+    },
+    "action": {
+      "key": "phantom_pain",
+      "attack_stat": "spell_dc",
+      "defense_stat": "will",
+      "range": "ranged",
+      "on_hit": {
+        "damage_roll": {"dice": "2d4", "type": "mental"},
+        "subtract_from": "current_hp"
+      }
+    }
+  },
+
+  "protection": {
+    "name": "Protection",
+    "rank": 1,
+    "traditions": ["divine", "occult"],
+    "cast": "2 actions",
+    "components": ["somatic", "verbal"],
+    "traits": ["abjuration", "concentrate", "manipulate"],
+    "range": "touch",
+    "targets": "1 creature",
+    "duration": "1 minute",
+    "uses": "per_day",
+    "description": "You create a protective barrier around the target, granting it a +1 status bonus to AC and saving throws against attacks and effects from hostile creatures.",
+    "action": {
+      "key": "protection",
+      "range": "melee",
+      "on_hit": {
+        "apply_modifiers": [
+          {"source": "protection", "target_stat": "bonus_ac", "value": 1, "modifier_type": "status", "duration_type": "encounter"}
+        ]
+      }
+    }
+  },
+
+  "pummel": {
+    "name": "Pummel",
+    "rank": 1,
+    "traditions": ["arcane", "primal"],
+    "cast": "2 actions",
+    "components": ["somatic", "verbal"],
+    "traits": ["concentrate", "manipulate"],
+    "range": "melee",
+    "targets": "1 creature",
+    "defense": "fortitude",
+    "uses": "per_day",
+    "description": "You deliver a crushing magical blow. The target takes 2d10 bludgeoning damage with a basic Fortitude save. On a critical failure, the target is also knocked prone.",
+    "heightened": {
+      "per_1": {"damage": "+2d10"}
+    },
+    "action": {
+      "key": "pummel",
+      "attack_stat": "spell_dc",
+      "defense_stat": "fortitude",
+      "range": "melee",
+      "on_hit": {
+        "damage_roll": {"dice": "2d10", "type": "bludgeoning"},
+        "subtract_from": "current_hp"
+      }
+    }
+  },
+
+  "runic_weapon": {
+    "name": "Runic Weapon",
+    "rank": 1,
+    "traditions": ["arcane", "divine"],
+    "cast": "2 actions",
+    "components": ["somatic", "verbal"],
+    "traits": ["concentrate", "manipulate", "transmutation"],
+    "range": "touch",
+    "targets": "1 weapon",
+    "duration": "1 minute",
+    "uses": "per_day",
+    "description": "You inscribe runes of power onto a weapon, making it temporarily magical. The weapon becomes a +1 striking weapon for the duration, gaining a +1 item bonus to attack rolls and dealing one extra weapon damage die.",
+    "action": {
+      "key": "runic_weapon",
+      "range": "melee",
+      "on_hit": {
+        "apply_modifiers": [
+          {"source": "runic_weapon", "target_stat": "bonus_attack", "value": 1, "modifier_type": "item", "duration_type": "encounter"}
+        ]
+      }
+    }
+  },
+
+  "sanctuary": {
+    "name": "Sanctuary",
+    "rank": 1,
+    "traditions": ["divine", "occult"],
+    "cast": "2 actions",
+    "components": ["somatic", "verbal"],
+    "traits": ["abjuration", "concentrate", "manipulate"],
+    "range": "touch",
+    "targets": "1 creature",
+    "duration": "1 minute",
+    "uses": "per_day",
+    "description": "You ward the target with protective magic. Creatures that attempt to attack the target must succeed at a Will save against your spell DC or they can't attack the target. The spell ends if the target uses a hostile action.",
+    "action": {
+      "key": "sanctuary",
+      "range": "melee",
+      "on_hit": {
+        "apply_modifiers": [
+          {"source": "sanctuary", "condition": "protected", "value": 1, "duration_type": "encounter"}
+        ]
+      }
+    }
+  },
+
+  "shocking_grasp": {
+    "name": "Shocking Grasp",
+    "rank": 1,
+    "traditions": ["arcane", "primal"],
+    "cast": "2 actions",
+    "components": ["somatic", "verbal"],
+    "traits": ["attack", "concentrate", "electricity", "manipulate"],
+    "range": "melee",
+    "targets": "1 creature",
+    "uses": "per_day",
+    "description": "You unleash a powerful electrical charge with your touch. Make a melee spell attack roll. On a hit, the target takes 2d12 electricity damage. If the target is wearing metal armor or is primarily made of metal, it also takes 1d4 persistent electricity damage.",
+    "heightened": {
+      "per_1": {"damage": "+1d12"}
+    },
+    "action": {
+      "key": "shocking_grasp",
+      "attack_stat": "spell_attack",
+      "defense_stat": "armor_class",
+      "range": "melee",
+      "on_hit": {
+        "damage_roll": {"dice": "2d12", "type": "electricity"},
+        "subtract_from": "current_hp"
+      }
+    }
+  },
+
+  "sleep": {
+    "name": "Sleep",
+    "rank": 1,
+    "traditions": ["arcane", "occult"],
+    "cast": "2 actions",
+    "components": ["somatic", "verbal"],
+    "traits": ["concentrate", "incapacitation", "manipulate", "mental", "sleep"],
+    "range": "30 feet",
+    "area": "5-foot burst",
+    "defense": "will",
+    "duration": "1 minute",
+    "uses": "per_day",
+    "description": "You cloud the minds of creatures in the area. Each creature must attempt a Will save. On a failure, the creature is slowed 1 and fatigued. On a critical failure, the creature falls unconscious. The spell ends for a creature that takes damage.",
+    "heightened": {
+      "4": {"description": "The area increases to a 10-foot burst."},
+      "9": {"description": "Creatures that fail are knocked unconscious until woken."}
+    },
+    "action": {
+      "key": "sleep",
+      "attack_stat": "spell_dc",
+      "defense_stat": "will",
+      "range": "ranged",
+      "area": true,
+      "on_hit": {
+        "apply_modifiers": [
+          {"source": "sleep", "condition": "slowed", "value": 1, "duration_type": "encounter"}
+        ]
+      }
+    }
+  },
+
+  "snowball": {
+    "name": "Snowball",
+    "rank": 1,
+    "traditions": ["arcane", "primal"],
+    "cast": "2 actions",
+    "components": ["somatic", "verbal"],
+    "traits": ["attack", "cold", "concentrate", "manipulate", "water"],
+    "range": "30 feet",
+    "targets": "1 creature",
+    "uses": "per_day",
+    "description": "You hurl a magically formed snowball. Make a ranged spell attack roll. On a hit, the target takes 2d6 cold damage. On a critical hit, the target is blinded until the end of its next turn.",
+    "heightened": {
+      "per_1": {"damage": "+2d6"}
+    },
+    "action": {
+      "key": "snowball",
+      "attack_stat": "spell_attack",
+      "defense_stat": "armor_class",
+      "range": "ranged",
+      "on_hit": {
+        "damage_roll": {"dice": "2d6", "type": "cold"},
+        "subtract_from": "current_hp"
+      }
+    }
+  },
+
+  "soothe": {
+    "name": "Soothe",
+    "rank": 1,
+    "traditions": ["occult"],
+    "cast": "2 actions",
+    "components": ["somatic", "verbal"],
+    "traits": ["concentrate", "emotion", "healing", "manipulate", "mental"],
+    "range": "30 feet",
+    "targets": "1 willing living creature",
+    "duration": "1 minute",
+    "uses": "per_day",
+    "description": "You flood the target's mind with calming thoughts. The target regains 1d10+4 HP and gains a +2 status bonus to saves against emotion and fear effects for the duration.",
+    "heightened": {
+      "per_1": {"healing": "+1d10+4"}
+    },
+    "action": {
+      "key": "soothe",
+      "range": "ranged",
+      "on_hit": {
+        "damage_roll": {"dice": "1d10", "bonus": 4},
+        "add_to": "current_hp"
+      }
+    }
+  },
+
+  "spider_sting": {
+    "name": "Spider Sting",
+    "rank": 1,
+    "traditions": ["arcane", "primal"],
+    "cast": "2 actions",
+    "components": ["somatic", "verbal"],
+    "traits": ["concentrate", "manipulate", "poison"],
+    "range": "melee",
+    "targets": "1 creature",
+    "defense": "fortitude",
+    "uses": "per_day",
+    "description": "You mimic a spider's venomous bite with a melee touch attack. The target must attempt a Fortitude save. On a failure, the target takes 1d4 poison damage and is enfeebled 1 for 1 round. On a critical failure, the target takes 2d4 poison damage and is enfeebled 2 for 1 minute.",
+    "action": {
+      "key": "spider_sting",
+      "attack_stat": "spell_dc",
+      "defense_stat": "fortitude",
+      "range": "melee",
+      "on_hit": {
+        "damage_roll": {"dice": "1d4", "type": "poison"},
+        "subtract_from": "current_hp"
+      }
+    }
+  },
+
+  "summon_animal": {
+    "name": "Summon Animal",
+    "rank": 1,
+    "traditions": ["primal"],
+    "cast": "3 actions",
+    "components": ["material", "somatic", "verbal"],
+    "traits": ["concentrate", "manipulate", "summon"],
+    "range": "30 feet",
+    "duration": "sustained up to 1 minute",
+    "uses": "per_day",
+    "description": "You conjure an animal to fight alongside you. You summon an animal of CR 1/4 or lower. The summoned animal follows your commands. Each round you can Sustain the spell to command the animal to act.",
+    "heightened": {
+      "2": {"description": "Summon an animal of CR 1/2 or lower."},
+      "3": {"description": "Summon an animal of CR 1 or lower."},
+      "4": {"description": "Summon an animal of CR 2 or lower."},
+      "5": {"description": "Summon an animal of CR 3 or lower."},
+      "6": {"description": "Summon an animal of CR 4 or lower."},
+      "7": {"description": "Summon an animal of CR 5 or lower."},
+      "8": {"description": "Summon an animal of CR 6 or lower."},
+      "9": {"description": "Summon an animal of CR 7 or lower."},
+      "10": {"description": "Summon an animal of CR 8 or lower."}
+    }
+  },
+
+  "sure_strike": {
+    "name": "Sure Strike",
+    "rank": 1,
+    "traditions": ["arcane"],
+    "cast": "1 action",
+    "components": ["verbal"],
+    "traits": ["concentrate", "fortune"],
+    "range": "self",
+    "duration": "until your next attack roll",
+    "uses": "per_day",
+    "description": "A stroke of fortune ensures your next blow lands true. You roll twice on your next attack roll and take the higher result.",
+    "action": {
+      "key": "sure_strike",
+      "range": "self",
+      "on_hit": {
+        "apply_modifiers": [
+          {"source": "sure_strike", "target_stat": "bonus_attack", "value": 0, "modifier_type": "fortune", "duration_type": "until_next_turn"}
+        ]
+      }
+    }
+  },
+
+  "ventriloquism": {
+    "name": "Ventriloquism",
+    "rank": 1,
+    "traditions": ["arcane", "divine", "occult", "primal"],
+    "cast": "2 actions",
+    "components": ["somatic", "verbal"],
+    "traits": ["auditory", "concentrate", "illusion", "manipulate"],
+    "range": "self",
+    "duration": "sustained up to 10 minutes",
+    "uses": "per_day",
+    "description": "Your voice seems to come from somewhere else. You can make your voice appear to come from any location or source you can see within 60 feet. Anyone who hears the voice can attempt a Perception check against your spell DC to realize it is illusory.",
+    "heightened": {
+      "2": {"description": "The duration increases to 1 hour."}
+    }
   }
 }
