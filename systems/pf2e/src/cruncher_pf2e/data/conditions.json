@@ -2,18 +2,21 @@
   "blinded": {
     "name": "Blinded",
     "ranked": false,
+    "source": "player_core",
     "effects": {"bonus_perception": {"value": -4, "type": "status"}},
     "note": "All terrain is difficult terrain. Auto-fail sight-based checks. Flat-check 11 to target (5 if adjacent). Off-guard to all."
   },
   "broken": {
     "name": "Broken",
     "ranked": false,
+    "source": "player_core",
     "effects": {},
     "note": "Item can't be used for normal function until Repaired."
   },
   "clumsy": {
     "name": "Clumsy",
     "ranked": true,
+    "source": "player_core",
     "effects": {
       "bonus_dex_checks": {"value": -1, "type": "status"},
       "bonus_reflex": {"value": -1, "type": "status"},
@@ -24,42 +27,49 @@
   "concealed": {
     "name": "Concealed",
     "ranked": false,
+    "source": "player_core",
     "effects": {},
     "note": "Flat-check DC 5 to target this creature."
   },
   "confused": {
     "name": "Confused",
     "ranked": false,
+    "source": "player_core",
     "effects": {},
     "note": "Off-guard. Can't use reactions. Attacks random target (ally or enemy). Spends all actions Striking or casting offensive cantrips."
   },
   "controlled": {
     "name": "Controlled",
     "ranked": false,
+    "source": "player_core",
     "effects": {},
     "note": "Another creature determines your actions."
   },
   "dazzled": {
     "name": "Dazzled",
     "ranked": false,
+    "source": "player_core",
     "effects": {},
     "note": "Everything is concealed to you (flat-check DC 5 to target)."
   },
   "deafened": {
     "name": "Deafened",
     "ranked": false,
+    "source": "player_core",
     "effects": {"bonus_perception": {"value": -2, "type": "status"}},
     "note": "-2 status penalty to Perception. Auto-fail hearing-based checks. Must succeed DC 5 flat check to cast with verbal components."
   },
   "doomed": {
     "name": "Doomed",
     "ranked": true,
+    "source": "player_core",
     "effects": {},
     "note": "Dying value at which you die is reduced by N. Cannot be removed by rest, only magic."
   },
   "drained": {
     "name": "Drained",
     "ranked": true,
+    "source": "player_core",
     "effects": {
       "bonus_con_checks": {"value": -1, "type": "status"},
       "bonus_fortitude": {"value": -1, "type": "status"}
@@ -69,18 +79,21 @@
   "dying": {
     "name": "Dying",
     "ranked": true,
+    "source": "player_core",
     "effects": {},
     "note": "Unconscious. Must make recovery checks. Die at dying 4 (reduced by doomed). Effects are special (recovery roll logic)."
   },
   "encumbered": {
     "name": "Encumbered",
     "ranked": false,
+    "source": "player_core",
     "effects": {"bonus_speed": {"value": -10, "type": "untyped"}},
     "note": "Clumsy 1 and -10-foot penalty to speeds."
   },
   "enfeebled": {
     "name": "Enfeebled",
     "ranked": true,
+    "source": "player_core",
     "effects": {
       "bonus_str_checks": {"value": -1, "type": "status"},
       "bonus_athletics": {"value": -1, "type": "status"}
@@ -90,12 +103,14 @@
   "fascinated": {
     "name": "Fascinated",
     "ranked": false,
+    "source": "player_core",
     "effects": {"bonus_perception": {"value": -2, "type": "status"}},
     "note": "-2 status penalty to Perception and skill checks. Can't use concentrate actions that don't involve the subject."
   },
   "fatigued": {
     "name": "Fatigued",
     "ranked": false,
+    "source": "player_core",
     "effects": {
       "bonus_ac": {"value": -1, "type": "status"},
       "bonus_fortitude": {"value": -1, "type": "status"},
@@ -107,18 +122,21 @@
   "off_guard": {
     "name": "Off-Guard",
     "ranked": false,
+    "source": "player_core",
     "effects": {"bonus_ac": {"value": -2, "type": "circumstance"}},
     "note": "-2 circumstance penalty to AC. Remaster term for flat-footed."
   },
   "fleeing": {
     "name": "Fleeing",
     "ranked": false,
+    "source": "player_core",
     "effects": {},
     "note": "Must spend all actions trying to escape the source. Can't Delay or Ready."
   },
   "frightened": {
     "name": "Frightened",
     "ranked": true,
+    "source": "player_core",
     "effects": {
       "bonus_all_checks": {"value": -1, "type": "status"},
       "bonus_all_dcs": {"value": -1, "type": "status"}
@@ -128,54 +146,63 @@
   "grabbed": {
     "name": "Grabbed",
     "ranked": false,
+    "source": "player_core",
     "effects": {"bonus_ac": {"value": -2, "type": "circumstance"}},
     "note": "Off-guard and immobilized. Can attempt to Escape."
   },
   "hidden": {
     "name": "Hidden",
     "ranked": false,
+    "source": "player_core",
     "effects": {},
     "note": "Creature knows your space but can't see you. Flat-check DC 11 to target."
   },
   "immobilized": {
     "name": "Immobilized",
     "ranked": false,
+    "source": "player_core",
     "effects": {},
     "note": "Can't use actions with the move trait. Can attempt to Escape."
   },
   "invisible": {
     "name": "Invisible",
     "ranked": false,
+    "source": "player_core",
     "effects": {},
     "note": "Undetected to all visual senses. Can still be detected by other senses."
   },
   "observed": {
     "name": "Observed",
     "ranked": false,
+    "source": "player_core",
     "effects": {},
     "note": "Clearly seen by a creature. No special mechanical effect — default detection state."
   },
   "paralyzed": {
     "name": "Paralyzed",
     "ranked": false,
+    "source": "player_core",
     "effects": {"bonus_ac": {"value": -2, "type": "circumstance"}},
     "note": "Off-guard. Can't act except Recall Knowledge and actions that require only the mind. Can attempt flat check DC 11 at start of turn to end."
   },
   "persistent_damage": {
     "name": "Persistent Damage",
     "ranked": false,
+    "source": "player_core",
     "effects": {},
     "note": "Take specified damage at end of turn. DC 15 flat check to recover (DC 10 with appropriate help)."
   },
   "petrified": {
     "name": "Petrified",
     "ranked": false,
+    "source": "player_core",
     "effects": {},
     "note": "Turned to stone. Can't act or sense anything. AC becomes 9. Immune to most effects."
   },
   "prone": {
     "name": "Prone",
     "ranked": false,
+    "source": "player_core",
     "effects": {
       "bonus_melee_attack": {"value": -2, "type": "circumstance"},
       "bonus_ac": {"value": -2, "type": "circumstance"}
@@ -185,18 +212,21 @@
   "quickened": {
     "name": "Quickened",
     "ranked": false,
+    "source": "player_core",
     "effects": {},
     "note": "Gain 1 extra action each turn (specific use restrictions may apply)."
   },
   "restrained": {
     "name": "Restrained",
     "ranked": false,
+    "source": "player_core",
     "effects": {"bonus_ac": {"value": -2, "type": "circumstance"}},
     "note": "Off-guard and immobilized. Clumsy 2 equivalent for attacks/checks. Can attempt to Escape."
   },
   "sickened": {
     "name": "Sickened",
     "ranked": true,
+    "source": "player_core",
     "effects": {
       "bonus_all_checks": {"value": -1, "type": "status"},
       "bonus_all_dcs": {"value": -1, "type": "status"}
@@ -206,18 +236,21 @@
   "slowed": {
     "name": "Slowed",
     "ranked": true,
+    "source": "player_core",
     "effects": {},
     "note": "Lose N actions at the start of each turn (after regaining actions). Reduces number of actions."
   },
   "stunned": {
     "name": "Stunned",
     "ranked": true,
+    "source": "player_core",
     "effects": {},
     "note": "Lose N actions at start of turn. If value rather than rank, lose actions across rounds. Can't use reactions."
   },
   "stupefied": {
     "name": "Stupefied",
     "ranked": true,
+    "source": "player_core",
     "effects": {
       "bonus_int_checks": {"value": -1, "type": "status"},
       "bonus_wis_checks": {"value": -1, "type": "status"},
@@ -230,6 +263,7 @@
   "unconscious": {
     "name": "Unconscious",
     "ranked": false,
+    "source": "player_core",
     "effects": {
       "bonus_ac": {"value": -4, "type": "status"},
       "bonus_perception": {"value": -99, "type": "status"}
@@ -239,12 +273,14 @@
   "undetected": {
     "name": "Undetected",
     "ranked": false,
+    "source": "player_core",
     "effects": {},
     "note": "Creature doesn't know your location. Must guess square to target (then flat-check DC 11)."
   },
   "wounded": {
     "name": "Wounded",
     "ranked": true,
+    "source": "player_core",
     "effects": {},
     "note": "When knocked to dying, add wounded value to dying value. Increases by 1 each time you gain dying. Resets on full HP restore."
   }
