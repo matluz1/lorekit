@@ -204,6 +204,41 @@ class TestPF2EFighterCalc:
         # HP: 8 + (10+2)*5 + 1 = 69
         assert result.derived["max_hp"] == 69
 
+    def test_armor_speed_penalty(self):
+        """Heavy armor reduces speed."""
+        pack = load_system_pack(PF2E_SYSTEM)
+        char = self._make_fighter(level=1, dex_score=14)
+        char.attributes["build"]["armor_speed_penalty"] = "-10"
+        result = recalculate(pack, char)
+        assert result.derived["speed"] == 15
+
+    def test_armor_check_penalty_athletics(self):
+        """Armor check penalty applies to STR/DEX skill checks."""
+        pack = load_system_pack(PF2E_SYSTEM)
+        char = self._make_fighter(level=1, str_score=18)
+        char.attributes["proficiency"] = {"prof_athletics": "2"}
+        char.attributes["build"]["armor_check_penalty"] = "-3"
+        result = recalculate(pack, char)
+        assert result.derived["skill_athletics"] == 4
+
+    def test_armor_check_penalty_stealth(self):
+        """Armor check penalty applies to stealth."""
+        pack = load_system_pack(PF2E_SYSTEM)
+        char = self._make_fighter(level=1, dex_score=14)
+        char.attributes["proficiency"] = {"prof_stealth": "2"}
+        char.attributes["build"]["armor_check_penalty"] = "-2"
+        result = recalculate(pack, char)
+        assert result.derived["skill_stealth"] == 3
+
+    def test_no_armor_no_penalty(self):
+        """Unarmored: no penalties (defaults are 0)."""
+        pack = load_system_pack(PF2E_SYSTEM)
+        char = self._make_fighter(level=1, str_score=18)
+        char.attributes["proficiency"] = {"prof_athletics": "2"}
+        result = recalculate(pack, char)
+        assert result.derived["skill_athletics"] == 7
+        assert result.derived["speed"] == 25
+
 
 class TestPF2EWizardCalc:
     """Test derived stat calculation for a PF2e Wizard."""

@@ -114,7 +114,9 @@
     "bonus_survival": 0,
     "bonus_thievery": 0,
     "bonus_melee_attack": 0,
-    "bonus_ranged_attack": 0
+    "bonus_ranged_attack": 0,
+    "armor_check_penalty": 0,
+    "armor_speed_penalty": 0
   },
 
   "derived": {
@@ -134,11 +136,11 @@
     "class_dc": "10 + key_ability_mod + if(prof_class_dc > 0, prof_class_dc + level, 0)",
     "spell_attack": "key_ability_mod + if(prof_spell_attack > 0, prof_spell_attack + level, 0) + bonus_spell_attack",
     "spell_dc": "10 + key_ability_mod + if(prof_spell_dc > 0, prof_spell_dc + level, 0) + bonus_spell_dc",
-    "speed": "speed_base + bonus_speed",
+    "speed": "speed_base + bonus_speed + armor_speed_penalty",
 
-    "skill_acrobatics": "dex_mod + if(prof_acrobatics > 0, prof_acrobatics + level, 0) + bonus_acrobatics",
+    "skill_acrobatics": "dex_mod + if(prof_acrobatics > 0, prof_acrobatics + level, 0) + bonus_acrobatics + armor_check_penalty",
     "skill_arcana": "int_mod + if(prof_arcana > 0, prof_arcana + level, 0) + bonus_arcana",
-    "skill_athletics": "str_mod + if(prof_athletics > 0, prof_athletics + level, 0) + bonus_athletics",
+    "skill_athletics": "str_mod + if(prof_athletics > 0, prof_athletics + level, 0) + bonus_athletics + armor_check_penalty",
     "skill_crafting": "int_mod + if(prof_crafting > 0, prof_crafting + level, 0) + bonus_crafting",
     "skill_deception": "cha_mod + if(prof_deception > 0, prof_deception + level, 0) + bonus_deception",
     "skill_diplomacy": "cha_mod + if(prof_diplomacy > 0, prof_diplomacy + level, 0) + bonus_diplomacy",
@@ -149,9 +151,9 @@
     "skill_performance": "cha_mod + if(prof_performance > 0, prof_performance + level, 0) + bonus_performance",
     "skill_religion": "wis_mod + if(prof_religion > 0, prof_religion + level, 0) + bonus_religion",
     "skill_society": "int_mod + if(prof_society > 0, prof_society + level, 0) + bonus_society",
-    "skill_stealth": "dex_mod + if(prof_stealth > 0, prof_stealth + level, 0) + bonus_stealth",
+    "skill_stealth": "dex_mod + if(prof_stealth > 0, prof_stealth + level, 0) + bonus_stealth + armor_check_penalty",
     "skill_survival": "wis_mod + if(prof_survival > 0, prof_survival + level, 0) + bonus_survival",
-    "skill_thievery": "dex_mod + if(prof_thievery > 0, prof_thievery + level, 0) + bonus_thievery",
+    "skill_thievery": "dex_mod + if(prof_thievery > 0, prof_thievery + level, 0) + bonus_thievery + armor_check_penalty",
 
     "melee_attack": "str_mod + if(prof_simple_weapons > 0, prof_simple_weapons + level, 0) + bonus_melee_attack",
     "ranged_attack": "dex_mod + if(prof_simple_weapons > 0, prof_simple_weapons + level, 0) + bonus_ranged_attack",
