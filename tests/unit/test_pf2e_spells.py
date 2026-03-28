@@ -16,7 +16,8 @@ VALID_TRADITIONS = {"arcane", "divine", "occult", "primal"}
 VALID_COMPONENTS = {"somatic", "verbal", "material", "focus"}
 VALID_DEFENSE_STATS = {"fortitude", "reflex", "will", "armor_class"}
 VALID_USES = {"at_will", "per_day", "per_encounter"}
-REQUIRED_FIELDS = {"name", "rank", "traditions", "cast", "components", "traits", "description"}
+VALID_SOURCES = {"player_core", "player_core_2"}
+REQUIRED_FIELDS = {"name", "rank", "traditions", "cast", "components", "traits", "description", "source"}
 
 
 @pytest.fixture(scope="module")
@@ -93,6 +94,10 @@ class TestSpellCatalogSchema:
             if action and "attack_stat" in action:
                 assert action["attack_stat"] in valid_attack, f"{slug}: invalid attack_stat '{action['attack_stat']}'"
 
+    def test_sources_are_valid(self, spells):
+        for slug, entry in spells.items():
+            assert entry["source"] in VALID_SOURCES, f"{slug}: invalid source '{entry['source']}'"
+
 
 class TestSpellCatalogCoverage:
     def test_has_cantrips(self, spells):
@@ -111,13 +116,43 @@ class TestSpellCatalogCoverage:
         r3 = [s for s, e in spells.items() if e["rank"] == 3]
         assert len(r3) >= 20, f"Expected 20+ rank-3 spells, got {len(r3)}"
 
+    def test_has_rank_4(self, spells):
+        r4 = [s for s, e in spells.items() if e["rank"] == 4]
+        assert len(r4) >= 15, f"Expected 15+ rank-4 spells, got {len(r4)}"
+
+    def test_has_rank_5(self, spells):
+        r5 = [s for s, e in spells.items() if e["rank"] == 5]
+        assert len(r5) >= 15, f"Expected 15+ rank-5 spells, got {len(r5)}"
+
+    def test_has_rank_6(self, spells):
+        r6 = [s for s, e in spells.items() if e["rank"] == 6]
+        assert len(r6) >= 10, f"Expected 10+ rank-6 spells, got {len(r6)}"
+
+    def test_has_rank_7(self, spells):
+        r7 = [s for s, e in spells.items() if e["rank"] == 7]
+        assert len(r7) >= 10, f"Expected 10+ rank-7 spells, got {len(r7)}"
+
+    def test_has_rank_8(self, spells):
+        r8 = [s for s, e in spells.items() if e["rank"] == 8]
+        assert len(r8) >= 8, f"Expected 8+ rank-8 spells, got {len(r8)}"
+
+    def test_has_rank_9(self, spells):
+        r9 = [s for s, e in spells.items() if e["rank"] == 9]
+        assert len(r9) >= 8, f"Expected 8+ rank-9 spells, got {len(r9)}"
+
+    def test_has_rank_10(self, spells):
+        r10 = [s for s, e in spells.items() if e["rank"] == 10]
+        assert len(r10) >= 5, f"Expected 5+ rank-10 spells, got {len(r10)}"
+
     def test_has_focus_spells(self, spells):
         focus = [s for s, e in spells.items() if e.get("focus")]
         assert len(focus) >= 10, f"Expected 10+ focus spells, got {len(focus)}"
 
     def test_all_traditions_represented_at_each_rank(self, spells):
-        for rank in range(0, 4):
+        for rank in range(0, 11):
             rank_spells = [e for e in spells.values() if e["rank"] == rank]
+            if not rank_spells:
+                continue
             traditions_present = set()
             for s in rank_spells:
                 traditions_present.update(s["traditions"])
