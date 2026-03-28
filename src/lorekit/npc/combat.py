@@ -498,9 +498,22 @@ def build_combat_context(
                     condition_section += f"    → {npc_instr}\n"
             active_labels.add(cond_name)
 
+    # Build turn order line: show who acted, current, and remaining
+    turn_order_parts = []
+    for idx, cid in enumerate(init_order):
+        name = _char_name(db, cid)
+        if idx < current_turn:
+            turn_order_parts.append(f"{name} \u2713")
+        elif idx == current_turn:
+            turn_order_parts.append(f"[{name}]")
+        else:
+            turn_order_parts.append(name)
+    turn_order_line = "Turn order: " + ", ".join(turn_order_parts)
+
     gender_note = f" [{npc_gender}]" if npc_gender else ""
     context = f"""COMBAT — Round {rnd}
 It is your turn ({npc_name}{gender_note}).
+{turn_order_line}
 
 Your position: {npc_zone_str}
 {_get_relative_health(db, npc_id, hud_cfg) or ""}
