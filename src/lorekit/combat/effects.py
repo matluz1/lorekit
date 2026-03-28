@@ -235,39 +235,78 @@ def _apply_on_hit(
     # --- Damage ---
     damage_info = on_hit.get("damage_roll")
     subtract_target = on_hit.get("subtract_from")
+    add_target = on_hit.get("add_to")
+    target_stat = subtract_target or add_target
 
-    if damage_info and subtract_target:
-        dice_attr = damage_info["dice_attr"]
-        bonus_stat = damage_info["bonus_stat"]
+    if damage_info and target_stat:
+        # Normalize to component list
+        components = damage_info if isinstance(damage_info, list) else [damage_info]
 
-        dice_expr = _get_attr_str(attacker, dice_attr)
-        damage_bonus = _get_derived(attacker, bonus_stat)
+        total_damage = 0
+        damage_parts = []
 
-        damage_result = roll_expr(dice_expr)
-        damage_roll = damage_result["total"]
-        total_damage = damage_roll + damage_bonus
+        for comp in components:
+            comp_dice = 0
+            comp_bonus = 0
+
+            # Resolve dice expression
+            dice_expr = None
+            if "dice_attr" in comp:
+                dice_expr = _get_attr_str(attacker, comp["dice_attr"])
+            elif "dice" in comp:
+                dice_expr = comp["dice"]
+
+            # Resolve count (multiplier for dice)
+            count = 1
+            if "count_stat" in comp:
+                count = max(1, _get_derived(attacker, comp["count_stat"]))
+
+            # Roll dice
+            if dice_expr:
+                for _ in range(count):
+                    result = roll_expr(dice_expr)
+                    comp_dice += result["total"]
+                if count > 1:
+                    damage_parts.append(f"{count}x{dice_expr}({comp_dice})")
+                else:
+                    damage_parts.append(f"{dice_expr}({comp_dice})")
+
+            # Resolve bonus
+            if "bonus_stat" in comp:
+                comp_bonus = _get_derived(attacker, comp["bonus_stat"])
+                damage_parts.append(str(comp_bonus))
+            elif "bonus" in comp:
+                comp_bonus = comp["bonus"]
+                damage_parts.append(str(comp_bonus))
+
+            total_damage += comp_dice + comp_bonus
 
         # Apply critical damage multiplier from system pack
         if is_crit:
             on_critical = pack.resolution.get("on_critical", {})
             multiplier = on_critical.get("damage_multiplier")
             if multiplier and multiplier != 1:
-                total_damage = total_damage * multiplier
+                total_damage = int(total_damage * multiplier)
                 lines.append(f"CRITICAL! Damage x{multiplier}")
 
-        lines.append(f"DAMAGE: {dice_expr}({damage_roll}) + {damage_bonus} = {total_damage}")
+        lines.append(f"DAMAGE: {' + '.join(damage_parts)} = {total_damage}")
 
-        if subtract_target == "current_hp":
+        if target_stat == "current_hp":
             current = _ensure_current_hp(db, defender)
         else:
-            current = _get_derived(defender, subtract_target)
+            current = _get_derived(defender, target_stat)
 
-        new_val = current - total_damage
-        _write_attr(db, defender.character_id, subtract_target, new_val)
-        lines.append(f"{subtract_target}: {current} → {new_val}")
+        if subtract_target:
+            new_val = current - total_damage
+        else:
+            new_val = current + total_damage
+
+        _write_attr(db, defender.character_id, target_stat, new_val)
+        lines.append(f"{target_stat}: {current} → {new_val}")
 
         # Fire on-damage triggers (e.g. concentration break)
-        _fire_damage_triggers(db, pack, defender.character_id, total_damage, lines)
+        if subtract_target:
+            _fire_damage_triggers(db, pack, defender.character_id, total_damage, lines)
 
     # --- Apply modifiers (combat_state rows) ---
     modifiers = on_hit.get("apply_modifiers")

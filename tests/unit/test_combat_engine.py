@@ -1794,3 +1794,101 @@ class TestAreaAvoidance:
             assert "vs DC 16" in output
         finally:
             db.close()
+
+
+# ---------------------------------------------------------------------------
+# Composable damage components
+# ---------------------------------------------------------------------------
+
+
+class TestComposableDamageComponents:
+    """Array-of-components damage_roll format sums multiple dice + bonus entries."""
+
+    def test_two_component_array_sums_correctly(self, make_session, make_character):
+        """damage_roll as list with two components: dice_attr + bonus_stat each."""
+        from cruncher.system_pack import load_system_pack
+        from lorekit.character import set_attr
+        from lorekit.combat.effects import _apply_on_hit
+        from lorekit.db import require_db
+        from lorekit.rules import load_character_data
+
+        db = require_db()
+        try:
+            sid, atk_id = _setup_fighter(db, make_session, make_character, set_attr, "Attacker")
+            _, def_id = _setup_fighter(db, make_session, make_character, set_attr, "Defender")
+            set_attr(db, def_id, "combat", "current_hp", "50")
+
+            pack = load_system_pack(TEST_SYSTEM)
+            attacker = load_character_data(db, atk_id)
+            defender = load_character_data(db, def_id)
+
+            on_hit = {
+                "damage_roll": [
+                    {"dice_attr": "weapon_damage_die", "bonus_stat": "str_mod"},
+                    {"dice": "1d6", "bonus": 2},
+                ],
+                "subtract_from": "current_hp",
+            }
+            lines = []
+
+            # Mock: first component d8=6, second component d6=4
+            roll_calls = iter([5, 3])  # 5+1=6, 3+1=4
+            with patch("secrets.randbelow", side_effect=roll_calls):
+                _apply_on_hit(db, pack, attacker, defender, on_hit, lines)
+
+            output = "\n".join(lines)
+            # Component 1: 1d8(6) + str_mod(4) = 10
+            # Component 2: 1d6(4) + 2 = 6
+            # Total: 16
+            assert "DAMAGE:" in output
+            assert "= 16" in output
+            assert "current_hp: 50 → 34" in output
+        finally:
+            db.close()
+
+    def test_count_stat_multiplies_dice(self, make_session, make_character):
+        """count_stat causes dice to be rolled multiple times."""
+        from cruncher.system_pack import load_system_pack
+        from lorekit.character import set_attr
+        from lorekit.combat.effects import _apply_on_hit
+        from lorekit.db import require_db
+        from lorekit.rules import load_character_data
+
+        db = require_db()
+        try:
+            sid, atk_id = _setup_fighter(db, make_session, make_character, set_attr, "Attacker")
+            _, def_id = _setup_fighter(db, make_session, make_character, set_attr, "Defender")
+            set_attr(db, def_id, "combat", "current_hp", "50")
+
+            # Set a stat to use as count multiplier (base_attack = 5 from _setup_fighter)
+            # We'll use a custom stat for clarity
+            set_attr(db, atk_id, "stat", "extra_dice", "3")
+            from lorekit.rules import rules_calc
+
+            rules_calc(db, atk_id, TEST_SYSTEM)
+
+            pack = load_system_pack(TEST_SYSTEM)
+            attacker = load_character_data(db, atk_id)
+            defender = load_character_data(db, def_id)
+
+            on_hit = {
+                "damage_roll": [
+                    {"dice": "1d6", "count_stat": "extra_dice"},
+                ],
+                "subtract_from": "current_hp",
+            }
+            lines = []
+
+            # 3 rolls of 1d6: 4, 3, 5  (randbelow: 3, 2, 4)
+            roll_calls = iter([3, 2, 4])
+            with patch("secrets.randbelow", side_effect=roll_calls):
+                _apply_on_hit(db, pack, attacker, defender, on_hit, lines)
+
+            output = "\n".join(lines)
+            # 3x1d6: 4+3+5 = 12
+            assert "DAMAGE:" in output
+            assert "3x1d6(12)" in output
+            assert "= 12" in output
+            assert "current_hp: 50 → 38" in output
+        finally:
+            db.close()
