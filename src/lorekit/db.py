@@ -680,13 +680,12 @@ def init_schema(db_path=None):
     os.makedirs(db_dir, exist_ok=True)
     conn = get_db(db_path)
     conn.executescript(SCHEMA_SQL)
-    conn.executescript(INDEXES_SQL)
     # Create vec0 virtual table if sqlite-vec is loaded
     try:
         conn.execute("CREATE VIRTUAL TABLE IF NOT EXISTS vec_embeddings USING vec0(embedding float[384])")
     except (sqlite3.OperationalError, sqlite3.DatabaseError):
         pass
-    # Run column migrations
+    # Run column migrations before indexes (indexes may reference new columns)
     for table, column, sql in ADD_COLUMN_MIGRATIONS:
         cols = [row[1] for row in conn.execute(f"PRAGMA table_info({table})").fetchall()]
         if column not in cols:
@@ -695,6 +694,7 @@ def init_schema(db_path=None):
         cols = [row[1] for row in conn.execute(f"PRAGMA table_info({table})").fetchall()]
         if column in cols:
             conn.execute(sql)
+    conn.executescript(INDEXES_SQL)
     # Recreate tables to add ON DELETE CASCADE + UNIQUE constraints
     if _needs_cascade_migration(conn):
         conn.execute("PRAGMA foreign_keys = OFF")

@@ -783,19 +783,32 @@ def create_checkpoint(db, session_id):
     branch_id = cursor_branch
     is_fork = False
 
-    # Fork detection: cursor is behind the tip of the current branch
+    # Fork-or-truncate: cursor is behind the tip of the current branch
     if cursor_cp is not None:
         tip = _get_branch_tip(db, cursor_branch)
         if tip is not None and cursor_cp < tip:
-            # Fork: create a new branch from the cursor position
-            cur = db.execute(
-                "INSERT INTO checkpoint_branches (session_id, parent_branch_id, fork_checkpoint_id) VALUES (?, ?, ?)",
-                (session_id, cursor_branch, cursor_cp),
-            )
-            branch_id = cur.lastrowid
-            is_fork = True
-            # Promote fork point to anchor if it isn't already
-            db.execute("UPDATE checkpoints SET is_anchor = 1 WHERE id = ?", (cursor_cp,))
+            # Check if there are named saves between cursor and tip that would be lost
+            has_named = db.execute(
+                "SELECT 1 FROM checkpoints WHERE branch_id = ? AND id > ? AND name IS NOT NULL LIMIT 1",
+                (cursor_branch, cursor_cp),
+            ).fetchone()
+            if has_named:
+                # Fork: preserve the old path (it has saves the player might want)
+                cur = db.execute(
+                    "INSERT INTO checkpoint_branches (session_id, parent_branch_id, fork_checkpoint_id) "
+                    "VALUES (?, ?, ?)",
+                    (session_id, cursor_branch, cursor_cp),
+                )
+                branch_id = cur.lastrowid
+                is_fork = True
+                # Promote fork point to anchor if it isn't already
+                db.execute("UPDATE checkpoints SET is_anchor = 1 WHERE id = ?", (cursor_cp,))
+            else:
+                # Truncate: no named saves to preserve, delete future checkpoints
+                db.execute(
+                    "DELETE FROM checkpoints WHERE branch_id = ? AND id > ?",
+                    (cursor_branch, cursor_cp),
+                )
 
     tl_max = db.execute(
         "SELECT COALESCE(MAX(id), 0) FROM timeline WHERE session_id = ?",
@@ -964,11 +977,28 @@ def save_list(db, session_id):
     ).fetchall()
 
 
+def unsaved_turn_count(db, session_id):
+    """Count turns after cursor that have no named save. Used for load warnings."""
+    cursor_cp, cursor_branch = _get_cursor(db, session_id)
+    if cursor_cp is None or cursor_branch is None:
+        return 0
+    tip = _get_branch_tip(db, cursor_branch)
+    if tip is None or cursor_cp >= tip:
+        return 0
+    # Count checkpoints between cursor and tip on the current branch
+    count = db.execute(
+        "SELECT COUNT(*) FROM checkpoints WHERE branch_id = ? AND id > ?",
+        (cursor_branch, cursor_cp),
+    ).fetchone()[0]
+    return count
+
+
 def save_load(db, session_id, name):
     """Load a named save. Returns a summary string.
 
     Restores the checkpoint's state and moves the cursor there.
-    The next turn_save after a load will fork automatically if needed.
+    The next turn_save after a load will fork automatically if needed
+    (only if there are named saves on the old path worth preserving).
     """
     row = db.execute(
         "SELECT id, branch_id FROM checkpoints WHERE session_id = ? AND name = ?",

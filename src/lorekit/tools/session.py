@@ -28,6 +28,18 @@ def session_view(session_id: int) -> str:
 
 
 @mcp.tool()
+def active_session_id() -> str:
+    """Return the ID of the most recently active session, or empty if none."""
+    from lorekit.db import require_db
+
+    db = require_db()
+    try:
+        row = db.execute("SELECT id FROM sessions WHERE status = 'active' ORDER BY updated_at DESC LIMIT 1").fetchone()
+        return str(row[0]) if row else ""
+    finally:
+        db.close()
+
+
 def session_list(status: str = "") -> str:
     """List all sessions. Optionally filter by status (active/finished).
     Call without arguments first to see all sessions — a finished session

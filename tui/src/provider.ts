@@ -16,6 +16,7 @@ export interface ProviderOptions {
   model: string;
   sessionId?: string;
   allowedTools: string[];
+  disallowedTools?: string[];
   persist?: boolean;
   onError?: ErrorHandler;
 }

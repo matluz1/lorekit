@@ -183,7 +183,10 @@ function baseArgs(opts: ProviderOptions): string[] {
   }
 
   if (opts.allowedTools.length > 0) {
-    args.push("--allowed-tools", ...opts.allowedTools);
+    args.push("--allowedTools", ...opts.allowedTools);
+  }
+  if (opts.disallowedTools && opts.disallowedTools.length > 0) {
+    args.push("--disallowedTools", ...opts.disallowedTools);
   }
 
   return args;

@@ -56,6 +56,10 @@ const app = render(
       model,
       sessionId: claudeSessionId,
       allowedTools: ["mcp__lorekit__*"],
+      disallowedTools: [
+        "mcp__lorekit__active_session_id",
+        "mcp__lorekit__unsaved_turn_count",
+      ],
       persist: true,
     }}
     model={model}

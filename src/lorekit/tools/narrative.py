@@ -155,12 +155,28 @@ def save_list(session_id: int) -> str:
 @mcp.tool()
 def save_load(session_id: int, name: str) -> str:
     """Load a named save, restoring all game state to that moment.
-    Continuing to play after a load will automatically preserve the
-    current path — nothing is lost.
+    If there are named saves on the current path ahead of the loaded point,
+    the old path is preserved as a branch. Otherwise unsaved turns are discarded.
     """
     from lorekit.support.checkpoint import save_load as _save_load
 
     return _run_with_db(_save_load, session_id, name)
+
+
+@mcp.tool()
+def unsaved_turn_count(session_id: int) -> str:
+    """Check how many unsaved turns exist after the current position.
+    Returns 0 if at the tip. Used to warn before loading a save.
+    """
+    from lorekit.db import require_db
+    from lorekit.support.checkpoint import unsaved_turn_count as _unsaved
+
+    db = require_db()
+    try:
+        count = _unsaved(db, session_id)
+        return str(count)
+    finally:
+        db.close()
 
 
 @mcp.tool()

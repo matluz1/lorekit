@@ -167,23 +167,40 @@ def test_revert_twice_works_then_fails(make_session):
     assert "ERROR" in result
 
 
-def test_revert_then_save_forks(make_session):
-    """After reverting, saving creates a new branch (fork-on-save)."""
+def test_revert_then_save_truncates_without_named_saves(make_session):
+    """After reverting, saving truncates future checkpoints if no named saves exist."""
     sid = make_session()
     turn_save(session_id=sid, narration="Turn 1.", summary="T1")
     turn_save(session_id=sid, narration="Bad turn.", summary="Bad")
     # 3 checkpoints: #0, #1, #2
     assert _checkpoint_count(sid) == 3
     turn_revert(session_id=sid)
-    # Still 3 checkpoints (cursor moved back, nothing deleted)
+    # Still 3 checkpoints (cursor moved back, nothing deleted yet)
     assert _checkpoint_count(sid) == 3
     turn_save(session_id=sid, narration="Good turn.", summary="Good")
-    # Fork: old branch preserved, new checkpoint on new branch → 4 checkpoints
-    assert _checkpoint_count(sid) == 4
+    # Truncate: #2 deleted, new checkpoint created → 3 checkpoints
+    assert _checkpoint_count(sid) == 3
+    assert _branch_count(sid) == 1  # no fork
     listing = timeline_list(session_id=sid)
     assert "Turn 1." in listing
     assert "Good turn." in listing
     assert "Bad turn." not in listing
+
+
+def test_revert_then_save_forks_with_named_saves(make_session):
+    """After reverting, saving forks if named saves exist on the old path."""
+    sid = make_session()
+    turn_save(session_id=sid, narration="Turn 1.", summary="T1")
+    turn_save(session_id=sid, narration="Turn 2.", summary="T2")
+    manual_save(session_id=sid, name="Important Save")
+    # Revert past the named save
+    turn_revert(session_id=sid, steps=2)
+    turn_save(session_id=sid, narration="Alt turn.", summary="Alt")
+    # Fork: old branch preserved because it has a named save
+    assert _branch_count(sid) == 2
+    listing = timeline_list(session_id=sid)
+    assert "Alt turn." in listing
+    assert "Turn 2." not in listing
 
 
 # -- Redo (turn_advance) --
@@ -212,19 +229,16 @@ def test_redo_at_tip_fails(make_session):
     assert "ERROR" in result
 
 
-def test_revert_then_save_creates_branch(make_session):
-    """Revert then save should fork — not fail or truncate."""
+def test_revert_then_save_truncates_no_error(make_session):
+    """Revert then save should succeed (truncate, no fork without named saves)."""
     sid = make_session()
     turn_save(session_id=sid, narration="Turn 1.", summary="T1")
     turn_save(session_id=sid, narration="Turn 2.", summary="T2")
     turn_revert(session_id=sid)
     result = turn_save(session_id=sid, narration="Turn 3.", summary="T3")
     assert "ERROR" not in result
-    # A new branch should exist
-    db = _get_db()
-    branches = db.execute("SELECT COUNT(*) FROM checkpoint_branches WHERE session_id = ?", (sid,)).fetchone()[0]
-    db.close()
-    assert branches == 2
+    # No fork — truncation happened
+    assert _branch_count(sid) == 1
 
 
 def test_multi_step_redo(make_session):
@@ -288,33 +302,34 @@ def test_first_save_creates_branch(make_session):
     assert _branch_count(sid) == 1
 
 
-def test_fork_creates_second_branch(make_session):
-    """Revert + save should fork into a second branch."""
+def test_fork_requires_named_save(make_session):
+    """Revert + save without named saves should truncate, not fork."""
     sid = make_session()
     turn_save(session_id=sid, narration="Turn 1.", summary="T1")
     turn_save(session_id=sid, narration="Turn 2.", summary="T2")
     turn_revert(session_id=sid)
     turn_save(session_id=sid, narration="Alt turn.", summary="Alt")
-    assert _branch_count(sid) == 2
+    assert _branch_count(sid) == 1  # truncated, no fork
 
 
-def test_fork_preserves_old_branch_data(make_session, make_character):
-    """After forking, the old branch's checkpoints still exist."""
+def test_fork_with_named_save_preserves_old_data(make_session, make_character):
+    """After forking (named save on old path), the old branch's checkpoints still exist."""
     sid = make_session()
     cid = make_character(sid, name="Hero", level=1)
     turn_save(session_id=sid, narration="Turn 1.", summary="T1")
     character_sheet_update(character_id=cid, level=5)
     turn_save(session_id=sid, narration="Turn 2.", summary="T2")
+    manual_save(session_id=sid, name="Level 5 save")
     # Revert to Turn 1 state
-    turn_revert(session_id=sid)
-    # Fork
+    turn_revert(session_id=sid, steps=2)
+    # Fork (named save exists on old path)
     character_sheet_update(character_id=cid, level=10)
     turn_save(session_id=sid, narration="Alt turn.", summary="Alt")
     # Current state should show level 10
     view = character_view(character_id=cid)
     assert "LEVEL: 10" in view
-    # Old branch checkpoints are preserved (not deleted)
-    assert _checkpoint_count(sid) == 4  # #0, #1, #2 (old), #3 (new branch)
+    # Old branch checkpoints are preserved
+    assert _branch_count(sid) == 2
 
 
 def test_revert_past_fork_stays_on_branch(make_session):
@@ -322,7 +337,8 @@ def test_revert_past_fork_stays_on_branch(make_session):
     sid = make_session()
     turn_save(session_id=sid, narration="Turn 1.", summary="T1")
     turn_save(session_id=sid, narration="Turn 2.", summary="T2")
-    turn_revert(session_id=sid)
+    manual_save(session_id=sid, name="Keep this")  # named save so fork happens
+    turn_revert(session_id=sid, steps=2)
     turn_save(session_id=sid, narration="Alt.", summary="Alt")
     # Now on branch 2 with Alt turn. Revert to checkpoint #0 (pre-game)
     turn_revert(session_id=sid, steps=2)
@@ -447,15 +463,30 @@ def test_save_delete_preserves_checkpoint(make_session):
     assert _checkpoint_count(sid) >= count_before
 
 
-def test_save_load_then_play_forks(make_session):
-    """Playing after a load should fork automatically."""
+def test_save_load_then_play_truncates_without_named(make_session):
+    """Playing after loading truncates if no named saves ahead."""
     sid = make_session()
     turn_save(session_id=sid, narration="Turn 1.", summary="T1")
     manual_save(session_id=sid, name="Save Point")
     turn_save(session_id=sid, narration="Turn 2.", summary="T2")
     save_load(session_id=sid, name="Save Point")
     turn_save(session_id=sid, narration="New path.", summary="New")
-    assert _branch_count(sid) == 2
+    assert _branch_count(sid) == 1  # truncated, no fork
+    listing = timeline_list(session_id=sid)
+    assert "New path." in listing
+    assert "Turn 2." not in listing
+
+
+def test_save_load_then_play_forks_with_named_ahead(make_session):
+    """Playing after loading forks if named saves exist ahead."""
+    sid = make_session()
+    turn_save(session_id=sid, narration="Turn 1.", summary="T1")
+    manual_save(session_id=sid, name="Early Save")
+    turn_save(session_id=sid, narration="Turn 2.", summary="T2")
+    manual_save(session_id=sid, name="Late Save")
+    save_load(session_id=sid, name="Early Save")
+    turn_save(session_id=sid, narration="New path.", summary="New")
+    assert _branch_count(sid) == 2  # forked to preserve "Late Save"
     listing = timeline_list(session_id=sid)
     assert "New path." in listing
     assert "Turn 2." not in listing
@@ -577,10 +608,7 @@ def test_fork_point_is_anchor(make_session):
     sid = make_session()
     turn_save(session_id=sid, narration="Turn 1.", summary="T1")
     turn_save(session_id=sid, narration="Turn 2.", summary="T2")
-    # Get the checkpoint we'll fork from
-    db = _get_db()
-    cp_before = db.execute("SELECT MAX(id) FROM checkpoints WHERE session_id = ?", (sid,)).fetchone()[0]
-    db.close()
+    manual_save(session_id=sid, name="Preserve this")  # named save so fork happens
     # Revert then save → fork
     turn_revert(session_id=sid)
     turn_save(session_id=sid, narration="Alt.", summary="Alt")

@@ -4,6 +4,7 @@ import { Chat, chatMsg, type ChatMessage } from "./Chat.js";
 import { Input } from "./Input.js";
 import type { AgentProcess, Provider, ProviderOptions } from "../provider.js";
 import { clearLog } from "../logger.js";
+import { mcpSave, mcpSaveList, mcpUnsavedCount, mcpLoadSave } from "../mcp.js";
 
 /** A tool call logged during the current GM turn. */
 export interface ToolCallEntry {
@@ -53,6 +54,9 @@ export function App({
   useEffect(() => {
     isStreamingRef.current = isStreaming;
   }, [isStreaming]);
+
+  // ── Save/load state ─────────────────────────────────
+  const pendingLoadRef = useRef<string | null>(null);
 
   // ── Tool call tracking ────────────────────────────────
   const [toolCalls, setToolCalls] = useState<ToolCallEntry[]>([]);
@@ -104,6 +108,68 @@ export function App({
         clearLog();
         setMessages((prev) => [...prev, chatMsg("system", "Log cleared.")]);
         return;
+      }
+
+      // Save/load slash commands — direct MCP calls, no GM involvement
+      if (text.toLowerCase() === "/saves") {
+        try {
+          const result = await mcpSaveList();
+          setMessages((prev) => [...prev, chatMsg("system", result)]);
+        } catch (err: any) {
+          setMessages((prev) => [...prev, chatMsg("system", `Save list failed: ${err.message}`)]);
+        }
+        return;
+      }
+      if (text.toLowerCase().startsWith("/save")) {
+        const name = text.slice(5).trim() || undefined;
+        try {
+          const result = await mcpSave(name);
+          setMessages((prev) => [...prev, chatMsg("system", `Game saved as '${result}'.`)]);
+        } catch (err: any) {
+          setMessages((prev) => [...prev, chatMsg("system", `Save failed: ${err.message}`)]);
+        }
+        return;
+      }
+      if (text.toLowerCase().startsWith("/load")) {
+        const name = text.slice(5).trim();
+        if (!name) {
+          setMessages((prev) => [...prev, chatMsg("system", "Usage: /load <save name>")]);
+          return;
+        }
+        try {
+          const unsaved = await mcpUnsavedCount();
+          if (unsaved > 0) {
+            // Store pending load and ask for confirmation
+            setMessages((prev) => [
+              ...prev,
+              chatMsg("system", `⚠ Loading will discard ${unsaved} unsaved turn(s). Type /confirm to proceed or anything else to cancel.`),
+            ]);
+            pendingLoadRef.current = name;
+            return;
+          }
+          const result = await mcpLoadSave(name);
+          setMessages((prev) => [...prev, chatMsg("system", result)]);
+        } catch (err: any) {
+          setMessages((prev) => [...prev, chatMsg("system", `Load failed: ${err.message}`)]);
+        }
+        return;
+      }
+      if (text.toLowerCase() === "/confirm" && pendingLoadRef.current) {
+        const name = pendingLoadRef.current;
+        pendingLoadRef.current = null;
+        try {
+          const result = await mcpLoadSave(name);
+          setMessages((prev) => [...prev, chatMsg("system", result)]);
+        } catch (err: any) {
+          setMessages((prev) => [...prev, chatMsg("system", `Load failed: ${err.message}`)]);
+        }
+        return;
+      }
+      if (pendingLoadRef.current) {
+        // Any input other than /confirm cancels the pending load
+        pendingLoadRef.current = null;
+        setMessages((prev) => [...prev, chatMsg("system", "Load cancelled.")]);
+        // Fall through to send as normal player message
       }
 
       if (!agentRef.current.alive) {
@@ -248,7 +314,7 @@ export function App({
 
       {/* Footer */}
       <Box paddingX={1}>
-        <Text dimColor>/quit to exit · /clearlog to clear log</Text>
+        <Text dimColor>/save [name] · /load name · /saves · /quit · /clearlog</Text>
       </Box>
     </Box>
   );
