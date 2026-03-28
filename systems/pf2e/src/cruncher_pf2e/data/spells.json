@@ -3270,5 +3270,472 @@
         ]
       }
     }
+  },
+
+  "brain_drain": {
+    "name": "Brain Drain",
+    "rank": 1,
+    "traditions": [],
+    "cast": "2 actions",
+    "components": ["somatic", "verbal"],
+    "range": "30 feet",
+    "targets": "1 creature",
+    "traits": ["cursebound", "divination", "focus", "mental", "oracle"],
+    "description": "You probe a creature's mind, dealing mental damage and gleaning a fragment of its knowledge. The target must attempt a Will save. The spell deals 2d6 mental damage.",
+    "focus": true,
+    "class": "oracle",
+    "uses": "per_encounter",
+    "heightened": {"+1": {"damage": "+2d6", "description": "The damage increases by 2d6."}},
+    "action": {
+      "key": "brain_drain",
+      "attack_stat": "spell_dc",
+      "defense_stat": "will",
+      "range": "ranged",
+      "on_hit": {
+        "damage_roll": {"dice": "2d6", "type": "mental"},
+        "subtract_from": "current_hp"
+      }
+    }
+  },
+
+  "counter_performance": {
+    "name": "Counter Performance",
+    "rank": 1,
+    "traditions": [],
+    "cast": "1 action",
+    "components": ["somatic"],
+    "area": "60-foot emanation",
+    "duration": "until the start of your next turn",
+    "traits": ["bard", "composition", "enchantment", "focus", "fortune", "mental"],
+    "description": "Your performance protects you and your allies. If you or an ally in the area rolls a saving throw against an auditory or visual effect, you can use your Performance modifier instead of the relevant saving throw modifier.",
+    "focus": true,
+    "class": "bard",
+    "uses": "per_encounter",
+    "action": {
+      "key": "counter_performance",
+      "range": "self",
+      "area": true,
+      "on_hit": {
+        "apply_modifiers": [
+          {"source": "counter_performance", "target_stat": "bonus_will", "value": 2, "modifier_type": "status", "duration_type": "until_next_turn"}
+        ]
+      }
+    }
+  },
+
+  "dazzling_flash": {
+    "name": "Dazzling Flash",
+    "rank": 1,
+    "traditions": [],
+    "cast": "2 actions",
+    "components": ["somatic", "verbal"],
+    "area": "15-foot cone",
+    "traits": ["cleric", "evocation", "fire", "focus", "light"],
+    "description": "You create a blinding flash of light. Each creature in the area must attempt a Fortitude save or become dazzled for 1 round. On a critical failure, it's blinded for 1 round and then dazzled for 1 minute.",
+    "focus": true,
+    "class": "cleric",
+    "uses": "per_encounter",
+    "action": {
+      "key": "dazzling_flash",
+      "attack_stat": "spell_dc",
+      "defense_stat": "fortitude",
+      "range": "ranged",
+      "area": true,
+      "on_hit": {
+        "apply_modifiers": [
+          {"source": "dazzling_flash", "condition": "dazzled", "value": 1, "duration_type": "rounds", "rounds": 1}
+        ]
+      }
+    }
+  },
+
+  "dragon_claws": {
+    "name": "Dragon Claws",
+    "rank": 1,
+    "traditions": [],
+    "cast": "1 action",
+    "components": ["somatic"],
+    "duration": "1 minute",
+    "traits": ["dragon", "focus", "morph", "sorcerer", "transmutation"],
+    "description": "Scales and claws sprout from your hands. You gain a claw attack that deals 1d6 slashing damage and has the agile and finesse traits. The claws also deal 1d6 extra damage of the type matching your draconic heritage.",
+    "focus": true,
+    "class": "sorcerer",
+    "uses": "per_encounter",
+    "heightened": {"+1": {"damage": "+1d6", "description": "The extra damage from your draconic heritage increases by 1d6."}},
+    "action": {
+      "key": "dragon_claws",
+      "range": "self",
+      "on_hit": {
+        "apply_modifiers": [
+          {"source": "dragon_claws", "target_stat": "bonus_melee_attack", "value": 1, "modifier_type": "status", "duration_type": "rounds", "rounds": 10}
+        ]
+      }
+    }
+  },
+
+  "elemental_toss": {
+    "name": "Elemental Toss",
+    "rank": 1,
+    "traditions": [],
+    "cast": "2 actions",
+    "components": ["somatic", "verbal"],
+    "range": "30 feet",
+    "targets": "1 creature",
+    "traits": ["attack", "evocation", "focus", "sorcerer"],
+    "description": "You fling a chunk of your elemental matter at a foe. Make a spell attack roll. The attack deals 1d8 damage of the type matching your elemental heritage.",
+    "focus": true,
+    "class": "sorcerer",
+    "uses": "per_encounter",
+    "heightened": {"+1": {"damage": "+1d8", "description": "The damage increases by 1d8."}},
+    "action": {
+      "key": "elemental_toss",
+      "attack_stat": "spell_attack",
+      "defense_stat": "armor_class",
+      "range": "ranged",
+      "on_hit": {
+        "damage_roll": {"dice": "1d8", "type": "untyped"},
+        "subtract_from": "current_hp"
+      }
+    }
+  },
+
+  "fire_ray": {
+    "name": "Fire Ray",
+    "rank": 1,
+    "traditions": [],
+    "cast": "2 actions",
+    "components": ["somatic", "verbal"],
+    "range": "60 feet",
+    "traits": ["cleric", "evocation", "fire", "focus"],
+    "description": "A blazing band of fire arcs through the air. Make a spell attack roll. The ray deals 2d6 fire damage.",
+    "focus": true,
+    "class": "cleric",
+    "uses": "per_encounter",
+    "heightened": {"+1": {"damage": "+2d6", "description": "The damage increases by 2d6."}},
+    "action": {
+      "key": "fire_ray",
+      "attack_stat": "spell_attack",
+      "defense_stat": "armor_class",
+      "range": "ranged",
+      "on_hit": {
+        "damage_roll": {"dice": "2d6", "type": "fire"},
+        "subtract_from": "current_hp"
+      }
+    }
+  },
+
+  "force_bolt": {
+    "name": "Force Bolt",
+    "rank": 1,
+    "traditions": [],
+    "cast": "1 action",
+    "components": ["verbal"],
+    "range": "30 feet",
+    "targets": "1 creature",
+    "traits": ["evocation", "focus", "force", "wizard"],
+    "description": "You send a small orb of force rocketing toward a creature. The bolt automatically hits and deals 1d4+1 force damage.",
+    "focus": true,
+    "class": "wizard",
+    "uses": "per_encounter",
+    "heightened": {"+1": {"damage": "+1d4+1", "description": "The damage increases by 1d4+1."}},
+    "action": {
+      "key": "force_bolt",
+      "range": "ranged",
+      "on_hit": {
+        "damage_roll": {"dice": "1d4", "bonus": 1, "type": "force"},
+        "subtract_from": "current_hp"
+      }
+    }
+  },
+
+  "gravity_weapon": {
+    "name": "Gravity Weapon",
+    "rank": 1,
+    "traditions": [],
+    "cast": "1 action",
+    "components": ["somatic"],
+    "duration": "until the start of your next turn",
+    "traits": ["evocation", "focus", "gravity", "ranger"],
+    "description": "You enhance your weapon with gravitational force. Your next Strike with a weapon or unarmed attack before the end of your turn deals an extra 1d6 bludgeoning damage.",
+    "focus": true,
+    "class": "ranger",
+    "uses": "per_encounter",
+    "heightened": {"+1": {"damage": "+1d6", "description": "The extra damage increases by 1d6."}},
+    "action": {
+      "key": "gravity_weapon",
+      "range": "self",
+      "on_hit": {
+        "apply_modifiers": [
+          {"source": "gravity_weapon", "target_stat": "bonus_melee_attack", "value": 1, "modifier_type": "status", "duration_type": "until_next_turn"}
+        ]
+      }
+    }
+  },
+
+  "hand_of_the_apprentice": {
+    "name": "Hand of the Apprentice",
+    "rank": 1,
+    "traditions": [],
+    "cast": "2 actions",
+    "components": ["somatic", "verbal"],
+    "range": "500 feet",
+    "traits": ["evocation", "focus", "wizard"],
+    "description": "You hurl your melee weapon at your target with the power of your mind. Make a spell attack roll against the target's AC; you can add your Intelligence modifier to the attack roll instead of your Strength or Dexterity modifier. On a hit, the weapon deals its normal damage.",
+    "focus": true,
+    "class": "wizard",
+    "uses": "per_encounter",
+    "action": {
+      "key": "hand_of_the_apprentice",
+      "attack_stat": "spell_attack",
+      "defense_stat": "armor_class",
+      "range": "ranged",
+      "on_hit": {
+        "damage_roll": {"dice": "1d6", "type": "piercing"},
+        "subtract_from": "current_hp"
+      }
+    }
+  },
+
+  "inspire_courage": {
+    "name": "Inspire Courage",
+    "rank": 1,
+    "traditions": [],
+    "cast": "1 action",
+    "components": ["verbal"],
+    "area": "60-foot emanation",
+    "duration": "1 round",
+    "traits": ["bard", "cantrip", "composition", "emotion", "focus", "mental"],
+    "description": "You inspire your allies with words or tunes of encouragement. You and all allies in the area gain a +1 status bonus to attack rolls, damage rolls, and saves against fear effects.",
+    "focus": true,
+    "class": "bard",
+    "uses": "per_encounter",
+    "action": {
+      "key": "inspire_courage",
+      "range": "self",
+      "area": true,
+      "on_hit": {
+        "apply_modifiers": [
+          {"source": "inspire_courage", "target_stat": "bonus_melee_attack", "value": 1, "modifier_type": "status", "duration_type": "rounds", "rounds": 1},
+          {"source": "inspire_courage", "target_stat": "bonus_ranged_attack", "value": 1, "modifier_type": "status", "duration_type": "rounds", "rounds": 1}
+        ]
+      }
+    }
+  },
+
+  "inspire_defense": {
+    "name": "Inspire Defense",
+    "rank": 1,
+    "traditions": [],
+    "cast": "1 action",
+    "components": ["verbal"],
+    "area": "60-foot emanation",
+    "duration": "1 round",
+    "traits": ["bard", "composition", "emotion", "focus", "mental"],
+    "description": "You inspire your allies to protect themselves more effectively. You and all allies in the area gain a +1 status bonus to AC and saving throws.",
+    "focus": true,
+    "class": "bard",
+    "uses": "per_encounter",
+    "action": {
+      "key": "inspire_defense",
+      "range": "self",
+      "area": true,
+      "on_hit": {
+        "apply_modifiers": [
+          {"source": "inspire_defense", "target_stat": "bonus_ac", "value": 1, "modifier_type": "status", "duration_type": "rounds", "rounds": 1},
+          {"source": "inspire_defense", "target_stat": "bonus_saves", "value": 1, "modifier_type": "status", "duration_type": "rounds", "rounds": 1}
+        ]
+      }
+    }
+  },
+
+  "ki_rush": {
+    "name": "Ki Rush",
+    "rank": 1,
+    "traditions": [],
+    "cast": "1 action",
+    "components": ["verbal"],
+    "duration": "until the start of your next turn",
+    "traits": ["focus", "ki", "monk", "transmutation"],
+    "description": "You move with extraordinary speed and agility. You Stride up to double your Speed. You can move through the spaces of enemies during this movement. Until the start of your next turn, you gain a +2 status bonus to AC.",
+    "focus": true,
+    "class": "monk",
+    "uses": "per_encounter",
+    "action": {
+      "key": "ki_rush",
+      "range": "self",
+      "on_hit": {
+        "apply_modifiers": [
+          {"source": "ki_rush", "target_stat": "bonus_ac", "value": 2, "modifier_type": "status", "duration_type": "until_next_turn"}
+        ]
+      }
+    }
+  },
+
+  "ki_strike": {
+    "name": "Ki Strike",
+    "rank": 1,
+    "traditions": [],
+    "cast": "1 action",
+    "components": ["verbal"],
+    "traits": ["concentrate", "focus", "ki", "monk"],
+    "description": "You focus your ki into a powerful strike. Make an unarmed Strike. On a hit, the Strike deals 1d6 extra damage; the damage type is your choice of bludgeoning, piercing, or slashing.",
+    "focus": true,
+    "class": "monk",
+    "uses": "per_encounter",
+    "heightened": {"+2": {"damage": "+1d6", "description": "The extra damage increases by 1d6."}},
+    "action": {
+      "key": "ki_strike",
+      "range": "melee",
+      "on_hit": {
+        "damage_roll": {"dice": "1d6", "type": "bludgeoning"},
+        "subtract_from": "current_hp"
+      }
+    }
+  },
+
+  "lay_on_hands": {
+    "name": "Lay on Hands",
+    "rank": 1,
+    "traditions": [],
+    "cast": 1,
+    "components": ["somatic"],
+    "range": "touch",
+    "targets": "1 willing living creature",
+    "traits": ["champion", "focus", "healing", "necromancy", "vitality"],
+    "description": "Your hands become infused with positive energy, healing a living creature's wounds when you touch them. The target regains 6 Hit Points.",
+    "focus": true,
+    "class": "champion",
+    "uses": "per_encounter",
+    "heightened": {"+1": {"healing": "+6", "description": "The amount of healing increases by 6."}},
+    "action": {
+      "key": "lay_on_hands",
+      "range": "melee",
+      "on_hit": {
+        "damage_roll": {"dice": "0d1", "bonus": 6},
+        "add_to": "current_hp"
+      }
+    }
+  },
+
+  "soul_siphon": {
+    "name": "Soul Siphon",
+    "rank": 1,
+    "traditions": [],
+    "cast": "2 actions",
+    "components": ["somatic", "verbal"],
+    "range": "30 feet",
+    "targets": "1 living creature",
+    "traits": ["cursebound", "focus", "necromancy", "oracle", "void"],
+    "description": "You draw out some of the target's life force. The target must attempt a Fortitude save. On a failure, it takes 2d6 void damage and you regain the same number of Hit Points.",
+    "focus": true,
+    "class": "oracle",
+    "uses": "per_encounter",
+    "heightened": {"+1": {"damage": "+2d6", "description": "The damage increases by 2d6."}},
+    "action": {
+      "key": "soul_siphon",
+      "attack_stat": "spell_dc",
+      "defense_stat": "fortitude",
+      "range": "ranged",
+      "on_hit": {
+        "damage_roll": {"dice": "2d6", "type": "void"},
+        "subtract_from": "current_hp"
+      }
+    }
+  },
+
+  "tempest_surge": {
+    "name": "Tempest Surge",
+    "rank": 1,
+    "traditions": [],
+    "cast": "2 actions",
+    "components": ["somatic", "verbal"],
+    "range": "30 feet",
+    "targets": "1 creature",
+    "traits": ["druid", "electricity", "evocation", "focus"],
+    "description": "You surround a foe in a swirling storm of violent winds, shocking lightning, and pelting rain. The target must attempt a Reflex save. On a failure, it takes 1d12 electricity damage and is clumsy 2 for 1 round.",
+    "focus": true,
+    "class": "druid",
+    "uses": "per_encounter",
+    "heightened": {"+1": {"damage": "+1d12", "description": "The damage increases by 1d12."}},
+    "action": {
+      "key": "tempest_surge",
+      "attack_stat": "spell_dc",
+      "defense_stat": "reflex",
+      "range": "ranged",
+      "on_hit": {
+        "damage_roll": {"dice": "1d12", "type": "electricity"},
+        "subtract_from": "current_hp"
+      }
+    }
+  },
+
+  "thunderous_strike": {
+    "name": "Thunderous Strike",
+    "rank": 1,
+    "traditions": [],
+    "cast": "1 action",
+    "components": ["somatic"],
+    "traits": ["evocation", "focus", "magus", "sonic"],
+    "description": "You channel magical energy into your weapon to create a thunderous strike. Make a melee Strike. On a hit, the Strike deals an extra 1d6 sonic damage, and the target must succeed at a Fortitude save or become deafened for 1 round.",
+    "focus": true,
+    "class": "magus",
+    "uses": "per_encounter",
+    "heightened": {"+1": {"damage": "+1d6", "description": "The extra sonic damage increases by 1d6."}},
+    "action": {
+      "key": "thunderous_strike",
+      "attack_stat": "spell_dc",
+      "defense_stat": "fortitude",
+      "range": "melee",
+      "on_hit": {
+        "damage_roll": {"dice": "1d6", "type": "sonic"},
+        "subtract_from": "current_hp"
+      }
+    }
+  },
+
+  "wild_morph": {
+    "name": "Wild Morph",
+    "rank": 1,
+    "traditions": [],
+    "cast": "1 action",
+    "components": ["somatic"],
+    "duration": "1 minute",
+    "traits": ["druid", "focus", "morph", "transmutation"],
+    "description": "You partially transform your body, choosing one of these effects: your hands transform into claws dealing 1d6 slashing damage, you grow jaws that deal 1d8 piercing damage, or you grow a tail that you can use to Shove an adjacent creature.",
+    "focus": true,
+    "class": "druid",
+    "uses": "per_encounter",
+    "action": {
+      "key": "wild_morph",
+      "range": "self",
+      "on_hit": {
+        "apply_modifiers": [
+          {"source": "wild_morph", "target_stat": "bonus_melee_attack", "value": 1, "modifier_type": "status", "duration_type": "rounds", "rounds": 10}
+        ]
+      }
+    }
+  },
+
+  "wild_shape": {
+    "name": "Wild Shape",
+    "rank": 1,
+    "traditions": [],
+    "cast": "2 actions",
+    "components": ["somatic", "verbal"],
+    "duration": "1 minute",
+    "traits": ["druid", "focus", "polymorph", "transmutation"],
+    "description": "You call upon primal power to transform yourself into a battle form. You choose from the following: pest form (Tiny animal, Speed 30 feet), insect form (Small insect, Speed 30 feet, fly Speed 30 feet), or the statistics of a 1st-level animal you have seen.",
+    "focus": true,
+    "class": "druid",
+    "uses": "per_encounter",
+    "action": {
+      "key": "wild_shape",
+      "range": "self",
+      "on_hit": {
+        "apply_modifiers": [
+          {"source": "wild_shape", "target_stat": "bonus_melee_attack", "value": 2, "modifier_type": "status", "duration_type": "rounds", "rounds": 10}
+        ]
+      }
+    }
   }
 }
