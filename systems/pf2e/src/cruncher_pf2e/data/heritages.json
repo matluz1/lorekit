@@ -1,0 +1,436 @@
+{
+  "versatile_human": {
+    "name": "Versatile Human",
+    "ancestry": "human",
+    "effects": {},
+    "note": "You gain one extra general feat during character creation. This feat must be a general feat for which you meet the prerequisites.",
+    "source": "player_core"
+  },
+  "skilled_human": {
+    "name": "Skilled Human",
+    "ancestry": "human",
+    "effects": {},
+    "note": "You gain training in one additional skill of your choice. At 5th level you become an expert in that skill.",
+    "source": "player_core"
+  },
+  "aiuvarin": {
+    "name": "Aiuvarin",
+    "ancestry": "human",
+    "effects": {},
+    "note": "You have one human and one elf parent. You gain the elf trait, low-light vision, and can select from both elf and human ancestry feats.",
+    "source": "player_core"
+  },
+  "dromaar": {
+    "name": "Dromaar",
+    "ancestry": "human",
+    "effects": {},
+    "note": "You have one human and one orc parent. You gain the orc trait, low-light vision, and can select from both orc and human ancestry feats.",
+    "source": "player_core"
+  },
+  "wintertouched_human": {
+    "name": "Wintertouched Human",
+    "ancestry": "human",
+    "effects": {},
+    "note": "You gain cold resistance equal to half your level (minimum 1) and treat environmental cold effects as if they were one step less extreme.",
+    "source": "player_core"
+  },
+  "warmarch_human": {
+    "name": "Warmarch Human",
+    "ancestry": "human",
+    "effects": {},
+    "note": "You are trained in Athletics and gain the Titan Wrestler skill feat. You can attempt to Disarm, Shove, or Trip creatures up to two sizes larger than you.",
+    "source": "player_core"
+  },
+  "arctic_elf": {
+    "name": "Arctic Elf",
+    "ancestry": "elf",
+    "effects": {},
+    "note": "You dwell deep in the frozen north. You gain cold resistance equal to half your level (minimum 1), and treat environmental cold effects as if they were one step less extreme.",
+    "source": "player_core"
+  },
+  "ancient_elf": {
+    "name": "Ancient Elf",
+    "ancestry": "elf",
+    "effects": {},
+    "note": "Your elven lifespan has allowed you to study other disciplines. You gain a multiclass dedication feat for a class of your choice, even if you do not meet the level prerequisite.",
+    "source": "player_core"
+  },
+  "cavern_elf": {
+    "name": "Cavern Elf",
+    "ancestry": "elf",
+    "effects": {},
+    "note": "You were born or raised in subterranean regions. You gain darkvision.",
+    "source": "player_core"
+  },
+  "seer_elf": {
+    "name": "Seer Elf",
+    "ancestry": "elf",
+    "effects": {},
+    "note": "You have an innate ability to sense and analyze magical auras. You can cast detect magic at will as an arcane innate spell, and gain a +1 circumstance bonus to checks to Identify Magic and Decipher Writing of a magical nature.",
+    "source": "player_core"
+  },
+  "whisper_elf": {
+    "name": "Whisper Elf",
+    "ancestry": "elf",
+    "effects": {},
+    "note": "Your hearing is especially keen. You gain a +2 circumstance bonus to Seek a creature you can hear but not see, and the DC of the flat check to target a hidden creature within your hearing range is reduced by 2.",
+    "source": "player_core"
+  },
+  "woodland_elf": {
+    "name": "Woodland Elf",
+    "ancestry": "elf",
+    "effects": {},
+    "note": "You're adapted to living in the forest or the deep jungle. You can move across difficult terrain caused by trees, foliage, and undergrowth without it reducing your Speed. You can also Take Cover in a forest even if there are no obstacles nearby.",
+    "source": "player_core"
+  },
+  "ancient_blooded_dwarf": {
+    "name": "Ancient-Blooded Dwarf",
+    "ancestry": "dwarf",
+    "effects": {},
+    "note": "Dwarven heroes of old pass their ancient magic to you. You gain the Call on Ancient Blood reaction, which provides a +1 circumstance bonus to a saving throw against a magical effect when triggered.",
+    "source": "player_core"
+  },
+  "death_warden_dwarf": {
+    "name": "Death Warden Dwarf",
+    "ancestry": "dwarf",
+    "effects": {},
+    "note": "Your ancestors have spent generations as mortal enemies of the undead and have passed on their wardings to you. If you roll a success on a saving throw against a void effect or an effect from an undead creature, you get a critical success instead.",
+    "source": "player_core"
+  },
+  "forge_dwarf": {
+    "name": "Forge Dwarf",
+    "ancestry": "dwarf",
+    "effects": {},
+    "note": "You have a remarkable adaptation to extreme heat. You gain fire resistance equal to half your level (minimum 1), and treat environmental heat effects as if they were one step less extreme.",
+    "source": "player_core"
+  },
+  "rock_dwarf": {
+    "name": "Rock Dwarf",
+    "ancestry": "dwarf",
+    "effects": {},
+    "note": "Your ancestors lived and worked among the rock, and their weight and stability has passed to you. You gain a +2 circumstance bonus to your Fortitude or Reflex DC against attempts to Shove, Reposition, or Trip you.",
+    "source": "player_core"
+  },
+  "strong_blooded_dwarf": {
+    "name": "Strong-Blooded Dwarf",
+    "ancestry": "dwarf",
+    "effects": {},
+    "note": "Your blood runs hearty and strong, and you can shake off toxins that would debilitate other creatures. You gain poison resistance equal to half your level (minimum 1), and each of your successful saving throws against a poison affliction reduces the stage by 2.",
+    "source": "player_core"
+  },
+  "gutsy_halfling": {
+    "name": "Gutsy Halfling",
+    "ancestry": "halfling",
+    "effects": {},
+    "note": "Your family line is known for having particularly strong stomachs and brave hearts. Whenever you roll a success on a saving throw against an emotion effect, you get a critical success instead.",
+    "source": "player_core"
+  },
+  "hillock_halfling": {
+    "name": "Hillock Halfling",
+    "ancestry": "halfling",
+    "effects": {},
+    "note": "Accustomed to a calm life in the hills, your body is well-suited to rest. When you regain Hit Points overnight or via long-term rest, you add your level to the Hit Points regained.",
+    "source": "player_core"
+  },
+  "nomadic_halfling": {
+    "name": "Nomadic Halfling",
+    "ancestry": "halfling",
+    "effects": {},
+    "note": "Your people have traveled far and wide, bringing you into contact with a variety of cultures and languages. You know two additional languages chosen from common languages and any uncommon languages you have access to.",
+    "source": "player_core"
+  },
+  "twilight_halfling": {
+    "name": "Twilight Halfling",
+    "ancestry": "halfling",
+    "effects": {},
+    "note": "Your ancestors worked and wandered in the shadows of the evening. You gain low-light vision.",
+    "source": "player_core"
+  },
+  "wildwood_halfling": {
+    "name": "Wildwood Halfling",
+    "ancestry": "halfling",
+    "effects": {},
+    "note": "You hail from deep in a jungle or forest, and you've learned how to get around quickly in such terrain. You ignore difficult terrain from trees, foliage, and undergrowth.",
+    "source": "player_core"
+  },
+  "chameleon_gnome": {
+    "name": "Chameleon Gnome",
+    "ancestry": "gnome",
+    "effects": {},
+    "note": "Your coloration can change, presenting a different appearance whenever you wish. You can spend 1 minute shifting your appearance to blend with your surroundings, gaining a +2 circumstance bonus to Stealth checks and DCs while you remain stationary.",
+    "source": "player_core"
+  },
+  "fey_touched_gnome": {
+    "name": "Fey-Touched Gnome",
+    "ancestry": "gnome",
+    "effects": {},
+    "note": "The magic of the fey world flows stronger in you than in other gnomes. You gain the fey trait, and you can cast one primal cantrip of your choice at will as an innate primal spell.",
+    "source": "player_core"
+  },
+  "sensate_gnome": {
+    "name": "Sensate Gnome",
+    "ancestry": "gnome",
+    "effects": {},
+    "note": "You see all colors as brighter, hear all sounds as richer, and your senses of smell and taste are otherworldly. You gain imprecise scent with a range of 30 feet and a +2 circumstance bonus to locate undetected creatures within that range using scent.",
+    "source": "player_core"
+  },
+  "umbral_gnome": {
+    "name": "Umbral Gnome",
+    "ancestry": "gnome",
+    "effects": {},
+    "note": "Whether from a connection to dark or shadowy fey, or from ancestry that hails from the Darklands, you can see in complete darkness. You gain darkvision.",
+    "source": "player_core"
+  },
+  "wellspring_gnome": {
+    "name": "Wellspring Gnome",
+    "ancestry": "gnome",
+    "effects": {},
+    "note": "Some other source of magic has a greater hold on you than primal magic does. Choose arcane, divine, or occult; you gain one cantrip from that tradition's spell list to cast at will as an innate spell.",
+    "source": "player_core"
+  },
+  "charhide_goblin": {
+    "name": "Charhide Goblin",
+    "ancestry": "goblin",
+    "effects": {},
+    "note": "Your ancestors have always had a connection with fire and a thirst for its mysteries. You gain fire resistance equal to half your level (minimum 1), and each time you take fire damage, you gain a +1 status bonus to the recovery check DC from persistent fire damage.",
+    "source": "player_core"
+  },
+  "irongut_goblin": {
+    "name": "Irongut Goblin",
+    "ancestry": "goblin",
+    "effects": {},
+    "note": "You can subsist on food that would nauseate most creatures. You can eat and drink things that are spoiled, rotten, or not normally considered food, without ill effect. You gain a +2 circumstance bonus to saves against afflictions with the ingested trait.",
+    "source": "player_core"
+  },
+  "razortooth_goblin": {
+    "name": "Razortooth Goblin",
+    "ancestry": "goblin",
+    "effects": {},
+    "note": "Your family's teeth are formidable weapons. You gain a jaws unarmed attack that deals 1d6 piercing damage with the finesse and unarmed traits.",
+    "source": "player_core"
+  },
+  "snow_goblin": {
+    "name": "Snow Goblin",
+    "ancestry": "goblin",
+    "effects": {},
+    "note": "You are acclimated to living in frigid lands and have a connection to cold and ice. You gain cold resistance equal to half your level (minimum 1), and treat environmental cold effects as if they were one step less extreme.",
+    "source": "player_core"
+  },
+  "unbreakable_goblin": {
+    "name": "Unbreakable Goblin",
+    "ancestry": "goblin",
+    "effects": {"hp": 4},
+    "note": "You're not just tough—you're practically unkillable. You gain 10 Hit Points from your ancestry instead of 6. You also fall more safely; reduce the falling damage you take as though you fell 10 fewer feet.",
+    "source": "player_core"
+  },
+  "badlands_orc": {
+    "name": "Badlands Orc",
+    "ancestry": "orc",
+    "effects": {},
+    "note": "You come from sun-scorched badlands where every resource is scarce. You can Hustle for a number of minutes equal to your Constitution modifier (minimum 1) without taking nonlethal damage, and treat environmental heat effects as one step less extreme.",
+    "source": "player_core"
+  },
+  "battle_ready_orc": {
+    "name": "Battle-Ready Orc",
+    "ancestry": "orc",
+    "effects": {},
+    "note": "You descend from a line of crack warriors. You are trained in Intimidation and gain the Intimidating Glare skill feat.",
+    "source": "player_core"
+  },
+  "deep_orc": {
+    "name": "Deep Orc",
+    "ancestry": "orc",
+    "effects": {},
+    "note": "Your calloused hands and feet are excellent for climbing in subterranean environments. You gain Terrain Expertise for underground terrain and the Combat Climber skill feat.",
+    "source": "player_core"
+  },
+  "hold_scarred_orc": {
+    "name": "Hold-Scarred Orc",
+    "ancestry": "orc",
+    "effects": {"hp": 4},
+    "note": "You are part of an orc community that participates in ritual scarring as a rite of passage. Your scars prove your hardiness; you gain 12 Hit Points from your ancestry instead of 10. You also gain the Diehard feat.",
+    "source": "player_core"
+  },
+  "rainfall_orc": {
+    "name": "Rainfall Orc",
+    "ancestry": "orc",
+    "effects": {},
+    "note": "You come from the wet jungles and marshlands of the world. You gain a +2 circumstance bonus to Athletics checks to Swim and to Climb trees or vines, and a +1 circumstance bonus to saves against diseases.",
+    "source": "player_core"
+  },
+  "fruit_leshy": {
+    "name": "Fruit Leshy",
+    "ancestry": "leshy",
+    "effects": {},
+    "note": "Your body produces small magical fruits. Once per day, you can produce a piece of fruit that restores 1d8 Hit Points when consumed, as if it were a minor healing potion; the fruit spoils if not consumed before your next daily preparations.",
+    "source": "player_core"
+  },
+  "fungus_leshy": {
+    "name": "Fungus Leshy",
+    "ancestry": "leshy",
+    "effects": {},
+    "note": "Rather than a plant, you're a fungus leshy. You gain the fungus trait instead of the plant trait, and you gain darkvision.",
+    "source": "player_core"
+  },
+  "gourd_leshy": {
+    "name": "Gourd Leshy",
+    "ancestry": "leshy",
+    "effects": {},
+    "note": "You have a large gourd for a head, allowing you to store objects inside your skull. You can store up to 1 Bulk of objects within your head, and the DC to Steal items stored in your head increases by 4.",
+    "source": "player_core"
+  },
+  "leaf_leshy": {
+    "name": "Leaf Leshy",
+    "ancestry": "leshy",
+    "effects": {},
+    "note": "Your body is made of thick leaves and you're light enough to float in the breeze. You take no damage from falling, regardless of the distance you fall.",
+    "source": "player_core"
+  },
+  "vine_leshy": {
+    "name": "Vine Leshy",
+    "ancestry": "leshy",
+    "effects": {},
+    "note": "You are adept at climbing with your vine-like limbs. You can Climb even without free hands. Additionally, if you roll a success on an Athletics check to Climb, you get a critical success instead.",
+    "source": "player_core"
+  },
+  "clawed_catfolk": {
+    "name": "Clawed Catfolk",
+    "ancestry": "catfolk",
+    "effects": {},
+    "note": "Your family has particularly strong, sharp claws capable of tearing through flesh. You gain a claw unarmed attack that deals 1d6 slashing damage with the agile, finesse, and unarmed traits.",
+    "source": "player_core_2"
+  },
+  "hunting_catfolk": {
+    "name": "Hunting Catfolk",
+    "ancestry": "catfolk",
+    "effects": {},
+    "note": "You descend from a long line of hunters. You gain imprecise scent with a range of 30 feet and a +2 circumstance bonus to Track a creature or object you've previously scented.",
+    "source": "player_core_2"
+  },
+  "jungle_catfolk": {
+    "name": "Jungle Catfolk",
+    "ancestry": "catfolk",
+    "effects": {},
+    "note": "You come from lush tropical jungles. You can move across difficult terrain caused by undergrowth without it reducing your Speed, and greater difficult terrain from undergrowth is only difficult terrain for you.",
+    "source": "player_core_2"
+  },
+  "nine_lives_catfolk": {
+    "name": "Nine Lives Catfolk",
+    "ancestry": "catfolk",
+    "effects": {},
+    "note": "You have a remarkable ability to cheat death. While you are dying, the recovery check DC is typically 10 regardless of your current dying value. You also gain the Diehard general feat.",
+    "source": "player_core_2"
+  },
+  "winter_catfolk": {
+    "name": "Winter Catfolk",
+    "ancestry": "catfolk",
+    "effects": {},
+    "note": "Your ancestors came from cold northern climates. You gain cold resistance equal to half your level (minimum 1) and treat environmental cold effects as if they were one step less extreme.",
+    "source": "player_core_2"
+  },
+  "cavernstalker_kobold": {
+    "name": "Cavernstalker Kobold",
+    "ancestry": "kobold",
+    "effects": {},
+    "note": "You've adapted to navigating cramped tunnels and vertical stone passages. You gain the Quick Squeeze feat, and when climbing natural stone surfaces, a successful Athletics check is treated as a critical success.",
+    "source": "player_core_2"
+  },
+  "dragonscaled_kobold": {
+    "name": "Dragonscaled Kobold",
+    "ancestry": "kobold",
+    "effects": {"hp": 4},
+    "note": "Your scales are denser than most, reflecting your strong draconic heritage. You gain 10 Hit Points from your ancestry instead of 6, and a +1 circumstance bonus to saves against dragon breath, sleep, and paralysis effects.",
+    "source": "player_core_2"
+  },
+  "spellhorn_kobold": {
+    "name": "Spellhorn Kobold",
+    "ancestry": "kobold",
+    "effects": {},
+    "note": "You have a small, magical horn on your head that channels arcane energy. You can cast one common arcane cantrip of your choice at will as an innate arcane spell.",
+    "source": "player_core_2"
+  },
+  "strongjaw_kobold": {
+    "name": "Strongjaw Kobold",
+    "ancestry": "kobold",
+    "effects": {},
+    "note": "Your jaws are built with exceptional power. You gain a jaws unarmed attack that deals 1d6 piercing damage with the finesse and unarmed traits.",
+    "source": "player_core_2"
+  },
+  "tunnelflood_kobold": {
+    "name": "Tunnelflood Kobold",
+    "ancestry": "kobold",
+    "effects": {},
+    "note": "Your lair has been flooded more than once, and you've adapted to survive underwater. You gain a swim speed of 15 feet.",
+    "source": "player_core_2"
+  },
+  "venomtail_kobold": {
+    "name": "Venomtail Kobold",
+    "ancestry": "kobold",
+    "effects": {},
+    "note": "You have a small, poisonous barb at the end of your tail. You gain the Tail Toxin action, which lets you envenom a weapon to deal 1d4 persistent poison damage on a hit.",
+    "source": "player_core_2"
+  },
+  "dogtooth_tengu": {
+    "name": "Dogtooth Tengu",
+    "ancestry": "tengu",
+    "effects": {},
+    "note": "Your beak is especially strong and sharp, resembling the powerful jaws of a dog. Your beak unarmed attack gains the deadly d8 trait.",
+    "source": "player_core_2"
+  },
+  "jinxed_tengu": {
+    "name": "Jinxed Tengu",
+    "ancestry": "tengu",
+    "effects": {},
+    "note": "You've been exposed to so many curses that you've built up a resistance to misfortune. When you succeed on a saving throw against a curse or misfortune effect, you critically succeed instead, and you can attempt a DC 17 flat check to reduce the doomed condition when you gain it.",
+    "source": "player_core_2"
+  },
+  "mountainkeeper_tengu": {
+    "name": "Mountainkeeper Tengu",
+    "ancestry": "tengu",
+    "effects": {},
+    "note": "You are a spiritual guardian of mountain peaks. You can cast the vitality lash cantrip at will as an innate spell, using either divine or primal tradition.",
+    "source": "player_core_2"
+  },
+  "skyborn_tengu": {
+    "name": "Skyborn Tengu",
+    "ancestry": "tengu",
+    "effects": {},
+    "note": "Your connection to the sky runs deep, even if you cannot fly. You take no damage from falling, regardless of the distance you fall.",
+    "source": "player_core_2"
+  },
+  "taloned_tengu": {
+    "name": "Taloned Tengu",
+    "ancestry": "tengu",
+    "effects": {},
+    "note": "Your taloned feet are capable of gripping and slashing foes. You gain a talons unarmed attack that deals 1d4 slashing damage with the agile, finesse, unarmed, and versatile P traits.",
+    "source": "player_core_2"
+  },
+  "dhampir": {
+    "name": "Dhampir",
+    "ancestry": "any",
+    "effects": {},
+    "note": "You are the scion of a vampire, half living and half undead. You gain the dhampir trait, void healing (you are harmed by vitality damage and healed by void effects), and low-light vision (or darkvision if your ancestry already has low-light vision).",
+    "source": "player_core_2"
+  },
+  "dragonblood": {
+    "name": "Dragonblood",
+    "ancestry": "any",
+    "effects": {},
+    "note": "You descend in some way from a dragon. You gain the dragonblood trait, add Draconic to your language options, and when you roll a critical failure on a saving throw against a fear effect, you get a failure instead.",
+    "source": "player_core_2"
+  },
+  "duskwalker": {
+    "name": "Duskwalker",
+    "ancestry": "any",
+    "effects": {},
+    "note": "A bargain struck with psychopomps at the moment of death has reincarnated you as a duskwalker. You gain the duskwalker trait, low-light vision (or darkvision if your ancestry has low-light vision), and you cannot become undead.",
+    "source": "player_core_2"
+  },
+  "nephilim": {
+    "name": "Nephilim",
+    "ancestry": "any",
+    "effects": {},
+    "note": "You carry the blood of celestials or fiends in your veins, marking you as touched by the outer planes. You gain the nephilim trait, low-light vision (or darkvision if your ancestry already has it), and access to nephilim ancestry feats.",
+    "source": "player_core_2"
+  }
+}

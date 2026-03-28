@@ -247,6 +247,11 @@
       "select": "single",
       "writes": {"ancestry_hp": "hp", "speed_base": "speed"}
     },
+    "heritage": {
+      "source": "heritages.json",
+      "select": "single",
+      "effects": true
+    },
     "class": {
       "source": "classes/{class}.json",
       "select": "single",
