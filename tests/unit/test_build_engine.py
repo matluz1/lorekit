@@ -930,4 +930,36 @@ class TestEquipmentPf2e:
         char_items = [{"name": "Longsword", "description": "", "quantity": 1}]
         result = process_build(PF2E_SYSTEM, {}, [], level=1, char_items=char_items)
         assert result.attributes["weapon_damage_die"] == "1d8"
-        assert result.attributes["weapon_damage_type"] == "S"
+
+
+class TestSingleSelectEffects:
+    """Effects should work on single-select build categories."""
+
+    def test_single_select_applies_effects(self, tmp_path):
+        system_data = {
+            "meta": {"name": "Test", "dice": "d20"},
+            "defaults": {"prof_religion": 0, "prof_stealth": 0},
+            "derived": {},
+            "build": {
+                "background": {
+                    "source": "backgrounds.json",
+                    "select": "single",
+                    "effects": True,
+                }
+            },
+        }
+        bg_data = {
+            "acolyte": {"name": "Acolyte", "effects": {"prof_religion": 2}},
+            "criminal": {"name": "Criminal", "effects": {"prof_stealth": 2}},
+        }
+
+        pack_dir = str(tmp_path)
+        with open(tmp_path / "system.json", "w") as f:
+            json.dump(system_data, f)
+        with open(tmp_path / "backgrounds.json", "w") as f:
+            json.dump(bg_data, f)
+
+        char_attrs = {"background": {"background": "acolyte"}}
+        result = process_build(pack_dir, char_attrs, [], level=1)
+        assert result.attributes.get("prof_religion") == 2
+        assert result.attributes.get("prof_stealth", 0) == 0

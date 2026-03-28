@@ -646,6 +646,10 @@ def _process_source(
             return
         if has_writes:
             _apply_writes(rules["writes"], item, result)
+        if has_effects:
+            for key, value in item.get("effects", {}).items():
+                if isinstance(value, (int, float)):
+                    result.attributes[key] = result.attributes.get(key, 0) + value
 
     elif select_mode == "multiple":
         if has_effects:
