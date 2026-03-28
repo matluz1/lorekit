@@ -51,7 +51,7 @@ def _isolate_db(tmp_path, monkeypatch):
 def make_session():
     """Factory that creates a session and returns its integer ID."""
 
-    def _make(name="Test Campaign", setting="Fantasy World", system="d20 Fantasy"):
+    def _make(name="Test Campaign", setting="Fantasy World", system="basic"):
         from lorekit.tools.session import session_create
 
         result = session_create(name=name, setting=setting, system=system)

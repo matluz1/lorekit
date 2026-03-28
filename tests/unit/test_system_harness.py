@@ -108,7 +108,8 @@ def _make_rules_session(make_session, pack_name, system_path):
             os.symlink(system_path, link_path)
 
     db.execute(
-        "INSERT INTO session_meta (session_id, key, value) VALUES (?, 'rules_system', ?)",
+        "INSERT INTO session_meta (session_id, key, value) VALUES (?, 'rules_system', ?)"
+        " ON CONFLICT(session_id, key) DO UPDATE SET value = excluded.value",
         (sid, pack_name),
     )
     db.commit()

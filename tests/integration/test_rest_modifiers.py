@@ -22,7 +22,6 @@ pytest.importorskip("sqlite_vec")
 from lorekit.rules import resolve_system_path  # noqa: E402
 from lorekit.tools.character import character_sheet_update, character_view  # noqa: E402
 from lorekit.tools.rules import combat_modifier  # noqa: E402
-from lorekit.tools.session import session_meta_set  # noqa: E402
 from lorekit.tools.utility import rest  # noqa: E402
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -31,11 +30,11 @@ TEST_SYSTEM = os.path.join(ROOT, "systems", "basic")
 
 @pytest.fixture(autouse=True)
 def _patch_system_path(monkeypatch):
-    """Make resolve_system_path find our test fixture for 'test_system'."""
+    """Make resolve_system_path find our basic pack."""
     _real = resolve_system_path
 
     def _patched(name):
-        if name == "test_system":
+        if name == "basic":
             return TEST_SYSTEM
         return _real(name)
 
@@ -44,9 +43,7 @@ def _patch_system_path(monkeypatch):
 
 
 def _setup_session(make_session):
-    sid = make_session()
-    session_meta_set(session_id=sid, key="rules_system", value="test_system")
-    return sid
+    return make_session()
 
 
 def _setup_pc(session_id, make_character, hp=10):

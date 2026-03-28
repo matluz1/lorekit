@@ -39,34 +39,9 @@ COMBAT_CFG = {
 
 
 @pytest.fixture
-def rules_session(make_session, tmp_path):
-    """Create a session with rules_system pointing at the test_system fixture.
-
-    Symlinks systems/test_system so try_rules_calc can resolve it.
-    """
-    sid = make_session()
-    from lorekit.db import require_db
-
-    db = require_db()
-
-    # Create symlink: <project>/systems/test_system -> tests/fixtures/test_system
-    project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    link_path = os.path.join(project_root, "systems", "test_system")
-    if not os.path.exists(link_path):
-        os.symlink(TEST_SYSTEM, link_path)
-
-    db.execute(
-        "INSERT INTO session_meta (session_id, key, value) VALUES (?, 'rules_system', 'test_system')",
-        (sid,),
-    )
-    db.commit()
-    db.close()
-
-    yield sid
-
-    # Cleanup symlink
-    if os.path.islink(link_path):
-        os.unlink(link_path)
+def rules_session(make_session):
+    """Create a session with rules_system=basic (auto-set by create())."""
+    return make_session()
 
 
 def _set_attrs(db, cid, attrs):
@@ -527,7 +502,8 @@ class TestFullCombatIntegrationMM3e:
 
         db = require_db()
         db.execute(
-            "INSERT INTO session_meta (session_id, key, value) VALUES (?, 'rules_system', 'mm3e')",
+            "INSERT INTO session_meta (session_id, key, value) VALUES (?, 'rules_system', 'mm3e')"
+            " ON CONFLICT(session_id, key) DO UPDATE SET value = excluded.value",
             (sid,),
         )
         db.commit()
