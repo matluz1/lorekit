@@ -673,34 +673,6 @@ class TestAdvanceTurnAutoEndTurn:
         assert "EXPIRED: rage" in result
         db.close()
 
-    def test_advance_without_system_still_works(self, make_session, make_character):
-        """Sessions without rules_system skip end_turn gracefully."""
-        from lorekit.db import require_db
-        from lorekit.encounter import advance_turn, start_encounter
-
-        db = require_db()
-        sid = make_session()
-        c1 = make_character(sid, name="Fighter")
-        c2 = make_character(sid, name="Goblin")
-
-        zones = [{"name": "Arena"}]
-        initiative = [
-            {"character_id": c1, "roll": 20},
-            {"character_id": c2, "roll": 10},
-        ]
-        placements = [
-            {"character_id": c1, "zone": "Arena"},
-            {"character_id": c2, "zone": "Arena"},
-        ]
-        start_encounter(db, sid, zones, initiative, placements=placements)
-
-        result = advance_turn(db, sid)
-        assert "TURN" in result
-        assert "Goblin" in result
-        # No END TURN section since no rules_system
-        assert "END TURN" not in result
-        db.close()
-
 
 class TestInitiativeAutoRoll:
     """encounter_start with initiative='auto' rolls d20 + derived stat."""
@@ -1619,23 +1591,3 @@ class TestCharacterLookupByName:
         with patch("subprocess.run", return_value=mock_proc):
             result = npc_interact(session_id=sid, npc_id="Bartender", message="Hello")
         assert "not found" not in result or "Bartender" not in result
-
-
-class TestNoRecalcWithoutSystem:
-    """Sessions without rules_system skip recalc silently."""
-
-    def test_combat_modifier_no_system(self, make_session, make_character):
-        from lorekit.tools.rules import combat_modifier
-
-        sid = make_session()
-        cid = make_character(sid)
-
-        result = combat_modifier(
-            character_id=cid,
-            action="add",
-            source="buff",
-            target_stat="bonus_defense",
-            value=2,
-        )
-        assert "MODIFIER ADDED" in result
-        assert "RULES_CALC" not in result

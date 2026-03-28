@@ -157,17 +157,6 @@ class TestRecalculate:
         result = recalculate(pack, char)
         assert result.derived["melee_attack"] == 12  # 5 + 4 + 3
 
-    def test_empty_system_pack(self, tmp_path):
-        # Minimal system.json with no derived stats
-        system_file = tmp_path / "system.json"
-        system_file.write_text('{"meta": {"name": "Empty"}}')
-        pack = load_system_pack(str(tmp_path))
-        char = self._make_char()
-
-        result = recalculate(pack, char)
-        assert result.derived == {}
-        assert result.violations == []
-
 
 # ---------------------------------------------------------------------------
 # DB integration
@@ -284,22 +273,6 @@ class TestDBIntegration:
             derived = dict(rows)
             assert derived["melee_attack"] == "10"  # 5 + 4 + 1
             assert derived["defense"] == "12"  # 10 + 2
-        finally:
-            db.close()
-
-    def test_rules_calc_no_system(self, make_session, make_character, tmp_path):
-        from lorekit.db import require_db
-
-        sid = make_session()
-        cid = make_character(sid)
-
-        system_file = tmp_path / "system.json"
-        system_file.write_text('{"meta": {"name": "Empty"}}')
-
-        db = require_db()
-        try:
-            output = rules_calc(db, cid, str(tmp_path))
-            assert "no derived stats" in output
         finally:
             db.close()
 

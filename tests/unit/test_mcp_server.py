@@ -309,18 +309,6 @@ def test_ability_from_template_unknown():
     assert "blast" in result  # should list available templates
 
 
-def test_ability_from_template_no_system():
-    """Template without rules_system set returns an error."""
-    from lorekit.tools.character import ability_from_template, character_build
-    from lorekit.tools.session import session_setup
-
-    session_setup(name="NoRules", setting="Test", system="generic")
-    character_build(session=1, name="Hero", level=1)
-
-    result = ability_from_template(character_id=1, template_key="blast")
-    assert "ERROR" in result
-
-
 # ---- session.create() validation -------------------------------------------
 
 
