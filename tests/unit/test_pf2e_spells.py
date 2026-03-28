@@ -171,18 +171,21 @@ class TestSpellSpotChecks:
         assert "fire" in fb["traits"]
         assert fb["action"]["defense_stat"] == "reflex"
         assert fb["action"]["on_hit"]["damage_roll"]["dice"] == "6d6"
+        assert fb["source"] == "player_core"
 
     def test_heal_is_healing(self, spells):
         h = spells["heal"]
         assert h["rank"] == 1
         assert "healing" in h["traits"]
         assert h["action"]["on_hit"]["add_to"] == "current_hp"
+        assert h["source"] == "player_core"
 
     def test_electric_arc_cantrip(self, spells):
         ea = spells["electric_arc"]
         assert ea["rank"] == 0
         assert ea["uses"] == "at_will"
         assert ea["auto_heighten"] is True
+        assert ea["source"] == "player_core"
 
     def test_fear_applies_frightened(self, spells):
         f = spells["fear"]
@@ -196,6 +199,7 @@ class TestSpellSpotChecks:
         assert loh["focus"] is True
         assert loh["uses"] == "per_encounter"
         assert loh["class"] == "champion"
+        assert loh["source"] == "player_core_2"
 
     def test_shield_cantrip_buff(self, spells):
         s = spells["shield"]
@@ -204,11 +208,11 @@ class TestSpellSpotChecks:
         mods = s["action"]["on_hit"]["apply_modifiers"]
         assert any(m["target_stat"] == "bonus_ac" for m in mods)
 
-    def test_magic_missile_auto_hit(self, spells):
-        mm = spells["magic_missile"]
-        assert "attack_stat" not in mm["action"]
-        assert "defense_stat" not in mm["action"]
-        assert mm["action"]["on_hit"]["subtract_from"] == "current_hp"
+    def test_force_barrage_auto_hit(self, spells):
+        fb = spells["force_barrage"]
+        assert "attack_stat" not in fb["action"]
+        assert "defense_stat" not in fb["action"]
+        assert fb["action"]["on_hit"]["subtract_from"] == "current_hp"
 
     def test_haste_buff(self, spells):
         h = spells["haste"]
@@ -216,3 +220,35 @@ class TestSpellSpotChecks:
         mods = h["action"]["on_hit"]["apply_modifiers"]
         conditions = [m.get("condition") for m in mods]
         assert "quickened" in conditions
+
+    def test_legacy_names_removed(self, spells):
+        legacy = [
+            "magic_missile",
+            "burning_hands",
+            "mage_armor",
+            "ghost_sound",
+            "produce_flame",
+            "ray_of_frost",
+            "magic_weapon",
+            "sound_burst",
+            "disguise_self",
+            "acid_arrow",
+            "barkskin",
+            "hideous_laughter",
+            "searing_light",
+            "zone_of_truth",
+            "wild_shape",
+            "ki_strike",
+        ]
+        for slug in legacy:
+            assert slug not in spells, f"Legacy name '{slug}' should have been removed"
+
+    def test_non_core_removed(self, spells):
+        non_core = ["flame_wisp", "phantom_prison", "roaring_applause", "thunderous_strike", "snowball", "sudden_bolt"]
+        for slug in non_core:
+            assert slug not in spells, f"Non-core spell '{slug}' should have been removed"
+
+    def test_has_high_rank_spells(self, spells):
+        for rank in range(4, 11):
+            rank_spells = [s for s, e in spells.items() if e["rank"] == rank]
+            assert len(rank_spells) > 0, f"No spells at rank {rank}"
