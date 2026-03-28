@@ -1,1 +1,681 @@
-{}
+{
+  "daze": {
+    "name": "Daze",
+    "rank": 0,
+    "traditions": ["arcane", "divine", "occult"],
+    "cast": "2 actions",
+    "components": ["somatic", "verbal"],
+    "traits": ["cantrip", "concentrate", "manipulate", "mental", "nonlethal"],
+    "range": "60 feet",
+    "targets": "1 creature",
+    "defense": "will",
+    "duration": "1 round",
+    "uses": "at_will",
+    "auto_heighten": true,
+    "description": "You cloud the target's mind and daze it with a mental jolt. The jolt deals 1d6 mental damage with a basic Will save. On a critical failure, the target is also stunned 1.",
+    "heightened": {
+      "per_2": {"damage": "+1d6"}
+    },
+    "action": {
+      "key": "daze",
+      "attack_stat": "spell_dc",
+      "defense_stat": "will",
+      "range": "ranged",
+      "on_hit": {
+        "damage_roll": {"dice": "1d6", "type": "mental"},
+        "subtract_from": "current_hp"
+      }
+    }
+  },
+
+  "detect_magic": {
+    "name": "Detect Magic",
+    "rank": 0,
+    "traditions": ["arcane", "divine", "occult", "primal"],
+    "cast": "1 action",
+    "components": ["somatic"],
+    "traits": ["cantrip", "concentrate", "detection", "manipulate"],
+    "range": "30 feet",
+    "area": "30-foot emanation",
+    "duration": "sustained up to 1 minute",
+    "uses": "at_will",
+    "auto_heighten": true,
+    "description": "You send out a pulse that registers the presence of magic. You sense whether any active spells or magic items are within the area. The spell is blocked by lead or 1 foot of iron. If you're within 30 feet of a magical object or effect, you can take a single action to determine its school of magic.",
+    "heightened": {
+      "3": {"description": "You learn the specific spells and magical effects in the area, and can pinpoint their locations."},
+      "4": {"description": "You learn the source of any magic effects in the area, and you can Seek to pinpoint invisible magical sources."}
+    }
+  },
+
+  "divine_lance": {
+    "name": "Divine Lance",
+    "rank": 0,
+    "traditions": ["divine"],
+    "cast": "2 actions",
+    "components": ["somatic", "verbal"],
+    "traits": ["cantrip", "concentrate", "manipulate"],
+    "range": "60 feet",
+    "targets": "1 creature",
+    "uses": "at_will",
+    "auto_heighten": true,
+    "description": "You unleash a lance of holy or unholy power (your choice) at the target. Make a spell attack roll. The lance deals 1d4 spirit damage, plus spirit damage equal to your spellcasting ability modifier. Choose holy or unholy when you cast the spell; the damage gains that trait.",
+    "heightened": {
+      "per_2": {"damage": "+1d4"}
+    },
+    "action": {
+      "key": "divine_lance",
+      "attack_stat": "spell_attack",
+      "defense_stat": "armor_class",
+      "range": "ranged",
+      "on_hit": {
+        "damage_roll": {"dice": "1d4", "type": "spirit"},
+        "subtract_from": "current_hp"
+      }
+    }
+  },
+
+  "electric_arc": {
+    "name": "Electric Arc",
+    "rank": 0,
+    "traditions": ["arcane", "primal"],
+    "cast": "2 actions",
+    "components": ["somatic", "verbal"],
+    "traits": ["cantrip", "concentrate", "electricity", "manipulate"],
+    "range": "30 feet",
+    "targets": "1 or 2 creatures",
+    "defense": "reflex",
+    "uses": "at_will",
+    "auto_heighten": true,
+    "description": "An arc of lightning leaps from one target to another. Each target takes 2d4 electricity damage with a basic Reflex save.",
+    "heightened": {
+      "per_1": {"damage": "+1d4"}
+    },
+    "action": {
+      "key": "electric_arc",
+      "attack_stat": "spell_dc",
+      "defense_stat": "reflex",
+      "range": "ranged",
+      "on_hit": {
+        "damage_roll": {"dice": "2d4", "type": "electricity"},
+        "subtract_from": "current_hp"
+      }
+    }
+  },
+
+  "figment": {
+    "name": "Figment",
+    "rank": 0,
+    "traditions": ["arcane", "occult"],
+    "cast": "2 actions",
+    "components": ["somatic", "verbal"],
+    "traits": ["cantrip", "concentrate", "illusion", "manipulate", "visual"],
+    "range": "30 feet",
+    "duration": "sustained up to 1 minute",
+    "uses": "at_will",
+    "auto_heighten": true,
+    "description": "You create a simple illusory image of a stationary object, creature, or simple pattern. The image can't be larger than a 5-foot cube. It doesn't create sound, smell, texture, or temperature. Interacting with the image ends the spell."
+  },
+
+  "frostbite": {
+    "name": "Frostbite",
+    "rank": 0,
+    "traditions": ["arcane", "primal"],
+    "cast": "2 actions",
+    "components": ["somatic", "verbal"],
+    "traits": ["cantrip", "cold", "concentrate", "manipulate"],
+    "range": "30 feet",
+    "targets": "1 creature",
+    "defense": "fortitude",
+    "uses": "at_will",
+    "auto_heighten": true,
+    "description": "You shoot a ray of biting frost at your target. The target takes 1d4 cold damage with a basic Fortitude save. On a critical failure, the target is also enfeebled 1 until the start of your next turn.",
+    "heightened": {
+      "per_1": {"damage": "+1d4"}
+    },
+    "action": {
+      "key": "frostbite",
+      "attack_stat": "spell_dc",
+      "defense_stat": "fortitude",
+      "range": "ranged",
+      "on_hit": {
+        "damage_roll": {"dice": "1d4", "type": "cold"},
+        "subtract_from": "current_hp"
+      }
+    }
+  },
+
+  "ghost_sound": {
+    "name": "Ghost Sound",
+    "rank": 0,
+    "traditions": ["arcane", "occult"],
+    "cast": "2 actions",
+    "components": ["somatic", "verbal"],
+    "traits": ["cantrip", "auditory", "concentrate", "illusion", "manipulate"],
+    "range": "30 feet",
+    "duration": "sustained up to 1 minute",
+    "uses": "at_will",
+    "auto_heighten": true,
+    "description": "You create an auditory illusion of simple sounds that can be heard by creatures in the area. You choose the type of sound when casting the spell, from whispers to screams. The volume can be up to that of four normal humans. Anyone who hears the sound can attempt a Will save to disbelieve. The sound can be sustained up to 1 minute."
+  },
+
+  "gouging_claw": {
+    "name": "Gouging Claw",
+    "rank": 0,
+    "traditions": ["arcane", "primal"],
+    "cast": "2 actions",
+    "components": ["somatic", "verbal"],
+    "traits": ["cantrip", "attack", "concentrate", "manipulate", "morph"],
+    "range": "melee",
+    "targets": "1 creature",
+    "uses": "at_will",
+    "auto_heighten": true,
+    "description": "You briefly transform your hand into a clawed appendage and make a melee spell attack roll against the target. On a hit, you deal 1d6 slashing damage plus 1d4 persistent bleed damage. On a critical hit, double the slashing damage, and the target takes 2d4 persistent bleed instead.",
+    "heightened": {
+      "per_2": {"damage": "+1d6 slashing and +1d4 persistent bleed"}
+    },
+    "action": {
+      "key": "gouging_claw",
+      "attack_stat": "spell_attack",
+      "defense_stat": "armor_class",
+      "range": "melee",
+      "on_hit": {
+        "damage_roll": {"dice": "1d6", "type": "slashing"},
+        "subtract_from": "current_hp"
+      }
+    }
+  },
+
+  "guidance": {
+    "name": "Guidance",
+    "rank": 0,
+    "traditions": ["divine", "occult", "primal"],
+    "cast": "1 action",
+    "components": ["verbal"],
+    "traits": ["cantrip", "concentrate", "fortune"],
+    "range": "30 feet",
+    "targets": "1 creature",
+    "duration": "until the start of your next turn",
+    "uses": "at_will",
+    "auto_heighten": true,
+    "description": "You channel divine guidance to a creature. The target can call upon this guidance before the spell ends to reroll one Perception check, saving throw, attack roll, or skill check and use the better result. The guidance is lost if not used. You can't cast this on the same creature twice in 10 minutes.",
+    "action": {
+      "key": "guidance",
+      "range": "ranged",
+      "on_hit": {
+        "apply_modifiers": [
+          {"source": "guidance", "target_stat": "bonus_perception", "value": 1, "modifier_type": "circumstance", "duration_type": "until_next_turn"}
+        ]
+      }
+    }
+  },
+
+  "haunting_hymn": {
+    "name": "Haunting Hymn",
+    "rank": 0,
+    "traditions": ["divine", "occult"],
+    "cast": "2 actions",
+    "components": ["somatic", "verbal"],
+    "traits": ["cantrip", "auditory", "concentrate", "manipulate", "sonic"],
+    "range": "30 feet",
+    "area": "15-foot cone",
+    "defense": "fortitude",
+    "uses": "at_will",
+    "auto_heighten": true,
+    "description": "You utter a discordant hymn that assaults the minds of those nearby. Each creature in the area takes 2d4 sonic damage with a basic Fortitude save.",
+    "heightened": {
+      "per_1": {"damage": "+1d4"}
+    },
+    "action": {
+      "key": "haunting_hymn",
+      "attack_stat": "spell_dc",
+      "defense_stat": "fortitude",
+      "range": "ranged",
+      "on_hit": {
+        "damage_roll": {"dice": "2d4", "type": "sonic"},
+        "subtract_from": "current_hp"
+      }
+    }
+  },
+
+  "ignition": {
+    "name": "Ignition",
+    "rank": 0,
+    "traditions": ["arcane", "primal"],
+    "cast": "2 actions",
+    "components": ["somatic", "verbal"],
+    "traits": ["cantrip", "concentrate", "fire", "manipulate"],
+    "range": "melee or 30 feet",
+    "targets": "1 creature",
+    "uses": "at_will",
+    "auto_heighten": true,
+    "description": "Flames leap from your fingers. Make a melee or ranged spell attack roll. On a hit, the target takes 1d4 fire damage. On a ranged hit, the target also takes 1d4 persistent fire damage. On a critical hit (melee), the target takes 1d8 persistent fire damage instead.",
+    "heightened": {
+      "per_1": {"damage": "+1d4"}
+    },
+    "action": {
+      "key": "ignition",
+      "attack_stat": "spell_attack",
+      "defense_stat": "armor_class",
+      "range": "ranged",
+      "on_hit": {
+        "damage_roll": {"dice": "1d4", "type": "fire"},
+        "subtract_from": "current_hp"
+      }
+    }
+  },
+
+  "know_the_way": {
+    "name": "Know the Way",
+    "rank": 0,
+    "traditions": ["divine", "primal"],
+    "cast": "1 action",
+    "components": ["verbal"],
+    "traits": ["cantrip", "concentrate", "detection"],
+    "duration": "10 minutes",
+    "uses": "at_will",
+    "auto_heighten": true,
+    "description": "You attune your senses to detect the direction of a specific location, landmark, or area you have visited before. For the duration, you gain a sense of direction and approximate distance to that place, though you don't gain detailed route information."
+  },
+
+  "light": {
+    "name": "Light",
+    "rank": 0,
+    "traditions": ["arcane", "divine", "occult", "primal"],
+    "cast": "2 actions",
+    "components": ["somatic", "verbal"],
+    "traits": ["cantrip", "concentrate", "light", "manipulate"],
+    "range": "120 feet",
+    "targets": "1 unattended object or willing creature",
+    "duration": "until next daily preparations",
+    "uses": "at_will",
+    "auto_heighten": true,
+    "description": "The object glows, casting bright light in a 20-foot radius (and dim light for the next 20 feet). You can Sustain the spell to move the light up to 60 feet. If you cast Light again and already have four active lights, the oldest one ends.",
+    "heightened": {
+      "4": {"description": "The bright light radius increases to 60 feet (and 60 feet of dim light)."}
+    }
+  },
+
+  "mage_hand": {
+    "name": "Mage Hand",
+    "rank": 0,
+    "traditions": ["arcane", "occult"],
+    "cast": "2 actions",
+    "components": ["somatic", "verbal"],
+    "traits": ["cantrip", "concentrate", "manipulate"],
+    "range": "30 feet",
+    "targets": "1 unattended object of light or negligible Bulk",
+    "duration": "sustained",
+    "uses": "at_will",
+    "auto_heighten": true,
+    "description": "You create a magical hand that can manipulate or move an unattended object within range. You can move the object up to 20 feet per action, but you can't move it beyond the spell's range. The hand can't perform actions requiring fine manipulation.",
+    "heightened": {
+      "3": {"description": "Range becomes 60 feet. You can move objects up to 1 Bulk."},
+      "5": {"description": "Range becomes 120 feet. You can move objects up to 2 Bulk."},
+      "7": {"description": "Range becomes 500 feet. You can move objects up to 5 Bulk."}
+    }
+  },
+
+  "message": {
+    "name": "Message",
+    "rank": 0,
+    "traditions": ["arcane", "divine", "occult", "primal"],
+    "cast": "1 action",
+    "components": ["verbal"],
+    "traits": ["cantrip", "auditory", "concentrate", "linguistic"],
+    "range": "120 feet",
+    "targets": "1 creature",
+    "duration": "see description",
+    "uses": "at_will",
+    "auto_heighten": true,
+    "description": "You mouth words quietly, transmitting a magical message to the target. The target hears the message in their mind. The target can respond with a short message immediately. Creatures other than the target can't hear either message."
+  },
+
+  "needle_darts": {
+    "name": "Needle Darts",
+    "rank": 0,
+    "traditions": ["arcane", "divine"],
+    "cast": "2 actions",
+    "components": ["somatic", "verbal"],
+    "traits": ["cantrip", "attack", "concentrate", "manipulate"],
+    "range": "60 feet",
+    "targets": "1 creature",
+    "uses": "at_will",
+    "auto_heighten": true,
+    "description": "You conjure three sharp needles and fling them at a target. Make a spell attack roll. On a hit, the target takes 3d4 piercing damage; on a critical hit, the target takes the damage plus 1d4 persistent bleed damage.",
+    "heightened": {
+      "per_2": {"damage": "+3d4 piercing"}
+    },
+    "action": {
+      "key": "needle_darts",
+      "attack_stat": "spell_attack",
+      "defense_stat": "armor_class",
+      "range": "ranged",
+      "on_hit": {
+        "damage_roll": {"dice": "3d4", "type": "piercing"},
+        "subtract_from": "current_hp"
+      }
+    }
+  },
+
+  "prestidigitation": {
+    "name": "Prestidigitation",
+    "rank": 0,
+    "traditions": ["arcane", "divine", "occult", "primal"],
+    "cast": "2 actions",
+    "components": ["somatic", "verbal"],
+    "traits": ["cantrip", "concentrate", "manipulate"],
+    "range": "10 feet",
+    "targets": "1 object",
+    "duration": "sustained",
+    "uses": "at_will",
+    "auto_heighten": true,
+    "description": "The simplest magic does your bidding. Choose one of the following effects: Cook (alter food's temperature or flavor), Lift (move a light object 1 foot), Make (create a temporary crude object), or Tidy (clean or soil an object or creature). The spell can't deal damage or have a significant effect."
+  },
+
+  "produce_flame": {
+    "name": "Produce Flame",
+    "rank": 0,
+    "traditions": ["arcane", "primal"],
+    "cast": "2 actions",
+    "components": ["somatic", "verbal"],
+    "traits": ["cantrip", "attack", "concentrate", "fire", "manipulate"],
+    "range": "30 feet",
+    "targets": "1 creature",
+    "uses": "at_will",
+    "auto_heighten": true,
+    "description": "A small ball of flame appears in the palm of your hand. Make a melee or ranged spell attack roll. On a hit, the target takes 1d4 fire damage plus 1d4 persistent fire damage. On a critical hit, the persistent fire damage increases to 2d4.",
+    "heightened": {
+      "per_1": {"damage": "+1d4"}
+    },
+    "action": {
+      "key": "produce_flame",
+      "attack_stat": "spell_attack",
+      "defense_stat": "armor_class",
+      "range": "ranged",
+      "on_hit": {
+        "damage_roll": {"dice": "1d4", "type": "fire"},
+        "subtract_from": "current_hp"
+      }
+    }
+  },
+
+  "ray_of_frost": {
+    "name": "Ray of Frost",
+    "rank": 0,
+    "traditions": ["arcane", "primal"],
+    "cast": "2 actions",
+    "components": ["somatic", "verbal"],
+    "traits": ["cantrip", "attack", "cold", "concentrate", "manipulate"],
+    "range": "120 feet",
+    "targets": "1 creature",
+    "uses": "at_will",
+    "auto_heighten": true,
+    "description": "You unleash a shard of ice at the target. Make a ranged spell attack roll. On a hit, the target takes 1d4+1 cold damage and takes a –10-foot status penalty to its Speed until the start of your next turn. On a critical hit, double the damage, and the penalty applies until the end of your next turn.",
+    "heightened": {
+      "per_1": {"damage": "+1d4+1"}
+    },
+    "action": {
+      "key": "ray_of_frost",
+      "attack_stat": "spell_attack",
+      "defense_stat": "armor_class",
+      "range": "ranged",
+      "on_hit": {
+        "damage_roll": {"dice": "1d4", "type": "cold"},
+        "subtract_from": "current_hp"
+      }
+    }
+  },
+
+  "read_aura": {
+    "name": "Read Aura",
+    "rank": 0,
+    "traditions": ["arcane", "divine", "occult", "primal"],
+    "cast": "1 minute",
+    "components": ["somatic", "verbal"],
+    "traits": ["cantrip", "concentrate", "detection", "manipulate"],
+    "range": "30 feet",
+    "targets": "1 object",
+    "uses": "at_will",
+    "auto_heighten": true,
+    "description": "Delving into the target's magical aura, you detect the magical school associated with the target. If the target has the magical trait, you learn the magical tradition of that trait and the approximate power of the aura.",
+    "heightened": {
+      "2": {"description": "You learn the target's precise aura strength and the school of magic affecting it."},
+      "6": {"description": "You can target any creature within range and learn all active spells affecting it."}
+    }
+  },
+
+  "scatter_scree": {
+    "name": "Scatter Scree",
+    "rank": 0,
+    "traditions": ["arcane", "primal"],
+    "cast": "2 actions",
+    "components": ["somatic", "verbal"],
+    "traits": ["cantrip", "concentrate", "earth", "manipulate"],
+    "range": "30 feet",
+    "area": "15-foot cone",
+    "defense": "reflex",
+    "uses": "at_will",
+    "auto_heighten": true,
+    "description": "You hurl a shower of rocks and debris. Each creature in the area takes 1d6 bludgeoning damage with a basic Reflex save. The area becomes difficult terrain until cleared.",
+    "heightened": {
+      "per_1": {"damage": "+1d6"}
+    },
+    "action": {
+      "key": "scatter_scree",
+      "attack_stat": "spell_dc",
+      "defense_stat": "reflex",
+      "range": "ranged",
+      "on_hit": {
+        "damage_roll": {"dice": "1d6", "type": "bludgeoning"},
+        "subtract_from": "current_hp"
+      }
+    }
+  },
+
+  "shield": {
+    "name": "Shield",
+    "rank": 0,
+    "traditions": ["arcane", "divine", "occult"],
+    "cast": "1 action",
+    "components": ["verbal"],
+    "traits": ["cantrip", "abjuration", "concentrate", "force"],
+    "range": "self",
+    "duration": "until start of next turn",
+    "uses": "at_will",
+    "auto_heighten": true,
+    "description": "You raise a magical shield of force. You gain a +1 circumstance bonus to AC until the start of your next turn. You can use Shield Block as a reaction while this spell is active. The shield has Hardness 5 and can block up to 5 damage.",
+    "heightened": {
+      "3": {"description": "The shield's Hardness increases to 10 and it can block up to 10 damage."},
+      "5": {"description": "Hardness 20, block up to 20 damage."},
+      "7": {"description": "Hardness 30, block up to 30 damage."},
+      "9": {"description": "Hardness 40, block up to 40 damage."}
+    },
+    "action": {
+      "key": "shield",
+      "range": "self",
+      "on_hit": {
+        "apply_modifiers": [
+          {"source": "shield", "target_stat": "bonus_ac", "value": 1, "modifier_type": "circumstance", "duration_type": "until_next_turn"}
+        ]
+      }
+    }
+  },
+
+  "sigil": {
+    "name": "Sigil",
+    "rank": 0,
+    "traditions": ["arcane", "divine", "occult", "primal"],
+    "cast": "1 action",
+    "components": ["somatic"],
+    "traits": ["cantrip", "concentrate", "manipulate"],
+    "range": "touch",
+    "targets": "1 creature or object",
+    "duration": "until next daily preparations",
+    "uses": "at_will",
+    "auto_heighten": true,
+    "description": "You inscribe a magical sigil on the target. The sigil is invisible but can be detected with detect magic or read aura. You can create a different symbol for each casting. You can use sigil as a free action when you Cast a Spell if you also use it to tag a target of that spell.",
+    "heightened": {
+      "2": {"description": "The sigil lasts until dispelled."}
+    }
+  },
+
+  "slashing_gust": {
+    "name": "Slashing Gust",
+    "rank": 0,
+    "traditions": ["arcane", "primal"],
+    "cast": "2 actions",
+    "components": ["somatic", "verbal"],
+    "traits": ["cantrip", "air", "concentrate", "manipulate", "wind"],
+    "range": "60 feet",
+    "targets": "1 creature",
+    "defense": "reflex",
+    "uses": "at_will",
+    "auto_heighten": true,
+    "description": "You direct a blast of sharp wind at a target. The target takes 1d4 slashing damage with a basic Reflex save. On a critical failure, the target is pushed 10 feet away from you.",
+    "heightened": {
+      "per_1": {"damage": "+1d4"}
+    },
+    "action": {
+      "key": "slashing_gust",
+      "attack_stat": "spell_dc",
+      "defense_stat": "reflex",
+      "range": "ranged",
+      "on_hit": {
+        "damage_roll": {"dice": "1d4", "type": "slashing"},
+        "subtract_from": "current_hp"
+      }
+    }
+  },
+
+  "stabilize": {
+    "name": "Stabilize",
+    "rank": 0,
+    "traditions": ["divine", "primal"],
+    "cast": "2 actions",
+    "components": ["somatic", "verbal"],
+    "traits": ["cantrip", "concentrate", "healing", "manipulate", "vitality"],
+    "range": "30 feet",
+    "targets": "1 dying creature",
+    "uses": "at_will",
+    "auto_heighten": true,
+    "description": "Positive energy shudders through the target, knitting its wounds just enough to keep it alive. The target loses the dying condition, though it remains unconscious at 0 Hit Points.",
+    "action": {
+      "key": "stabilize",
+      "range": "ranged",
+      "on_hit": {
+        "apply_modifiers": [
+          {"source": "stabilize", "target_stat": "bonus_hp", "value": 0, "modifier_type": "untyped", "duration_type": "until_next_turn"}
+        ]
+      }
+    }
+  },
+
+  "tangle_vine": {
+    "name": "Tangle Vine",
+    "rank": 0,
+    "traditions": ["primal"],
+    "cast": "2 actions",
+    "components": ["somatic", "verbal"],
+    "traits": ["cantrip", "concentrate", "manipulate", "plant"],
+    "range": "30 feet",
+    "targets": "1 creature",
+    "duration": "1 round",
+    "uses": "at_will",
+    "auto_heighten": true,
+    "description": "A vine lashes out to entangle your target. Make a spell attack roll. On a hit, the target takes a –10-foot circumstance penalty to its Speed for 1 round. On a critical hit, the target is also flat-footed until the end of your next turn.",
+    "action": {
+      "key": "tangle_vine",
+      "attack_stat": "spell_attack",
+      "defense_stat": "armor_class",
+      "range": "ranged",
+      "on_hit": {
+        "apply_modifiers": [
+          {"source": "tangle_vine", "target_stat": "bonus_speed", "value": -10, "modifier_type": "circumstance", "duration_type": "rounds", "rounds": 1}
+        ]
+      }
+    }
+  },
+
+  "telekinetic_projectile": {
+    "name": "Telekinetic Projectile",
+    "rank": 0,
+    "traditions": ["arcane", "occult"],
+    "cast": "2 actions",
+    "components": ["somatic", "verbal"],
+    "traits": ["cantrip", "attack", "concentrate", "manipulate"],
+    "range": "30 feet",
+    "targets": "1 creature",
+    "uses": "at_will",
+    "auto_heighten": true,
+    "description": "You hurl a loose, unattended object that is within range and not more than 1 Bulk at the target. Make a spell attack roll. On a hit, you deal bludgeoning, piercing, or slashing damage (based on the object) equal to 1d6 + your spellcasting ability modifier.",
+    "heightened": {
+      "per_2": {"damage": "+1d6"}
+    },
+    "action": {
+      "key": "telekinetic_projectile",
+      "attack_stat": "spell_attack",
+      "defense_stat": "armor_class",
+      "range": "ranged",
+      "on_hit": {
+        "damage_roll": {"dice": "1d6", "type": "bludgeoning"},
+        "subtract_from": "current_hp"
+      }
+    }
+  },
+
+  "vitality_lash": {
+    "name": "Vitality Lash",
+    "rank": 0,
+    "traditions": ["divine"],
+    "cast": "2 actions",
+    "components": ["somatic", "verbal"],
+    "traits": ["cantrip", "concentrate", "manipulate", "vitality"],
+    "range": "30 feet",
+    "targets": "1 living or undead creature",
+    "defense": "fortitude",
+    "uses": "at_will",
+    "auto_heighten": true,
+    "description": "You lash out with a tendril of vitality energy. Undead targets take 1d4 vitality damage with a basic Fortitude save. Living targets gain no benefit (the energy is tuned for undead). If you target a living creature, the spell has no effect.",
+    "heightened": {
+      "per_1": {"damage": "+1d4"}
+    },
+    "action": {
+      "key": "vitality_lash",
+      "attack_stat": "spell_dc",
+      "defense_stat": "fortitude",
+      "range": "ranged",
+      "on_hit": {
+        "damage_roll": {"dice": "1d4", "type": "vitality"},
+        "subtract_from": "current_hp"
+      }
+    }
+  },
+
+  "void_warp": {
+    "name": "Void Warp",
+    "rank": 0,
+    "traditions": ["arcane", "divine", "occult"],
+    "cast": "2 actions",
+    "components": ["somatic", "verbal"],
+    "traits": ["cantrip", "concentrate", "manipulate", "void"],
+    "range": "30 feet",
+    "targets": "1 living creature",
+    "defense": "fortitude",
+    "uses": "at_will",
+    "auto_heighten": true,
+    "description": "You warp the target with void energy, sapping its vitality. The target takes 1d4 void damage with a basic Fortitude save. On a critical failure, the target is also enfeebled 1 until the start of your next turn.",
+    "heightened": {
+      "per_1": {"damage": "+1d4"}
+    },
+    "action": {
+      "key": "void_warp",
+      "attack_stat": "spell_dc",
+      "defense_stat": "fortitude",
+      "range": "ranged",
+      "on_hit": {
+        "damage_roll": {"dice": "1d4", "type": "void"},
+        "subtract_from": "current_hp"
+      }
+    }
+  }
+}
