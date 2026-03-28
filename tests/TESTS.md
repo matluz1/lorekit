@@ -6,7 +6,7 @@
 |-------|-------|-------------------|
 | **Unit — cruncher** | `test_rules_formulas.py`, `test_stacking.py`, `test_rolldice.py`, `test_build_engine.py` | Pure computation: formulas, stacking resolution, dice, build engine |
 | **Unit — lorekit** | `test_rules_engine.py`, `test_combat_engine.py`, `test_npc_memory.py`, `test_npc_postprocess.py`, `test_npc_combat.py`, `test_system_info.py`, `test_init_db.py` | Single module behavior with DB |
-| **Integration** | `test_auto_recalc.py`, `test_stacking_integration.py`, `test_prefetch.py`, `test_npc_reflect.py`, `test_checkpoint.py`, `test_recall.py` | Module interactions — recalc chains, memory scoring, checkpoint restore |
+| **Integration** | `test_auto_recalc.py`, `test_stacking_integration.py`, `test_prefetch.py`, `test_npc_reflect.py`, `test_checkpoint.py`, `test_recall.py`, `test_integration_combat_checkpoint.py` | Module interactions — recalc chains, memory scoring, checkpoint restore, combat+checkpoint cross-cutting |
 | **Combat** | `test_mm3e_combat.py`, `test_condition_enforcement.py`, `test_effect_resolution.py`, `test_gm_assisted.py`, `test_sustained_powers.py`, `test_end_turn.py`, `test_encounter.py` | Combat resolution, conditions, effects, sustained powers, turn lifecycle, zones |
 | **MCP tool** | `test_mcp_server.py`, `test_aggregates.py` | Tool functions through the MCP layer (session_setup, character_build, etc.) |
 | **System harness** | `test_system_harness.py` | Engine behavior parametrized across all system packs — combat flow, rest, initiative, HUD, templates |
