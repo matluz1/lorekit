@@ -8721,5 +8721,591 @@
       }
     },
     "source": "player_core"
+  },
+  "antimagic_field": {
+    "name": "Antimagic Field",
+    "rank": 8,
+    "traditions": [
+      "arcane",
+      "divine",
+      "occult"
+    ],
+    "cast": "3 actions",
+    "components": [
+      "material",
+      "somatic",
+      "verbal"
+    ],
+    "traits": [
+      "abjuration",
+      "concentrate",
+      "manipulate"
+    ],
+    "area": "10-foot emanation",
+    "duration": "sustained up to 1 minute",
+    "uses": "per_day",
+    "description": "You repel all magic within a 10-foot emanation centered on you. Spells and other magical effects can't function within this area. Any magical effect that enters the area is suppressed for as long as it remains within the field. Spell slots aren't consumed for spells that are suppressed. You are also affected unless you can sustain this spell without magic.",
+    "source": "player_core"
+  },
+  "disappearance": {
+    "name": "Disappearance",
+    "rank": 8,
+    "traditions": [
+      "arcane",
+      "occult"
+    ],
+    "cast": "2 actions",
+    "components": [
+      "somatic",
+      "verbal"
+    ],
+    "traits": [
+      "concentrate",
+      "illusion",
+      "manipulate"
+    ],
+    "range": "touch",
+    "targets": "1 creature",
+    "duration": "1 hour",
+    "uses": "per_day",
+    "description": "The target becomes invisible and undetectable to all senses, including tremorsense and other precise or imprecise senses. The target doesn't become detectable if it acts, unlike with most invisibility effects. The effect ends if the target uses a hostile action against another creature.",
+    "source": "player_core"
+  },
+  "earthquake": {
+    "name": "Earthquake",
+    "rank": 8,
+    "traditions": [
+      "arcane",
+      "divine",
+      "primal"
+    ],
+    "cast": "2 actions",
+    "components": [
+      "somatic",
+      "verbal"
+    ],
+    "traits": [
+      "concentrate",
+      "earth",
+      "evocation",
+      "manipulate"
+    ],
+    "range": "500 feet",
+    "area": "60-foot burst",
+    "defense": "reflex",
+    "duration": "1 minute",
+    "uses": "per_day",
+    "description": "You shake the ground with a powerful earthquake. Creatures in the area must attempt a Reflex save at the start of their turn. Critical Success: The creature is unaffected. Success: The creature is flat-footed until the start of its next turn. Failure: The creature falls prone. Critical Failure: The creature falls prone and takes 11d6 bludgeoning damage. Structures in the area take 40 damage per round.",
+    "heightened": {
+      "per_1": {
+        "damage": "+2d6"
+      }
+    },
+    "action": {
+      "key": "earthquake",
+      "attack_stat": "spell_dc",
+      "defense_stat": "reflex",
+      "range": "ranged",
+      "area": true,
+      "on_hit": {
+        "damage_roll": {
+          "dice": "11d6",
+          "type": "bludgeoning"
+        },
+        "subtract_from": "current_hp"
+      }
+    },
+    "source": "player_core"
+  },
+  "falling_stars": {
+    "name": "Falling Stars",
+    "rank": 8,
+    "traditions": [
+      "arcane",
+      "occult"
+    ],
+    "cast": "2 actions",
+    "components": [
+      "somatic",
+      "verbal"
+    ],
+    "traits": [
+      "concentrate",
+      "enchantment",
+      "incapacitation",
+      "manipulate",
+      "mental"
+    ],
+    "range": "30 feet",
+    "targets": "1 creature",
+    "defense": "will",
+    "uses": "per_day",
+    "description": "You fill the target's mind with the terrifying vision of stars falling from the sky and crushing all life. The target must attempt a Will save. Critical Success: The target is unaffected. Success: The target is stunned 1. Failure: The target is stunned for 1 round. Critical Failure: The target is stunned for 1 minute.",
+    "action": {
+      "key": "falling_stars",
+      "attack_stat": "spell_dc",
+      "defense_stat": "will",
+      "range": "ranged",
+      "on_hit": {
+        "apply_modifiers": [
+          {
+            "source": "falling_stars",
+            "condition": "stunned",
+            "value": 1,
+            "duration_type": "encounter"
+          }
+        ]
+      }
+    },
+    "source": "player_core"
+  },
+  "horrid_wilting": {
+    "name": "Horrid Wilting",
+    "rank": 8,
+    "traditions": [
+      "arcane",
+      "primal"
+    ],
+    "cast": "2 actions",
+    "components": [
+      "somatic",
+      "verbal"
+    ],
+    "traits": [
+      "concentrate",
+      "evocation",
+      "manipulate",
+      "void"
+    ],
+    "range": "500 feet",
+    "targets": "all living creatures in range",
+    "defense": "fortitude",
+    "uses": "per_day",
+    "description": "You pull the moisture from living creatures' bodies. Each living creature within range that you choose takes 10d10 void damage with a basic Fortitude save. Plant creatures and creatures made of water take a –2 circumstance penalty to their save and take 14d10 damage instead.",
+    "heightened": {
+      "per_1": {
+        "damage": "+2d10"
+      }
+    },
+    "action": {
+      "key": "horrid_wilting",
+      "attack_stat": "spell_dc",
+      "defense_stat": "fortitude",
+      "range": "ranged",
+      "on_hit": {
+        "damage_roll": {
+          "dice": "10d10",
+          "type": "void"
+        },
+        "subtract_from": "current_hp"
+      }
+    },
+    "source": "player_core"
+  },
+  "maze": {
+    "name": "Maze",
+    "rank": 8,
+    "traditions": [
+      "arcane",
+      "occult"
+    ],
+    "cast": "2 actions",
+    "components": [
+      "somatic",
+      "verbal"
+    ],
+    "traits": [
+      "concentrate",
+      "conjuration",
+      "extradimensional",
+      "manipulate",
+      "teleportation"
+    ],
+    "range": "60 feet",
+    "targets": "1 creature",
+    "uses": "per_day",
+    "description": "You banish the target to an extradimensional maze. The target disappears from its current location and is lost in the demiplane maze. On each of its turns, the target can use 2 actions to attempt a DC 20 Survival check. On a success, the target escapes and returns to the space it left. If the target has not escaped after 1 minute, the spell ends and the target returns.",
+    "source": "player_core"
+  },
+  "mind_blank": {
+    "name": "Mind Blank",
+    "rank": 8,
+    "traditions": [
+      "arcane",
+      "occult"
+    ],
+    "cast": "2 actions",
+    "components": [
+      "somatic",
+      "verbal"
+    ],
+    "traits": [
+      "abjuration",
+      "concentrate",
+      "manipulate"
+    ],
+    "range": "touch",
+    "targets": "1 creature",
+    "duration": "until the next day",
+    "uses": "per_day",
+    "description": "You surround the target's mind with protective mental energy. The target is immune to detection and scrying spells of rank 7 or lower, and gains a +4 status bonus to saves against mental effects. Any magic that would read or affect the target's alignment or emotions fails automatically.",
+    "source": "player_core"
+  },
+  "monstrosity_form": {
+    "name": "Monstrosity Form",
+    "rank": 8,
+    "traditions": [
+      "arcane",
+      "primal"
+    ],
+    "cast": "2 actions",
+    "components": [
+      "somatic",
+      "verbal"
+    ],
+    "traits": [
+      "concentrate",
+      "manipulate",
+      "polymorph",
+      "transmutation"
+    ],
+    "duration": "1 minute",
+    "uses": "per_day",
+    "description": "You transform into a powerful monstrous creature. Choose from the following: purple worm, sea serpent, or phoenix. You gain the statistics of the chosen form, including size (Gargantuan for purple worm and sea serpent, Huge for phoenix), Speeds, attacks, and special abilities as given in the spell. You lose your own attacks and can't cast spells.",
+    "source": "player_core"
+  },
+  "polar_ray": {
+    "name": "Polar Ray",
+    "rank": 8,
+    "traditions": [
+      "arcane",
+      "primal"
+    ],
+    "cast": "2 actions",
+    "components": [
+      "somatic",
+      "verbal"
+    ],
+    "traits": [
+      "attack",
+      "cold",
+      "concentrate",
+      "evocation",
+      "manipulate"
+    ],
+    "range": "120 feet",
+    "targets": "1 creature",
+    "uses": "per_day",
+    "description": "You fire a ray of intense cold at the target. Make a spell attack roll. On a hit, the target takes 10d8 cold damage and is drained 2. On a critical hit, the target takes double damage and is drained 4. The drained condition persists until the target receives appropriate healing.",
+    "heightened": {
+      "per_1": {
+        "damage": "+2d8"
+      }
+    },
+    "action": {
+      "key": "polar_ray",
+      "attack_stat": "spell_attack",
+      "defense_stat": "armor_class",
+      "range": "ranged",
+      "on_hit": {
+        "damage_roll": {
+          "dice": "10d8",
+          "type": "cold"
+        },
+        "subtract_from": "current_hp"
+      }
+    },
+    "source": "player_core"
+  },
+  "prismatic_wall": {
+    "name": "Prismatic Wall",
+    "rank": 8,
+    "traditions": [
+      "arcane",
+      "occult"
+    ],
+    "cast": "3 actions",
+    "components": [
+      "material",
+      "somatic",
+      "verbal"
+    ],
+    "traits": [
+      "abjuration",
+      "concentrate",
+      "light",
+      "manipulate"
+    ],
+    "range": "120 feet",
+    "area": "wall up to 60 feet long and 30 feet tall",
+    "duration": "1 hour",
+    "uses": "per_day",
+    "description": "You create a shimmering, multi-layered wall of colored light. The wall has seven layers, each corresponding to a color of the rainbow, and each with a different effect on creatures that pass through. A creature passing through is subjected to each layer's effect, from red to violet. The layers are: red (fire damage), orange (acid damage), yellow (electricity damage), green (poison damage), blue (cold damage), indigo (petrified), violet (sent to another plane).",
+    "source": "player_core"
+  },
+  "punishing_winds": {
+    "name": "Punishing Winds",
+    "rank": 8,
+    "traditions": [
+      "primal"
+    ],
+    "cast": "3 actions",
+    "components": [
+      "material",
+      "somatic",
+      "verbal"
+    ],
+    "traits": [
+      "air",
+      "concentrate",
+      "evocation",
+      "manipulate"
+    ],
+    "range": "500 feet",
+    "area": "60-foot burst",
+    "duration": "sustained up to 1 minute",
+    "uses": "per_day",
+    "description": "You summon a powerful cyclone of punishing winds. The area is filled with howling gales. Creatures in the area treat all movement as difficult terrain. Flying creatures are knocked 20 feet in a random direction at the start of each of their turns. Creatures that are Medium or smaller must succeed at a Fortitude save at the start of their turn or be knocked prone and pushed 30 feet in a random direction.",
+    "source": "player_core"
+  },
+  "scintillating_pattern": {
+    "name": "Scintillating Pattern",
+    "rank": 8,
+    "traditions": [
+      "arcane",
+      "occult"
+    ],
+    "cast": "2 actions",
+    "components": [
+      "somatic",
+      "verbal"
+    ],
+    "traits": [
+      "concentrate",
+      "illusion",
+      "incapacitation",
+      "manipulate",
+      "visual"
+    ],
+    "range": "120 feet",
+    "area": "20-foot burst",
+    "defense": "will",
+    "duration": "sustained up to 1 minute",
+    "uses": "per_day",
+    "description": "You create a swirling pattern of dazzlingly colored lights. Creatures in the area must attempt a Will save. Critical Success: The creature is unaffected. Success: The creature is dazzled for 1 round. Failure: The creature is confused for 1d4 rounds, then stunned 1. Critical Failure: The creature is confused for 1d4 rounds, then stunned 3, then blinded for 1 minute.",
+    "action": {
+      "key": "scintillating_pattern",
+      "attack_stat": "spell_dc",
+      "defense_stat": "will",
+      "range": "ranged",
+      "area": true,
+      "on_hit": {
+        "apply_modifiers": [
+          {
+            "source": "scintillating_pattern",
+            "condition": "confused",
+            "value": 1,
+            "duration_type": "encounter"
+          }
+        ]
+      }
+    },
+    "source": "player_core"
+  },
+  "uncontrollable_dance": {
+    "name": "Uncontrollable Dance",
+    "rank": 8,
+    "traditions": [
+      "arcane",
+      "occult"
+    ],
+    "cast": "2 actions",
+    "components": [
+      "somatic",
+      "verbal"
+    ],
+    "traits": [
+      "concentrate",
+      "enchantment",
+      "incapacitation",
+      "manipulate",
+      "mental"
+    ],
+    "range": "touch",
+    "targets": "1 creature",
+    "defense": "will",
+    "duration": "1 minute",
+    "uses": "per_day",
+    "description": "You compel the target to dance uncontrollably. The target must attempt a Will save. Critical Success: Unaffected. Success: The target is flat-footed for 1 round. Failure: The target must spend all its actions dancing and is flat-footed and off-guard. It can't use reactions. Critical Failure: As failure, and the target takes 2d6 bludgeoning damage at the end of each of its turns from the exertion.",
+    "action": {
+      "key": "uncontrollable_dance",
+      "attack_stat": "spell_dc",
+      "defense_stat": "will",
+      "range": "melee",
+      "on_hit": {
+        "apply_modifiers": [
+          {
+            "source": "uncontrollable_dance",
+            "condition": "flat-footed",
+            "value": 1,
+            "duration_type": "encounter"
+          }
+        ]
+      }
+    },
+    "source": "player_core"
+  },
+  "unrelenting_observation": {
+    "name": "Unrelenting Observation",
+    "rank": 8,
+    "traditions": [
+      "arcane",
+      "occult",
+      "primal"
+    ],
+    "cast": "2 actions",
+    "components": [
+      "somatic",
+      "verbal"
+    ],
+    "traits": [
+      "concentrate",
+      "divination",
+      "manipulate",
+      "scrying"
+    ],
+    "range": "100 feet",
+    "targets": "up to 5 creatures",
+    "duration": "1 hour",
+    "uses": "per_day",
+    "description": "You mark up to 5 creatures. You can see the exact location of each marked creature for the duration as long as they are within 1 mile of you (within 10 miles on a critical success), even through walls and other obstacles. You learn whether each creature is alive or dead. This doesn't penetrate lead or more than 10 feet of stone.",
+    "source": "player_core"
+  },
+  "moment_of_renewal": {
+    "name": "Moment of Renewal",
+    "rank": 8,
+    "traditions": [
+      "divine",
+      "primal"
+    ],
+    "cast": "2 actions",
+    "components": [
+      "somatic",
+      "verbal"
+    ],
+    "traits": [
+      "concentrate",
+      "healing",
+      "manipulate",
+      "vitality"
+    ],
+    "range": "touch",
+    "targets": "up to 6 creatures",
+    "uses": "per_day",
+    "description": "You suffuse the targets with life-restoring energy. Each target regains 7d8+30 HP and you can remove one of the following conditions from each target: blinded, deafened, drained, enfeebled, paralyzed, persistent damage (one type), sickened, or slowed.",
+    "heightened": {
+      "per_1": {
+        "healing": "+15 HP"
+      }
+    },
+    "action": {
+      "key": "moment_of_renewal",
+      "range": "melee",
+      "on_hit": {
+        "damage_roll": {
+          "dice": "7d8"
+        },
+        "add_to": "current_hp"
+      }
+    },
+    "source": "player_core_2"
+  },
+  "quandary": {
+    "name": "Quandary",
+    "rank": 8,
+    "traditions": [
+      "arcane",
+      "occult"
+    ],
+    "cast": "2 actions",
+    "components": [
+      "somatic",
+      "verbal"
+    ],
+    "traits": [
+      "concentrate",
+      "enchantment",
+      "incapacitation",
+      "manipulate",
+      "mental"
+    ],
+    "range": "30 feet",
+    "targets": "1 creature",
+    "defense": "will",
+    "duration": "sustained up to 1 minute",
+    "uses": "per_day",
+    "description": "You trap the target in an endless loop of indecision. The target must attempt a Will save. Critical Success: Unaffected. Success: The target is slowed 1 for 1 round. Failure: The target is slowed 1 for the duration. At the end of each of its turns, the target can attempt another Will save; on a success the effect ends. Critical Failure: The target is paralyzed for the duration, repeating its Will save at the end of each turn.",
+    "action": {
+      "key": "quandary",
+      "attack_stat": "spell_dc",
+      "defense_stat": "will",
+      "range": "ranged",
+      "on_hit": {
+        "apply_modifiers": [
+          {
+            "source": "quandary",
+            "condition": "slowed",
+            "value": 1,
+            "duration_type": "encounter"
+          }
+        ]
+      }
+    },
+    "source": "player_core_2"
+  },
+  "whirlwind": {
+    "name": "Whirlwind",
+    "rank": 8,
+    "traditions": [
+      "primal"
+    ],
+    "cast": "3 actions",
+    "components": [
+      "material",
+      "somatic",
+      "verbal"
+    ],
+    "traits": [
+      "air",
+      "concentrate",
+      "evocation",
+      "manipulate"
+    ],
+    "range": "500 feet",
+    "area": "10-foot burst, 60 feet tall",
+    "defense": "reflex",
+    "duration": "sustained up to 1 minute",
+    "uses": "per_day",
+    "description": "You summon a powerful whirlwind. Each creature in the area when the whirlwind forms or that enters the area must attempt a Reflex save. Critical Success: Unaffected. Success: The creature is knocked back 5 feet. Failure: The creature takes 4d12 bludgeoning damage and is knocked back 10 feet and knocked prone. Critical Failure: The creature takes 8d12 bludgeoning damage and is swept up, carried 30 feet into the air and flung away, taking additional falling damage.",
+    "heightened": {
+      "per_1": {
+        "damage": "+1d12"
+      }
+    },
+    "action": {
+      "key": "whirlwind",
+      "attack_stat": "spell_dc",
+      "defense_stat": "reflex",
+      "range": "ranged",
+      "area": true,
+      "on_hit": {
+        "damage_roll": {
+          "dice": "4d12",
+          "type": "bludgeoning"
+        },
+        "subtract_from": "current_hp"
+      }
+    },
+    "source": "player_core_2"
   }
 }
