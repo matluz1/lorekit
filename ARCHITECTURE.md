@@ -1078,14 +1078,22 @@ Key behavioral rules from SHARED_GUIDE:
 ## Development Setup
 
 **Install:** `pip install -e cruncher/ -e .`
-**Test:** `.venv/bin/pytest tests/ -v --npc-model=MODEL_NAME` (837 tests)
+**Test:** `.venv/bin/pytest tests/` (876 tests)
 **Lint:** ruff (via pre-commit hooks)
+
+```bash
+pytest tests/unit/           # fast — single-module tests (856)
+pytest tests/integration/    # cross-module interaction tests (20)
+pytest                       # everything
+```
 
 **Pre-commit hooks** (`.pre-commit-config.yaml`):
 - Ruff lint + format
 - Trailing whitespace, EOF fixer, JSON checker
 
 **Test infrastructure:**
+- `tests/unit/` — single-module tests, isolated DB per test
+- `tests/integration/` — cross-module tests (combat+checkpoint, NPC pipelines, rest, entity tagging)
 - Isolated DB per test via `LOREKIT_DB` env var pointing to temp path (autouse fixture)
 - Factory functions: `make_session()`, `make_character()` in conftest.py
 - System harness: `test_system_harness.py` parametrized over all system packs
