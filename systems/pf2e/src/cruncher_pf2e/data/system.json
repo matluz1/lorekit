@@ -283,6 +283,11 @@
         "weapon_group": "group",
         "weapon_traits": "traits"
       }
+    },
+    "background": {
+      "source": "backgrounds.json",
+      "select": "single",
+      "effects": true
     }
   },
 
@@ -304,6 +309,14 @@
       "reset_uses": ["per_day", "per_encounter"],
       "clear_duration_types": ["encounter", "rounds", "save_ends"],
       "time_advance": {"amount": 8, "unit": "hours"}
+    }
+  },
+
+  "derived_patterns": {
+    "lore": {
+      "formula": "int_mod + if(prof_{slug} > 0, prof_{slug} + level, 0) + bonus_{slug}",
+      "default_prof": 0,
+      "default_bonus": 0
     }
   },
 

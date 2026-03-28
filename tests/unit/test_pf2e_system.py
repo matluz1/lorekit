@@ -355,3 +355,56 @@ class TestPF2ERogueCalc:
         result = recalculate(pack, char)
         # Reflex: dex_mod(5) + if(prof(6)>0, 6+7, 0) = 5 + 13 = 18
         assert result.derived["reflex"] == 18
+
+
+class TestPF2EBackgroundIntegration:
+    """Test background effects on skill proficiencies and lore skills."""
+
+    def _make_character_with_bg_effects(self, prof_attrs, level=1, int_score=14, wis_score=12):
+        char = CharacterData(
+            character_id=10,
+            session_id=1,
+            name="TestBG",
+            level=level,
+            char_type="pc",
+        )
+        char.attributes["stat"] = {
+            "str": "10",
+            "dex": "10",
+            "con": "10",
+            "int": str(int_score),
+            "wis": str(wis_score),
+            "cha": "10",
+        }
+        key_mod = math.floor((int_score - 10) / 2)
+        char.attributes["build"] = {
+            "ancestry_hp": "8",
+            "hp_per_level": "8",
+            "key_ability_mod": str(key_mod),
+        }
+        profs = _load_class_profs("wizard", level)
+        char.attributes["build"].update(profs)
+        for k, v in prof_attrs.items():
+            char.attributes["build"][k] = str(v)
+        return char
+
+    def test_acolyte_trains_religion(self):
+        pack = load_system_pack(PF2E_SYSTEM)
+        char = self._make_character_with_bg_effects({"prof_religion": 2}, int_score=14, wis_score=14)
+        result = recalculate(pack, char)
+        # wis_mod(2) + if(2>0, 2+1, 0) = 2 + 3 = 5
+        assert result.derived["skill_religion"] == 5
+
+    def test_acolyte_has_lore_skill(self):
+        pack = load_system_pack(PF2E_SYSTEM)
+        char = self._make_character_with_bg_effects({"prof_lore_scribing": 2}, int_score=14)
+        result = recalculate(pack, char)
+        # int_mod(2) + if(2>0, 2+1, 0) = 2 + 3 = 5
+        assert result.derived["skill_lore_scribing"] == 5
+
+    def test_criminal_trains_stealth(self):
+        pack = load_system_pack(PF2E_SYSTEM)
+        char = self._make_character_with_bg_effects({"prof_stealth": 2}, int_score=10)
+        result = recalculate(pack, char)
+        # dex_mod(0) + if(2>0, 2+1, 0) + armor_check_penalty(0) = 0 + 3 = 3
+        assert result.derived["skill_stealth"] == 3

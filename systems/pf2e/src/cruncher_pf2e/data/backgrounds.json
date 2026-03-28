@@ -2,197 +2,169 @@
   "acolyte": {
     "name": "Acolyte",
     "ability_boosts": ["int", "wis", "free"],
-    "trained_skills": ["religion"],
-    "trained_lore": "Scribing Lore",
+    "effects": {"prof_religion": 2, "prof_lore_scribing": 2},
     "feat": "student_of_the_canon"
   },
   "artisan": {
     "name": "Artisan",
     "ability_boosts": ["str", "int", "free"],
-    "trained_skills": ["crafting"],
-    "trained_lore": "Guild Lore",
+    "effects": {"prof_crafting": 2, "prof_lore_guild": 2},
     "feat": "specialty_crafting"
   },
   "criminal": {
     "name": "Criminal",
     "ability_boosts": ["dex", "int", "free"],
-    "trained_skills": ["stealth"],
-    "trained_lore": "Underworld Lore",
+    "effects": {"prof_stealth": 2, "prof_lore_underworld": 2},
     "feat": "experienced_smuggler"
   },
   "farmhand": {
     "name": "Farmhand",
     "ability_boosts": ["con", "wis", "free"],
-    "trained_skills": ["athletics"],
-    "trained_lore": "Farming Lore",
+    "effects": {"prof_athletics": 2, "prof_lore_farming": 2},
     "feat": "assurance_athletics"
   },
   "gladiator": {
     "name": "Gladiator",
     "ability_boosts": ["str", "cha", "free"],
-    "trained_skills": ["performance"],
-    "trained_lore": "Gladiatorial Lore",
+    "effects": {"prof_performance": 2, "prof_lore_gladiatorial": 2},
     "feat": "fascinating_performance"
   },
   "guard": {
     "name": "Guard",
     "ability_boosts": ["str", "cha", "free"],
-    "trained_skills": ["intimidation"],
-    "trained_lore": "Legal Lore",
+    "effects": {"prof_intimidation": 2, "prof_lore_legal": 2},
     "feat": "quick_coercion"
   },
   "hermit": {
     "name": "Hermit",
     "ability_boosts": ["con", "int", "free"],
-    "trained_skills": ["nature"],
-    "trained_lore": "Terrain Lore",
+    "effects": {"prof_nature": 2, "prof_lore_terrain": 2},
     "feat": "dubious_knowledge"
   },
   "merchant": {
     "name": "Merchant",
     "ability_boosts": ["int", "cha", "free"],
-    "trained_skills": ["diplomacy"],
-    "trained_lore": "Mercantile Lore",
+    "effects": {"prof_diplomacy": 2, "prof_lore_mercantile": 2},
     "feat": "bargain_hunter"
   },
   "noble": {
     "name": "Noble",
     "ability_boosts": ["int", "cha", "free"],
-    "trained_skills": ["society"],
-    "trained_lore": "Heraldry Lore",
+    "effects": {"prof_society": 2, "prof_lore_heraldry": 2},
     "feat": "courtly_graces"
   },
   "scholar": {
     "name": "Scholar",
     "ability_boosts": ["int", "wis", "free"],
-    "trained_skills": ["arcana"],
-    "trained_lore": "Academia Lore",
+    "effects": {"prof_arcana": 2, "prof_lore_academia": 2},
     "feat": "assurance_arcana"
   },
   "scout": {
     "name": "Scout",
     "ability_boosts": ["dex", "wis", "free"],
-    "trained_skills": ["survival"],
-    "trained_lore": "Terrain Lore",
+    "effects": {"prof_survival": 2, "prof_lore_terrain": 2},
     "feat": "forager"
   },
   "warrior": {
     "name": "Warrior",
     "ability_boosts": ["str", "con", "free"],
-    "trained_skills": ["intimidation"],
-    "trained_lore": "Warfare Lore",
+    "effects": {"prof_intimidation": 2, "prof_lore_warfare": 2},
     "feat": "intimidating_glare"
   },
   "acrobat": {
     "name": "Acrobat",
     "ability_boosts": ["str", "dex", "free"],
-    "trained_skills": ["acrobatics"],
-    "trained_lore": "Circus Lore",
+    "effects": {"prof_acrobatics": 2, "prof_lore_circus": 2},
     "feat": "steady_balance"
   },
   "animal_whisperer": {
     "name": "Animal Whisperer",
     "ability_boosts": ["wis", "cha", "free"],
-    "trained_skills": ["nature"],
-    "trained_lore": "Animal Lore",
+    "effects": {"prof_nature": 2, "prof_lore_animal": 2},
     "feat": "train_animal"
   },
   "barkeep": {
     "name": "Barkeep",
     "ability_boosts": ["con", "cha", "free"],
-    "trained_skills": ["diplomacy"],
-    "trained_lore": "Alcohol Lore",
+    "effects": {"prof_diplomacy": 2, "prof_lore_alcohol": 2},
     "feat": "hobnobber"
   },
   "charlatan": {
     "name": "Charlatan",
     "ability_boosts": ["int", "cha", "free"],
-    "trained_skills": ["deception"],
-    "trained_lore": "Underworld Lore",
+    "effects": {"prof_deception": 2, "prof_lore_underworld": 2},
     "feat": "charming_liar"
   },
   "detective": {
     "name": "Detective",
     "ability_boosts": ["int", "wis", "free"],
-    "trained_skills": ["society"],
-    "trained_lore": "Underworld Lore",
+    "effects": {"prof_society": 2, "prof_lore_underworld": 2},
     "feat": "streetwise"
   },
   "emissary": {
     "name": "Emissary",
     "ability_boosts": ["int", "cha", "free"],
-    "trained_skills": ["society"],
-    "trained_lore": "City Lore",
+    "effects": {"prof_society": 2, "prof_lore_city": 2},
     "feat": "multilingual"
   },
   "entertainer": {
     "name": "Entertainer",
     "ability_boosts": ["dex", "cha", "free"],
-    "trained_skills": ["performance"],
-    "trained_lore": "Theater Lore",
+    "effects": {"prof_performance": 2, "prof_lore_theater": 2},
     "feat": "fascinating_performance"
   },
   "field_medic": {
     "name": "Field Medic",
     "ability_boosts": ["con", "wis", "free"],
-    "trained_skills": ["medicine"],
-    "trained_lore": "Medicine Lore",
+    "effects": {"prof_medicine": 2, "prof_lore_medicine": 2},
     "feat": "battle_medicine"
   },
   "fortune_teller": {
     "name": "Fortune Teller",
     "ability_boosts": ["int", "cha", "free"],
-    "trained_skills": ["occultism"],
-    "trained_lore": "Fortune-Telling Lore",
+    "effects": {"prof_occultism": 2, "prof_lore_fortune_telling": 2},
     "feat": "oddity_identification"
   },
   "gambler": {
     "name": "Gambler",
     "ability_boosts": ["dex", "cha", "free"],
-    "trained_skills": ["deception"],
-    "trained_lore": "Games Lore",
+    "effects": {"prof_deception": 2, "prof_lore_games": 2},
     "feat": "lie_to_me"
   },
   "hunter": {
     "name": "Hunter",
     "ability_boosts": ["dex", "wis", "free"],
-    "trained_skills": ["survival"],
-    "trained_lore": "Hunting Lore",
+    "effects": {"prof_survival": 2, "prof_lore_hunting": 2},
     "feat": "survey_wildlife"
   },
   "laborer": {
     "name": "Laborer",
     "ability_boosts": ["str", "con", "free"],
-    "trained_skills": ["athletics"],
-    "trained_lore": "Labor Lore",
+    "effects": {"prof_athletics": 2, "prof_lore_labor": 2},
     "feat": "hefty_hauler"
   },
   "martial_disciple": {
     "name": "Martial Disciple",
     "ability_boosts": ["str", "dex", "free"],
-    "trained_skills": ["acrobatics"],
-    "trained_lore": "Warfare Lore",
+    "effects": {"prof_acrobatics": 2, "prof_lore_warfare": 2},
     "feat": "cat_fall"
   },
   "nomad": {
     "name": "Nomad",
     "ability_boosts": ["con", "wis", "free"],
-    "trained_skills": ["survival"],
-    "trained_lore": "Desert Lore",
+    "effects": {"prof_survival": 2, "prof_lore_desert": 2},
     "feat": "assurance_survival"
   },
   "sailor": {
     "name": "Sailor",
     "ability_boosts": ["str", "dex", "free"],
-    "trained_skills": ["athletics"],
-    "trained_lore": "Sailing Lore",
+    "effects": {"prof_athletics": 2, "prof_lore_sailing": 2},
     "feat": "underwater_marauder"
   },
   "street_urchin": {
     "name": "Street Urchin",
     "ability_boosts": ["dex", "con", "free"],
-    "trained_skills": ["thievery"],
-    "trained_lore": "City Lore",
+    "effects": {"prof_thievery": 2, "prof_lore_city": 2},
     "feat": "pickpocket"
   }
 }
