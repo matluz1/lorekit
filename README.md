@@ -39,7 +39,7 @@ The MCP server is configured in `.mcp.json`. On first use, the agent calls
 ## Development
 
 ```bash
-pip install -r requirements-dev.txt
+pip install -e ".[dev]"
 pre-commit install
 ```
 
