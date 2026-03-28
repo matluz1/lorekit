@@ -239,6 +239,25 @@ class TestPF2EFighterCalc:
         assert result.derived["skill_athletics"] == 7
         assert result.derived["speed"] == 25
 
+    def test_bulk_limit(self):
+        """Bulk limit is 5 + STR modifier."""
+        pack = load_system_pack(PF2E_SYSTEM)
+        char = self._make_fighter(level=1, str_score=18)
+        result = recalculate(pack, char)
+        # 5 + str_mod(4) = 9
+        assert result.derived["bulk_limit"] == 9
+        assert result.derived["bulk_over"] == 0
+
+    def test_bulk_over_limit(self):
+        """Bulk over limit is tracked."""
+        pack = load_system_pack(PF2E_SYSTEM)
+        char = self._make_fighter(level=1, str_score=14)
+        char.attributes["build"]["total_bulk"] = "10"
+        result = recalculate(pack, char)
+        # bulk_limit = 5 + str_mod(2) = 7, over = max(0, 10 - 7) = 3
+        assert result.derived["bulk_limit"] == 7
+        assert result.derived["bulk_over"] == 3
+
 
 class TestPF2EWizardCalc:
     """Test derived stat calculation for a PF2e Wizard."""
