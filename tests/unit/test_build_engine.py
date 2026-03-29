@@ -472,6 +472,65 @@ class TestMM3ePipeline:
         assert result.costs["powers"] == 20
 
 
+class TestMM3eUnstructuredCost:
+    """Unstructured abilities' explicit cost is metadata, not budgeted."""
+
+    def test_unstructured_power_cost_not_budgeted(self):
+        """An unstructured ability with cost=4 should NOT contribute to powers budget."""
+        char_attrs = {"stat": {"power_level": "10"}}
+        abilities = [
+            {
+                "name": "Goblin Skin",
+                "description": "Thick green skin.",
+                "category": "power",
+                "uses": "",
+                "cost": "4",
+            }
+        ]
+        result = process_build(MM3E_SYSTEM, char_attrs, abilities, level=1)
+        assert result.costs.get("powers", 0) == 0
+
+    def test_unstructured_power_with_cost_emits_warning(self):
+        """Unstructured ability with cost > 0 should warn about unbudgeted cost."""
+        char_attrs = {"stat": {"power_level": "10"}}
+        abilities = [
+            {
+                "name": "Goblin Skin",
+                "description": "Thick green skin.",
+                "category": "power",
+                "uses": "",
+                "cost": "4",
+            }
+        ]
+        result = process_build(MM3E_SYSTEM, char_attrs, abilities, level=1)
+        assert any("UNBUDGETED" in w and "Goblin Skin" in w for w in result.warnings)
+
+    def test_no_double_count_ability_and_attr(self):
+        """Unstructured ability cost=4 + effect_protection=4 attr → only 4 PP (from attr), not 8."""
+        char_attrs = {
+            "stat": {"power_level": "10"},
+            "power": {"effect_protection": "4"},
+        }
+        abilities = [
+            {
+                "name": "Pele de Goblin",
+                "description": "Proteção 4. Pele verde grossa.",
+                "category": "power",
+                "uses": "",
+                "cost": "4",
+            }
+        ]
+        result = process_build(MM3E_SYSTEM, char_attrs, abilities, level=1)
+        assert result.costs["powers"] == 4
+
+    def test_structured_cost_without_effect_still_budgeted(self):
+        """Structured ability with {"cost": 5} (no effect) is budgeted via pipeline."""
+        char_attrs = {"stat": {"power_level": "10"}}
+        abilities = [_power_ability("Custom Power", {"cost": 5})]
+        result = process_build(MM3E_SYSTEM, char_attrs, abilities, level=1)
+        assert result.costs["powers"] == 5
+
+
 class TestMM3eFeeds:
     """Test power feeds — stat contributions from powers."""
 

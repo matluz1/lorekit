@@ -269,21 +269,16 @@ def _process_pipeline(
 
         power_data = _parse_structured_ability(ability)
         if not power_data:
-            # No structured data — use explicit cost field from the ability
+            # No structured data — explicit cost is metadata only, not budgeted.
+            # Cost must come from effect_* attrs (via _tally_stat_costs) or
+            # from a structured description with {"effect": ...} or {"cost": ...}.
             explicit_cost = float(ability.get("cost", 0) or 0)
             if explicit_cost:
-                total_cost += explicit_cost
-                powers_map = result.ability_costs.setdefault("powers", {})
-                powers_map[ability_name] = powers_map.get(ability_name, 0) + explicit_cost
-
-                # Mark inferred stat key as covered to prevent double-counting
-                if stat_prefix:
-                    base = re.sub(r"_?\d+$", "", ability_name.lower().replace(" ", "_").replace("-", "_"))
-                    covered_stat_keys.add(f"{stat_prefix}{base}")
-            else:
                 result.warnings.append(
-                    f"⚠ UNCOSTED: ability '{ability_name}' (category: {ability_category}) "
-                    f"has no structured data and no explicit cost — 0 pts assumed"
+                    f"⚠ UNBUDGETED: ability '{ability_name}' (category: {ability_category}) "
+                    f"has explicit cost={explicit_cost} but no structured data — "
+                    f"cost not counted in budget. Use structured desc or set "
+                    f"corresponding {stat_prefix}* attribute."
                 )
             continue
 
