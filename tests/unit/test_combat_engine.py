@@ -1892,3 +1892,54 @@ class TestComposableDamageComponents:
             assert "current_hp: 50 → 38" in output
         finally:
             db.close()
+
+
+class TestDamageRecalc:
+    """Derived stats recalculate after combat damage changes."""
+
+    def test_damage_resistance_updates_after_penalty(self, make_session, make_character):
+        """damage_resistance = toughness - damage_penalty should update when penalty increases."""
+        import cruncher_mm3e
+
+        from lorekit.character import set_attr
+        from lorekit.db import require_db
+        from lorekit.rules import rules_calc
+
+        db = require_db()
+        try:
+            sid = make_session()
+            cid = make_character(sid, name="Tank", level=1)
+
+            # Set up MM3e character with toughness components
+            set_attr(db, cid, "stat", "power_level", "10")
+            set_attr(db, cid, "stat", "sta", "3")  # toughness base
+            set_attr(db, cid, "power", "effect_protection", "5")  # +5 toughness
+
+            mm3e = cruncher_mm3e.pack_path()
+            rules_calc(db, cid, mm3e)
+
+            # Verify initial damage_resistance = toughness (8) - 0 = 8
+            dr = db.execute(
+                "SELECT value FROM character_attributes WHERE character_id = ? AND category = 'derived' AND key = 'damage_resistance'",
+                (cid,),
+            ).fetchone()
+            assert int(dr[0]) == 8
+
+            # Simulate taking damage: set damage_penalty = 2
+            set_attr(db, cid, "combat", "damage_penalty", "2")
+
+            # Trigger recalc via _sync_and_recalc (the combat path)
+            from cruncher.system_pack import load_system_pack
+            from lorekit.combat.helpers import _sync_and_recalc
+
+            pack = load_system_pack(mm3e)
+            _sync_and_recalc(db, cid, pack)
+
+            # damage_resistance should now be 8 - 2 = 6
+            dr = db.execute(
+                "SELECT value FROM character_attributes WHERE character_id = ? AND category = 'derived' AND key = 'damage_resistance'",
+                (cid,),
+            ).fetchone()
+            assert int(dr[0]) == 6
+        finally:
+            db.close()

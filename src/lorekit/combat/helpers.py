@@ -79,24 +79,31 @@ def _get_defender_resolution_effects(
 
 
 def _sync_and_recalc(db, character_id: int, pack: SystemPack, lines: list[str] | None = None) -> None:
-    """Run condition modifier sync and recalc if anything changed."""
+    """Sync condition modifiers and recalculate derived stats.
+
+    Always recalculates derived stats because combat attribute changes
+    (e.g. damage_penalty) affect derived values (e.g. damage_resistance)
+    even when conditions themselves don't change.
+    """
     from lorekit.combat.conditions import sync_condition_modifiers
 
     combat_cfg = pack.combat or {}
     cr = combat_cfg.get("condition_rules", {})
     cc = combat_cfg.get("combined_conditions", {})
     th = combat_cfg.get("condition_thresholds")
-    if cr and sync_condition_modifiers(db, character_id, cr, cc, th):
-        from lorekit.rules import rules_calc as _rules_calc
+    if cr:
+        sync_condition_modifiers(db, character_id, cr, cc, th)
 
-        if pack.pack_dir:
-            recalc = _rules_calc(db, character_id, pack.pack_dir)
-        else:
-            from lorekit.rules import try_rules_calc
+    from lorekit.rules import rules_calc as _rules_calc
 
-            recalc = try_rules_calc(db, character_id)
-        if recalc and lines is not None:
-            lines.append(recalc)
+    if pack.pack_dir:
+        recalc = _rules_calc(db, character_id, pack.pack_dir)
+    else:
+        from lorekit.rules import try_rules_calc
+
+        recalc = try_rules_calc(db, character_id)
+    if recalc and lines is not None:
+        lines.append(recalc)
 
 
 def _get_derived(char: CharacterData, stat: str) -> int:
