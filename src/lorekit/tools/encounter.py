@@ -33,7 +33,10 @@ def encounter_start(
       When "auto", rolls d20 + initiative_stat (from system pack) for each
       placed character. Requires placements.
     adjacency: JSON array (optional) — [{"from": "A", "to": "B", "weight": 1}, ...]
-    placements: JSON array (optional) — [{"character_id": 5, "zone": "Entrance"}, ...]
+    placements: JSON array (optional) — [{"character_id": 5, "zone": "Entrance", "team": "A"}, ...]
+      The "team" field is critical for NPC combat AI: characters on the same team
+      are classified as allies, different teams as enemies. Without team labels,
+      all characters appear as enemies to each other.
     """
     from lorekit.db import LoreKitError, require_db
 
