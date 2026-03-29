@@ -77,12 +77,21 @@ def _build_npc_prompt(db, npc_id: int, session_id: int, gm_message: str = "") ->
             identity_lines.append(f"  {a['key']}: {a['value']}")
 
     if model is None:
-        from lorekit.db import LoreKitError
+        # Fall back to session-level default
+        meta_row = db.execute(
+            "SELECT value FROM session_meta WHERE session_id = ? AND key = 'npc_model'",
+            (session_id,),
+        ).fetchone()
+        if meta_row:
+            model = meta_row[0] if isinstance(meta_row, (tuple, list)) else meta_row["value"]
+        else:
+            from lorekit.db import LoreKitError
 
-        raise LoreKitError(
-            f"No model configured for NPC '{npc_name}' (id {npc_id}) — "
-            "set category='system', key='model' in character_attributes"
-        )
+            raise LoreKitError(
+                f"No model configured for NPC '{npc_name}' (id {npc_id}) — "
+                "set category='system', key='model' in character_attributes "
+                "or set session meta 'npc_model'"
+            )
 
     # Inventory
     items = db.execute(
