@@ -472,8 +472,8 @@ def character_sheet_update(
         if not results:
             return "NO_CHANGES: no fields provided"
 
-        # Auto-run rules_calc if attributes changed and session has rules_system
-        if attrs_list:
+        # Auto-run rules_calc if anything changed and session has rules_system
+        if results:
             rules_summary = try_rules_calc(db, character_id)
             if rules_summary:
                 results.append(rules_summary)
