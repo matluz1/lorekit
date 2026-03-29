@@ -914,3 +914,160 @@ class TestUtilityAction:
             assert "MOVED" in output
         finally:
             db.close()
+
+
+# ===========================================================================
+# execute_combat_turn — ally target validation
+# ===========================================================================
+
+
+class TestAllyTargetValidation:
+    """execute_combat_turn skips attacks targeting allies."""
+
+    def test_ally_target_warns(self, make_session, make_character):
+        """NPC targeting a same-team character emits ALLY_TARGET warning but still resolves."""
+        from unittest.mock import patch
+
+        from lorekit.db import require_db
+        from lorekit.npc.combat import execute_combat_turn
+
+        db = require_db()
+        try:
+            sid = make_session()
+            _set_session_system(db, sid)
+            npc = _make_fighter(db, sid, make_character, "Attacker")
+            ally = _make_fighter(db, sid, make_character, "Ally")
+            enemy = _make_fighter(db, sid, make_character, "Enemy")
+
+            _start_encounter(
+                db,
+                sid,
+                [npc, ally, enemy],
+                [{"name": "Arena"}],
+                [(npc, "Arena"), (ally, "Arena"), (enemy, "Arena")],
+                teams={npc: "A", ally: "A", enemy: "B"},
+            )
+
+            intent = {
+                "sequence": ["action"],
+                "action": "melee_attack",
+                "targets": ["Ally"],
+            }
+            with patch("secrets.randbelow", return_value=14):  # d20=15
+                output = execute_combat_turn(db, npc, sid, intent, COMBAT_CFG, TEST_SYSTEM)
+            result = "\n".join(output) if isinstance(output, list) else output
+            # Warning is present
+            assert "ALLY TARGET" in result
+            assert "Ally" in result
+            # But the action still resolves (attack roll happens)
+            assert "vs" in result
+        finally:
+            db.close()
+
+    def test_enemy_target_allowed(self, make_session, make_character):
+        """NPC targeting an enemy proceeds normally."""
+        from unittest.mock import patch
+
+        from lorekit.db import require_db
+        from lorekit.npc.combat import execute_combat_turn
+
+        db = require_db()
+        try:
+            sid = make_session()
+            _set_session_system(db, sid)
+            npc = _make_fighter(db, sid, make_character, "Attacker")
+            enemy = _make_fighter(db, sid, make_character, "Enemy")
+
+            _start_encounter(
+                db,
+                sid,
+                [npc, enemy],
+                [{"name": "Arena"}],
+                [(npc, "Arena"), (enemy, "Arena")],
+                teams={npc: "A", enemy: "B"},
+            )
+
+            intent = {
+                "sequence": ["action"],
+                "action": "melee_attack",
+                "targets": ["Enemy"],
+            }
+            with patch("secrets.randbelow", return_value=14):  # d20=15
+                output = execute_combat_turn(db, npc, sid, intent, COMBAT_CFG, TEST_SYSTEM)
+            result = "\n".join(output) if isinstance(output, list) else output
+            assert "ALLY TARGET" not in result
+        finally:
+            db.close()
+
+
+# ===========================================================================
+# NPC model fallback
+# ===========================================================================
+
+
+class TestNpcModelFallback:
+    """_build_npc_prompt falls back to session meta npc_model."""
+
+    def test_session_meta_model_fallback(self, make_session, make_character):
+        """NPC without model attr uses session meta npc_model."""
+        from lorekit.db import require_db
+        from lorekit.tools.npc import _build_npc_prompt
+
+        db = require_db()
+        try:
+            sid = make_session()
+            cid = make_character(sid, name="Goblin", char_type="npc")
+
+            # Set session-level default model
+            db.execute(
+                "INSERT OR REPLACE INTO session_meta (session_id, key, value) VALUES (?, 'npc_model', ?)",
+                (sid, "test-model"),
+            )
+            db.commit()
+
+            result = _build_npc_prompt(db, cid, sid, "Hello")
+            assert result is not None
+            _, model, _ = result
+            assert model == "test-model"
+        finally:
+            db.close()
+
+    def test_character_model_overrides_session(self, make_session, make_character):
+        """NPC with explicit model attr uses it over session default."""
+        from lorekit.character import set_attr
+        from lorekit.db import require_db
+        from lorekit.tools.npc import _build_npc_prompt
+
+        db = require_db()
+        try:
+            sid = make_session()
+            cid = make_character(sid, name="Goblin", char_type="npc")
+            set_attr(db, cid, "system", "model", "char-model")
+
+            # Also set session default
+            db.execute(
+                "INSERT OR REPLACE INTO session_meta (session_id, key, value) VALUES (?, 'npc_model', ?)",
+                (sid, "session-model"),
+            )
+            db.commit()
+
+            result = _build_npc_prompt(db, cid, sid, "Hello")
+            _, model, _ = result
+            assert model == "char-model"
+        finally:
+            db.close()
+
+    def test_no_model_anywhere_raises(self, make_session, make_character):
+        """NPC with no model attr and no session default raises error."""
+        from lorekit.db import LoreKitError, require_db
+        from lorekit.tools.npc import _build_npc_prompt
+
+        db = require_db()
+        try:
+            sid = make_session()
+            cid = make_character(sid, name="Goblin", char_type="npc")
+
+            with pytest.raises(LoreKitError, match="No model configured"):
+                _build_npc_prompt(db, cid, sid, "Hello")
+        finally:
+            db.close()

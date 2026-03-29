@@ -922,6 +922,21 @@ def execute_combat_turn(
                     (session_id, target_name.strip()),
                 ).fetchone()
                 if target_row:
+                    # Validate target is not on the same team
+                    target_id = target_row[0]
+                    npc_team_row = db.execute(
+                        "SELECT team FROM character_zone WHERE encounter_id = ? AND character_id = ?",
+                        (enc_id, npc_id),
+                    ).fetchone()
+                    target_team_row = db.execute(
+                        "SELECT team FROM character_zone WHERE encounter_id = ? AND character_id = ?",
+                        (enc_id, target_id),
+                    ).fetchone()
+                    npc_team = npc_team_row[0] if npc_team_row else ""
+                    target_team = target_team_row[0] if target_team_row else ""
+                    if npc_team and target_team and npc_team == target_team:
+                        lines.append(f"ALLY TARGET: {target_name} is on the same team ({npc_team}).")
+
                     # Build target_roles from action definition targets map
                     action_opts = {}
                     action_def = pack.actions.get(action, {})
