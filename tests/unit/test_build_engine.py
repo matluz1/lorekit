@@ -531,6 +531,59 @@ class TestMM3eUnstructuredCost:
         assert result.costs["powers"] == 5
 
 
+class TestMM3eUnmatchedAdvantageCost:
+    """Advantages not in the catalog don't budget via explicit cost."""
+
+    def test_unmatched_advantage_cost_not_budgeted(self):
+        """A non-English advantage not in the catalog should not be budgeted via cost field."""
+        char_attrs = {"stat": {"power_level": "10"}}
+        abilities = [
+            {
+                "name": "Inspirar",
+                "description": "Aliadas ganham +1 em checks.",
+                "category": "advantage",
+                "uses": "",
+                "cost": "1",
+            }
+        ]
+        result = process_build(MM3E_SYSTEM, char_attrs, abilities, level=1)
+        assert result.costs.get("advantage", 0) == 0
+        assert any("UNBUDGETED" in w and "Inspirar" in w for w in result.warnings)
+
+    def test_no_double_count_unmatched_advantage_and_attr(self):
+        """Unmatched advantage cost=1 + adv_evasion=1 attr → only 1 PP (from attr), not 2."""
+        char_attrs = {
+            "stat": {"power_level": "10"},
+            "advantage": {"adv_evasion": "1"},
+        }
+        abilities = [
+            {
+                "name": "Evasão",
+                "description": "+2 em checks de resistência contra efeitos de área.",
+                "category": "advantage",
+                "uses": "",
+                "cost": "1",
+            }
+        ]
+        result = process_build(MM3E_SYSTEM, char_attrs, abilities, level=1)
+        # Only the adv_evasion attr should be counted (1 PP)
+        assert result.costs["advantage"] == 1
+
+    def test_catalog_matched_advantage_still_budgeted(self):
+        """An advantage matching the catalog (English name) is budgeted normally."""
+        char_attrs = {"stat": {"power_level": "10"}}
+        abilities = [
+            {
+                "name": "Inspire",
+                "description": "",
+                "category": "advantage",
+                "uses": "",
+            }
+        ]
+        result = process_build(MM3E_SYSTEM, char_attrs, abilities, level=1)
+        assert result.costs["advantage"] == 1
+
+
 class TestMM3eFeeds:
     """Test power feeds — stat contributions from powers."""
 

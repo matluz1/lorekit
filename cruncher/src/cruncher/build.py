@@ -813,11 +813,15 @@ def _apply_effects(
             item_def = source_data.get(base_key)
 
         if not item_def or not isinstance(item_def, dict):
-            # Not in source data — use explicit cost field from the ability
+            # Not in source data — explicit cost is metadata only, not budgeted.
+            # Cost must come from stat_prefix attrs (e.g. adv_*) via _tally_stat_costs.
             if cost_per_rank > 0:
                 explicit_cost = float(ability.get("cost", 0) or 0)
                 if explicit_cost:
-                    total_cost += explicit_cost
+                    result.warnings.append(
+                        f"⚠ UNBUDGETED: ability '{ability['name']}' (category: {category}) "
+                        f"not found in catalog — explicit cost={explicit_cost} not counted in budget."
+                    )
             continue
 
         # Check prerequisites
