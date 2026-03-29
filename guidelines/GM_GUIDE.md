@@ -339,11 +339,13 @@ situation to the player.
 
 ### On the player's turn
 
-1. Describe the situation (use `encounter_status` for the zone-grouped HUD).
+1. Deliver the **narration block** (see Narration timing in combat below).
 2. Ask the player for their action.
 3. Resolve with `rules_resolve` — **always use character names, not numeric IDs**.
-4. Move with `encounter_move` if needed.
-5. Apply buffs/debuffs with `combat_modifier`.
+4. Present the result using the **mechanical template** (see Presenting combat
+   results below).
+5. Repeat steps 2–4 for additional actions (movement, bonus actions, etc.).
+6. Use `encounter_advance_turn` when the player is done.
 
 ### On an NPC's turn
 
@@ -357,6 +359,177 @@ looks wrong, follow the **Mechanical Integrity** rules at the top of this
 guide — stop, tell the player, wait.
 
 For non-combat NPC interaction, use `npc_interact` as before.
+
+### Presenting combat results
+
+When presenting roll outcomes to the player, apply two rules: **what to show**
+and **how to format it**.
+
+**Information visibility — what the player sees:**
+
+- All dice rolls (attack dice, damage dice, resistance dice)
+- All bonuses and totals for every character (PC, allied NPC, enemy NPC)
+- Hit/miss/critical outcomes
+- Final damage dealt
+- Conditions applied, modifiers, forced movement, resource changes
+
+**What the player never sees:**
+
+- Enemy defense values (AC, save DCs, resistance DCs)
+- Enemy HP (current, max, or changes)
+- Allied NPC defense values and HP
+
+Defense values and HP are only shown when they belong to the active PC.
+
+| Scenario | Attack formula | Defense value | Damage total | HP change |
+|----------|---------------|---------------|--------------|-----------|
+| PC attacks enemy | Full | Hidden | Shown | Hidden |
+| Enemy attacks PC | Full | Shown (PC knows own AC) | Shown | Shown |
+| Allied NPC attacks enemy | Full | Hidden | Shown | Hidden |
+| Enemy attacks allied NPC | Full | Hidden | Shown | Hidden |
+
+**Mechanical template — how to format it:**
+
+Present every resolved action in this format. No narrative prose in the
+template — just the action name and numbers.
+
+PC attacks enemy (defense hidden):
+```
+[Kael] Strike → Ogre
+  Attack: d20(17) + 9 = 26 → HIT
+  Damage: 1d8(6) + 4 = 10 slashing
+```
+
+Enemy attacks PC (defense shown):
+```
+[Ogre] Strike → Kael
+  Attack: d20(14) + 11 = 25 vs AC 18 → HIT
+  Damage: 2d8(9) + 7 = 16 bludgeoning
+  HP: 45 → 29
+```
+
+NPC vs NPC (defense hidden):
+```
+[Cleric Ally] Strike → Ogre
+  Attack: d20(12) + 7 = 19 → HIT
+  Damage: 1d8(5) + 3 = 8 bludgeoning
+```
+
+Critical hit:
+```
+[Kael] Strike → Ogre
+  Attack: d20(20) + 9 = 29 → CRITICAL HIT
+  Damage: 1d8(8) + 4 = 12 (x2) = 24 slashing
+```
+
+Auto-hit area effect:
+```
+[Mira] Fireball → Goblin Scout
+  Attack: auto-hit (area)
+  Damage: 6d6(22) fire
+```
+
+Immunity:
+```
+[Mira] Fireball → Fire Elemental
+  IMMUNE (fire)
+```
+
+Resistance check (degree-of-failure systems, e.g. MM3e) — defense hidden:
+```
+[Brick] Close Attack → Thug
+  Attack: d20(16) + 8 = 24 → HIT
+  Resistance: d20(7) + 3 = 10 → DEGREE 3
+  Effect: Staggered
+```
+
+Resistance check — PC defending (DC shown):
+```
+[Villain] Mental Blast → Beacon
+  Attack: d20(18) + 10 = 28 vs Dodge 22 → HIT
+  Resistance: d20(11) + 6 = 17 vs DC 23 → DEGREE 2
+  Effect: Dazed
+```
+
+Additional lines appended as needed:
+```
+  Effect: Flat-Footed (1 round)
+  Moved: Corridor → Great Hall
+```
+
+### Narration timing in combat
+
+Combat alternates between two output modes. They never mix in the same block.
+
+**Mechanical mode** — active during any character's turn (PC or NPC). Present
+only the mechanical template from the section above. One template per action.
+No narrative prose.
+
+**Narrative mode** — triggers at every NPC-to-PC transition. Before the PC
+acts, deliver a narration block covering everything that happened since the
+last narration block:
+
+- The previous PC's actions
+- All NPC actions since then
+- Environmental changes, reactions, forced movement
+- Conditions wearing off, start-of-turn effects
+
+The narration block is pure prose — no dice, no stat names, no mechanical
+language. Describe the scene cinematically.
+
+**Single PC flow:**
+
+```
+PC Kael's turn:
+  [Narration block — everything since last narration]
+  Player: "I strike the ogre"
+  [Mechanical template]
+  Player: "I move to the corridor"
+  [Mechanical template]
+  → advance turn
+
+NPC Ogre's turn:
+  [Mechanical template]
+  → advance turn
+
+NPC Goblin's turn:
+  [Mechanical template]
+  → advance turn
+
+PC Kael's turn:
+  [Narration block — covers: Kael's strike, ogre's retaliation, goblin's arrow]
+  Player acts...
+```
+
+**Multiple PC flow:**
+
+```
+PC Kael's turn:
+  [Narration block]
+  [Mechanical templates]
+  → advance
+
+NPC Ogre's turn:
+  [Mechanical template]
+  → advance
+
+PC Lyra's turn:
+  [Narration block — covers: Kael's actions + Ogre's attack]
+  [Mechanical templates]
+  → advance
+
+NPC Goblin's turn:
+  [Mechanical template]
+  → advance
+
+PC Kael's turn:
+  [Narration block — covers: Lyra's actions + Goblin's attack]
+  ...
+```
+
+Narration fires at every NPC-to-PC transition, not once per round. If two PCs
+are adjacent in initiative (no NPCs between them), narration fires before the
+second PC covering the first PC's actions.
 
 ### Advancing turns
 
