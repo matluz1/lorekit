@@ -78,6 +78,22 @@ def _contested_roll(
     return atk_roll, atk_total, def_total, def_roll, def_bonus, atk_natural
 
 
+def _apply_threshold_outcome(
+    db,
+    pack: SystemPack,
+    attacker: CharacterData,
+    defender: CharacterData,
+    action_def: dict,
+    lines: list[str],
+    is_crit: bool,
+    margin: int,
+    options: dict,
+) -> None:
+    """Apply effects for a threshold (hit/miss) resolution on hit."""
+    on_hit = action_def.get("on_hit", {})
+    _apply_on_hit(db, pack, attacker, defender, on_hit, lines, is_crit=is_crit, margin=margin, options=options)
+
+
 def _resolve_threshold(
     db,
     pack: SystemPack,
