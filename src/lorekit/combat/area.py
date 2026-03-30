@@ -17,7 +17,7 @@ from lorekit.rules import load_character_data
 def _get_area_effect_rank(attacker: CharacterData, action_def: dict, trade_adj: dict[str, int]) -> int:
     """Determine the effect rank for area avoidance DC calculation.
 
-    Mirrors the logic in _resolve_degree for effect_rank vs damage_rank_stat,
+    Mirrors the logic in _resolve for effect_rank vs damage_rank_stat,
     and applies trade adjustments (e.g. Power Attack) so the DC reflects
     the full rank before any avoidance halving.
     """
