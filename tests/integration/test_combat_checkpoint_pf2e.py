@@ -75,7 +75,6 @@ def _setup_fighter(session_id, make_character):
             {"category": "stat", "key": "prof_athletics", "value": "2"},
             {"category": "stat", "key": "prof_fortitude", "value": "2"},
             {"category": "stat", "key": "prof_reflex", "value": "2"},
-            {"category": "stat", "key": "fortitude_dc", "value": "19"},
             {"category": "build", "key": "weapon_damage_die", "value": "1d8"},
             {"category": "combat", "key": "current_hp", "value": "68"},
         ]
@@ -108,7 +107,6 @@ def _setup_rogue(session_id, make_character):
             {"category": "stat", "key": "prof_athletics", "value": "0"},
             {"category": "stat", "key": "prof_fortitude", "value": "2"},
             {"category": "stat", "key": "prof_reflex", "value": "2"},
-            {"category": "stat", "key": "fortitude_dc", "value": "18"},
             {"category": "build", "key": "weapon_damage_die", "value": "1d6"},
             {"category": "combat", "key": "current_hp", "value": "51"},
         ]
