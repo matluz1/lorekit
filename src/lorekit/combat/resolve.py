@@ -269,6 +269,306 @@ def _apply_degree_outcome(
         _apply_on_hit(db, pack, attacker, defender, on_hit, lines, margin=margin, options=options)
 
 
+def _resolve(
+    db,
+    pack: SystemPack,
+    attacker: CharacterData,
+    defender: CharacterData,
+    action_def: dict,
+    options: dict,
+) -> str:
+    """Resolve an action using the unified pipeline.
+
+    Handles the shared phases (trades, attack roll, hit determination,
+    reactions, homing, contagious) and dispatches to resolution-type-specific
+    outcome functions for effect application.
+    """
+    resolution = pack.resolution
+    resolution_type = resolution.get("type", "threshold")
+    attack_stat = action_def["attack_stat"]
+    defense_stat = action_def["defense_stat"]
+    crit_cfg = resolution.get("critical")
+
+    # --- Pre-resolution: immunity check (before any rolls) ---
+    pre_res = resolution.get("pre_resolution")
+    if pre_res:
+        pre_res_result = _check_pre_resolution(pack, defender, action_def, damage_rank=None, lines=[])
+        if pre_res_result == "immune":
+            return (
+                f"ACTION: {attacker.name} → {defender.name}\n"
+                f"IMMUNE: {defender.name} is immune to {action_def.get('descriptor', 'this effect')}"
+            )
+
+    # --- Trade adjustments ---
+    trade_adj: dict[str, int] = {}
+    trade_mod_lines: list[str] = []
+    for trade in options.get("trade", []):
+        trade_val = trade["value"]
+        from_stat = trade.get("from")
+        if from_stat:
+            trade_adj[from_stat] = trade_adj.get(from_stat, 0) - trade_val
+        trade_adj[trade["to"]] = trade_adj.get(trade["to"], 0) + trade_val
+
+    # --- Persistent trade cost modifiers (e.g. All-out Attack penalties) ---
+    _apply_trade_modifiers(db, attacker, options, trade_mod_lines)
+
+    # --- Team/combined attack bonus ---
+    team_atk_bonus, team_dc_bonus = _apply_team_bonus(db, pack, attacker, options, trade_mod_lines)
+
+    # --- Reaction: before_attack (e.g. Interpose — substitute defender) ---
+    reaction_mods = _check_reactions(
+        db, pack, "before_attack", attacker, defender, action_def, trade_mod_lines, options
+    )
+    if reaction_mods.get("new_defender_id"):
+        defender = load_character_data(db, reaction_mods["new_defender_id"])
+
+    # --- Gather resolution effects from defender's active conditions ---
+    res_effects = _get_defender_resolution_effects(db, defender.character_id, pack)
+    use_routine = res_effects.get("attacker_routine_check", False)
+    routine_value = resolution.get("routine_value", 10)
+
+    # Determine range-based attack bonus from defender conditions
+    range_type = action_def.get("range")
+    atk_bonus_map = res_effects.get("attacker_bonus", {})
+    cond_atk_bonus = atk_bonus_map.get(range_type, 0) if range_type else 0
+
+    # --- Reaction: replace_defense (e.g. Deflect) ---
+    defense_mods = _check_reactions(
+        db, pack, "replace_defense", attacker, defender, action_def, trade_mod_lines, options
+    )
+
+    # --- DC offset for defense comparison ---
+    dc_offset = resolution.get("defense_dc_offset", 10 if resolution_type == "degree" else 0)
+
+    # --- Attack roll ---
+    if action_def.get("contested"):
+        atk_roll, atk_total, def_total, def_roll, def_bonus, atk_natural = _contested_roll(
+            pack,
+            attacker,
+            defender,
+            action_def,
+        )
+        atk_bonus = _get_derived(attacker, attack_stat)
+        if attack_stat in trade_adj:
+            atk_total += trade_adj[attack_stat]
+            atk_bonus += trade_adj[attack_stat]
+        if cond_atk_bonus:
+            atk_total += cond_atk_bonus
+            atk_bonus += cond_atk_bonus
+        if team_atk_bonus:
+            atk_total += team_atk_bonus
+            atk_bonus += team_atk_bonus
+
+        lines = [f"ACTION: {attacker.name} → {defender.name}"]
+        lines.append(f"ATTACKER: {pack.dice}({atk_roll}) + {atk_bonus} ({attack_stat}) = {atk_total}")
+        lines.append(f"DEFENDER: {pack.dice}({def_roll}) + {def_bonus} ({defense_stat}) = {def_total}")
+
+        hit = atk_total >= def_total
+        is_natural_crit = _is_crit(crit_cfg, atk_natural, attacker)
+    elif action_def.get("_auto_hit"):
+        lines = [
+            f"ACTION: {attacker.name} → {defender.name}",
+            "ATTACK: auto-hit (area effect)",
+        ]
+        attack_total = 0
+        defense_dc = 0
+        hit = True
+        is_natural_crit = False
+    else:
+        attack_bonus = _get_derived(attacker, attack_stat)
+        defense_value = defense_mods.get("defense_override", _get_derived(defender, defense_stat))
+
+        if attack_stat in trade_adj:
+            attack_bonus += trade_adj[attack_stat]
+        if cond_atk_bonus:
+            attack_bonus += cond_atk_bonus
+        if team_atk_bonus:
+            attack_bonus += team_atk_bonus
+
+        # Routine check: use routine_value instead of rolling (e.g. defenseless target)
+        if use_routine:
+            roll_val = routine_value
+            natural = routine_value
+        else:
+            roll_result = roll_expr(pack.dice)
+            roll_val = roll_result["total"]
+            natural = roll_result["natural"]
+
+        attack_total = roll_val + attack_bonus
+        defense_dc = dc_offset + defense_value
+
+        if use_routine:
+            lines = [
+                f"ACTION: {attacker.name} → {defender.name}",
+                f"ATTACK: routine({routine_value}) + {attack_bonus} = {attack_total} vs DC {defense_dc}",
+            ]
+        elif dc_offset:
+            lines = [
+                f"ACTION: {attacker.name} → {defender.name}",
+                f"ATTACK: {pack.dice}({roll_val}) + {attack_bonus} = {attack_total} vs DC {defense_dc}",
+            ]
+        else:
+            lines = [
+                f"ACTION: {attacker.name} → {defender.name}",
+                f"ATTACK: {pack.dice}({roll_val}) + {attack_bonus} = {attack_total} vs {defense_stat} {defense_value}",
+            ]
+
+        hit = attack_total >= defense_dc
+        is_natural_crit = _is_crit(crit_cfg, natural, attacker)
+
+    # --- Hit determination: crit / degree shift ---
+    was_already_hit = hit
+
+    if is_natural_crit and crit_cfg and crit_cfg.get("degree_shift", 0) > 0 and not hit:
+        hit = True  # miss upgraded to hit
+
+    # hits_are_critical: treat as natural crit (affects both effect_rank_bonus and damage_multiplier)
+    if hit and res_effects.get("hits_are_critical"):
+        is_natural_crit = True
+
+    # is_crit: strict crit (nat crit + was already hit, or hits_are_critical)
+    # Used by threshold for damage_multiplier — miss→hit upgrade does NOT get damage multiplier
+    is_crit = is_natural_crit and (was_already_hit or res_effects.get("hits_are_critical", False))
+
+    # --- Miss chance (e.g. concealment) ---
+    miss_chance = res_effects.get("miss_chance", 0.0)
+    if hit and miss_chance > 0.0:
+        miss_roll = random.random()
+        if miss_roll < miss_chance:
+            hit = False
+            is_crit = False
+            is_natural_crit = False
+            lines.append(f"MISS CHANCE: {miss_chance * 100:.0f}% — roll {miss_roll * 100:.1f}% — miss!")
+
+    # --- Compute margins ---
+    if action_def.get("contested"):
+        hit_margin = atk_total - def_total if hit else 0
+        miss_margin = def_total - atk_total if not hit else 0
+    elif action_def.get("_auto_hit"):
+        hit_margin = 0
+        miss_margin = 0
+    else:
+        hit_margin = attack_total - defense_dc if hit else 0
+        miss_margin = defense_dc - attack_total if not hit else 0
+
+    # --- Effect application (divergence point) ---
+    if hit:
+        # Hit message (format varies by resolution type)
+        if resolution_type == "threshold":
+            if action_def.get("contested"):
+                if is_crit:
+                    lines.append(f"CRITICAL HIT! (wins by {hit_margin})")
+                else:
+                    lines.append(f"HIT! (wins by {hit_margin})")
+            else:
+                if is_crit:
+                    lines.append("CRITICAL HIT!")
+                else:
+                    lines.append("HIT!")
+            _apply_threshold_outcome(
+                db,
+                pack,
+                attacker,
+                defender,
+                action_def,
+                lines,
+                is_crit=is_crit,
+                margin=hit_margin,
+                options=options,
+            )
+        elif resolution_type == "degree":
+            lines.append("HIT!")
+            _apply_degree_outcome(
+                db,
+                pack,
+                attacker,
+                defender,
+                action_def,
+                lines,
+                is_crit=is_natural_crit,
+                margin=hit_margin,
+                options=options,
+                trade_adj=trade_adj,
+                team_dc_bonus=team_dc_bonus,
+            )
+        else:
+            raise LoreKitError(f"Unknown resolution type: {resolution_type}")
+
+        # --- Reaction: after_hit ---
+        after_hit_mods = _check_reactions(db, pack, "after_hit", attacker, defender, action_def, lines, options)
+        if after_hit_mods.get("free_attack"):
+            fa = after_hit_mods["free_attack"]
+            try:
+                counter_result = resolve_action(
+                    db,
+                    fa["reactor_id"],
+                    fa["target_id"],
+                    fa["action"],
+                    pack.pack_dir,
+                    options={"free_action": True},
+                )
+                lines.append(counter_result)
+            except LoreKitError as e:
+                lines.append(f"COUNTER FAILED: {e}")
+    else:
+        # Miss message (format varies by resolution type for contested)
+        if resolution_type == "threshold" and action_def.get("contested"):
+            lines.append(f"MISS! ({defender.name} resists by {miss_margin})")
+        else:
+            lines.append("MISS!")
+            if action_def.get("contested"):
+                lines.append(f"{defender.name} resists by {miss_margin}")
+            else:
+                lines.append(f"Missed by {miss_margin}")
+
+        # --- Reaction: after_miss ---
+        after_miss_mods = _check_reactions(db, pack, "after_miss", attacker, defender, action_def, lines, options)
+        if after_miss_mods.get("free_attack"):
+            fa = after_miss_mods["free_attack"]
+            try:
+                counter_result = resolve_action(
+                    db,
+                    fa["reactor_id"],
+                    fa["target_id"],
+                    fa["action"],
+                    pack.pack_dir,
+                    options={"free_action": True},
+                )
+                lines.append(counter_result)
+            except LoreKitError as e:
+                lines.append(f"COUNTER FAILED: {e}")
+
+    # --- Homing: on miss, defer re-attack to attacker's next turn ---
+    if not hit and action_def.get("homing"):
+        homing_ranks = action_def.get("homing")
+        retries = homing_ranks if isinstance(homing_ranks, int) else 1
+        action_name = action_def.get("_action_name", "unknown")
+        metadata = json.dumps(
+            {
+                "action": action_name,
+                "target_id": defender.character_id,
+                "retries_left": retries,
+            }
+        )
+        db.execute(
+            "INSERT INTO combat_state "
+            "(character_id, source, target_stat, modifier_type, value, "
+            "duration_type, applied_by, metadata) "
+            "VALUES (?, ?, '_deferred', 'deferred', 0, 'deferred_homing', ?, ?) "
+            "ON CONFLICT(character_id, source, target_stat) DO UPDATE SET metadata = excluded.metadata",
+            (attacker.character_id, f"homing:{action_name}", defender.character_id, metadata),
+        )
+        db.commit()
+        lines.append(f"HOMING: attack will retry on {attacker.name}'s next turn ({retries} attempt(s) left)")
+
+    # --- Contagious spreading ---
+    if hit:
+        _check_contagious(db, pack, attacker, defender, action_def, lines)
+
+    lines.extend(trade_mod_lines)
+    return "\n".join(lines)
+
+
 def _resolve_threshold(
     db,
     pack: SystemPack,
