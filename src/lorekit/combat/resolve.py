@@ -418,17 +418,21 @@ def _resolve(
 
     # --- Hit determination: crit / degree shift ---
     was_already_hit = hit
+    has_degree_shift = bool(crit_cfg and crit_cfg.get("degree_shift", 0) > 0)
 
-    if is_natural_crit and crit_cfg and crit_cfg.get("degree_shift", 0) > 0 and not hit:
+    if is_natural_crit and has_degree_shift and not hit:
         hit = True  # miss upgraded to hit
 
     # hits_are_critical: treat as natural crit (affects both effect_rank_bonus and damage_multiplier)
     if hit and res_effects.get("hits_are_critical"):
         is_natural_crit = True
 
-    # is_crit: strict crit (nat crit + was already hit, or hits_are_critical)
+    # is_crit: nat crit + was already hit + system has degree_shift, OR hits_are_critical
     # Used by threshold for damage_multiplier — miss→hit upgrade does NOT get damage multiplier
-    is_crit = is_natural_crit and (was_already_hit or res_effects.get("hits_are_critical", False))
+    # Gated on has_degree_shift so systems without crit config don't get false crits
+    is_crit = (is_natural_crit and was_already_hit and has_degree_shift) or (
+        hit and res_effects.get("hits_are_critical", False)
+    )
 
     # --- Miss chance (e.g. concealment) ---
     miss_chance = res_effects.get("miss_chance", 0.0)
