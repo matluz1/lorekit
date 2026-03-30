@@ -135,7 +135,6 @@ def resolve_area_action(
         return f"AREA: {attacker.name} uses {action} — no targets in area"
 
     opts = _expand_combat_options(pack, options or {})
-    resolution_type = pack.resolution.get("type", "threshold")
     area_cfg = pack.resolution.get("area")
 
     # Pre-compute trade adjustments for area avoidance DC calculation
@@ -172,16 +171,9 @@ def resolve_area_action(
                 effective_action_def = dict(effective_action_def)
                 effective_action_def["_auto_hit"] = True
 
-        if resolution_type == "threshold":
-            from lorekit.combat.resolve import _resolve_threshold
+        from lorekit.combat.resolve import _resolve
 
-            result = _resolve_threshold(db, pack, attacker, defender, effective_action_def, opts)
-        elif resolution_type == "degree":
-            from lorekit.combat.resolve import _resolve_degree
-
-            result = _resolve_degree(db, pack, attacker, defender, effective_action_def, opts)
-        else:
-            raise LoreKitError(f"Unknown resolution type: {resolution_type}")
+        result = _resolve(db, pack, attacker, defender, effective_action_def, opts)
 
         if avoidance_lines:
             result = "\n".join(avoidance_lines) + "\n" + result
