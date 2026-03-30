@@ -94,6 +94,181 @@ def _apply_threshold_outcome(
     _apply_on_hit(db, pack, attacker, defender, on_hit, lines, is_crit=is_crit, margin=margin, options=options)
 
 
+def _apply_degree_outcome(
+    db,
+    pack: SystemPack,
+    attacker: CharacterData,
+    defender: CharacterData,
+    action_def: dict,
+    lines: list[str],
+    is_crit: bool,
+    margin: int,
+    options: dict,
+    trade_adj: dict[str, int],
+    team_dc_bonus: int,
+) -> None:
+    """Apply effects for a degree-of-failure resolution on hit.
+
+    Runs resistance check, calculates degree, applies outcome table effects.
+    Falls back to _apply_on_hit if no damage_rank_stat/effect_rank.
+    """
+    resolution = pack.resolution
+    crit_cfg = resolution.get("critical")
+
+    damage_rank_stat = action_def.get("damage_rank_stat")
+    effect_rank_direct = action_def.get("effect_rank")
+
+    if damage_rank_stat or effect_rank_direct is not None:
+        resistance_stat = action_def.get("resistance_stat", resolution.get("resistance_stat"))
+        dc_base = resolution.get("dc_base", 15)
+
+        if effect_rank_direct is not None:
+            damage_rank = int(effect_rank_direct)
+        else:
+            damage_rank = _get_derived(attacker, damage_rank_stat)
+
+        # Data-driven cap check
+        cap = action_def.get("cap")
+        if cap:
+            attack_stat = action_def["attack_stat"]
+            cap_stats = cap["sum"]
+            cap_max_stat = cap["max_stat"]
+            cap_values = []
+            for cs in cap_stats:
+                if cs == "effect_rank" and effect_rank_direct is not None:
+                    cap_values.append(damage_rank)
+                elif cs == "attack_stat":
+                    cap_values.append(_get_derived(attacker, attack_stat))
+                else:
+                    cap_values.append(_get_derived(attacker, cs))
+            cap_total = sum(cap_values)
+            cap_max = _get_derived(attacker, cap_max_stat)
+            if cap_total > cap_max:
+                parts = " + ".join(str(v) for v in cap_values)
+                lines.append(f"WARNING: cap exceeded — {parts} = {cap_total} > {cap_max}")
+
+        # Apply trade to damage rank
+        if damage_rank_stat and damage_rank_stat in trade_adj:
+            damage_rank += trade_adj[damage_rank_stat]
+
+        # Multiattack DC bonus
+        multiattack_cfg = action_def.get("multiattack")
+        if multiattack_cfg and isinstance(multiattack_cfg, dict):
+            thresholds = multiattack_cfg.get("dc_bonus_thresholds", [])
+            ma_bonus = 0
+            for t in sorted(thresholds, key=lambda x: x["margin"], reverse=True):
+                if margin >= t["margin"]:
+                    ma_bonus = t["bonus"]
+                    break
+            if ma_bonus:
+                damage_rank += ma_bonus
+                lines.append(f"MULTIATTACK: hit margin {margin} → +{ma_bonus} effect rank (now {damage_rank})")
+
+        # Team DC bonus
+        if team_dc_bonus:
+            damage_rank += team_dc_bonus
+            lines.append(f"TEAM DC BONUS: +{team_dc_bonus} effect rank (now {damage_rank})")
+
+        # Critical effect_rank_bonus
+        if is_crit:
+            effect_rank_bonus = crit_cfg.get("effect_rank_bonus", 0) if crit_cfg else 0
+            if effect_rank_bonus:
+                damage_rank += effect_rank_bonus
+                lines.append(f"CRITICAL! Effect rank +{effect_rank_bonus} (rank {damage_rank})")
+
+        # Pre-resolution: impervious check
+        pre_res_result = _check_pre_resolution(
+            pack,
+            defender,
+            action_def,
+            damage_rank=damage_rank,
+            lines=lines,
+        )
+        if pre_res_result == "impervious":
+            lines.append("RESULT: No effect (impervious)")
+            return
+
+        resistance_bonus = _get_derived(defender, resistance_stat)
+        resist_result = roll_expr(pack.dice)
+        resist_roll = resist_result["total"]
+        resistance_total = resist_roll + resistance_bonus
+        resist_dc = dc_base + damage_rank
+
+        lines.append(
+            f"RESISTANCE: {pack.dice}({resist_roll}) + {resistance_bonus} = {resistance_total} vs DC {resist_dc}"
+        )
+
+        if resistance_total >= resist_dc:
+            lines.append("RESULT: No effect")
+        else:
+            margin_fail = resist_dc - resistance_total
+            degree_step = resolution.get("degree_step", 5)
+            degree = 1 + math.floor(margin_fail / degree_step)
+            degree = max(1, min(degree, 4))
+
+            # Character resolution tags
+            char_tags_cfg = resolution.get("character_tags", {})
+            for tag_name, tag_rules in char_tags_cfg.items():
+                tag_key = tag_name if tag_name.startswith("is_") else f"is_{tag_name}"
+                for cat_attrs in defender.attributes.values():
+                    if tag_key in cat_attrs and int(cat_attrs[tag_key]) > 0:
+                        min_deg = tag_rules.get("min_failure_degree")
+                        if min_deg is not None and degree < min_deg:
+                            lines.append(f"TAG [{tag_name}]: degree escalated {degree} → {min_deg}")
+                            degree = min_deg
+                        break
+
+            # Cumulative degree tracking
+            if action_def.get("cumulative"):
+                action_name = action_def.get("_action_name", "affliction")
+                track_key = f"_cumulative_degree_{action_name}"
+                try:
+                    current_degree = _get_derived(defender, track_key)
+                except LoreKitError:
+                    current_degree = 0
+                max_degree = action_def.get("max_degree", 4)
+                new_degree = min(current_degree + degree, max_degree)
+                if current_degree > 0:
+                    lines.append(f"CUMULATIVE: previous degree {current_degree} + {degree} = {new_degree}")
+                degree = new_degree
+                _write_attr(db, defender.character_id, track_key, degree)
+
+            # Outcome table lookup
+            outcome_table_name = action_def.get("outcome_table")
+            if outcome_table_name and outcome_table_name in pack.outcome_tables:
+                outcome_table = pack.outcome_tables[outcome_table_name]
+            else:
+                outcome_table = resolution.get("on_failure", {})
+
+            effect = dict(outcome_table.get(str(degree), {}))
+
+            # Resolve template variables
+            degrees_map = action_def.get("degrees", {})
+            if degrees_map:
+                for key, val in list(effect.items()):
+                    if isinstance(val, str) and "{" in val:
+                        for deg_key, choice in degrees_map.items():
+                            placeholder = f"{{degree_{deg_key}_condition}}"
+                            if placeholder in val:
+                                resolved = choice if isinstance(choice, str) else choice[0]
+                                val = val.replace(placeholder, resolved)
+                        effect[key] = val
+
+            lines.append(f"DEGREE OF FAILURE: {degree}")
+
+            from lorekit.combat.effects import _apply_degree_effect
+
+            _apply_degree_effect(db, defender, effect, lines)
+
+            # Sync conditions and fire damage triggers
+            _sync_and_recalc(db, defender.character_id, pack, lines)
+            _fire_damage_triggers(db, pack, defender.character_id, damage_rank, lines)
+    else:
+        # No resistance check — apply on_hit directly
+        on_hit = action_def.get("on_hit", {})
+        _apply_on_hit(db, pack, attacker, defender, on_hit, lines, margin=margin, options=options)
+
+
 def _resolve_threshold(
     db,
     pack: SystemPack,
