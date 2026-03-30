@@ -1228,14 +1228,7 @@ def resolve_action(
     if "attack_stat" not in action_def:
         return on_use_result or f"ACTION: {attacker.name} uses {action} → {defender.name} (no effect)"
 
-    resolution_type = pack.resolution.get("type", "threshold")
-
-    if resolution_type == "threshold":
-        result = _resolve_threshold(db, pack, attacker, defender, action_def, opts)
-    elif resolution_type == "degree":
-        result = _resolve_degree(db, pack, attacker, defender, action_def, opts)
-    else:
-        raise LoreKitError(f"Unknown resolution type: {resolution_type}")
+    result = _resolve(db, pack, attacker, defender, action_def, opts)
 
     # Prepend on_use result if both on_use and roll happened
     if on_use_result:
