@@ -61,15 +61,15 @@ class TestCheckTrigger:
 
         db = require_db()
         try:
-            # Add memories totaling 5.0 importance (below default 15.0)
+            # Add memories totaling 4.0 importance (below default 5.0)
             for i in range(10):
-                _add_memory(db, session_id, npc_id, f"Low importance event {i}", importance=0.5)
+                _add_memory(db, session_id, npc_id, f"Low importance event {i}", importance=0.4)
             assert check_trigger(db, session_id, npc_id) is False
         finally:
             db.close()
 
     def test_trigger_above_threshold(self, make_npc):
-        """NPC with high-importance memories summing > 15.0 should trigger."""
+        """NPC with high-importance memories summing > 5.0 should trigger."""
         session_id, npc_id = make_npc()
         from lorekit.db import require_db
 
