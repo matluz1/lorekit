@@ -42,6 +42,7 @@ def test_creates_all_tables():
         "journal",
         "npc_core",
         "npc_memories",
+        "pending_resolutions",
         "regions",
         "session_meta",
         "sessions",

@@ -244,6 +244,19 @@ CREATE TABLE IF NOT EXISTS npc_core (
     UNIQUE(session_id, npc_id)
 );
 
+CREATE TABLE IF NOT EXISTS pending_resolutions (
+    id             INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id     INTEGER NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+    attacker_id    INTEGER NOT NULL REFERENCES characters(id) ON DELETE CASCADE,
+    defender_id    INTEGER NOT NULL REFERENCES characters(id) ON DELETE CASCADE,
+    action_name    TEXT    NOT NULL,
+    pack_dir       TEXT    NOT NULL,
+    calculated_state TEXT  NOT NULL,
+    available_reactions TEXT NOT NULL,
+    options        TEXT    NOT NULL DEFAULT '{}',
+    created_at     TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
+);
+
 """
 
 INDEXES_SQL = """\
@@ -270,6 +283,7 @@ CREATE INDEX IF NOT EXISTS idx_npc_core_npc ON npc_core(session_id, npc_id);
 CREATE INDEX IF NOT EXISTS idx_character_aliases ON character_aliases(character_id);
 CREATE INDEX IF NOT EXISTS idx_entry_entities_entity ON entry_entities(entity_type, entity_id);
 CREATE INDEX IF NOT EXISTS idx_entry_entities_source ON entry_entities(source, source_id);
+CREATE INDEX IF NOT EXISTS idx_pending_resolutions_session ON pending_resolutions(session_id);
 """
 
 # Migrations: add or drop columns on older databases
