@@ -76,11 +76,12 @@ def _check_reactions(
         if metadata.get("hook") != hook_name:
             continue
 
-        effect_name = metadata.get("effect")
-        if effect_name not in hook_cfg:
+        # Determine the reaction's key for config lookup
+        reaction_key = metadata.get("reaction_key", metadata.get("effect", ""))
+        if reaction_key not in hook_cfg:
             continue
 
-        effect_cfg = hook_cfg[effect_name]
+        effect_cfg = hook_cfg[reaction_key]
         scope = effect_cfg.get("scope", "self_targeted")
 
         # Scope filter
@@ -129,34 +130,49 @@ def _check_reactions(
         if policy == "ask":
             query_fn = options.get("reaction_query")
             if query_fn:
-                if not query_fn(db, reactor_id, source, hook_name, effect_name, attacker, defender):
+                if not query_fn(db, reactor_id, source, hook_name, reaction_key, attacker, defender):
                     lines.append(f"REACTION [{source}]: declined")
                     continue
             # No callback (GM play) → treat as active
 
-        # Dispatch effect
+        # Dispatch effects (composable list)
         reactor_name = _char_name_from_id(db, reactor_id)
+        effects = metadata.get("effects", [])
 
-        if effect_name == "substitute_defender":
-            lines.append(f"REACTION [{source}]: {reactor_name} interposes for {defender.name}!")
-            modifications["new_defender_id"] = reactor_id
-        elif effect_name == "use_reactor_stat":
-            stat_name = metadata.get("stat", "deflect")
-            try:
-                reactor_char = load_character_data(db, reactor_id)
-                stat_val = _get_derived(reactor_char, stat_name)
-                lines.append(f"REACTION [{source}]: {reactor_name} deflects! Using {stat_name} ({stat_val}) as defense")
-                modifications["defense_override"] = stat_val
-            except LoreKitError:
-                continue
-        elif effect_name == "counter_attack":
-            counter_action = metadata.get("counter_action", "close_attack")
-            lines.append(f"REACTION [{source}]: {reactor_name} counter-attacks!")
-            modifications["free_attack"] = {
-                "reactor_id": reactor_id,
-                "target_id": attacker.character_id,
-                "action": counter_action,
-            }
+        # Support legacy single-effect format
+        if not effects and "effect" in metadata:
+            legacy = metadata["effect"]
+            effect_entry = {"type": legacy}
+            if legacy == "use_reactor_stat":
+                effect_entry["stat"] = metadata.get("stat", "deflect")
+            elif legacy == "counter_attack":
+                effect_entry["action"] = metadata.get("counter_action", "close_attack")
+            effects = [effect_entry]
+
+        for eff in effects:
+            eff_type = eff.get("type")
+            if eff_type == "substitute_defender":
+                lines.append(f"REACTION [{source}]: {reactor_name} interposes for {defender.name}!")
+                modifications["new_defender_id"] = reactor_id
+            elif eff_type == "use_reactor_stat":
+                stat_name = eff.get("stat", "deflect")
+                try:
+                    reactor_char = load_character_data(db, reactor_id)
+                    stat_val = _get_derived(reactor_char, stat_name)
+                    lines.append(
+                        f"REACTION [{source}]: {reactor_name} deflects! Using {stat_name} ({stat_val}) as defense"
+                    )
+                    modifications["defense_override"] = stat_val
+                except LoreKitError:
+                    continue
+            elif eff_type == "counter_attack":
+                counter_action = eff.get("action", "close_attack")
+                lines.append(f"REACTION [{source}]: {reactor_name} counter-attacks!")
+                modifications["free_attack"] = {
+                    "reactor_id": reactor_id,
+                    "target_id": attacker.character_id,
+                    "action": counter_action,
+                }
 
         # Consume
         if dur_type == "triggered":
