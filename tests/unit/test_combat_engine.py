@@ -2048,3 +2048,188 @@ class TestDamageReduction:
             assert int(shield_row[0]) == 17
         finally:
             db.close()
+
+
+class TestPendingResolution:
+    def _setup_pending_scenario(self, make_session, make_character):
+        """Set up attacker + defender with pending shield_block reaction."""
+        import json
+
+        from lorekit.character import set_attr
+        from lorekit.db import require_db
+
+        db = require_db()
+        sid = make_session()
+        atk_id = make_character(sid, name="Goblin", level=1)
+        def_id = make_character(sid, name="Torvik", level=1)
+
+        for key, val in [("str", "14"), ("dex", "12"), ("con", "12"), ("base_attack", "5"), ("hit_die_avg", "6")]:
+            set_attr(db, atk_id, "stat", key, val)
+        set_attr(db, atk_id, "combat", "base_attack", "5")
+        set_attr(db, atk_id, "combat", "hit_die_avg", "6")
+
+        for key, val in [("str", "14"), ("dex", "14"), ("con", "14"), ("base_attack", "3"), ("hit_die_avg", "6")]:
+            set_attr(db, def_id, "stat", key, val)
+        set_attr(db, def_id, "combat", "base_attack", "3")
+        set_attr(db, def_id, "combat", "hit_die_avg", "6")
+
+        from lorekit.rules import rules_calc
+
+        rules_calc(db, atk_id, TEST_SYSTEM)
+        rules_calc(db, def_id, TEST_SYSTEM)
+        set_attr(db, atk_id, "build", "weapon_damage_die", "1d8")
+        set_attr(db, def_id, "combat", "shield_hardness", "5")
+        set_attr(db, def_id, "combat", "shield_hp", "20")
+
+        db.execute(
+            "INSERT INTO combat_state "
+            "(character_id, source, target_stat, modifier_type, value, "
+            "duration_type, duration, metadata) "
+            "VALUES (?, ?, '_reaction', 'reaction', 0, 'reaction', 1, ?)",
+            (
+                def_id,
+                "shield_block",
+                json.dumps(
+                    {
+                        "hook": "damage_reduction",
+                        "reaction_key": "shield_block",
+                        "effects": [
+                            {"type": "reduce_damage", "stat": "shield_hardness"},
+                            {"type": "damage_item", "item_stat": "shield_hp"},
+                        ],
+                    }
+                ),
+            ),
+        )
+        db.commit()
+        set_attr(db, def_id, "reaction_policy", "shield_block", "pending")
+
+        from lorekit.encounter import start_encounter
+
+        start_encounter(
+            db,
+            sid,
+            [{"name": "Arena"}],
+            [{"character_id": atk_id, "roll": 20}, {"character_id": def_id, "roll": 10}],
+            placements=[
+                {"character_id": atk_id, "zone": "Arena"},
+                {"character_id": def_id, "zone": "Arena"},
+            ],
+            combat_cfg={},
+        )
+
+        max_hp = int(
+            db.execute(
+                "SELECT value FROM character_attributes WHERE character_id = ? AND key = 'max_hp'",
+                (def_id,),
+            ).fetchone()[0]
+        )
+
+        return db, sid, atk_id, def_id, max_hp
+
+    def test_pending_reaction_pauses_resolution(self, make_session, make_character):
+        """Pending shield_block pauses resolution — HP not changed until confirmed."""
+        db, sid, atk_id, def_id, max_hp = self._setup_pending_scenario(make_session, make_character)
+        try:
+            roll_calls = iter([17, 5])  # d20=18 (hit), d8=6
+            with patch("secrets.randbelow", side_effect=roll_calls):
+                output = resolve_action(db, atk_id, def_id, "melee_attack", TEST_SYSTEM)
+
+            assert "PENDING REACTION" in output
+            assert "shield_block" in output.lower() or "Shield Block" in output
+
+            hp_row = db.execute(
+                "SELECT value FROM character_attributes WHERE character_id = ? AND key = 'current_hp'",
+                (def_id,),
+            ).fetchone()
+            if hp_row:
+                assert int(hp_row[0]) == max_hp  # HP unchanged
+
+            pending = db.execute(
+                "SELECT id FROM pending_resolutions WHERE session_id = ?",
+                (sid,),
+            ).fetchone()
+            assert pending is not None
+        finally:
+            db.close()
+
+    def test_confirm_with_reaction(self, make_session, make_character):
+        """Confirming with shield_block applies reduced damage."""
+        db, sid, atk_id, def_id, max_hp = self._setup_pending_scenario(make_session, make_character)
+        try:
+            roll_calls = iter([17, 5])  # damage = 8
+            with patch("secrets.randbelow", side_effect=roll_calls):
+                output = resolve_action(db, atk_id, def_id, "melee_attack", TEST_SYSTEM)
+
+            assert "PENDING REACTION" in output
+
+            pending_row = db.execute(
+                "SELECT id FROM pending_resolutions WHERE session_id = ?",
+                (sid,),
+            ).fetchone()
+
+            from lorekit.combat.pending import confirm_pending
+
+            result = confirm_pending(db, pending_row[0], reactions=["shield_block"])
+            assert "SHIELD BLOCK" in result
+
+            hp = int(
+                db.execute(
+                    "SELECT value FROM character_attributes WHERE character_id = ? AND key = 'current_hp'",
+                    (def_id,),
+                ).fetchone()[0]
+            )
+            assert hp == max_hp - 3  # 8 - 5 hardness
+
+            shield = int(
+                db.execute(
+                    "SELECT value FROM character_attributes WHERE character_id = ? AND key = 'shield_hp'",
+                    (def_id,),
+                ).fetchone()[0]
+            )
+            assert shield == 17  # 20 - 3 overflow
+
+            pending_check = db.execute(
+                "SELECT id FROM pending_resolutions WHERE id = ?",
+                (pending_row[0],),
+            ).fetchone()
+            assert pending_check is None
+        finally:
+            db.close()
+
+    def test_confirm_without_reaction(self, make_session, make_character):
+        """Confirming with no reactions applies full damage."""
+        db, sid, atk_id, def_id, max_hp = self._setup_pending_scenario(make_session, make_character)
+        try:
+            roll_calls = iter([17, 5])  # damage = 8
+            with patch("secrets.randbelow", side_effect=roll_calls):
+                output = resolve_action(db, atk_id, def_id, "melee_attack", TEST_SYSTEM)
+
+            assert "PENDING REACTION" in output
+
+            pending_row = db.execute(
+                "SELECT id FROM pending_resolutions WHERE session_id = ?",
+                (sid,),
+            ).fetchone()
+
+            from lorekit.combat.pending import confirm_pending
+
+            result = confirm_pending(db, pending_row[0], reactions=[])
+
+            hp = int(
+                db.execute(
+                    "SELECT value FROM character_attributes WHERE character_id = ? AND key = 'current_hp'",
+                    (def_id,),
+                ).fetchone()[0]
+            )
+            assert hp == max_hp - 8  # Full damage
+
+            shield = int(
+                db.execute(
+                    "SELECT value FROM character_attributes WHERE character_id = ? AND key = 'shield_hp'",
+                    (def_id,),
+                ).fetchone()[0]
+            )
+            assert int(shield) == 20  # Shield untouched
+        finally:
+            db.close()

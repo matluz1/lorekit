@@ -217,6 +217,54 @@ def _check_reactions(
     return modifications
 
 
+def _check_pending_damage_reactions(
+    db,
+    pack: SystemPack,
+    defender: CharacterData,
+) -> list[dict]:
+    """Check if defender has damage-reduction reactions with pending policy.
+
+    Returns list of pending reaction descriptions (for two-phase resolution).
+    Does NOT fire or consume reactions.
+    """
+    rows = db.execute(
+        "SELECT id, character_id, source, duration_type, duration, metadata "
+        "FROM combat_state "
+        "WHERE character_id = ? AND duration_type IN ('reaction', 'triggered') "
+        "AND duration > 0 AND metadata IS NOT NULL",
+        (defender.character_id,),
+    ).fetchall()
+
+    pending = []
+    for row_id, reactor_id, source, dur_type, duration, metadata_str in rows:
+        try:
+            metadata = json.loads(metadata_str)
+        except (ValueError, TypeError):
+            continue
+
+        if metadata.get("hook") != "damage_reduction":
+            continue
+
+        policy = _get_reaction_policy(db, reactor_id, source)
+        if policy != "pending":
+            continue
+
+        reactor_name = _char_name_from_id(db, reactor_id)
+        pending.append(
+            {
+                "source": source,
+                "reaction_key": metadata.get("reaction_key", ""),
+                "reactor_id": reactor_id,
+                "reactor_name": reactor_name,
+                "effects": metadata.get("effects", []),
+                "row_id": row_id,
+                "dur_type": dur_type,
+            }
+        )
+
+    return pending
+
+
 def _check_damage_reactions(
     db,
     pack: SystemPack,

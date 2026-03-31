@@ -14,7 +14,7 @@ from lorekit.combat.conditions import (
     _increment_turn_actions,
     is_incapacitated,
 )
-from lorekit.combat.effects import _apply_on_hit, _check_contagious, _fire_damage_triggers
+from lorekit.combat.effects import PendingReactionSignal, _apply_on_hit, _check_contagious, _fire_damage_triggers
 from lorekit.combat.helpers import (
     _ensure_current_hp,
     _get_action_def,
@@ -458,45 +458,104 @@ def _resolve(
     # --- Effect application (divergence point) ---
     if hit:
         # Hit message (format varies by resolution type)
-        if resolution_type == "threshold":
-            if action_def.get("contested"):
-                if is_crit:
-                    lines.append(f"CRITICAL HIT! (wins by {hit_margin})")
+        try:
+            if resolution_type == "threshold":
+                if action_def.get("contested"):
+                    if is_crit:
+                        lines.append(f"CRITICAL HIT! (wins by {hit_margin})")
+                    else:
+                        lines.append(f"HIT! (wins by {hit_margin})")
                 else:
-                    lines.append(f"HIT! (wins by {hit_margin})")
+                    if is_crit:
+                        lines.append("CRITICAL HIT!")
+                    else:
+                        lines.append("HIT!")
+                _apply_threshold_outcome(
+                    db,
+                    pack,
+                    attacker,
+                    defender,
+                    action_def,
+                    lines,
+                    is_crit=is_crit,
+                    margin=hit_margin,
+                    options=options,
+                )
+            elif resolution_type == "degree":
+                lines.append("HIT!")
+                _apply_degree_outcome(
+                    db,
+                    pack,
+                    attacker,
+                    defender,
+                    action_def,
+                    lines,
+                    is_crit=is_natural_crit,
+                    margin=hit_margin,
+                    options=options,
+                    trade_adj=trade_adj,
+                    team_dc_bonus=team_dc_bonus,
+                )
             else:
-                if is_crit:
-                    lines.append("CRITICAL HIT!")
-                else:
-                    lines.append("HIT!")
-            _apply_threshold_outcome(
+                raise LoreKitError(f"Unknown resolution type: {resolution_type}")
+        except PendingReactionSignal as sig:
+            from lorekit.combat.pending import store_pending
+
+            reaction_descs = []
+            for rxn in sig.pending_reactions:
+                desc = {
+                    "source": rxn["source"],
+                    "reaction_key": rxn["reaction_key"],
+                    "reactor_name": rxn["reactor_name"],
+                    "reactor_id": rxn["reactor_id"],
+                    "effects": rxn["effects"],
+                    "row_id": rxn["row_id"],
+                    "dur_type": rxn["dur_type"],
+                }
+                for eff in rxn["effects"]:
+                    if eff.get("type") == "reduce_damage" and eff.get("stat"):
+                        try:
+                            reduction = _get_derived(defender, eff["stat"])
+                            desc["reduction"] = reduction
+                            desc["net_damage"] = max(0, sig.total_damage - reduction)
+                        except LoreKitError:
+                            pass
+                reaction_descs.append(desc)
+
+            pending_id = store_pending(
                 db,
-                pack,
-                attacker,
-                defender,
-                action_def,
-                lines,
-                is_crit=is_crit,
-                margin=hit_margin,
+                session_id=attacker.session_id,
+                attacker_id=attacker.character_id,
+                defender_id=defender.character_id,
+                action_name=action_def.get("_action_name", "unknown"),
+                pack_dir=pack.pack_dir,
+                calculated_state={
+                    "total_damage": sig.total_damage,
+                    "lines": sig.lines,
+                    "is_crit": is_crit if resolution_type == "threshold" else is_natural_crit,
+                    "hit_margin": hit_margin,
+                    "resolution_type": resolution_type,
+                },
+                available_reactions=reaction_descs,
                 options=options,
             )
-        elif resolution_type == "degree":
-            lines.append("HIT!")
-            _apply_degree_outcome(
-                db,
-                pack,
-                attacker,
-                defender,
-                action_def,
-                lines,
-                is_crit=is_natural_crit,
-                margin=hit_margin,
-                options=options,
-                trade_adj=trade_adj,
-                team_dc_bonus=team_dc_bonus,
-            )
-        else:
-            raise LoreKitError(f"Unknown resolution type: {resolution_type}")
+
+            lines = list(sig.lines)
+            lines.append("")
+            lines.append(f"⚠ PENDING REACTION (id: {pending_id}):")
+            for desc in reaction_descs:
+                reduction = desc.get("reduction", 0)
+                net = desc.get("net_damage", sig.total_damage)
+                lines.append(
+                    f"  {desc['reactor_name']} can use {desc['source']} "
+                    f"(reduce damage by {reduction}, net damage {net})"
+                )
+            lines.append(f"  → Without reaction: damage {sig.total_damage}")
+            lines.append("")
+            lines.append("Awaiting confirm_resolution.")
+
+            lines.extend(trade_mod_lines)
+            return "\n".join(lines)
 
         # --- Reaction: after_hit ---
         after_hit_mods = _check_reactions(db, pack, "after_hit", attacker, defender, action_def, lines, options)

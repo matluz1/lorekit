@@ -22,6 +22,19 @@ from lorekit.db import LoreKitError
 from lorekit.rules import load_character_data
 
 
+class PendingReactionSignal(Exception):
+    """Raised when damage application encounters a pending reaction.
+
+    Carries the calculated state so the caller can store it
+    for two-phase resolution.
+    """
+
+    def __init__(self, total_damage, lines, pending_reactions):
+        self.total_damage = total_damage
+        self.lines = lines
+        self.pending_reactions = pending_reactions
+
+
 def _apply_degree_effect(
     db,
     char: CharacterData,
@@ -290,6 +303,14 @@ def _apply_on_hit(
                 lines.append(f"CRITICAL! Damage x{multiplier}")
 
         lines.append(f"DAMAGE: {' + '.join(damage_parts)} = {total_damage}")
+
+        # --- Check for pending damage reactions (two-phase resolution) ---
+        if subtract_target:
+            from lorekit.combat.reactions import _check_pending_damage_reactions
+
+            pending_rxns = _check_pending_damage_reactions(db, pack, defender)
+            if pending_rxns:
+                raise PendingReactionSignal(total_damage, list(lines), pending_rxns)
 
         # --- Damage reduction reactions (e.g. Shield Block) ---
         if subtract_target:
