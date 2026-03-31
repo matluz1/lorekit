@@ -27,6 +27,58 @@ def _get_reaction_policy(db, reactor_id: int, source: str) -> str:
     return row[0] if row else "active"
 
 
+def _consume_reaction(db, row_id: int, dur_type: str) -> None:
+    """Consume a reaction: delete if triggered, decrement duration otherwise."""
+    if dur_type == "triggered":
+        db.execute("DELETE FROM combat_state WHERE id = ?", (row_id,))
+    else:
+        db.execute("UPDATE combat_state SET duration = duration - 1 WHERE id = ?", (row_id,))
+    db.commit()
+
+
+def _apply_damage_effects(
+    db,
+    defender: CharacterData,
+    effects: list[dict],
+    total_damage: int,
+    source: str,
+    reactor_name: str,
+    lines: list[str],
+) -> int:
+    """Apply damage reduction effects (reduce_damage, damage_item).
+
+    Returns the total damage reduction applied.
+    """
+    from lorekit.combat.helpers import _get_derived, _write_attr
+
+    total_reduction = 0
+    for eff in effects:
+        eff_type = eff.get("type")
+        if eff_type == "reduce_damage":
+            stat = eff.get("stat")
+            if stat:
+                try:
+                    reduction = _get_derived(defender, stat)
+                except LoreKitError:
+                    reduction = 0
+            else:
+                reduction = eff.get("value", 0)
+            lines.append(f"SHIELD BLOCK [{source}]: {reactor_name} reduces damage by {reduction}")
+            total_reduction += reduction
+        elif eff_type == "damage_item":
+            item_stat = eff.get("item_stat")
+            if item_stat:
+                overflow = max(0, total_damage - total_reduction)
+                try:
+                    current_item_hp = _get_derived(defender, item_stat)
+                except LoreKitError:
+                    current_item_hp = 0
+                new_item_hp = current_item_hp - overflow
+                _write_attr(db, defender.character_id, item_stat, new_item_hp)
+                lines.append(f"  {item_stat}: {current_item_hp} → {new_item_hp}")
+    return total_reduction
+
+
 def _check_reactions(
     db,
     pack: SystemPack,
@@ -139,19 +191,19 @@ def _check_reactions(
                     continue
             # No callback (GM play) → treat as active
 
-        if policy == "pending":
-            reactor_name = _char_name_from_id(db, reactor_id)
-            effects = metadata.get("effects", [])
-            # Support legacy single-effect format
-            if not effects and "effect" in metadata:
-                legacy = metadata["effect"]
-                effect_entry = {"type": legacy}
-                if legacy == "use_reactor_stat":
-                    effect_entry["stat"] = metadata.get("stat", "deflect")
-                elif legacy == "counter_attack":
-                    effect_entry["action"] = metadata.get("counter_action", "close_attack")
-                effects = [effect_entry]
+        # Normalize effects: support legacy single-effect format
+        reactor_name = _char_name_from_id(db, reactor_id)
+        effects = metadata.get("effects", [])
+        if not effects and "effect" in metadata:
+            legacy = metadata["effect"]
+            effect_entry = {"type": legacy}
+            if legacy == "use_reactor_stat":
+                effect_entry["stat"] = metadata.get("stat", "deflect")
+            elif legacy == "counter_attack":
+                effect_entry["action"] = metadata.get("counter_action", "close_attack")
+            effects = [effect_entry]
 
+        if policy == "pending":
             pending = modifications.setdefault("pending_reactions", [])
             pending.append(
                 {
@@ -164,21 +216,7 @@ def _check_reactions(
                     "dur_type": dur_type,
                 }
             )
-            continue  # Don't dispatch — caller will handle
-
-        # Dispatch effects (composable list)
-        reactor_name = _char_name_from_id(db, reactor_id)
-        effects = metadata.get("effects", [])
-
-        # Support legacy single-effect format
-        if not effects and "effect" in metadata:
-            legacy = metadata["effect"]
-            effect_entry = {"type": legacy}
-            if legacy == "use_reactor_stat":
-                effect_entry["stat"] = metadata.get("stat", "deflect")
-            elif legacy == "counter_attack":
-                effect_entry["action"] = metadata.get("counter_action", "close_attack")
-            effects = [effect_entry]
+            continue
 
         for eff in effects:
             eff_type = eff.get("type")
@@ -205,12 +243,7 @@ def _check_reactions(
                     "action": counter_action,
                 }
 
-        # Consume
-        if dur_type == "triggered":
-            db.execute("DELETE FROM combat_state WHERE id = ?", (row_id,))
-        else:
-            db.execute("UPDATE combat_state SET duration = duration - 1 WHERE id = ?", (row_id,))
-        db.commit()
+        _consume_reaction(db, row_id, dur_type)
 
         break  # One reaction per hook per resolution
 
@@ -277,8 +310,6 @@ def _check_damage_reactions(
     Fires before HP subtraction. Returns the total damage reduction applied.
     Handles reduce_damage and damage_item effects.
     """
-    from lorekit.combat.helpers import _get_derived, _write_attr
-
     rows = db.execute(
         "SELECT id, character_id, source, duration_type, duration, metadata "
         "FROM combat_state "
@@ -309,40 +340,11 @@ def _check_damage_reactions(
 
         effects = metadata.get("effects", [])
         reactor_name = _char_name_from_id(db, reactor_id)
-        reduction = 0
 
-        for eff in effects:
-            eff_type = eff.get("type")
-            if eff_type == "reduce_damage":
-                stat = eff.get("stat")
-                if stat:
-                    try:
-                        reduction = _get_derived(defender, stat)
-                    except LoreKitError:
-                        reduction = 0
-                else:
-                    reduction = eff.get("value", 0)
-                lines.append(f"SHIELD BLOCK [{source}]: {reactor_name} reduces damage by {reduction}")
-                total_reduction += reduction
+        reduction = _apply_damage_effects(db, defender, effects, total_damage, source, reactor_name, lines)
+        total_reduction += reduction
 
-            elif eff_type == "damage_item":
-                item_stat = eff.get("item_stat")
-                if item_stat:
-                    overflow = max(0, total_damage - total_reduction)
-                    try:
-                        current_item_hp = _get_derived(defender, item_stat)
-                    except LoreKitError:
-                        current_item_hp = 0
-                    new_item_hp = current_item_hp - overflow
-                    _write_attr(db, defender.character_id, item_stat, new_item_hp)
-                    lines.append(f"  {item_stat}: {current_item_hp} -> {new_item_hp}")
-
-        # Consume reaction
-        if dur_type == "triggered":
-            db.execute("DELETE FROM combat_state WHERE id = ?", (row_id,))
-        else:
-            db.execute("UPDATE combat_state SET duration = duration - 1 WHERE id = ?", (row_id,))
-        db.commit()
+        _consume_reaction(db, row_id, dur_type)
 
         break  # One damage reaction per hit
 

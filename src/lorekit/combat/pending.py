@@ -87,7 +87,8 @@ def confirm_pending(
     """
     from cruncher.system_pack import load_system_pack
     from lorekit.combat.effects import _fire_damage_triggers
-    from lorekit.combat.helpers import _ensure_current_hp, _get_derived, _sync_and_recalc, _write_attr
+    from lorekit.combat.helpers import _ensure_current_hp, _sync_and_recalc, _write_attr
+    from lorekit.combat.reactions import _apply_damage_effects, _consume_reaction
     from lorekit.db import LoreKitError
     from lorekit.rules import load_character_data
 
@@ -108,40 +109,16 @@ def confirm_pending(
         if rxn["source"] not in reactions:
             continue
 
-        for eff in rxn.get("effects", []):
-            eff_type = eff.get("type")
-            if eff_type == "reduce_damage":
-                stat = eff.get("stat")
-                if stat:
-                    try:
-                        reduction = _get_derived(defender, stat)
-                    except LoreKitError:
-                        reduction = 0
-                else:
-                    reduction = eff.get("value", 0)
-                total_reduction += reduction
-                lines.append(f"SHIELD BLOCK [{rxn['source']}]: {rxn['reactor_name']} reduces damage by {reduction}")
-            elif eff_type == "damage_item":
-                item_stat = eff.get("item_stat")
-                if item_stat:
-                    overflow = max(0, total_damage - total_reduction)
-                    try:
-                        current_item_hp = _get_derived(defender, item_stat)
-                    except LoreKitError:
-                        current_item_hp = 0
-                    new_item_hp = current_item_hp - overflow
-                    _write_attr(db, defender.character_id, item_stat, new_item_hp)
-                    lines.append(f"  {item_stat}: {current_item_hp} → {new_item_hp}")
+        reduction = _apply_damage_effects(
+            db, defender, rxn.get("effects", []), total_damage, rxn["source"], rxn["reactor_name"], lines
+        )
+        total_reduction += reduction
 
         # Consume the reaction combat_state row
         row_id = rxn.get("row_id")
         dur_type = rxn.get("dur_type", "reaction")
         if row_id:
-            if dur_type == "triggered":
-                db.execute("DELETE FROM combat_state WHERE id = ?", (row_id,))
-            else:
-                db.execute("UPDATE combat_state SET duration = duration - 1 WHERE id = ?", (row_id,))
-            db.commit()
+            _consume_reaction(db, row_id, dur_type)
 
     # Apply final damage
     final_damage = max(0, total_damage - total_reduction)
