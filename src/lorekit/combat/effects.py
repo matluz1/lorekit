@@ -291,6 +291,14 @@ def _apply_on_hit(
 
         lines.append(f"DAMAGE: {' + '.join(damage_parts)} = {total_damage}")
 
+        # --- Damage reduction reactions (e.g. Shield Block) ---
+        if subtract_target:
+            from lorekit.combat.reactions import _check_damage_reactions
+
+            reduction = _check_damage_reactions(db, pack, defender, total_damage, lines)
+            if reduction > 0:
+                total_damage = max(0, total_damage - reduction)
+
         if target_stat == "current_hp":
             current = _ensure_current_hp(db, defender)
         else:

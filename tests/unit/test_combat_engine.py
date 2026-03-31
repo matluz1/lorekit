@@ -1943,3 +1943,108 @@ class TestDamageRecalc:
             assert int(dr[0]) == 6
         finally:
             db.close()
+
+
+class TestDamageReduction:
+    def test_shield_block_reduces_damage(self, make_session, make_character):
+        """Active shield_block reaction reduces damage before HP subtraction."""
+
+        from lorekit.character import set_attr
+        from lorekit.combat.resolve import resolve_action
+        from lorekit.db import require_db
+
+        db = require_db()
+        try:
+            sid = make_session()
+            atk_id = make_character(sid, name="Goblin", level=1)
+            def_id = make_character(sid, name="Torvik", level=1)
+
+            for key, val in [("str", "14"), ("dex", "12"), ("con", "12"), ("base_attack", "5"), ("hit_die_avg", "6")]:
+                set_attr(db, atk_id, "stat", key, val)
+            set_attr(db, atk_id, "combat", "base_attack", "5")
+            set_attr(db, atk_id, "combat", "hit_die_avg", "6")
+
+            for key, val in [("str", "14"), ("dex", "14"), ("con", "14"), ("base_attack", "3"), ("hit_die_avg", "6")]:
+                set_attr(db, def_id, "stat", key, val)
+            set_attr(db, def_id, "combat", "base_attack", "3")
+            set_attr(db, def_id, "combat", "hit_die_avg", "6")
+
+            from lorekit.rules import rules_calc
+
+            rules_calc(db, atk_id, TEST_SYSTEM)
+            rules_calc(db, def_id, TEST_SYSTEM)
+            set_attr(db, atk_id, "build", "weapon_damage_die", "1d8")
+
+            # Set shield hardness as a combat stat
+            set_attr(db, def_id, "combat", "shield_hardness", "5")
+            set_attr(db, def_id, "combat", "shield_hp", "20")
+
+            # Add shield_block reaction as combat_state row
+            db.execute(
+                "INSERT INTO combat_state "
+                "(character_id, source, target_stat, modifier_type, value, "
+                "duration_type, duration, metadata) "
+                "VALUES (?, ?, '_reaction', 'reaction', 0, 'reaction', 1, ?)",
+                (
+                    def_id,
+                    "shield_block",
+                    json.dumps(
+                        {
+                            "hook": "damage_reduction",
+                            "reaction_key": "shield_block",
+                            "effects": [
+                                {"type": "reduce_damage", "stat": "shield_hardness"},
+                                {"type": "damage_item", "item_stat": "shield_hp"},
+                            ],
+                        }
+                    ),
+                ),
+            )
+            db.commit()
+
+            # Start encounter so resolve_action works
+            from lorekit.encounter import start_encounter
+
+            start_encounter(
+                db,
+                sid,
+                [{"name": "Arena"}],
+                [{"character_id": atk_id, "roll": 20}, {"character_id": def_id, "roll": 10}],
+                placements=[
+                    {"character_id": atk_id, "zone": "Arena"},
+                    {"character_id": def_id, "zone": "Arena"},
+                ],
+                combat_cfg={},
+            )
+
+            # Attack: d20=18 (hit), damage d8=6, bonus str_mod (+2) = 8 total
+            # Shield block reduces by 5 -> net damage 3
+            roll_calls = iter([17, 5])  # d20=18, d8=6
+            with patch("secrets.randbelow", side_effect=roll_calls):
+                output = resolve_action(db, atk_id, def_id, "melee_attack", TEST_SYSTEM)
+
+            assert "HIT!" in output
+            assert "SHIELD BLOCK" in output
+
+            # Verify HP: should be max_hp - 3, not max_hp - 8
+            hp_row = db.execute(
+                "SELECT value FROM character_attributes WHERE character_id = ? AND key = 'current_hp'",
+                (def_id,),
+            ).fetchone()
+            max_hp_row = db.execute(
+                "SELECT value FROM character_attributes WHERE character_id = ? AND key = 'max_hp'",
+                (def_id,),
+            ).fetchone()
+            assert hp_row is not None
+            assert max_hp_row is not None
+            assert int(hp_row[0]) == int(max_hp_row[0]) - 3
+
+            # Verify shield took overflow damage: 20 - 3 = 17
+            shield_row = db.execute(
+                "SELECT value FROM character_attributes WHERE character_id = ? AND key = 'shield_hp'",
+                (def_id,),
+            ).fetchone()
+            assert shield_row is not None
+            assert int(shield_row[0]) == 17
+        finally:
+            db.close()
