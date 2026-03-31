@@ -14,7 +14,11 @@ from lorekit.rules import load_character_data
 def _get_reaction_policy(db, reactor_id: int, source: str) -> str:
     """Read the reaction policy for a specific reaction.
 
-    Returns 'active' (default), 'inactive', or 'ask'.
+    Returns:
+        'active'  — auto-fire (NPC default, simple behavior)
+        'inactive' — skip this reaction
+        'ask'     — NPC per-attack decision via callback
+        'pending' — PC: pause resolution, return options for player choice
     """
     row = db.execute(
         "SELECT value FROM character_attributes WHERE character_id = ? AND category = 'reaction_policy' AND key = ?",
@@ -134,6 +138,33 @@ def _check_reactions(
                     lines.append(f"REACTION [{source}]: declined")
                     continue
             # No callback (GM play) → treat as active
+
+        if policy == "pending":
+            reactor_name = _char_name_from_id(db, reactor_id)
+            effects = metadata.get("effects", [])
+            # Support legacy single-effect format
+            if not effects and "effect" in metadata:
+                legacy = metadata["effect"]
+                effect_entry = {"type": legacy}
+                if legacy == "use_reactor_stat":
+                    effect_entry["stat"] = metadata.get("stat", "deflect")
+                elif legacy == "counter_attack":
+                    effect_entry["action"] = metadata.get("counter_action", "close_attack")
+                effects = [effect_entry]
+
+            pending = modifications.setdefault("pending_reactions", [])
+            pending.append(
+                {
+                    "source": source,
+                    "reactor_id": reactor_id,
+                    "reactor_name": reactor_name,
+                    "reaction_key": reaction_key,
+                    "effects": effects,
+                    "row_id": row_id,
+                    "dur_type": dur_type,
+                }
+            )
+            continue  # Don't dispatch — caller will handle
 
         # Dispatch effects (composable list)
         reactor_name = _char_name_from_id(db, reactor_id)
