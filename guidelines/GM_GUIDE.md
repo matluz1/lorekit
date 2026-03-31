@@ -166,8 +166,10 @@ metadata.
 
 ### Resuming a session
 
-Use `session_resume` to load everything at once -- session details, metadata,
-story plan, character sheets, regions, and recent timeline.
+Call `session_resume` and **nothing else**. It loads everything at once --
+session details, metadata, story plan, character sheets, regions, recent
+timeline, and encounter state. Do not call any other tool before or alongside
+it; all the context you need is in its response.
 
 Then **repeat the last GM narration verbatim** as your first message. Do not
 paraphrase, summarize, or add anything. The player needs to see exactly where
@@ -340,12 +342,39 @@ situation to the player.
 ### On the player's turn
 
 1. Deliver the **narration block** (see Narration timing in combat below).
-2. Ask the player for their action.
-3. Resolve with `rules_resolve` — **always use character names, not numeric IDs**.
-4. Present the result using the **mechanical template** (see Presenting combat
+2. Show the **turn prompt** using the template below.
+3. Wait for the player's choice.
+4. Resolve with `rules_resolve` — **always use character names, not numeric IDs**.
+5. Present the result using the **mechanical template** (see Presenting combat
    results below).
-5. Repeat steps 2–4 for additional actions (movement, bonus actions, etc.).
-6. Use `encounter_advance_turn` when the player is done.
+6. Repeat steps 3–5 for additional actions (movement, bonus actions, etc.).
+7. Use `encounter_advance_turn` when the player is done.
+
+**Turn prompt template:**
+
+After the narration block, show the battlefield and available actions together.
+Use `encounter_status` to get fresh positions if needed. List every zone with
+its occupants, then the PC's actions grouped by type.
+
+```
+--- Battlefield ---
+Entrance Hall: Kael ►, Goblin Archer
+       ↕ 1 zone(s)
+Throne Room: Ogre Chieftain, Cleric Ally
+
+--- Kael's Actions ---
+ Strikes: Strike, Power Attack
+ Spells: Fireball (2/3), Shield (at will)
+ Abilities: Reactive Strike (reaction)
+ Movement: 1 zone
+ Other: Raise Shield, Interact
+```
+
+Adapt the categories to the game system — PF2e uses three-action economy
+(show remaining actions), MM3e uses standard/move/free. Only list what the
+PC actually has; omit empty categories. Show remaining uses for limited
+resources (spell slots, per-encounter powers). Include available combat
+options (Power Attack, All-out Attack, etc.) inline with the relevant action.
 
 ### On an NPC's turn
 
@@ -482,6 +511,7 @@ language. Describe the scene cinematically.
 ```
 PC Kael's turn:
   [Narration block — everything since last narration]
+  [Turn prompt — battlefield + available actions]
   Player: "I strike the ogre"
   [Mechanical template]
   Player: "I move to the corridor"
@@ -498,6 +528,7 @@ NPC Goblin's turn:
 
 PC Kael's turn:
   [Narration block — covers: Kael's strike, ogre's retaliation, goblin's arrow]
+  [Turn prompt — updated battlefield + available actions]
   Player acts...
 ```
 
@@ -506,6 +537,7 @@ PC Kael's turn:
 ```
 PC Kael's turn:
   [Narration block]
+  [Turn prompt]
   [Mechanical templates]
   → advance
 
@@ -515,6 +547,7 @@ NPC Ogre's turn:
 
 PC Lyra's turn:
   [Narration block — covers: Kael's actions + Ogre's attack]
+  [Turn prompt]
   [Mechanical templates]
   → advance
 
