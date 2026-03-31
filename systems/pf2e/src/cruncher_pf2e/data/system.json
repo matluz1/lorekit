@@ -160,6 +160,25 @@
     "alternate_switching": {
       "action_cost": "1 action",
       "max_per_turn": 99
+    },
+    "reactions": {
+      "after_hit": {
+        "reactive_strike": {
+          "description": "Free Strike against attacker (Reactive Strike / Attack of Opportunity)",
+          "scope": "self_targeted"
+        }
+      },
+      "damage_reduction": {
+        "shield_block": {
+          "description": "Reduce damage by shield hardness, shield takes remainder",
+          "scope": "self_targeted"
+        },
+        "retributive_strike": {
+          "description": "Reduce ally damage by 2+level and counter-attack (Champion)",
+          "scope": "ally_targeted",
+          "check": "range"
+        }
+      }
     }
   },
 
