@@ -160,6 +160,37 @@ def rules_resolve(
         db.close()
 
 
+@mcp.tool()
+def confirm_resolution(
+    pending_id: int,
+    reactions: str = "[]",
+) -> str:
+    """Confirm a pending combat resolution with reaction choices.
+
+    Called after resolve_action returns a PENDING REACTION result.
+    The GM presents the reaction options to the player, then calls
+    this tool with the player's choices.
+
+    pending_id: the pending resolution ID from the PENDING REACTION output.
+    reactions: JSON list of reaction source names to activate,
+              e.g. '["shield_block"]'. Empty list '[]' declines all.
+    """
+    import json
+
+    from lorekit.db import LoreKitError, require_db
+
+    db = require_db()
+    try:
+        reaction_list = json.loads(reactions) if reactions else []
+        from lorekit.combat.pending import confirm_pending
+
+        return confirm_pending(db, pending_id, reactions=reaction_list)
+    except LoreKitError as e:
+        return f"ERROR: {e}"
+    finally:
+        db.close()
+
+
 def rules_calc(character_id: int | str, system_path: str = "") -> str:
     """Recompute all derived stats for a character using the rules engine.
 
