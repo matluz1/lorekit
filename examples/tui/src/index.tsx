@@ -7,7 +7,7 @@ import { isServerRunning, setBaseUrl } from "./api.js";
 
 const DEFAULT_PORT = 8765;
 
-async function waitForServer(maxWaitMs = 10_000): Promise<boolean> {
+async function waitForServer(maxWaitMs = 30_000): Promise<boolean> {
   const start = Date.now();
   while (Date.now() - start < maxWaitMs) {
     if (await isServerRunning()) return true;
