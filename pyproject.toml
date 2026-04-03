@@ -20,6 +20,13 @@ dev = [
     "pre-commit",
     "pytest-asyncio",
 ]
+server = [
+    "starlette",
+    "uvicorn",
+]
+
+[project.scripts]
+lorekit = "lorekit.http_server:main"
 
 [build-system]
 requires = ["hatchling"]
