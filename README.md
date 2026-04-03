@@ -59,7 +59,7 @@ pre-commit install
 ## Testing
 
 ```bash
-pytest                       # all 1008 tests
+pytest                       # all 1010 tests
 pytest tests/unit/           # fast — single-module tests
 pytest tests/integration/    # cross-module interaction tests
 ```
@@ -96,16 +96,17 @@ make serve
 ```python
 from lorekit.orchestrator import GameSession
 
-session = GameSession(campaign_dir="~/my-campaign")
+session = GameSession()
+await session.start()
 async for event in session.send("I search the room for traps"):
-    print(event)
+    print(event.content)
 ```
 
 ## Project Structure
 
 ```
 lorekit/
-├── cruncher/                 Pure rules engine (pip install cruncher)
+├── cruncher/                 Pure rules engine (pip install lorekit-cruncher)
 │   └── src/cruncher/
 │       ├── formulas.py       Expression parser + evaluator
 │       ├── stacking.py       Modifier stacking resolution
@@ -150,7 +151,7 @@ lorekit/
 │   └── mm3e/                 d20 Hero SRD 3e (OGL 1.0a)
 │
 ├── guidelines/               Agent guidelines (GM, NPC, shared)
-├── tests/                    1008 tests (unit/ + integration/)
+├── tests/                    1010 tests (unit/ + integration/)
 ├── examples/                 Reference client implementations
 │   └── tui/                  Terminal UI (TypeScript/React/Ink)
 ├── Makefile                  Common tasks (tui, serve, test, lint)

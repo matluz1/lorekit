@@ -226,7 +226,7 @@ subprocess and GM agent lifecycle.
 | `command(cmd, **kwargs)` | Executes a direct MCP tool call (e.g. save, load) via HTTP to the MCP server, bypassing the GM agent |
 | `stop()` | Shuts down the GM agent and MCP server |
 
-Constructor params: `campaign_dir` (required), `provider` and `model`
+Constructor params: `campaign_dir` (optional, defaults to `~/.config/lorekit/campaign/`), `provider` and `model`
 (optional — fall back to config file).
 
 ### GameEvent Types
