@@ -50,7 +50,6 @@ def test_load_provider_unknown():
         load_provider("nonexistent")
 
 
-@pytest.mark.skip(reason="implemented in Task 4")
 def test_load_provider_claude():
     provider = load_provider("claude")
     assert isinstance(provider, AgentProvider)
