@@ -112,8 +112,14 @@ class GameSession:
             stderr=subprocess.PIPE,
         )
 
+        # Check if embedding model needs downloading (cheap filesystem check)
+        cache_dir = os.path.join(os.environ.get("HF_HOME", os.path.expanduser("~/.cache/huggingface")), "hub")
+        if not os.path.isdir(os.path.join(cache_dir, "models--intfloat--multilingual-e5-small")):
+            self._emit(
+                GameEvent(type="system", content="Downloading embedding model (~488MB)... this only happens once.")
+            )
+
         # Wait for MCP server to be ready on port 3847
-        # (the MCP server loads the embedding model before listening, so this takes a while on first run)
         self._emit(GameEvent(type="system", content="Starting game engine..."))
         await self._wait_for_mcp_server()
 
