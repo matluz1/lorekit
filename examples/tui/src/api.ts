@@ -113,8 +113,8 @@ export async function unsavedCount(): Promise<number> {
 
 // -- Lifecycle events (GET /events SSE) --
 
-export async function* listenEvents(): AsyncGenerator<GameEvent> {
-  const res = await fetch(`${baseUrl}/events`);
+export async function* listenEvents(signal?: AbortSignal): AsyncGenerator<GameEvent> {
+  const res = await fetch(`${baseUrl}/events`, { signal });
   if (!res.ok) return;
 
   const reader = res.body?.getReader();

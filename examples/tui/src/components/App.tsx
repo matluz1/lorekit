@@ -48,21 +48,26 @@ export function App() {
   const [npcToolCalls, setNpcToolCalls] = useState<NpcToolCallEntry[]>([]);
 
   // Listen to server lifecycle events
+  const eventsAbortRef = useRef<AbortController | null>(null);
   useEffect(() => {
-    let cancelled = false;
+    const abort = new AbortController();
+    eventsAbortRef.current = abort;
     async function listen() {
-      for await (const event of listenEvents()) {
-        if (cancelled) break;
-        if (event.type === "system") {
-          setMessages((prev) => [...prev, chatMsg("system", event.content)]);
-          if (event.content.startsWith("GM ready")) {
-            setIsReady(true);
+      try {
+        for await (const event of listenEvents(abort.signal)) {
+          if (event.type === "system") {
+            setMessages((prev) => [...prev, chatMsg("system", event.content)]);
+            if (event.content.startsWith("GM ready")) {
+              setIsReady(true);
+            }
           }
         }
+      } catch {
+        // AbortError when component unmounts — expected
       }
     }
     listen();
-    return () => { cancelled = true; };
+    return () => { abort.abort(); };
   }, []);
 
   // Throttle streaming text updates
@@ -80,6 +85,7 @@ export function App() {
       if (isStreamingRef.current || !isReady) return;
 
       if (text.toLowerCase() === "/quit") {
+        eventsAbortRef.current?.abort();
         exit();
         return;
       }
