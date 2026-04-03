@@ -25,6 +25,11 @@ def config_path() -> Path:
     return Path(user_config_dir("lorekit")) / "config.toml"
 
 
+def default_campaign_dir() -> Path:
+    """Default campaign data directory."""
+    return Path(user_config_dir("lorekit")) / "campaign"
+
+
 def load_config(path: Path | None = None) -> LoreKitConfig:
     """Load config from TOML file. Returns defaults if file is missing."""
     p = path or config_path()
@@ -40,6 +45,6 @@ def load_config(path: Path | None = None) -> LoreKitConfig:
         provider=agent.get("provider"),
         model=agent.get("model"),
         port=server.get("port", 8765),
-        campaign_dir=Path(campaign_dir_str) if campaign_dir_str else None,
+        campaign_dir=Path(campaign_dir_str) if campaign_dir_str else default_campaign_dir(),
         debug=raw.get("debug", False),
     )

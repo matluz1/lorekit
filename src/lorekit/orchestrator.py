@@ -61,8 +61,6 @@ class GameSession:
         self._provider_name = provider or cfg.provider
         self._model = model or cfg.model
 
-        if not self._campaign_dir:
-            raise ValueError("campaign_dir is required. Set [campaign] dir in config.toml or pass campaign_dir=.")
         if not self._provider_name:
             raise ValueError("No provider configured. Set [agent] provider in config.toml or pass provider=.")
         if not self._model:
@@ -94,6 +92,18 @@ class GameSession:
 
     async def start(self) -> None:
         """Start the MCP server and spawn the GM agent."""
+        # Ensure campaign directory exists
+        self._campaign_dir.mkdir(parents=True, exist_ok=True)
+
+        from lorekit.config import config_path
+
+        self._emit(
+            GameEvent(
+                type="system",
+                content=f"Game data stored in {self._campaign_dir}. To change, set [campaign] dir in {config_path()}.",
+            )
+        )
+
         self._mcp_proc = subprocess.Popen(
             [
                 sys.executable,
