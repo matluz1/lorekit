@@ -211,7 +211,9 @@ def _npc_log(msg: str):
 
     from datetime import datetime
 
-    log_path = os.path.join(str(cfg.campaign_dir or "."), "lorekit.log")
+    from lorekit.config import config_path
+
+    log_path = os.path.join(str(config_path().parent), "lorekit.log")
     ts = datetime.now().strftime("%H:%M:%S.%f")[:12]
     with open(log_path, "a") as f:
         f.write(f"{ts} NPC {msg}\n")

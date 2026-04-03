@@ -126,10 +126,10 @@ class GameSession:
         # Load guidelines for GM system prompt
         system_prompt = _load_guidelines()
 
-        # Write temporary MCP config for the GM agent
-        import tempfile
+        # Write MCP config to lorekit config dir
+        from lorekit.config import config_path
 
-        mcp_config = Path(tempfile.mkdtemp()) / ".mcp.json"
+        mcp_config = config_path().parent / ".mcp.json"
         mcp_config.write_text(
             json.dumps(
                 {
