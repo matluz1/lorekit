@@ -111,18 +111,48 @@ export async function unsavedCount(): Promise<number> {
   return parseInt(result, 10) || 0;
 }
 
+// -- Lifecycle events (GET /events SSE) --
+
+export async function* listenEvents(): AsyncGenerator<GameEvent> {
+  const res = await fetch(`${baseUrl}/events`);
+  if (!res.ok) return;
+
+  const reader = res.body?.getReader();
+  if (!reader) return;
+
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split("\n");
+    buffer = lines.pop() ?? "";
+
+    for (const line of lines) {
+      if (!line.startsWith("data: ")) continue;
+      try {
+        const event: GameEvent = JSON.parse(line.slice(6));
+        yield event;
+      } catch {
+        // skip malformed
+      }
+    }
+  }
+}
+
 // -- Server health check --
 
 export async function isServerRunning(): Promise<boolean> {
   try {
-    const res = await fetch(`${baseUrl}/message`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text: "" }),
+    const res = await fetch(`${baseUrl}/events`, {
       signal: AbortSignal.timeout(2000),
     });
-    // 400 (missing text) means server is running
-    return res.status === 400 || res.ok;
+    // Any response means server is up (SSE streams return 200)
+    res.body?.cancel();
+    return true;
   } catch {
     return false;
   }

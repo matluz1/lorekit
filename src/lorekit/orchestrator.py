@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import os
 import subprocess
@@ -70,11 +71,25 @@ class GameSession:
         self._mcp_proc: subprocess.Popen | None = None
         self._gm_process: AgentProcess | None = None
         self._mcp_session_id: str | None = None
+        self._event_queues: list[asyncio.Queue[GameEvent | None]] = []
+
+    def _emit(self, event: GameEvent) -> None:
+        """Push a lifecycle event to all connected /events listeners."""
+        for q in self._event_queues:
+            q.put_nowait(event)
+
+    def subscribe(self) -> asyncio.Queue[GameEvent | None]:
+        """Subscribe to lifecycle events. Returns a queue. None = stream ended."""
+        q: asyncio.Queue[GameEvent | None] = asyncio.Queue()
+        self._event_queues.append(q)
+        return q
+
+    def unsubscribe(self, q: asyncio.Queue) -> None:
+        """Remove a subscriber."""
+        self._event_queues = [x for x in self._event_queues if x is not q]
 
     async def start(self) -> None:
         """Start the MCP server and spawn the GM agent."""
-        import asyncio
-
         self._mcp_proc = subprocess.Popen(
             [
                 sys.executable,
@@ -95,6 +110,9 @@ class GameSession:
 
         # Wait for MCP server to be ready on port 3847
         await self._wait_for_mcp_server()
+
+        # Check if embedding model needs downloading
+        await self._ensure_embedding_model()
 
         # Load guidelines for GM system prompt
         system_prompt = _load_guidelines()
@@ -120,6 +138,37 @@ class GameSession:
             mcp_config=mcp_config,
             model=self._model,
         )
+
+        self._emit(GameEvent(type="system", content="GM ready. Type your action."))
+
+    async def _ensure_embedding_model(self) -> None:
+        """Check if the embedding model is cached; download if needed."""
+        loop = asyncio.get_running_loop()
+
+        def _check_and_load():
+            from lorekit.support.vectordb import _model_resolved
+
+            if _model_resolved:
+                return
+            cache_dir = os.path.join(os.environ.get("HF_HOME", os.path.expanduser("~/.cache/huggingface")), "hub")
+            model_dir = os.path.join(cache_dir, "models--intfloat--multilingual-e5-small")
+            needs_download = not os.path.isdir(model_dir)
+            return needs_download
+
+        needs_download = await loop.run_in_executor(None, _check_and_load)
+
+        if needs_download:
+            self._emit(
+                GameEvent(type="system", content="Downloading embedding model (~488MB)... this only happens once.")
+            )
+
+        # Load the model (downloads if needed)
+        def _load():
+            from lorekit.support.vectordb import _get_model
+
+            _get_model()
+
+        await loop.run_in_executor(None, _load)
 
     async def _wait_for_mcp_server(self, timeout: float = 30) -> None:
         """Wait for the MCP server to accept connections on port 3847."""

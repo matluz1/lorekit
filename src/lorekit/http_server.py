@@ -45,27 +45,66 @@ async def command_endpoint(request: Request) -> JSONResponse:
     return JSONResponse({"result": result})
 
 
+async def events_endpoint(request: Request) -> StreamingResponse:
+    """GET /events — persistent SSE stream for server lifecycle events."""
+    if _session is None:
+        return JSONResponse({"error": "Server not ready"}, status_code=503)
+
+    queue = _session.subscribe()
+
+    async def event_stream():
+        try:
+            while True:
+                event = await queue.get()
+                if event is None:
+                    break
+                yield f"data: {json.dumps({'type': event.type, 'content': event.content})}\n\n"
+        finally:
+            _session.unsubscribe(queue)
+
+    return StreamingResponse(event_stream(), media_type="text/event-stream")
+
+
 app = Starlette(
     routes=[
         Route("/message", message_endpoint, methods=["POST"]),
         Route("/command", command_endpoint, methods=["POST"]),
+        Route("/events", events_endpoint, methods=["GET"]),
     ],
 )
 
 
 async def serve(campaign_dir, provider=None, model=None, port=8765):
     """Start the HTTP server programmatically."""
+    import asyncio
+
     import uvicorn
 
     global _session
     _session = GameSession(campaign_dir=campaign_dir, provider=provider, model=model)
-    await _session.start()
+
     config = uvicorn.Config(app, host="127.0.0.1", port=port)
     server = uvicorn.Server(config)
-    try:
-        await server.serve()
-    finally:
-        await _session.stop()
+
+    # Start HTTP server first so clients can connect to /events,
+    # then run GameSession.start() which emits lifecycle events.
+    async def run():
+        await server.startup()
+
+        # Give clients a moment to connect to /events before emitting startup events
+        start_task = asyncio.create_task(_delayed_start())
+        try:
+            await server.main_loop()
+        finally:
+            start_task.cancel()
+            await _session.stop()
+            await server.shutdown()
+
+    async def _delayed_start():
+        await asyncio.sleep(1)
+        await _session.start()
+
+    await run()
 
 
 def main():

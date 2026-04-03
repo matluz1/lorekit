@@ -3,7 +3,7 @@ import React, { useState, useCallback, useRef, useEffect, useMemo } from "react"
 import { Box, Text, useApp } from "ink";
 import { Chat, chatMsg, type ChatMessage } from "./Chat.js";
 import { Input } from "./Input.js";
-import { sendMessage, save, saveList, unsavedCount, loadSave, type GameEvent } from "../api.js";
+import { sendMessage, save, saveList, unsavedCount, loadSave, listenEvents, type GameEvent } from "../api.js";
 
 /** A tool call logged during the current GM turn. */
 export interface ToolCallEntry {
@@ -46,12 +46,19 @@ export function App() {
   const [toolCalls, setToolCalls] = useState<ToolCallEntry[]>([]);
   const [npcToolCalls, setNpcToolCalls] = useState<NpcToolCallEntry[]>([]);
 
-  // Mark ready on mount
+  // Listen to server lifecycle events
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setMessages((prev) => [...prev, chatMsg("system", "GM ready. Type your action.")]);
-    }, 500);
-    return () => clearTimeout(timer);
+    let cancelled = false;
+    async function listen() {
+      for await (const event of listenEvents()) {
+        if (cancelled) break;
+        if (event.type === "system") {
+          setMessages((prev) => [...prev, chatMsg("system", event.content)]);
+        }
+      }
+    }
+    listen();
+    return () => { cancelled = true; };
   }, []);
 
   // Throttle streaming text updates
