@@ -3,7 +3,9 @@ import React from "react";
 import { render } from "ink";
 import { execSync, spawn, type ChildProcess } from "node:child_process";
 import { App } from "./components/App.js";
-import { isServerRunning, setBaseUrl } from "./api.js";
+import { setBaseUrl } from "./api.js";
+
+const DEFAULT_PORT = 8765;
 
 function hasCommand(cmd: string): boolean {
   try {
@@ -14,9 +16,13 @@ function hasCommand(cmd: string): boolean {
   }
 }
 
-const DEFAULT_PORT = 8765;
+function killExisting() {
+  try { execSync("pkill -f 'lorekit.server'", { stdio: "ignore" }); } catch {}
+  try { execSync("pkill -f 'lorekit.http_server'", { stdio: "ignore" }); } catch {}
+}
 
 async function waitForServer(maxWaitMs = 30_000): Promise<boolean> {
+  const { isServerRunning } = await import("./api.js");
   const start = Date.now();
   while (Date.now() - start < maxWaitMs) {
     if (await isServerRunning()) return true;
@@ -28,64 +34,47 @@ async function waitForServer(maxWaitMs = 30_000): Promise<boolean> {
 async function main() {
   setBaseUrl(`http://127.0.0.1:${DEFAULT_PORT}`);
 
-  let serverProc: ChildProcess | undefined;
-  let weStartedServer = false;
+  // Always start fresh
+  killExisting();
 
-  // Check if server is already running
-  const alreadyRunning = await isServerRunning();
+  const [cmd, args] = hasCommand("lorekit")
+    ? ["lorekit", ["serve"]]
+    : ["uv", ["run", "lorekit", "serve"]];
 
-  if (!alreadyRunning) {
-    // Auto-start lorekit serve — all config comes from ~/.config/lorekit/config.toml
-    // Use `lorekit` if installed, otherwise try `uv run lorekit` for dev environments
-    const [cmd, args] = hasCommand("lorekit")
-      ? ["lorekit", ["serve"]]
-      : ["uv", ["run", "lorekit", "serve"]];
+  const serverProc = spawn(cmd, args, {
+    stdio: ["ignore", "ignore", "pipe"],
+    detached: true,
+  });
+  serverProc.unref();
 
-    serverProc = spawn(cmd, args, {
-      stdio: ["ignore", "ignore", "pipe"],
-      detached: true,
-    });
-    serverProc.unref();
-    weStartedServer = true;
+  // Capture stderr to show config errors
+  let stderr = "";
+  serverProc.stderr?.on("data", (data: Buffer) => {
+    stderr += data.toString();
+  });
 
-    // Capture stderr to show config errors
-    let stderr = "";
-    serverProc.stderr?.on("data", (data: Buffer) => {
-      stderr += data.toString();
-    });
-
-    serverProc.on("exit", (code) => {
-      if (code && code !== 0 && !weStartedServer) return;
-      if (code && code !== 0) {
-        // Server failed to start — likely missing config
-        const msg = stderr.includes("No provider configured")
-          ? "Missing config. Create ~/.config/lorekit/config.toml with:\n\n  [agent]\n  provider = \"claude\"\n  model = \"opus\""
-          : stderr.includes("No model configured")
-            ? "Missing model. Add to ~/.config/lorekit/config.toml:\n\n  [agent]\n  model = \"opus\""
-            : `Server failed: ${stderr.trim().split("\n").pop()}`;
-        console.error(msg);
-        process.exit(1);
-      }
-    });
-
-    const ready = await waitForServer();
-    if (!ready) {
-      // Check if process already exited with an error
-      if (serverProc.exitCode !== null) {
-        // Error message already printed by the exit handler
-        process.exit(1);
-      }
-      console.error("Failed to connect to lorekit server after 10 seconds.");
+  serverProc.on("exit", (code) => {
+    if (code && code !== 0) {
+      const msg = stderr.includes("No provider configured")
+        ? "Missing config. Create ~/.config/lorekit/config.toml with:\n\n  [agent]\n  provider = \"claude\"\n  model = \"opus\""
+        : stderr.includes("No model configured")
+          ? "Missing model. Add to ~/.config/lorekit/config.toml:\n\n  [agent]\n  model = \"opus\""
+          : `Server failed: ${stderr.trim().split("\n").pop()}`;
+      console.error(msg);
       process.exit(1);
     }
+  });
+
+  const ready = await waitForServer();
+  if (!ready) {
+    if (serverProc.exitCode !== null) process.exit(1);
+    console.error("Failed to connect to lorekit server after 30 seconds.");
+    process.exit(1);
   }
 
-  // Ensure server cleanup on any exit — kill the process group to stop
-  // the HTTP server, MCP server, and GM agent subprocess
+  // Kill everything on exit
   function cleanup() {
-    if (weStartedServer && serverProc?.pid) {
-      try { process.kill(-serverProc.pid, "SIGTERM"); } catch {}
-    }
+    try { process.kill(-serverProc.pid!, "SIGTERM"); } catch {}
   }
   process.on("exit", cleanup);
   process.on("SIGINT", () => { cleanup(); process.exit(0); });
