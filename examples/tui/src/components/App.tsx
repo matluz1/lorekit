@@ -33,6 +33,7 @@ export function App() {
   ]);
   const [streamingText, setStreamingText] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
+  const [isReady, setIsReady] = useState(false);
   const isStreamingRef = useRef(false);
 
   useEffect(() => {
@@ -54,6 +55,9 @@ export function App() {
         if (cancelled) break;
         if (event.type === "system") {
           setMessages((prev) => [...prev, chatMsg("system", event.content)]);
+          if (event.content.startsWith("GM ready")) {
+            setIsReady(true);
+          }
         }
       }
     }
@@ -73,7 +77,7 @@ export function App() {
   // ── Submit handler ───────────────────────────────────
   const handleSubmit = useCallback(
     async (text: string) => {
-      if (isStreamingRef.current) return;
+      if (isStreamingRef.current || !isReady) return;
 
       if (text.toLowerCase() === "/quit") {
         exit();
@@ -261,7 +265,7 @@ export function App() {
         )}
         <Input
           onSubmit={handleSubmit}
-          disabled={isStreaming}
+          disabled={isStreaming || !isReady}
         />
       </Box>
 
