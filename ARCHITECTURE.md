@@ -1208,7 +1208,7 @@ Key behavioral rules from SHARED_GUIDE:
 
 ## Development Setup
 
-**Install:** `uv sync`
+**Install:** `uv sync` (or `pip install -e cruncher/ -e .`)
 **Test:** `make test` (1010 tests)
 **Lint:** `make lint` (ruff, also runs via pre-commit hooks)
 

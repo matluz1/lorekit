@@ -35,6 +35,11 @@ packages.
 
 ```bash
 uv sync
+
+# or
+python3.13 -m venv .venv
+source .venv/bin/activate
+pip install -e cruncher/ -e .
 ```
 
 Configuration lives in `~/.config/lorekit/config.toml`. On first run, lorekit
@@ -44,6 +49,10 @@ creates the database automatically.
 
 ```bash
 uv sync --group dev
+pre-commit install
+
+# or
+pip install -e ".[dev]"
 pre-commit install
 ```
 
