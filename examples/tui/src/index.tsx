@@ -1,7 +1,6 @@
 // examples/tui/src/index.tsx
 import React from "react";
 import { render } from "ink";
-import { resolve } from "node:path";
 import { spawn, type ChildProcess } from "node:child_process";
 import { App } from "./components/App.js";
 import { isServerRunning, setBaseUrl } from "./api.js";
@@ -50,6 +49,7 @@ async function main() {
 
   if (!alreadyRunning) {
     // Auto-start lorekit serve
+    // Expects `lorekit` to be installed in the active Python environment
     const serveArgs = ["serve", "--campaign-dir", campaignDir ?? ".", "--port", String(port)];
     if (model) serveArgs.push("--model", model);
 
