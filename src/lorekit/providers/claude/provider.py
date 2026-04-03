@@ -13,6 +13,25 @@ from lorekit.providers.claude.parse import collect_text, is_result_line, parse_j
 _EPHEMERAL_TIMEOUT = 120
 
 
+def _gm_log(line: str) -> None:
+    """Log a raw JSONL line from the GM agent. Only writes when debug=true."""
+    import os
+
+    from lorekit.config import load_config
+
+    cfg = load_config()
+    if not cfg.debug:
+        return
+
+    line = line.strip()
+    if not line:
+        return
+
+    log_path = os.path.join(str(cfg.campaign_dir or "."), "lorekit.log")
+    with open(log_path, "a") as f:
+        f.write(line + "\n")
+
+
 def _base_args(model: str, system_prompt: str) -> list[str]:
     """CLI args shared between persistent and ephemeral modes."""
     return [
@@ -86,6 +105,7 @@ class PersistentProcess:
             if not raw_line:
                 break
             line = raw_line.decode()
+            _gm_log(line)
             chunk = parse_jsonl_line(line)
 
             # Capture session ID from init messages — never yield them
