@@ -127,6 +127,7 @@ class ClaudeCLI:
             "--include-partial-messages",
             "--mcp-config",
             str(mcp_config),
+            "--strict-mcp-config",
         ]
         proc = subprocess.Popen(
             cmd,
