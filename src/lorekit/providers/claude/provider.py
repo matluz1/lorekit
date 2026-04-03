@@ -88,8 +88,8 @@ class PersistentProcess:
             line = raw_line.decode()
             chunk = parse_jsonl_line(line)
 
-            # Capture session ID from init message — don't yield it
-            if chunk and chunk.type == "system" and not self._session_id:
+            # Capture session ID from init messages — never yield them
+            if chunk and chunk.type == "system":
                 self._session_id = chunk.content
                 continue
 
