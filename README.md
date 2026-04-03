@@ -1,7 +1,12 @@
 # LoreKit
 
-Tabletop RPG toolkit for AI agents. Tracks everything needed to run full
-campaigns — characters, sessions, story arcs, regions, and more.
+Open-source TTRPG game engine for AI agents. Tracks everything needed to run
+full campaigns — characters, sessions, story arcs, regions, and more.
+
+Play via the terminal TUI, or embed lorekit in your own app (Discord bot, web
+client) using the GameSession Python API or the HTTP server. Under the hood,
+lorekit starts an MCP server and spawns an AI agent as the GM — the client just
+sends player messages and renders the responses.
 
 All mechanical crunch is handled deterministically by the
 [cruncher](cruncher/) engine so the AI never has to guess numbers. The GM
@@ -15,7 +20,7 @@ This repo ships two Python packages:
 | Package | Path | Description |
 |---------|------|-------------|
 | **cruncher** | `cruncher/` | Standalone, zero-dependency TTRPG rules engine. Pure computation — formulas, stacking, character building, stat derivation, dice. |
-| **lorekit** | `src/lorekit/` | Full MCP game engine. Session management, characters, combat orchestration, NPC agents, narrative tracking, semantic search. Depends on cruncher. |
+| **lorekit** | `src/lorekit/` | Full MCP game engine. Session management, characters, combat orchestration, NPC agents, narrative tracking, semantic search. Includes providers, orchestrator, config, and an optional HTTP server. Depends on cruncher. |
 
 System packs (`systems/`) are data, not code — they ship separately from both
 packages.
@@ -23,7 +28,8 @@ packages.
 ## Requirements
 
 - Python 3.13+
-- An AI agent with MCP support (e.g. Claude Code)
+- An AI CLI tool (e.g. Claude Code) — used by lorekit to run the GM agent
+- Optional: `starlette` + `uvicorn` for the HTTP server (`pip install lorekit[server]`)
 
 ## Setup
 
@@ -46,12 +52,14 @@ pre-commit install
 ## Testing
 
 ```bash
-pytest                       # all 876 tests
+pytest                       # all 1008 tests
 pytest tests/unit/           # fast — single-module tests
 pytest tests/integration/    # cross-module interaction tests
 ```
 
 ## Playing
+
+**TUI** (terminal interface):
 
 ```bash
 npx tsx tui/src/index.tsx opus
@@ -59,6 +67,22 @@ npx tsx tui/src/index.tsx opus
 
 The TUI launches the GM agent, which reads `guidelines/GM_GUIDE.md` and takes
 it from there. All game tools are provided through the MCP server.
+
+**HTTP server** (for web clients or custom frontends):
+
+```bash
+lorekit serve --campaign-dir ~/my-campaign
+```
+
+**Python API** (embed lorekit in your own application):
+
+```python
+from lorekit.orchestrator import GameSession
+
+session = GameSession(campaign_dir="~/my-campaign")
+async for event in session.send("I search the room for traps"):
+    print(event)
+```
 
 ## Project Structure
 
@@ -76,6 +100,12 @@ lorekit/
 │
 ├── src/lorekit/              Full game engine (pip install lorekit)
 │   ├── server.py             MCP server — 51 tools for the GM agent
+│   ├── providers/            Agent provider abstraction
+│   │   ├── base.py           StreamChunk, GameEvent, AgentProcess, AgentProvider
+│   │   └── claude/           Claude CLI provider (JSONL parser, process management)
+│   ├── config.py             Platform-aware TOML configuration
+│   ├── orchestrator.py       GameSession — public Python API
+│   ├── http_server.py        HTTP + SSE server (optional, requires lorekit[server])
 │   ├── rules.py              DB glue: load → cruncher → write back
 │   ├── combat/               Action resolution, conditions, turn lifecycle
 │   ├── encounter.py          Zone-based positioning, movement, initiative
@@ -103,7 +133,7 @@ lorekit/
 │   └── mm3e/                 d20 Hero SRD 3e (OGL 1.0a)
 │
 ├── guidelines/               Agent guidelines (GM, NPC, shared)
-├── tests/                    876 tests (unit/ + integration/)
+├── tests/                    1008 tests (unit/ + integration/)
 ├── tui/                      Terminal UI (TypeScript/React/Ink)
 └── data/game.db              SQLite database (created by init_db)
 ```

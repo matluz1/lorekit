@@ -6,12 +6,29 @@ as **data** in system packs.
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│  MCP Client (Claude, etc.)                              │
+│  Direct MCP Client (Claude Code, Codex, Gemini CLI)     │
 └────────────────────────┬────────────────────────────────┘
-                         │ tool calls (stdio or HTTP)
+                         │ MCP (stdio or HTTP)
+                         │
+┌──────────────────┐     │
+│  App Client      │     │
+│  (TUI, Discord,  │     │
+│   Web)           │     │
+└────────┬─────────┘     │
+         │ HTTP+SSE      │
+         │ or Python API │
+┌────────▼───────────────▼────────────────────────────────┐
+│  orchestrator.py — GameSession                          │
+│  (optional — manages MCP server + GM agent lifecycle)   │
+├─────────────────────────────────────────────────────────┤
+│  http_server.py — POST /message (SSE), POST /command    │
+│  (optional — requires lorekit[server])                  │
+└────────────────────────┬────────────────────────────────┘
+                         │
 ┌────────────────────────▼────────────────────────────────┐
-│  server.py — entrypoint (FastMCP via _mcp_app.py)       │
+│  server.py — MCP entrypoint (FastMCP via _mcp_app.py)   │
 │  tools/* — 51 @mcp.tool() across 8 domain modules       │
+│  --provider / --model / --campaign-dir CLI args          │
 └────────────────────────┬────────────────────────────────┘
                          │
       ┌──────────────────┼──────────────────┐
@@ -54,7 +71,8 @@ as **data** in system packs.
 | Package | Role | Dependencies |
 |---------|------|-------------|
 | **cruncher** | Pure computation engine — formulas, stacking, dice, build, recalculate | None (zero deps, Python 3.12+) |
-| **lorekit** | MCP server, DB orchestration, NPC agents, narrative tracking | cruncher, mcp (Python 3.13+) |
+| **lorekit** | MCP server, DB orchestration, NPC agents, narrative tracking | cruncher, mcp, platformdirs (Python 3.13+) |
+| **lorekit[server]** | HTTP+SSE server wrapping the orchestrator | starlette, uvicorn |
 | **systems/\*** | Game rules as JSON (one directory per system) | None (data only, separate pyproject.toml each) |
 
 Cruncher takes dataclasses in and returns dataclasses out. It never touches
@@ -67,12 +85,21 @@ All domain knowledge lives in system pack JSON files.
 
 ### MCP Server
 
-`_mcp_app.py` creates the single `FastMCP("lorekit")` instance. `server.py`
-is the entrypoint — it imports `lorekit.tools` (which triggers all
-`@mcp.tool()` registrations) and runs the server. Two transport modes:
+`_mcp_app.py` creates the single `FastMCP("lorekit")` instance and stores
+provider configuration via `configure_provider()` (called by `server.py` at
+startup). `server.py` is the entrypoint — it imports `lorekit.tools` (which
+triggers all `@mcp.tool()` registrations) and runs the server. CLI args:
 
-- **stdio** (default) — GM's Claude session connects via stdin/stdout
-- **`--http`** — streamable-http on port 3847 for NPC subprocess connections
+- **`--provider`** / **`--model`** — agent provider and model for NPC calls
+- **`--campaign-dir`** — sets `LOREKIT_DB_DIR` to the campaign directory
+- **`--http`** — streamable-http on port 3847 (used by orchestrator and NPC subprocesses)
+
+Two operating modes:
+
+- **Standalone** (default) — direct MCP server for AI tool users (Claude Code,
+  Codex, Gemini CLI). Connects via stdio or HTTP.
+- **Managed** — started as a child process by `GameSession` orchestrator, which
+  also spawns the GM agent and connects to the MCP server via HTTP.
 
 The embedding model (`intfloat/multilingual-e5-small`) is eagerly loaded at
 startup to avoid cold-start penalty on first semantic search.
@@ -162,6 +189,91 @@ Three layers:
 1. JSON parse errors caught at tool entry
 2. `LoreKitError` caught in try/finally wrapper
 3. Module functions handle domain errors internally
+
+---
+
+## Orchestration Layer
+
+The orchestration layer sits above the MCP server, providing a Python API
+and HTTP interface for application clients (TUI, Discord, web). It is
+optional — direct MCP clients skip it entirely.
+
+### Provider Protocol (`providers/base.py`)
+
+Three types define an agent-agnostic interface:
+
+| Type | Purpose |
+|------|---------|
+| **`AgentProvider`** | Factory protocol — `spawn_persistent()`, `spawn_ephemeral()`, `run_ephemeral_sync()` |
+| **`AgentProcess`** | Running process protocol — `send(message)` yields `StreamChunk`s, plus `stop()` and `alive` |
+| **`StreamChunk`** | Typed output fragment — `type` is one of `text`, `tool_use`, `tool_result`, `npc_tool_use`, `error`, `system` |
+
+The Claude provider is built-in (`providers/claude/`). Adding a new provider
+means implementing a new module under `providers/` that satisfies
+`AgentProvider`. The `load_provider(name)` function in `providers/__init__.py`
+loads a provider by name.
+
+### GameSession (`orchestrator.py`)
+
+Public Python API for running a full game session. Manages the MCP server
+subprocess and GM agent lifecycle.
+
+| Method | What it does |
+|--------|-------------|
+| `start()` | Spawns the MCP server (`server.py --http`), loads GM guidelines, writes a temporary `.mcp.json` config, spawns the GM agent via the configured provider |
+| `send(message, verbose)` | Sends a player message to the GM agent, streams back `GameEvent`s |
+| `command(cmd, **kwargs)` | Executes a direct MCP tool call (e.g. save, load) via HTTP to the MCP server, bypassing the GM agent |
+| `stop()` | Shuts down the GM agent and MCP server |
+
+Constructor params: `campaign_dir` (required), `provider` and `model`
+(optional — fall back to config file).
+
+### GameEvent Types
+
+`GameSession.send()` transforms raw `StreamChunk`s into curated `GameEvent`s
+for client consumption:
+
+| Event Type | When emitted | Verbose only? |
+|------------|-------------|---------------|
+| `narration` | Full accumulated text response, emitted at end of stream | No |
+| `narration_delta` | Incremental text fragment as it arrives | Yes |
+| `tool_activity` | GM agent used an MCP tool | Yes |
+| `npc_activity` | An NPC subprocess tool call was detected | Yes |
+| `error` | Agent process error | No |
+| `system` | System-level message (startup, shutdown) | No |
+
+Default mode emits only `narration`, `error`, and `system`. Verbose mode adds
+the delta and activity events for clients that want real-time streaming or
+progress indicators.
+
+### HTTP Server (`http_server.py`)
+
+Starlette app that wraps `GameSession` as an HTTP+SSE API. Requires the
+`lorekit[server]` optional extra (starlette + uvicorn).
+
+| Endpoint | Method | Request | Response |
+|----------|--------|---------|----------|
+| `/message` | POST | `{"text": "...", "verbose": false}` | SSE stream of `{"type": "...", "content": "..."}` events |
+| `/command` | POST | `{"cmd": "manual_save", "name": "checkpoint-1"}` | `{"result": "..."}` |
+
+CLI entry point: `lorekit serve --campaign-dir /path [--provider X] [--model Y] [--port 8765]`
+
+### Configuration (`config.py`)
+
+Platform-standard TOML config using `platformdirs.user_config_dir("lorekit")`.
+
+```toml
+[agent]
+provider = "claude"
+model = "sonnet"
+
+[server]
+port = 8765
+```
+
+Override chain: constructor params (highest priority) > config file > defaults.
+The config file location follows OS conventions (`~/.config/lorekit/config.toml`
+on Linux, `~/Library/Application Support/lorekit/config.toml` on macOS).
 
 ---
 
@@ -479,13 +591,13 @@ flowchart TD
         C --> C5["Guidelines: SHARED_GUIDE.md + NPC_GUIDE.md"]
     end
 
-    C5 --> D["Spawn subprocess: claude -p --model {model}"]
+    C5 --> D{"Provider configured?"}
+    D -->|Yes| D_P["provider.run_ephemeral_sync(prompt, model, message)"]
+    D -->|No| D_L["Spawn subprocess: claude -p --model {model}"]
 
-    subgraph subprocess ["NPC Agent (ephemeral subprocess)"]
-        D --> D1["No MCP tools (--tools empty)"]
-        D --> D2["No session persistence"]
-        D --> D3["Stream-json output parsed line-by-line"]
-        D --> D4["Logged to data/lorekit.log"]
+    subgraph subprocess ["NPC Agent (ephemeral, no tools or persistence)"]
+        D_P --> D4["Response text"]
+        D_L --> D4
     end
 
     D4 --> E[Postprocess Phase]
@@ -517,13 +629,31 @@ flowchart TD
 
 ### NPC Subprocess Details
 
-NPCs are spawned as ephemeral `claude` CLI processes:
+NPC calls route through the configured provider when one is set, with a
+legacy subprocess fallback:
+
+- **Provider path** — `provider.run_ephemeral_sync(system_prompt, model, message)`.
+  Uses the `AgentProvider` loaded from `_mcp_app.get_provider_name()`. The
+  provider handles process spawning, output parsing, and cleanup internally.
+- **Legacy path** — direct `claude` CLI subprocess (fallback when no provider
+  is configured). Spawns an ephemeral process with stream-json output parsing.
 
 ```
 claude -p --verbose --output-format stream-json --no-session-persistence
        --permission-mode bypassPermissions --tools "" --disable-slash-commands
        --model {model} --system-prompt {prompt} {message}
 ```
+
+Four call sites use this dual-path pattern:
+
+| Call site | Module | Purpose |
+|-----------|--------|---------|
+| `npc_interact` | `tools/npc.py` | Free-form NPC conversation |
+| `npc_combat_turn` | `tools/npc.py` | NPC combat intent generation |
+| `query_npc_reaction` | `npc/combat.py` | YES/NO reaction decision |
+| `_call_llm` | `npc/reflect.py` | Reflection and memory synthesis |
+
+Shared behavior across both paths:
 
 - **No tools** — NPCs are pure narrative agents; all context is pre-fetched
 - **No persistence** — each interaction is independent
