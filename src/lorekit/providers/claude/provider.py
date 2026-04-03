@@ -79,7 +79,7 @@ def _gm_log(line: str) -> None:
                     text = block.get("content", "")
                     if isinstance(text, list):
                         text = "".join(c.get("text", "") for c in text)
-                    _log_write(ts, "RESULT", str(text)[:500])
+                    _log_write(ts, "RESULT", str(text))
 
 
 def _flush_log_buffer(ts: str) -> None:

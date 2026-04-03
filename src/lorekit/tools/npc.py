@@ -318,13 +318,13 @@ def npc_interact(session_id: int, npc_id: int | str, message: str) -> str:
     finally:
         db.close()
 
-    _npc_log(f"[USER] → {npc_name}: {message[:500]}")
+    _npc_log(f"[USER] → {npc_name}: {message}")
 
     provider = _get_provider()
     if provider:
         try:
             response_text = provider.run_ephemeral_sync(system_prompt, model, message)
-            _npc_log(f"[INTERACT] ← {npc_name}: {response_text[:500]}")
+            _npc_log(f"[INTERACT] ← {npc_name}: {response_text}")
         except (RuntimeError, subprocess.TimeoutExpired) as e:
             return f"ERROR: NPC process failed: {e}"
     else:
@@ -523,13 +523,13 @@ def npc_combat_turn(session_id: int, npc_id: int | str) -> str:
     finally:
         db.close()
 
-    _npc_log(f"[COMBAT] → {npc_name}: combat turn\n{combat_context[:1000]}")
+    _npc_log(f"[COMBAT] → {npc_name}: combat turn\n{combat_context}")
 
     provider = _get_provider()
     if provider:
         try:
             response_text = provider.run_ephemeral_sync(system_prompt, model, combat_context)
-            _npc_log(f"[COMBAT] ← {npc_name} response: {response_text[:500]}")
+            _npc_log(f"[COMBAT] ← {npc_name} response: {response_text}")
         except (RuntimeError, subprocess.TimeoutExpired) as e:
             return f"ERROR: NPC process failed: {e}"
     else:
