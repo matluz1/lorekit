@@ -1,4 +1,4 @@
-# LoreKit
+# LoreKit𓂃🪶🎲
 
 Open-source TTRPG game engine for AI agents. Tracks everything needed to run
 full campaigns — characters, sessions, story arcs, regions, and more.
