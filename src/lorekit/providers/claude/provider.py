@@ -128,6 +128,11 @@ class ClaudeCLI:
             "--mcp-config",
             str(mcp_config),
             "--strict-mcp-config",
+            "--allowedTools",
+            "mcp__lorekit__*",
+            "--disallowedTools",
+            "mcp__lorekit__client_active_session_id",
+            "mcp__lorekit__client_unsaved_turn_count",
         ]
         proc = subprocess.Popen(
             cmd,
