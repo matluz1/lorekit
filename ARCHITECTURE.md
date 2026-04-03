@@ -1208,14 +1208,17 @@ Key behavioral rules from SHARED_GUIDE:
 
 ## Development Setup
 
-**Install:** `pip install -e cruncher/ -e .`
-**Test:** `.venv/bin/pytest tests/` (876 tests)
-**Lint:** ruff (via pre-commit hooks)
+**Install:** `uv sync`
+**Test:** `make test` (1010 tests)
+**Lint:** `make lint` (ruff, also runs via pre-commit hooks)
 
 ```bash
-pytest tests/unit/           # fast — single-module tests (856)
-pytest tests/integration/    # cross-module interaction tests (20)
-pytest                       # everything
+make test                    # all tests
+make lint                    # ruff check + format
+make tui                     # start the TUI
+make serve                   # start the HTTP server
+make status                  # check if server is running
+make stop                    # stop the server
 ```
 
 **Pre-commit hooks** (`.pre-commit-config.yaml`):
