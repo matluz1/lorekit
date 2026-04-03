@@ -72,15 +72,19 @@ class GameSession:
         self._gm_process: AgentProcess | None = None
         self._mcp_session_id: str | None = None
         self._event_queues: list[asyncio.Queue[GameEvent | None]] = []
+        self._event_history: list[GameEvent] = []
 
     def _emit(self, event: GameEvent) -> None:
         """Push a lifecycle event to all connected /events listeners."""
+        self._event_history.append(event)
         for q in self._event_queues:
             q.put_nowait(event)
 
     def subscribe(self) -> asyncio.Queue[GameEvent | None]:
-        """Subscribe to lifecycle events. Returns a queue. None = stream ended."""
+        """Subscribe to lifecycle events. Replays past events, then streams new ones."""
         q: asyncio.Queue[GameEvent | None] = asyncio.Queue()
+        for event in self._event_history:
+            q.put_nowait(event)
         self._event_queues.append(q)
         return q
 
