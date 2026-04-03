@@ -1,8 +1,0 @@
-{
-  "mcpServers": {
-    "lorekit": {
-      "command": ".venv/bin/python",
-      "args": ["-m", "lorekit.server"]
-    }
-  }
-}
