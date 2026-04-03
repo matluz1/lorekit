@@ -195,19 +195,6 @@ wheels = [
 ]
 
 [[package]]
-name = "cruncher"
-version = "0.5.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "click" },
-    { name = "pillow" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/2e/d9/bfeda1095eae5ec39a372e79ad6b12116ccf69e3d90be45cae1dd5b4665b/cruncher-0.5.0.tar.gz", hash = "sha256:c96ec911da21c4a9473c822b3586ecbd62f6ffad13c65da168eb6be14f485e20", size = 11342, upload-time = "2022-08-18T15:46:46.634Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/d7/5c/7aa228402a7fc2ed17492ae9222539521330502f5147f559c38f42f53f3a/cruncher-0.5.0-py3-none-any.whl", hash = "sha256:eff5ca570e423d0696efc8b3aff2add29ce0b9d211d66d9b29f7965dc5d05e63", size = 11945, upload-time = "2022-08-18T15:46:45.339Z" },
-]
-
-[[package]]
 name = "cryptography"
 version = "46.0.6"
 source = { registry = "https://pypi.org/simple" }
@@ -532,7 +519,7 @@ name = "lorekit"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
-    { name = "cruncher" },
+    { name = "lorekit-cruncher" },
     { name = "mcp", extra = ["cli"] },
     { name = "platformdirs" },
     { name = "sentence-transformers" },
@@ -547,10 +534,14 @@ dev = [
     { name = "pytest-cov" },
     { name = "ruff" },
 ]
+server = [
+    { name = "starlette" },
+    { name = "uvicorn" },
+]
 
 [package.metadata]
 requires-dist = [
-    { name = "cruncher" },
+    { name = "lorekit-cruncher", directory = "cruncher" },
     { name = "mcp", extras = ["cli"] },
     { name = "platformdirs" },
     { name = "pre-commit", marker = "extra == 'dev'" },
@@ -560,8 +551,15 @@ requires-dist = [
     { name = "ruff", marker = "extra == 'dev'" },
     { name = "sentence-transformers" },
     { name = "sqlite-vec" },
+    { name = "starlette", marker = "extra == 'server'" },
+    { name = "uvicorn", marker = "extra == 'server'" },
 ]
-provides-extras = ["dev"]
+provides-extras = ["dev", "server"]
+
+[[package]]
+name = "lorekit-cruncher"
+version = "0.1.0"
+source = { directory = "cruncher" }
 
 [[package]]
 name = "markdown-it-py"
@@ -901,12 +899,6 @@ sdist = { url = "https://files.pythonhosted.org/packages/65/ee/299d360cdc32edc7d
 wheels = [
     { url = "https://files.pythonhosted.org/packages/b7/b9/c538f279a4e237a006a2c98387d081e9eb060d203d8ed34467cc0f0b9b53/packaging-26.0-py3-none-any.whl", hash = "sha256:b36f1fef9334a5588b4166f8bcd26a14e521f2b55e6b9de3aaa80d3ff7a37529", size = 74366, upload-time = "2026-01-21T20:50:37.788Z" },
 ]
-
-[[package]]
-name = "pillow"
-version = "9.2.0"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/8c/92/2975b464d9926dc667020ed1abfa6276e68c3571dcb77e43347e15ee9eed/Pillow-9.2.0.tar.gz", hash = "sha256:75e636fd3e0fb872693f23ccb8a5ff2cd578801251f3a4f6854c6a5d437d3c04", size = 50017840, upload-time = "2022-07-01T18:31:16.936Z" }
 
 [[package]]
 name = "platformdirs"

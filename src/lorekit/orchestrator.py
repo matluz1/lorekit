@@ -139,7 +139,9 @@ class GameSession:
         # Write MCP config to lorekit config dir
         from lorekit.config import config_path
 
-        mcp_config = config_path().parent / ".mcp.json"
+        config_dir = config_path().parent
+        config_dir.mkdir(parents=True, exist_ok=True)
+        mcp_config = config_dir / ".mcp.json"
         mcp_config.write_text(
             json.dumps(
                 {

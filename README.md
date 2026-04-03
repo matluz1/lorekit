@@ -48,7 +48,7 @@ creates the database automatically.
 ## Development
 
 ```bash
-uv sync --group dev
+uv sync --extra dev
 pre-commit install
 
 # or

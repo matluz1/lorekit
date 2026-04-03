@@ -1,5 +1,5 @@
 [project]
-name = "cruncher"
+name = "lorekit-cruncher"
 version = "0.1.0"
 description = "Domain-agnostic TTRPG rules engine"
 requires-python = ">=3.12"

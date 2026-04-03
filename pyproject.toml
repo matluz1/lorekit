@@ -5,7 +5,7 @@ description = "MCP-based TTRPG game engine"
 requires-python = ">=3.13"
 license = "Apache-2.0"
 dependencies = [
-    "cruncher",
+    "lorekit-cruncher",
     "mcp[cli]",
     "sqlite-vec",
     "sentence-transformers",
@@ -27,6 +27,9 @@ server = [
 
 [project.scripts]
 lorekit = "lorekit.http_server:main"
+
+[tool.uv.sources]
+lorekit-cruncher = { path = "cruncher/" }
 
 [build-system]
 requires = ["hatchling"]
