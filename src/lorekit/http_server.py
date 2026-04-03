@@ -11,6 +11,7 @@ from starlette.responses import JSONResponse, StreamingResponse
 from starlette.routing import Route
 
 from lorekit.orchestrator import GameSession
+from lorekit.providers.base import GameEvent
 
 # Module-level session — set by serve() or main().
 _session: GameSession | None = None
@@ -30,7 +31,11 @@ async def message_endpoint(request: Request) -> StreamingResponse:
         async for event in _session.send(text, verbose=verbose):
             yield f"data: {json.dumps({'type': event.type, 'content': event.content})}\n\n"
 
-    return StreamingResponse(event_stream(), media_type="text/event-stream")
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 async def command_endpoint(request: Request) -> JSONResponse:
@@ -62,7 +67,11 @@ async def events_endpoint(request: Request) -> StreamingResponse:
         finally:
             _session.unsubscribe(queue)
 
-    return StreamingResponse(event_stream(), media_type="text/event-stream")
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 app = Starlette(
@@ -90,8 +99,14 @@ async def serve(campaign_dir, provider=None, model=None, port=8765):
     # The 2s delay gives clients time to connect to GET /events before lifecycle
     # events are emitted.
     async def _delayed_start():
-        await asyncio.sleep(2)
-        await _session.start()
+        try:
+            await asyncio.sleep(2)
+            await _session.start()
+        except Exception as e:
+            import traceback
+
+            traceback.print_exc()
+            _session._emit(GameEvent(type="error", content=f"Server startup failed: {e}"))
 
     start_task = asyncio.create_task(_delayed_start())
     try:
