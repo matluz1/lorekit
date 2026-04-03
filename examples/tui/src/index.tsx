@@ -1,9 +1,18 @@
 // examples/tui/src/index.tsx
 import React from "react";
 import { render } from "ink";
-import { spawn, type ChildProcess } from "node:child_process";
+import { execSync, spawn, type ChildProcess } from "node:child_process";
 import { App } from "./components/App.js";
 import { isServerRunning, setBaseUrl } from "./api.js";
+
+function hasCommand(cmd: string): boolean {
+  try {
+    execSync(`which ${cmd}`, { stdio: "ignore" });
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 const DEFAULT_PORT = 8765;
 
@@ -27,7 +36,12 @@ async function main() {
 
   if (!alreadyRunning) {
     // Auto-start lorekit serve — all config comes from ~/.config/lorekit/config.toml
-    serverProc = spawn("lorekit", ["serve"], {
+    // Use `lorekit` if installed, otherwise try `uv run lorekit` for dev environments
+    const [cmd, args] = hasCommand("lorekit")
+      ? ["lorekit", ["serve"]]
+      : ["uv", ["run", "lorekit", "serve"]];
+
+    serverProc = spawn(cmd, args, {
       stdio: ["ignore", "ignore", "pipe"],
       detached: false,
     });
