@@ -34,6 +34,7 @@ export function App() {
   const [streamingText, setStreamingText] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
   const [isReady, setIsReady] = useState(false);
+  const isReadyRef = useRef(false);
   const isStreamingRef = useRef(false);
 
   useEffect(() => {
@@ -59,6 +60,7 @@ export function App() {
             setMessages((prev) => [...prev, chatMsg("system", event.content)]);
             if (event.content.startsWith("GM ready")) {
               setIsReady(true);
+              isReadyRef.current = true;
             }
           }
         }
@@ -88,7 +90,7 @@ export function App() {
         return;
       }
 
-      if (isStreamingRef.current || !isReady) return;
+      if (isStreamingRef.current || !isReadyRef.current) return;
 
       // Save/load slash commands
       if (text.toLowerCase() === "/saves") {
