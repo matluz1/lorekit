@@ -18,6 +18,8 @@ _session: GameSession | None = None
 
 async def message_endpoint(request: Request) -> StreamingResponse:
     """POST /message — stream GameEvents as SSE."""
+    if _session is None:
+        return JSONResponse({"error": "Server not ready"}, status_code=503)
     body = await request.json()
     text = body.get("text")
     if not text:
@@ -33,6 +35,8 @@ async def message_endpoint(request: Request) -> StreamingResponse:
 
 async def command_endpoint(request: Request) -> JSONResponse:
     """POST /command — execute a direct command, return JSON."""
+    if _session is None:
+        return JSONResponse({"error": "Server not ready"}, status_code=503)
     body = await request.json()
     cmd = body.pop("cmd", None)
     if not cmd:

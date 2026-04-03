@@ -9,19 +9,16 @@ mcp = FastMCP("lorekit", host="127.0.0.1", port=NPC_MCP_PORT)
 
 _provider_name: str | None = None
 _default_model: str | None = None
-_campaign_dir: str | None = None
 
 
 def configure_provider(
     provider: str | None = None,
     model: str | None = None,
-    campaign_dir: str | None = None,
 ) -> None:
     """Called by server.py at startup with CLI args."""
-    global _provider_name, _default_model, _campaign_dir
+    global _provider_name, _default_model
     _provider_name = provider
     _default_model = model
-    _campaign_dir = campaign_dir
 
 
 def get_provider_name() -> str | None:

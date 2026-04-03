@@ -136,7 +136,7 @@ class GameSession:
             headers={"Content-Type": "application/json"},
         )
 
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
 
         def _do_call():
             with urllib.request.urlopen(req) as resp:

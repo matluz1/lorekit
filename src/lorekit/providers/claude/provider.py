@@ -80,7 +80,7 @@ class PersistentProcess:
         self._proc.stdin.write((msg + "\n").encode())
         self._proc.stdin.flush()
 
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         while True:
             raw_line = await loop.run_in_executor(None, self._proc.stdout.readline)
             if not raw_line:

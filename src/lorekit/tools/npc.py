@@ -24,19 +24,6 @@ def _get_provider():
     return load_provider(name)
 
 
-def _get_npc_model(db, npc_id: int) -> str:
-    """Read NPC model from character attributes, falling back to server default."""
-    from lorekit._mcp_app import get_default_model
-
-    row = db.execute(
-        "SELECT value FROM character_attributes WHERE character_id = ? AND category = 'system' AND key = 'model'",
-        (npc_id,),
-    ).fetchone()
-    if row:
-        return row[0]
-    return get_default_model() or "sonnet"
-
-
 _NPC_ALLOWED_TOOLS: list[str] = []
 
 _MCP_PREFIX = "mcp__lorekit__"
@@ -330,7 +317,10 @@ def npc_interact(session_id: int, npc_id: int | str, message: str) -> str:
 
     provider = _get_provider()
     if provider:
-        response_text = provider.run_ephemeral_sync(system_prompt, model, message)
+        try:
+            response_text = provider.run_ephemeral_sync(system_prompt, model, message)
+        except (RuntimeError, subprocess.TimeoutExpired) as e:
+            return f"ERROR: NPC process failed: {e}"
     else:
         project_root = _project_root()
 
@@ -531,7 +521,10 @@ def npc_combat_turn(session_id: int, npc_id: int | str) -> str:
 
     provider = _get_provider()
     if provider:
-        response_text = provider.run_ephemeral_sync(system_prompt, model, combat_context)
+        try:
+            response_text = provider.run_ephemeral_sync(system_prompt, model, combat_context)
+        except (RuntimeError, subprocess.TimeoutExpired) as e:
+            return f"ERROR: NPC process failed: {e}"
     else:
         # Call NPC subprocess for combat decision — no MCP tools
         project_root = _project_root()

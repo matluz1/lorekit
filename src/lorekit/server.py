@@ -6,7 +6,7 @@ from __future__ import annotations
 import os
 import sys
 
-import lorekit.tools  # noqa: F401 — registers all MCP tools
+import lorekit.tools
 from lorekit._mcp_app import configure_provider, mcp
 
 
@@ -29,7 +29,7 @@ if __name__ == "__main__":
     model = _parse_arg("model")
     campaign_dir = _parse_arg("campaign-dir")
 
-    configure_provider(provider=provider, model=model, campaign_dir=campaign_dir)
+    configure_provider(provider=provider, model=model)
 
     if campaign_dir:
         os.environ["LOREKIT_DB_DIR"] = campaign_dir
