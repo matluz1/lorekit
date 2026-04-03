@@ -18,6 +18,7 @@ from lorekit.providers.base import AgentProcess, GameEvent, StreamChunk
 async def _transform_events(
     chunks: AsyncIterator[StreamChunk],
     verbose: bool = False,
+    debug: bool = False,
 ) -> AsyncIterator[GameEvent]:
     """Transform raw StreamChunks into curated GameEvents."""
     text_parts: list[str] = []
@@ -36,7 +37,8 @@ async def _transform_events(
             if verbose:
                 yield GameEvent(type="npc_activity", content=chunk.content)
         elif chunk.type == "error":
-            yield GameEvent(type="error", content=chunk.content)
+            if debug:
+                yield GameEvent(type="error", content=chunk.content)
         elif chunk.type == "system":
             yield GameEvent(type="system", content=chunk.content)
 
@@ -60,6 +62,8 @@ class GameSession:
         self._campaign_dir = Path(campaign_dir) if campaign_dir else cfg.campaign_dir
         self._provider_name = provider or cfg.provider
         self._model = model or cfg.model
+
+        self._debug = cfg.debug
 
         if not self._provider_name:
             raise ValueError("No provider configured. Set [agent] provider in config.toml or pass provider=.")
@@ -187,7 +191,7 @@ class GameSession:
         if not self._gm_process or not self._gm_process.alive:
             yield GameEvent(type="error", content="GM process is not running.")
             return
-        async for event in _transform_events(self._gm_process.send(message), verbose=verbose):
+        async for event in _transform_events(self._gm_process.send(message), verbose=verbose, debug=self._debug):
             yield event
 
     async def command(self, cmd: str, **kwargs) -> str:
