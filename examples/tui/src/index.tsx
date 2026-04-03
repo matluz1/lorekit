@@ -43,7 +43,7 @@ async function main() {
 
     serverProc = spawn(cmd, args, {
       stdio: ["ignore", "ignore", "pipe"],
-      detached: false,
+      detached: true,
     });
     serverProc.unref();
     weStartedServer = true;
@@ -80,10 +80,11 @@ async function main() {
     }
   }
 
-  // Ensure server cleanup on any exit
+  // Ensure server cleanup on any exit — kill the process group to stop
+  // the HTTP server, MCP server, and GM agent subprocess
   function cleanup() {
     if (weStartedServer && serverProc?.pid) {
-      serverProc.kill();
+      try { process.kill(-serverProc.pid, "SIGTERM"); } catch {}
     }
   }
   process.on("exit", cleanup);
