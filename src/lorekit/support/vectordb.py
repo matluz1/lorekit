@@ -20,7 +20,14 @@ def _get_model():
         return _model
     old_stderr = sys.stderr
     try:
+        import os
+
         from sentence_transformers import SentenceTransformer
+
+        cache_dir = os.path.join(os.environ.get("HF_HOME", os.path.expanduser("~/.cache/huggingface")), "hub")
+        model_dir = os.path.join(cache_dir, "models--intfloat--multilingual-e5-small")
+        if not os.path.isdir(model_dir):
+            print("Downloading embedding model (intfloat/multilingual-e5-small, ~488MB)... this only happens once.")
 
         sys.stderr = io.StringIO()
         _model = SentenceTransformer("intfloat/multilingual-e5-small")

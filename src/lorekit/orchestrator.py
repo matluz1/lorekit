@@ -69,6 +69,7 @@ class GameSession:
 
         self._mcp_proc: subprocess.Popen | None = None
         self._gm_process: AgentProcess | None = None
+        self._mcp_session_id: str | None = None
 
     async def start(self) -> None:
         """Start the MCP server and spawn the GM agent."""
@@ -151,6 +152,12 @@ class GameSession:
         import asyncio
         import urllib.request
 
+        loop = asyncio.get_running_loop()
+
+        # Initialize MCP session if needed
+        if not self._mcp_session_id:
+            await self._init_mcp_session()
+
         payload = json.dumps(
             {
                 "jsonrpc": "2.0",
@@ -163,14 +170,21 @@ class GameSession:
         req = urllib.request.Request(
             "http://127.0.0.1:3847/mcp",
             data=payload,
-            headers={"Content-Type": "application/json"},
+            headers={
+                "Content-Type": "application/json",
+                "Accept": "application/json, text/event-stream",
+                "mcp-session-id": self._mcp_session_id,
+            },
         )
-
-        loop = asyncio.get_running_loop()
 
         def _do_call():
             with urllib.request.urlopen(req) as resp:
-                return json.loads(resp.read())
+                body = resp.read().decode()
+            # Response may be SSE format — extract JSON from data: lines
+            for line in body.splitlines():
+                if line.startswith("data: "):
+                    return json.loads(line[6:])
+            return json.loads(body)
 
         data = await loop.run_in_executor(None, _do_call)
         if "error" in data:
@@ -179,6 +193,43 @@ class GameSession:
         if content and isinstance(content, list):
             return content[0].get("text", "")
         return json.dumps(data.get("result", ""))
+
+    async def _init_mcp_session(self) -> None:
+        """Initialize MCP streamable-http session."""
+        import asyncio
+        import urllib.request
+
+        loop = asyncio.get_running_loop()
+        payload = json.dumps(
+            {
+                "jsonrpc": "2.0",
+                "method": "initialize",
+                "params": {
+                    "protocolVersion": "2025-03-26",
+                    "capabilities": {},
+                    "clientInfo": {"name": "lorekit-orchestrator", "version": "0.1.0"},
+                },
+                "id": 0,
+            }
+        ).encode()
+
+        req = urllib.request.Request(
+            "http://127.0.0.1:3847/mcp",
+            data=payload,
+            headers={
+                "Content-Type": "application/json",
+                "Accept": "application/json, text/event-stream",
+            },
+        )
+
+        def _do_init():
+            with urllib.request.urlopen(req) as resp:
+                session_id = resp.headers.get("mcp-session-id")
+                return session_id
+
+        self._mcp_session_id = await loop.run_in_executor(None, _do_init)
+        if not self._mcp_session_id:
+            raise RuntimeError("MCP server did not return a session ID")
 
     async def stop(self) -> None:
         """Shut down the GM agent and MCP server."""
