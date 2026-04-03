@@ -101,8 +101,9 @@ Two operating modes:
 - **Managed** — started as a child process by `GameSession` orchestrator, which
   also spawns the GM agent and connects to the MCP server via HTTP.
 
-The embedding model (`intfloat/multilingual-e5-small`) is eagerly loaded at
-startup to avoid cold-start penalty on first semantic search.
+The embedding model (`intfloat/multilingual-e5-small`) is loaded in the MCP
+server subprocess at startup to avoid cold-start penalty on first semantic
+search (does not block the HTTP server or clients).
 
 ### Tool Modules (`tools/`)
 
@@ -220,7 +221,7 @@ subprocess and GM agent lifecycle.
 
 | Method | What it does |
 |--------|-------------|
-| `start()` | Spawns the MCP server (`server.py --http`), loads GM guidelines, writes a temporary `.mcp.json` config, spawns the GM agent via the configured provider |
+| `start()` | Spawns the MCP server (`server.py --http`), loads GM guidelines, writes a temporary `.mcp.json` config to `~/.config/lorekit/.mcp.json`, spawns the GM agent via the configured provider |
 | `send(message, verbose)` | Sends a player message to the GM agent, streams back `GameEvent`s |
 | `command(cmd, **kwargs)` | Executes a direct MCP tool call (e.g. save, load) via HTTP to the MCP server, bypassing the GM agent |
 | `stop()` | Shuts down the GM agent and MCP server |

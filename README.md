@@ -39,8 +39,8 @@ source .venv/bin/activate
 pip install -e cruncher/ -e .
 ```
 
-The MCP server is configured in `.mcp.json`. On first use, the agent calls
-`init_db` to create the database.
+Configuration lives in `~/.config/lorekit/config.toml`. On first run, lorekit
+creates the database automatically.
 
 ## Development
 
@@ -59,11 +59,21 @@ pytest tests/integration/    # cross-module interaction tests
 
 ## Playing
 
+Before playing, create `~/.config/lorekit/config.toml`:
+
+```toml
+[agent]
+provider = "claude"
+model = "opus"
+```
+
 **TUI** (terminal interface):
 
 ```bash
-npx tsx examples/tui/src/index.tsx --model opus
+make tui
 ```
+
+Or directly: `npx tsx examples/tui/src/index.tsx`
 
 The TUI launches the GM agent, which reads `guidelines/GM_GUIDE.md` and takes
 it from there. All game tools are provided through the MCP server.
@@ -71,7 +81,7 @@ it from there. All game tools are provided through the MCP server.
 **HTTP server** (for web clients or custom frontends):
 
 ```bash
-lorekit serve --campaign-dir ~/my-campaign
+make serve
 ```
 
 **Python API** (embed lorekit in your own application):
@@ -136,7 +146,8 @@ lorekit/
 ├── tests/                    1008 tests (unit/ + integration/)
 ├── examples/                 Reference client implementations
 │   └── tui/                  Terminal UI (TypeScript/React/Ink)
-└── data/game.db              SQLite database (created by init_db)
+├── Makefile                  Common tasks (tui, serve, test, lint)
+└── ~/.config/lorekit/        Default data location (db, config.toml)
 ```
 
 ## Game Systems
