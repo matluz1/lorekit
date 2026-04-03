@@ -66,17 +66,23 @@ async function main() {
     }
   }
 
+  // Ensure server cleanup on any exit
+  function cleanup() {
+    if (weStartedServer && serverProc?.pid) {
+      serverProc.kill();
+    }
+  }
+  process.on("exit", cleanup);
+  process.on("SIGINT", () => { cleanup(); process.exit(0); });
+  process.on("SIGTERM", () => { cleanup(); process.exit(0); });
+
   const app = render(
     <App />,
     { exitOnCtrlC: true, maxFps: 30 },
   );
 
   await app.waitUntilExit();
-
-  // Cleanup: kill server if we started it
-  if (weStartedServer && serverProc?.pid) {
-    serverProc.kill();
-  }
+  cleanup();
 }
 
 main();
