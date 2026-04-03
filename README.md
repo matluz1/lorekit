@@ -62,7 +62,7 @@ pytest tests/integration/    # cross-module interaction tests
 **TUI** (terminal interface):
 
 ```bash
-npx tsx tui/src/index.tsx opus
+npx tsx examples/tui/src/index.tsx --model opus
 ```
 
 The TUI launches the GM agent, which reads `guidelines/GM_GUIDE.md` and takes
@@ -134,7 +134,8 @@ lorekit/
 │
 ├── guidelines/               Agent guidelines (GM, NPC, shared)
 ├── tests/                    1008 tests (unit/ + integration/)
-├── tui/                      Terminal UI (TypeScript/React/Ink)
+├── examples/                 Reference client implementations
+│   └── tui/                  Terminal UI (TypeScript/React/Ink)
 └── data/game.db              SQLite database (created by init_db)
 ```
 
