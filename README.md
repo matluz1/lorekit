@@ -82,8 +82,9 @@ make tui
 
 Or directly: `npx tsx examples/tui/src/index.tsx`
 
-The TUI launches the GM agent, which reads `guidelines/GM_GUIDE.md` and takes
-it from there. All game tools are provided through the MCP server.
+The TUI starts `lorekit serve`, which manages the MCP server and GM agent.
+The TUI communicates via HTTP+SSE. The GM agent reads
+`guidelines/GM_GUIDE.md` and takes it from there.
 
 **HTTP server** (for web clients or custom frontends):
 

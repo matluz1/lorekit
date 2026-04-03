@@ -19,10 +19,10 @@ as **data** in system packs.
          │ or Python API │
 ┌────────▼───────────────▼────────────────────────────────┐
 │  orchestrator.py — GameSession                          │
-│  (optional — manages MCP server + GM agent lifecycle)   │
+│  (manages MCP server + GM agent lifecycle)              │
 ├─────────────────────────────────────────────────────────┤
-│  http_server.py — POST /message (SSE), POST /command    │
-│  (optional — requires lorekit[server])                  │
+│  http_server.py — POST /message (SSE), POST /command,   │
+│  GET /events (lifecycle SSE) — requires lorekit[server] │
 └────────────────────────┬────────────────────────────────┘
                          │
 ┌────────────────────────▼────────────────────────────────┐
@@ -196,8 +196,7 @@ Three layers:
 ## Orchestration Layer
 
 The orchestration layer sits above the MCP server, providing a Python API
-and HTTP interface for application clients (TUI, Discord, web). It is
-optional — direct MCP clients skip it entirely.
+and HTTP interface for application clients (TUI, Discord, web).
 
 ### Provider Protocol (`providers/base.py`)
 

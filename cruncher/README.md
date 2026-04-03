@@ -10,7 +10,7 @@ variables, formulas, tables, and constraints.
 ## Install
 
 ```bash
-pip install cruncher
+pip install lorekit-cruncher
 ```
 
 Zero runtime dependencies.
