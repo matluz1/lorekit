@@ -1,10 +1,9 @@
+// examples/tui/src/components/App.tsx
 import React, { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { Box, Text, useApp } from "ink";
 import { Chat, chatMsg, type ChatMessage } from "./Chat.js";
 import { Input } from "./Input.js";
-import type { AgentProcess, Provider, ProviderOptions } from "../provider.js";
-import { clearLog } from "../logger.js";
-import { mcpSave, mcpSaveList, mcpUnsavedCount, mcpLoadSave } from "../mcp.js";
+import { sendMessage, save, saveList, unsavedCount, loadSave, type GameEvent } from "../api.js";
 
 /** A tool call logged during the current GM turn. */
 export interface ToolCallEntry {
@@ -21,11 +20,7 @@ export interface NpcToolCallEntry {
 }
 
 interface AppProps {
-  provider: Provider;
-  providerOpts: ProviderOptions;
   model: string;
-  sessionId?: string;
-  lkSessionId?: number;
 }
 
 /** Strip the "mcp__lorekit__" prefix for display. */
@@ -33,24 +28,17 @@ function shortToolName(name: string): string {
   return name.replace(/^mcp__lorekit__/, "");
 }
 
-export function App({
-  provider,
-  providerOpts,
-  model,
-  sessionId,
-}: AppProps) {
+export function App({ model }: AppProps) {
   const { exit } = useApp();
 
-  // ── GM state ──────────────────────────────────────────
+  // ── State ──────────────────────────────────────────
   const [messages, setMessages] = useState<ChatMessage[]>([
-    chatMsg("system", "Starting GM process…"),
+    chatMsg("system", "Connecting to server…"),
   ]);
   const [streamingText, setStreamingText] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
-  const agentRef = useRef<AgentProcess | null>(null);
-
-  // Ref mirror so handleSubmit never goes stale
   const isStreamingRef = useRef(false);
+
   useEffect(() => {
     isStreamingRef.current = isStreaming;
   }, [isStreaming]);
@@ -62,29 +50,15 @@ export function App({
   const [toolCalls, setToolCalls] = useState<ToolCallEntry[]>([]);
   const [npcToolCalls, setNpcToolCalls] = useState<NpcToolCallEntry[]>([]);
 
-  // Spawn the persistent GM process on mount
+  // Mark ready on mount
   useEffect(() => {
-    const onError = (msg: string) => {
-      setMessages((prev) => [...prev, chatMsg("system", `Error: ${msg}`)]);
-    };
-
-    const agent = provider.spawn({ ...providerOpts, onError });
-    agentRef.current = agent;
-
     const timer = setTimeout(() => {
-      setMessages((prev) => {
-        if (prev.some((m) => m.content.startsWith("Error:"))) return prev;
-        return [...prev, chatMsg("system", "GM ready. Type your action.")];
-      });
-    }, 2000);
-
-    return () => {
-      clearTimeout(timer);
-      agent.stop();
-    };
+      setMessages((prev) => [...prev, chatMsg("system", "GM ready. Type your action.")]);
+    }, 500);
+    return () => clearTimeout(timer);
   }, []);
 
-  // Throttle streaming text updates to reduce re-renders
+  // Throttle streaming text updates
   const streamFlushRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingTextRef = useRef("");
 
@@ -93,27 +67,20 @@ export function App({
     streamFlushRef.current = null;
   }, []);
 
-  // ── GM submit (stable ref — no deps on isStreaming) ───
+  // ── Submit handler ───────────────────────────────────
   const handleSubmit = useCallback(
     async (text: string) => {
-      if (!agentRef.current || isStreamingRef.current) return;
+      if (isStreamingRef.current) return;
 
       if (text.toLowerCase() === "/quit") {
-        agentRef.current.stop();
         exit();
         return;
       }
 
-      if (text.toLowerCase() === "/clearlog") {
-        clearLog();
-        setMessages((prev) => [...prev, chatMsg("system", "Log cleared.")]);
-        return;
-      }
-
-      // Save/load slash commands — direct MCP calls, no GM involvement
+      // Save/load slash commands
       if (text.toLowerCase() === "/saves") {
         try {
-          const result = await mcpSaveList();
+          const result = await saveList();
           setMessages((prev) => [...prev, chatMsg("system", result)]);
         } catch (err: any) {
           setMessages((prev) => [...prev, chatMsg("system", `Save list failed: ${err.message}`)]);
@@ -123,7 +90,7 @@ export function App({
       if (text.toLowerCase().startsWith("/save")) {
         const name = text.slice(5).trim() || undefined;
         try {
-          const result = await mcpSave(name);
+          const result = await save(name);
           setMessages((prev) => [...prev, chatMsg("system", `Game saved as '${result}'.`)]);
         } catch (err: any) {
           setMessages((prev) => [...prev, chatMsg("system", `Save failed: ${err.message}`)]);
@@ -137,17 +104,16 @@ export function App({
           return;
         }
         try {
-          const unsaved = await mcpUnsavedCount();
-          if (unsaved > 0) {
-            // Store pending load and ask for confirmation
+          const count = await unsavedCount();
+          if (count > 0) {
             setMessages((prev) => [
               ...prev,
-              chatMsg("system", `⚠ Loading will discard ${unsaved} unsaved turn(s). Type /confirm to proceed or anything else to cancel.`),
+              chatMsg("system", `Warning: Loading will discard ${count} unsaved turn(s). Type /confirm to proceed or anything else to cancel.`),
             ]);
             pendingLoadRef.current = name;
             return;
           }
-          const result = await mcpLoadSave(name);
+          const result = await loadSave(name);
           setMessages((prev) => [...prev, chatMsg("system", result)]);
         } catch (err: any) {
           setMessages((prev) => [...prev, chatMsg("system", `Load failed: ${err.message}`)]);
@@ -158,7 +124,7 @@ export function App({
         const name = pendingLoadRef.current;
         pendingLoadRef.current = null;
         try {
-          const result = await mcpLoadSave(name);
+          const result = await loadSave(name);
           setMessages((prev) => [...prev, chatMsg("system", result)]);
         } catch (err: any) {
           setMessages((prev) => [...prev, chatMsg("system", `Load failed: ${err.message}`)]);
@@ -166,21 +132,11 @@ export function App({
         return;
       }
       if (pendingLoadRef.current) {
-        // Any input other than /confirm cancels the pending load
         pendingLoadRef.current = null;
         setMessages((prev) => [...prev, chatMsg("system", "Load cancelled.")]);
-        // Fall through to send as normal player message
       }
 
-      if (!agentRef.current.alive) {
-        setMessages((prev) => [
-          ...prev,
-          chatMsg("player", text),
-          chatMsg("system", "GM process is not running. Restart with /quit and relaunch."),
-        ]);
-        return;
-      }
-
+      // ── Send player message via HTTP ───────────────
       setMessages((prev) => [...prev, chatMsg("player", text)]);
       setIsStreaming(true);
       setStreamingText("");
@@ -188,38 +144,23 @@ export function App({
       setToolCalls([]);
       setNpcToolCalls([]);
 
-      // Array-based text accumulation — avoids O(n²) string concat
       const textParts: string[] = [];
 
       try {
-        for await (const chunk of agentRef.current.send(text)) {
-          if (chunk.type === "text") {
-            textParts.push(chunk.content);
+        for await (const event of sendMessage(text)) {
+          if (event.type === "narration_delta") {
+            textParts.push(event.content);
             pendingTextRef.current = textParts.join("");
             if (!streamFlushRef.current) {
               streamFlushRef.current = setTimeout(flushStreamingText, 80);
             }
-          } else if (chunk.type === "tool_use") {
+          } else if (event.type === "tool_activity") {
             setToolCalls((prev) => [
               ...prev,
-              { name: chunk.content, ts: Date.now() },
+              { name: event.content, ts: Date.now() },
             ]);
-          } else if (chunk.type === "tool_result") {
-            setMessages((prev) => [
-              ...prev,
-              chatMsg("system", `Tool error: ${chunk.content}`),
-            ]);
-            setToolCalls((prev) => {
-              if (prev.length === 0) return prev;
-              const updated = [...prev];
-              updated[updated.length - 1] = {
-                ...updated[updated.length - 1]!,
-                error: true,
-              };
-              return updated;
-            });
-          } else if (chunk.type === "npc_tool_use") {
-            const [npcName, toolsCsv] = chunk.content.split(":");
+          } else if (event.type === "npc_activity") {
+            const [npcName, toolsCsv] = event.content.split(":");
             if (npcName && toolsCsv) {
               const tools = toolsCsv.split(",");
               setNpcToolCalls((prev) => [
@@ -231,17 +172,32 @@ export function App({
                 })),
               ]);
             }
-          } else if (chunk.type === "error") {
+          } else if (event.type === "narration") {
+            // Final accumulated text — use this as the definitive message
+            setMessages((prev) => [...prev, chatMsg("gm", event.content)]);
+          } else if (event.type === "error") {
             setMessages((prev) => [
               ...prev,
-              chatMsg("system", `Error: ${chunk.content}`),
+              chatMsg("system", `Error: ${event.content}`),
+            ]);
+          } else if (event.type === "system") {
+            setMessages((prev) => [
+              ...prev,
+              chatMsg("system", event.content),
             ]);
           }
         }
 
-        const fullText = textParts.join("");
-        if (fullText) {
-          setMessages((prev) => [...prev, chatMsg("gm", fullText)]);
+        // If no narration event came, use accumulated deltas
+        if (textParts.length > 0) {
+          const fullText = textParts.join("");
+          // Check if we already added this as a narration event
+          setMessages((prev) => {
+            const last = prev[prev.length - 1];
+            if (last && last.role === "gm" && last.content === fullText) return prev;
+            if (fullText) return [...prev, chatMsg("gm", fullText)];
+            return prev;
+          });
         }
       } catch (err: any) {
         setMessages((prev) => [
@@ -258,15 +214,14 @@ export function App({
         setIsStreaming(false);
       }
     },
-    [exit]
+    [exit, flushStreamingText],
   );
 
   // Build toast line from current tool calls
   const toastLine = useMemo(() => {
     const parts: string[] = [];
     for (const tc of toolCalls) {
-      const name = shortToolName(tc.name);
-      parts.push(tc.error ? `✗ ${name}` : `✓ ${name}`);
+      parts.push(`✓ ${shortToolName(tc.name)}`);
     }
     for (const ntc of npcToolCalls) {
       parts.push(`${ntc.npcName} → ${shortToolName(ntc.toolName)}`);
@@ -282,10 +237,7 @@ export function App({
           LoreKit
         </Text>
         <Box flexGrow={1} />
-        <Text dimColor>
-          {model}
-          {sessionId ? ` · ${sessionId.slice(0, 8)}` : ""}
-        </Text>
+        <Text dimColor>{model}</Text>
       </Box>
 
       {/* Chat area */}
@@ -299,7 +251,6 @@ export function App({
 
       {/* Input */}
       <Box marginTop={1} flexDirection="column">
-        {/* Tool toast — right above the prompt */}
         {toastLine && (
           <Box paddingX={1}>
             <Text dimColor>{toastLine}</Text>
@@ -313,7 +264,7 @@ export function App({
 
       {/* Footer */}
       <Box paddingX={1}>
-        <Text dimColor>/save [name] · /load name · /saves · /quit · /clearlog</Text>
+        <Text dimColor>/save [name] · /load name · /saves · /quit</Text>
       </Box>
     </Box>
   );
