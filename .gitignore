@@ -6,8 +6,8 @@ __pycache__/
 .coverage
 .export/
 stories/
-tui/node_modules/
-tui/dist/
+examples/tui/node_modules/
+examples/tui/dist/
 *.egg-info/
 dist/
 build/
