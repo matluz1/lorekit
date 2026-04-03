@@ -202,11 +202,16 @@ Your abilities:
 
 
 def _npc_log(msg: str):
-    """Append a line to data/npc.log."""
+    """Append a line to lorekit.log. Only writes when debug=true in config."""
+    from lorekit.config import load_config
+
+    cfg = load_config()
+    if not cfg.debug:
+        return
+
     from datetime import datetime
 
-    project_root = _project_root()
-    log_path = os.path.join(project_root, "data", "lorekit.log")
+    log_path = os.path.join(str(cfg.campaign_dir or "."), "lorekit.log")
     ts = datetime.now().strftime("%H:%M:%S.%f")[:12]
     with open(log_path, "a") as f:
         f.write(f"{ts} NPC {msg}\n")

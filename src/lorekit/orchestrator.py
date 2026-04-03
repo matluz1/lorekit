@@ -127,7 +127,9 @@ class GameSession:
         system_prompt = _load_guidelines()
 
         # Write temporary MCP config for the GM agent
-        mcp_config = self._campaign_dir / ".mcp.json"
+        import tempfile
+
+        mcp_config = Path(tempfile.mkdtemp()) / ".mcp.json"
         mcp_config.write_text(
             json.dumps(
                 {

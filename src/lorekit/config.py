@@ -17,6 +17,7 @@ class LoreKitConfig:
     model: str | None = None
     port: int = 8765
     campaign_dir: Path | None = None
+    debug: bool = False
 
 
 def config_path() -> Path:
@@ -40,4 +41,5 @@ def load_config(path: Path | None = None) -> LoreKitConfig:
         model=agent.get("model"),
         port=server.get("port", 8765),
         campaign_dir=Path(campaign_dir_str) if campaign_dir_str else None,
+        debug=raw.get("debug", False),
     )

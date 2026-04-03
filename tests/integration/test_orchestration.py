@@ -5,6 +5,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from lorekit.orchestrator import GameSession
 from lorekit.providers.base import AgentProvider, GameEvent, StreamChunk
 
 
@@ -46,10 +47,9 @@ async def test_game_session_send_produces_events(tmp_path):
         patch("lorekit.orchestrator.load_provider", return_value=FakeProvider()),
         patch("lorekit.orchestrator._load_guidelines", return_value="You are a GM."),
         patch("subprocess.Popen"),
+        patch.object(GameSession, "_wait_for_mcp_server"),
     ):
-        mock_cfg.return_value = MagicMock(provider="fake", model="test", port=8765)
-        from lorekit import GameSession
-
+        mock_cfg.return_value = MagicMock(provider="fake", model="test", port=8765, campaign_dir=None, debug=False)
         session = GameSession(campaign_dir=tmp_path, provider="fake", model="test")
         await session.start()
 
@@ -73,10 +73,9 @@ async def test_game_session_verbose_includes_tool_activity(tmp_path):
         patch("lorekit.orchestrator.load_provider", return_value=FakeProvider()),
         patch("lorekit.orchestrator._load_guidelines", return_value="You are a GM."),
         patch("subprocess.Popen"),
+        patch.object(GameSession, "_wait_for_mcp_server"),
     ):
-        mock_cfg.return_value = MagicMock(provider="fake", model="test", port=8765)
-        from lorekit import GameSession
-
+        mock_cfg.return_value = MagicMock(provider="fake", model="test", port=8765, campaign_dir=None, debug=False)
         session = GameSession(campaign_dir=tmp_path, provider="fake", model="test")
         await session.start()
 
