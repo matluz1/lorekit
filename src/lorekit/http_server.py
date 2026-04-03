@@ -129,6 +129,8 @@ def main():
     serve_cmd.add_argument("--model", help="Model name")
     serve_cmd.add_argument("--port", type=int, default=8765, help="HTTP server port")
 
+    sub.add_parser("status", help="Check if the server is running")
+
     args = parser.parse_args()
     if args.command == "serve":
         from pathlib import Path
@@ -145,6 +147,27 @@ def main():
             )
         except ValueError as e:
             print(f"Error: {e}", file=sys.stderr)
+            sys.exit(1)
+    elif args.command == "status":
+        import urllib.request
+
+        from lorekit.config import load_config
+
+        cfg = load_config()
+        port = cfg.port
+        try:
+            req = urllib.request.Request(
+                f"http://127.0.0.1:{port}/message",
+                data=b'{"text":""}',
+                headers={"Content-Type": "application/json"},
+            )
+            with urllib.request.urlopen(req, timeout=2) as resp:
+                pass
+        except urllib.error.HTTPError:
+            # 400 = server is running (rejected empty text)
+            print(f"Server is running on port {port}.")
+        except (urllib.error.URLError, OSError):
+            print(f"Server is not running (port {port}).")
             sys.exit(1)
     else:
         parser.print_help()
