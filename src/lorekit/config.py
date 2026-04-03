@@ -11,11 +11,12 @@ from platformdirs import user_config_dir
 
 @dataclass
 class LoreKitConfig:
-    """Infrastructure configuration (provider, model, server port)."""
+    """Infrastructure configuration (provider, model, server port, campaign dir)."""
 
     provider: str | None = None
     model: str | None = None
     port: int = 8765
+    campaign_dir: Path | None = None
 
 
 def config_path() -> Path:
@@ -32,8 +33,11 @@ def load_config(path: Path | None = None) -> LoreKitConfig:
         raw = tomllib.load(f)
     agent = raw.get("agent", {})
     server = raw.get("server", {})
+    campaign = raw.get("campaign", {})
+    campaign_dir_str = campaign.get("dir")
     return LoreKitConfig(
         provider=agent.get("provider"),
         model=agent.get("model"),
         port=server.get("port", 8765),
+        campaign_dir=Path(campaign_dir_str) if campaign_dir_str else None,
     )

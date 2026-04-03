@@ -51,15 +51,17 @@ class GameSession:
 
     def __init__(
         self,
-        campaign_dir: Path,
+        campaign_dir: Path | None = None,
         provider: str | None = None,
         model: str | None = None,
     ):
         cfg = load_config()
-        self._campaign_dir = Path(campaign_dir)
+        self._campaign_dir = Path(campaign_dir) if campaign_dir else cfg.campaign_dir
         self._provider_name = provider or cfg.provider
         self._model = model or cfg.model
 
+        if not self._campaign_dir:
+            raise ValueError("campaign_dir is required. Set [campaign] dir in config.toml or pass campaign_dir=.")
         if not self._provider_name:
             raise ValueError("No provider configured. Set [agent] provider in config.toml or pass provider=.")
         if not self._model:

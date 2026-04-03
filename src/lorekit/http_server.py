@@ -75,7 +75,7 @@ def main():
     parser = argparse.ArgumentParser(prog="lorekit")
     sub = parser.add_subparsers(dest="command")
     serve_cmd = sub.add_parser("serve", help="Start the HTTP server")
-    serve_cmd.add_argument("--campaign-dir", required=True, help="Path to campaign directory")
+    serve_cmd.add_argument("--campaign-dir", help="Path to campaign directory")
     serve_cmd.add_argument("--provider", help="Agent provider name")
     serve_cmd.add_argument("--model", help="Model name")
     serve_cmd.add_argument("--port", type=int, default=8765, help="HTTP server port")
@@ -84,9 +84,10 @@ def main():
     if args.command == "serve":
         from pathlib import Path
 
+        campaign_dir = Path(args.campaign_dir) if args.campaign_dir else None
         asyncio.run(
             serve(
-                campaign_dir=Path(args.campaign_dir),
+                campaign_dir=campaign_dir,
                 provider=args.provider,
                 model=args.model,
                 port=args.port,

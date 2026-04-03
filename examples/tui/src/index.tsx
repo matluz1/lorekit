@@ -27,7 +27,7 @@ async function main() {
 
   if (!alreadyRunning) {
     // Auto-start lorekit serve — all config comes from ~/.config/lorekit/config.toml
-    serverProc = spawn("lorekit", ["serve", "--campaign-dir", "."], {
+    serverProc = spawn("lorekit", ["serve"], {
       stdio: ["ignore", "ignore", "pipe"],
       detached: false,
     });
