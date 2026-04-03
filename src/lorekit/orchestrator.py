@@ -70,6 +70,8 @@ class GameSession:
 
     async def start(self) -> None:
         """Start the MCP server and spawn the GM agent."""
+        import asyncio
+
         self._mcp_proc = subprocess.Popen(
             [
                 sys.executable,
@@ -87,6 +89,9 @@ class GameSession:
             stdout=subprocess.DEVNULL,
             stderr=subprocess.PIPE,
         )
+
+        # Wait for MCP server to be ready on port 3847
+        await self._wait_for_mcp_server()
 
         # Load guidelines for GM system prompt
         system_prompt = _load_guidelines()
@@ -111,6 +116,24 @@ class GameSession:
             mcp_config=mcp_config,
             model=self._model,
         )
+
+    async def _wait_for_mcp_server(self, timeout: float = 30) -> None:
+        """Wait for the MCP server to accept connections on port 3847."""
+        import asyncio
+        import socket
+
+        start = asyncio.get_event_loop().time()
+        while asyncio.get_event_loop().time() - start < timeout:
+            # Check if process died
+            if self._mcp_proc and self._mcp_proc.poll() is not None:
+                stderr = self._mcp_proc.stderr.read().decode() if self._mcp_proc.stderr else ""
+                raise RuntimeError(f"MCP server failed to start: {stderr.strip()}")
+            try:
+                with socket.create_connection(("127.0.0.1", 3847), timeout=1):
+                    return
+            except OSError:
+                await asyncio.sleep(0.5)
+        raise RuntimeError("MCP server did not start within 30 seconds")
 
     async def send(self, message: str, verbose: bool = False) -> AsyncIterator[GameEvent]:
         """Send a player message and stream back GameEvents."""
