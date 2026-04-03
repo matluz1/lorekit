@@ -10,9 +10,10 @@ from lorekit.db import LoreKitError, require_db
 
 
 def _get_export_dir():
-    from lorekit.rules import project_root
+    from lorekit.config import load_config
 
-    return os.path.join(project_root(), ".export")
+    cfg = load_config()
+    return os.path.join(str(cfg.campaign_dir or "."), "export")
 
 
 def usage():
