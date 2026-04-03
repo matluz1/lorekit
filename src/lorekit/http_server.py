@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 
 from starlette.applications import Starlette
 from starlette.requests import Request
@@ -133,13 +134,17 @@ def main():
         from pathlib import Path
 
         campaign_dir = Path(args.campaign_dir) if args.campaign_dir else None
-        asyncio.run(
-            serve(
-                campaign_dir=campaign_dir,
-                provider=args.provider,
-                model=args.model,
-                port=args.port,
+        try:
+            asyncio.run(
+                serve(
+                    campaign_dir=campaign_dir,
+                    provider=args.provider,
+                    model=args.model,
+                    port=args.port,
+                )
             )
-        )
+        except ValueError as e:
+            print(f"Error: {e}", file=sys.stderr)
+            sys.exit(1)
     else:
         parser.print_help()
