@@ -13,23 +13,86 @@ from lorekit.providers.claude.parse import collect_text, is_result_line, parse_j
 _EPHEMERAL_TIMEOUT = 120
 
 
+_log_cfg = None
+_log_path = None
+_log_buffer: dict[str, list[str]] = {}  # tag → accumulated chunks
+_log_block_type = ""  # current content block type
+
+
 def _gm_log(line: str) -> None:
-    """Log a raw JSONL line from the GM agent. Only writes when debug=true."""
+    """Log GM activity in human-readable format. Only writes when debug=true."""
+    import json
     import os
+    from datetime import datetime
 
-    from lorekit.config import load_config
+    global _log_cfg, _log_path, _log_block_type
+    if _log_cfg is None:
+        from lorekit.config import load_config
 
-    cfg = load_config()
-    if not cfg.debug:
+        _log_cfg = load_config()
+        if _log_cfg.debug:
+            _log_path = os.path.join(str(_log_cfg.campaign_dir or "."), "lorekit.log")
+
+    if not _log_path:
         return
 
     line = line.strip()
     if not line:
         return
 
-    log_path = os.path.join(str(cfg.campaign_dir or "."), "lorekit.log")
-    with open(log_path, "a") as f:
-        f.write(line + "\n")
+    try:
+        msg = json.loads(line)
+    except (json.JSONDecodeError, ValueError):
+        return
+
+    ts = datetime.now().strftime("%H:%M:%S.%f")[:12]
+
+    if msg.get("type") == "stream_event":
+        evt = msg.get("event", {})
+        etype = evt.get("type")
+
+        if etype == "content_block_start":
+            block = evt.get("content_block", {})
+            _log_block_type = block.get("type", "")
+            if _log_block_type == "tool_use":
+                _log_write(ts, "TOOL", block.get("name", ""))
+
+        elif etype == "content_block_delta":
+            delta = evt.get("delta", {})
+            if delta.get("type") == "thinking_delta" and delta.get("thinking"):
+                _log_buffer.setdefault("THINK", []).append(delta["thinking"])
+            elif delta.get("type") == "input_json_delta" and delta.get("partial_json"):
+                _log_buffer.setdefault("ARGS", []).append(delta["partial_json"])
+            elif delta.get("type") == "text_delta" and delta.get("text"):
+                _log_buffer.setdefault("TEXT", []).append(delta["text"])
+
+        elif etype == "content_block_stop":
+            _flush_log_buffer(ts)
+
+    elif msg.get("type") == "user":
+        content = (msg.get("message") or {}).get("content")
+        if isinstance(content, str):
+            _log_write(ts, "USER", content)
+        elif isinstance(content, list):
+            for block in content:
+                if block.get("type") == "tool_result":
+                    text = block.get("content", "")
+                    if isinstance(text, list):
+                        text = "".join(c.get("text", "") for c in text)
+                    _log_write(ts, "RESULT", str(text)[:500])
+
+
+def _flush_log_buffer(ts: str) -> None:
+    """Write buffered deltas as single log lines and clear the buffer."""
+    for tag in ("THINK", "ARGS", "TEXT"):
+        if tag in _log_buffer:
+            _log_write(ts, tag, "".join(_log_buffer[tag]))
+    _log_buffer.clear()
+
+
+def _log_write(ts: str, tag: str, text: str) -> None:
+    with open(_log_path, "a") as f:
+        f.write(f"{ts} GM [{tag}] {text}\n")
 
 
 def _base_args(model: str, system_prompt: str) -> list[str]:
