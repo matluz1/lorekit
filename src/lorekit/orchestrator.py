@@ -113,6 +113,8 @@ class GameSession:
         )
 
         # Wait for MCP server to be ready on port 3847
+        # (the MCP server loads the embedding model before listening, so this takes a while on first run)
+        self._emit(GameEvent(type="system", content="Starting game engine..."))
         await self._wait_for_mcp_server()
 
         # Load guidelines for GM system prompt

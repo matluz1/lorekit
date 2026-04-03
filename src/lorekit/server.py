@@ -21,6 +21,10 @@ def _parse_arg(name: str) -> str | None:
 
 
 if __name__ == "__main__":
+    from lorekit.support.vectordb import _get_model
+
+    _get_model()
+
     provider = _parse_arg("provider")
     model = _parse_arg("model")
     campaign_dir = _parse_arg("campaign-dir")
