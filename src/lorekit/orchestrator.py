@@ -103,6 +103,7 @@ class GameSession:
                 {
                     "mcpServers": {
                         "lorekit": {
+                            "type": "http",
                             "url": "http://127.0.0.1:3847/mcp",
                         }
                     }
