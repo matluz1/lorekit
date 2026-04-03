@@ -20,8 +20,10 @@ async def _transform_events(
 ) -> AsyncIterator[GameEvent]:
     """Transform raw StreamChunks into curated GameEvents."""
     text_parts: list[str] = []
+    got_any = False
 
     async for chunk in chunks:
+        got_any = True
         if chunk.type == "text":
             text_parts.append(chunk.content)
             if verbose:
@@ -40,6 +42,8 @@ async def _transform_events(
     # Emit accumulated narration at the end
     if text_parts:
         yield GameEvent(type="narration", content="".join(text_parts))
+    elif not got_any:
+        yield GameEvent(type="error", content="GM agent process terminated unexpectedly")
 
 
 class GameSession:

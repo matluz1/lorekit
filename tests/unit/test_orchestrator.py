@@ -92,3 +92,43 @@ def test_session_init_no_model_raises(tmp_path):
         mock_cfg.return_value = MagicMock(provider="claude", model=None, port=8765)
         with pytest.raises(ValueError, match="No model configured"):
             GameSession(campaign_dir=tmp_path)
+
+
+@pytest.mark.asyncio
+async def test_send_emits_error_when_gm_not_running(tmp_path):
+    """If GM process is dead, send() yields an error event."""
+    with patch("lorekit.orchestrator.load_config") as mock_cfg:
+        mock_cfg.return_value = MagicMock(provider="claude", model="sonnet", port=8765)
+        session = GameSession(campaign_dir=tmp_path, provider="claude", model="sonnet")
+
+    # Simulate dead GM process
+    mock_process = MagicMock()
+    mock_process.alive = False
+    session._gm_process = mock_process
+
+    events = [e async for e in session.send("hello")]
+    assert len(events) == 1
+    assert events[0].type == "error"
+    assert "not running" in events[0].content.lower()
+
+
+@pytest.mark.asyncio
+async def test_send_emits_error_on_empty_stream(tmp_path):
+    """If GM stream ends without any chunks, emit error."""
+    with patch("lorekit.orchestrator.load_config") as mock_cfg:
+        mock_cfg.return_value = MagicMock(provider="claude", model="sonnet", port=8765)
+        session = GameSession(campaign_dir=tmp_path, provider="claude", model="sonnet")
+
+    # Simulate a process that yields nothing (died mid-turn)
+    mock_process = MagicMock()
+    mock_process.alive = True
+
+    async def empty_stream(msg):
+        return
+        yield  # make it an async generator
+
+    mock_process.send = empty_stream
+    session._gm_process = mock_process
+
+    events = [e async for e in session.send("hello")]
+    assert any(e.type == "error" for e in events)
