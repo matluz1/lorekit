@@ -82,13 +82,13 @@ export function App() {
   // ── Submit handler ───────────────────────────────────
   const handleSubmit = useCallback(
     async (text: string) => {
-      if (isStreamingRef.current || !isReady) return;
-
       if (text.toLowerCase() === "/quit") {
         eventsAbortRef.current?.abort();
         exit();
         return;
       }
+
+      if (isStreamingRef.current || !isReady) return;
 
       // Save/load slash commands
       if (text.toLowerCase() === "/saves") {
