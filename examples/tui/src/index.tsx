@@ -5,33 +5,9 @@ import { spawn, type ChildProcess } from "node:child_process";
 import { App } from "./components/App.js";
 import { isServerRunning, setBaseUrl } from "./api.js";
 
-// CLI args: [--model <model>] [--provider <provider>] [--campaign-dir <dir>] [--port <port>]
-function parseArgs() {
-  const args = process.argv.slice(2);
-  let model: string | undefined;
-  let provider: string | undefined;
-  let campaignDir: string | undefined;
-  let port = 8765;
+const DEFAULT_PORT = 8765;
 
-  for (let i = 0; i < args.length; i++) {
-    if (args[i] === "--model" && args[i + 1]) {
-      model = args[++i];
-    } else if (args[i] === "--provider" && args[i + 1]) {
-      provider = args[++i];
-    } else if (args[i] === "--campaign-dir" && args[i + 1]) {
-      campaignDir = args[++i];
-    } else if (args[i] === "--port" && args[i + 1]) {
-      port = parseInt(args[++i]!, 10);
-    } else if (!args[i]!.startsWith("--") && !model) {
-      // Positional arg: treat as model for backwards compat
-      model = args[i];
-    }
-  }
-
-  return { model, provider, campaignDir, port };
-}
-
-async function waitForServer(port: number, maxWaitMs = 10_000): Promise<boolean> {
+async function waitForServer(maxWaitMs = 10_000): Promise<boolean> {
   const start = Date.now();
   while (Date.now() - start < maxWaitMs) {
     if (await isServerRunning()) return true;
@@ -41,8 +17,7 @@ async function waitForServer(port: number, maxWaitMs = 10_000): Promise<boolean>
 }
 
 async function main() {
-  const { model, provider, campaignDir, port } = parseArgs();
-  setBaseUrl(`http://127.0.0.1:${port}`);
+  setBaseUrl(`http://127.0.0.1:${DEFAULT_PORT}`);
 
   let serverProc: ChildProcess | undefined;
   let weStartedServer = false;
@@ -51,28 +26,48 @@ async function main() {
   const alreadyRunning = await isServerRunning();
 
   if (!alreadyRunning) {
-    // Auto-start lorekit serve
-    // Expects `lorekit` to be installed in the active Python environment
-    const serveArgs = ["serve", "--campaign-dir", campaignDir ?? ".", "--port", String(port)];
-    if (model) serveArgs.push("--model", model);
-    if (provider) serveArgs.push("--provider", provider);
-
-    serverProc = spawn("lorekit", serveArgs, {
-      stdio: "ignore",
+    // Auto-start lorekit serve — all config comes from ~/.config/lorekit/config.toml
+    serverProc = spawn("lorekit", ["serve", "--campaign-dir", "."], {
+      stdio: ["ignore", "ignore", "pipe"],
       detached: false,
     });
     serverProc.unref();
     weStartedServer = true;
 
-    const ready = await waitForServer(port);
+    // Capture stderr to show config errors
+    let stderr = "";
+    serverProc.stderr?.on("data", (data: Buffer) => {
+      stderr += data.toString();
+    });
+
+    serverProc.on("exit", (code) => {
+      if (code && code !== 0 && !weStartedServer) return;
+      if (code && code !== 0) {
+        // Server failed to start — likely missing config
+        const msg = stderr.includes("No provider configured")
+          ? "Missing config. Create ~/.config/lorekit/config.toml with:\n\n  [agent]\n  provider = \"claude\"\n  model = \"opus\""
+          : stderr.includes("No model configured")
+            ? "Missing model. Add to ~/.config/lorekit/config.toml:\n\n  [agent]\n  model = \"opus\""
+            : `Server failed: ${stderr.trim().split("\n").pop()}`;
+        console.error(msg);
+        process.exit(1);
+      }
+    });
+
+    const ready = await waitForServer();
     if (!ready) {
+      // Check if process already exited with an error
+      if (serverProc.exitCode !== null) {
+        // Error message already printed by the exit handler
+        process.exit(1);
+      }
       console.error("Failed to connect to lorekit server after 10 seconds.");
       process.exit(1);
     }
   }
 
   const app = render(
-    <App model={model ?? "default"} />,
+    <App />,
     { exitOnCtrlC: true, maxFps: 30 },
   );
 

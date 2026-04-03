@@ -19,16 +19,12 @@ export interface NpcToolCallEntry {
   ts: number;
 }
 
-interface AppProps {
-  model: string;
-}
-
 /** Strip the "mcp__lorekit__" prefix for display. */
 function shortToolName(name: string): string {
   return name.replace(/^mcp__lorekit__/, "");
 }
 
-export function App({ model }: AppProps) {
+export function App() {
   const { exit } = useApp();
 
   // ── State ──────────────────────────────────────────
@@ -237,7 +233,7 @@ export function App({ model }: AppProps) {
           LoreKit
         </Text>
         <Box flexGrow={1} />
-        <Text dimColor>{model}</Text>
+        <Text dimColor>lorekit</Text>
       </Box>
 
       {/* Chat area */}
