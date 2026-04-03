@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import os
-import re
 import subprocess
 import sys
 from collections.abc import AsyncIterator
@@ -13,12 +12,6 @@ from pathlib import Path
 from lorekit.config import load_config
 from lorekit.providers import load_provider
 from lorekit.providers.base import AgentProcess, GameEvent, StreamChunk
-
-_UUID_RE = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", re.IGNORECASE)
-
-
-def _is_session_id(content: str) -> bool:
-    return bool(_UUID_RE.match(content))
 
 
 async def _transform_events(
@@ -44,9 +37,6 @@ async def _transform_events(
         elif chunk.type == "error":
             yield GameEvent(type="error", content=chunk.content)
         elif chunk.type == "system":
-            # Skip Claude CLI session ID init messages
-            if _is_session_id(chunk.content):
-                continue
             yield GameEvent(type="system", content=chunk.content)
 
     # Emit accumulated narration at the end
