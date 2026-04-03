@@ -146,13 +146,17 @@ export async function* listenEvents(signal?: AbortSignal): AsyncGenerator<GameEv
 // -- Server health check --
 
 export async function isServerRunning(): Promise<boolean> {
+  const abort = new AbortController();
   try {
-    const res = await fetch(`${baseUrl}/events`, {
-      signal: AbortSignal.timeout(2000),
+    const res = await fetch(`${baseUrl}/message`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text: "" }),
+      signal: abort.signal,
     });
-    // Any response means server is up (SSE streams return 200)
-    res.body?.cancel();
-    return true;
+    abort.abort();
+    // 400 (missing text) or 503 (not ready) both mean server is up
+    return res.status === 400 || res.status === 503 || res.ok;
   } catch {
     return false;
   }
