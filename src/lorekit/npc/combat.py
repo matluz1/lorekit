@@ -52,13 +52,27 @@ def query_npc_reaction(
     model = model_row[0]
 
     # Build a minimal prompt
+    system_prompt = f"You are {reactor_name} in combat. Quick decision — respond with only YES or NO."
     prompt = (
-        f"You are {reactor_name} in combat. Quick decision — respond with only YES or NO.\n\n"
         f"{attacker_name} is attacking {defender_name}.\n"
         f"You have the reaction '{source}' available ({effect}).\n"
         f"Do you use it? Consider your own health, the ally's situation, and tactical value.\n"
         f"Respond with ONLY 'YES' or 'NO'."
     )
+
+    # Try provider first, fall back to legacy subprocess
+    from lorekit._mcp_app import get_provider_name
+
+    provider_name = get_provider_name()
+    if provider_name:
+        from lorekit.providers import load_provider
+
+        provider = load_provider(provider_name)
+        try:
+            answer = provider.run_ephemeral_sync(system_prompt, model, prompt).strip().upper()
+            return "NO" not in answer
+        except Exception:
+            return True  # fallback: use reaction
 
     try:
         proc = subprocess.run(
@@ -75,7 +89,7 @@ def query_npc_reaction(
                 model,
                 "--output-format",
                 "text",
-                prompt,
+                system_prompt + "\n\n" + prompt,
             ],
             capture_output=True,
             text=True,

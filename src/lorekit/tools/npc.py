@@ -11,6 +11,32 @@ from lorekit.tools._helpers import (
     _resolve_system_path_for_session,
 )
 
+
+def _get_provider():
+    """Return the configured provider, or None if not set."""
+    from lorekit._mcp_app import get_provider_name
+
+    name = get_provider_name()
+    if not name:
+        return None
+    from lorekit.providers import load_provider
+
+    return load_provider(name)
+
+
+def _get_npc_model(db, npc_id: int) -> str:
+    """Read NPC model from character attributes, falling back to server default."""
+    from lorekit._mcp_app import get_default_model
+
+    row = db.execute(
+        "SELECT value FROM character_attributes WHERE character_id = ? AND category = 'system' AND key = 'model'",
+        (npc_id,),
+    ).fetchone()
+    if row:
+        return row[0]
+    return get_default_model() or "sonnet"
+
+
 _NPC_ALLOWED_TOOLS: list[str] = []
 
 _MCP_PREFIX = "mcp__lorekit__"
@@ -300,67 +326,72 @@ def npc_interact(session_id: int, npc_id: int | str, message: str) -> str:
     finally:
         db.close()
 
-    project_root = _project_root()
-
-    # NPC is a pure narrative agent — no MCP tools needed
-    cmd = [
-        "claude",
-        "-p",
-        "--verbose",
-        "--output-format",
-        "stream-json",
-        "--no-session-persistence",
-        "--permission-mode",
-        "bypassPermissions",
-        "--tools",
-        "",
-        "--disable-slash-commands",
-        "--model",
-        model,
-        "--system-prompt",
-        system_prompt,
-    ]
-    cmd.append(message)
     _npc_log(f"[USER] → {npc_name}: {message[:500]}")
 
-    try:
-        proc = subprocess.run(
-            cmd,
-            capture_output=True,
-            text=True,
-            timeout=120,
-            cwd=project_root,
-            stdin=subprocess.DEVNULL,
-        )
-        if proc.returncode != 0:
-            stderr = proc.stderr.strip()
-            return f"ERROR: NPC process failed: {stderr or 'unknown error'}"
+    provider = _get_provider()
+    if provider:
+        response_text = provider.run_ephemeral_sync(system_prompt, model, message)
+    else:
+        project_root = _project_root()
 
-        response_text, _tool_names = _parse_npc_stream(proc.stdout, npc_name)
+        # NPC is a pure narrative agent — no MCP tools needed
+        cmd = [
+            "claude",
+            "-p",
+            "--verbose",
+            "--output-format",
+            "stream-json",
+            "--no-session-persistence",
+            "--permission-mode",
+            "bypassPermissions",
+            "--tools",
+            "",
+            "--disable-slash-commands",
+            "--model",
+            model,
+            "--system-prompt",
+            system_prompt,
+        ]
+        cmd.append(message)
 
-        # Post-process: extract memories/state from NPC response
-        from lorekit.npc.postprocess import process_npc_response
-
-        db2 = require_db()
         try:
-            # Get narrative time from session meta
-            meta_row = db2.execute(
-                "SELECT value FROM session_meta WHERE session_id = ? AND key = 'narrative_time'",
-                (session_id,),
-            ).fetchone()
-            narrative_time = meta_row[0] if meta_row else ""
+            proc = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=120,
+                cwd=project_root,
+                stdin=subprocess.DEVNULL,
+            )
+            if proc.returncode != 0:
+                stderr = proc.stderr.strip()
+                return f"ERROR: NPC process failed: {stderr or 'unknown error'}"
 
-            clean_text = process_npc_response(db2, session_id, npc_id, response_text, npc_name, narrative_time)
-        except Exception:
-            clean_text = response_text  # fallback: return raw text
-        finally:
-            db2.close()
+            response_text, _tool_names = _parse_npc_stream(proc.stdout, npc_name)
+        except subprocess.TimeoutExpired:
+            return "ERROR: NPC response timed out"
+        except FileNotFoundError:
+            return "ERROR: 'claude' CLI not found. Ensure it is installed and on PATH."
 
-        return clean_text.strip() or f"{npc_name} says nothing."
-    except subprocess.TimeoutExpired:
-        return "ERROR: NPC response timed out"
-    except FileNotFoundError:
-        return "ERROR: 'claude' CLI not found. Ensure it is installed and on PATH."
+    # Post-process: extract memories/state from NPC response
+    from lorekit.npc.postprocess import process_npc_response
+
+    db2 = require_db()
+    try:
+        # Get narrative time from session meta
+        meta_row = db2.execute(
+            "SELECT value FROM session_meta WHERE session_id = ? AND key = 'narrative_time'",
+            (session_id,),
+        ).fetchone()
+        narrative_time = meta_row[0] if meta_row else ""
+
+        clean_text = process_npc_response(db2, session_id, npc_id, response_text, npc_name, narrative_time)
+    except Exception:
+        clean_text = response_text  # fallback: return raw text
+    finally:
+        db2.close()
+
+    return clean_text.strip() or f"{npc_name} says nothing."
 
 
 @mcp.tool()
@@ -496,48 +527,52 @@ def npc_combat_turn(session_id: int, npc_id: int | str) -> str:
     finally:
         db.close()
 
-    # Call NPC subprocess for combat decision — no MCP tools
-    project_root = _project_root()
-
-    cmd = [
-        "claude",
-        "-p",
-        "--verbose",
-        "--output-format",
-        "stream-json",
-        "--no-session-persistence",
-        "--permission-mode",
-        "bypassPermissions",
-        "--tools",
-        "",
-        "--disable-slash-commands",
-        "--model",
-        model,
-        "--system-prompt",
-        system_prompt,
-        combat_context,
-    ]
-
     _npc_log(f"[COMBAT] → {npc_name}: combat turn")
 
-    try:
-        proc = subprocess.run(
-            cmd,
-            capture_output=True,
-            text=True,
-            timeout=120,
-            cwd=project_root,
-            stdin=subprocess.DEVNULL,
-        )
-        if proc.returncode != 0:
-            stderr = proc.stderr.strip()
-            return f"ERROR: NPC process failed: {stderr or 'unknown error'}"
+    provider = _get_provider()
+    if provider:
+        response_text = provider.run_ephemeral_sync(system_prompt, model, combat_context)
+    else:
+        # Call NPC subprocess for combat decision — no MCP tools
+        project_root = _project_root()
 
-        response_text, _ = _parse_npc_stream(proc.stdout, npc_name)
-    except subprocess.TimeoutExpired:
-        return "ERROR: NPC response timed out"
-    except FileNotFoundError:
-        return "ERROR: 'claude' CLI not found."
+        cmd = [
+            "claude",
+            "-p",
+            "--verbose",
+            "--output-format",
+            "stream-json",
+            "--no-session-persistence",
+            "--permission-mode",
+            "bypassPermissions",
+            "--tools",
+            "",
+            "--disable-slash-commands",
+            "--model",
+            model,
+            "--system-prompt",
+            system_prompt,
+            combat_context,
+        ]
+
+        try:
+            proc = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=120,
+                cwd=project_root,
+                stdin=subprocess.DEVNULL,
+            )
+            if proc.returncode != 0:
+                stderr = proc.stderr.strip()
+                return f"ERROR: NPC process failed: {stderr or 'unknown error'}"
+
+            response_text, _ = _parse_npc_stream(proc.stdout, npc_name)
+        except subprocess.TimeoutExpired:
+            return "ERROR: NPC response timed out"
+        except FileNotFoundError:
+            return "ERROR: 'claude' CLI not found."
 
     # Parse structured intent from NPC response
     from cruncher.system_pack import load_system_pack
