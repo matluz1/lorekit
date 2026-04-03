@@ -86,25 +86,19 @@ async def serve(campaign_dir, provider=None, model=None, port=8765):
     config = uvicorn.Config(app, host="127.0.0.1", port=port)
     server = uvicorn.Server(config)
 
-    # Start HTTP server first so clients can connect to /events,
-    # then run GameSession.start() which emits lifecycle events.
-    async def run():
-        await server.startup()
-
-        # Give clients a moment to connect to /events before emitting startup events
-        start_task = asyncio.create_task(_delayed_start())
-        try:
-            await server.main_loop()
-        finally:
-            start_task.cancel()
-            await _session.stop()
-            await server.shutdown()
-
+    # Run GameSession.start() in background once the server is accepting connections.
+    # The 2s delay gives clients time to connect to GET /events before lifecycle
+    # events are emitted.
     async def _delayed_start():
-        await asyncio.sleep(1)
+        await asyncio.sleep(2)
         await _session.start()
 
-    await run()
+    start_task = asyncio.create_task(_delayed_start())
+    try:
+        await server.serve()
+    finally:
+        start_task.cancel()
+        await _session.stop()
 
 
 def main():
