@@ -523,7 +523,7 @@ def npc_combat_turn(session_id: int, npc_id: int | str) -> str:
     finally:
         db.close()
 
-    _npc_log(f"[COMBAT] → {npc_name}: combat turn")
+    _npc_log(f"[COMBAT] → {npc_name}: combat turn\n{combat_context[:1000]}")
 
     provider = _get_provider()
     if provider:

@@ -92,8 +92,29 @@ def is_result_line(line: str) -> bool:
 def collect_text(raw_output: str) -> str:
     """Extract all text content from stream-json output."""
     parts = []
+    result_text = ""
     for line in raw_output.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            msg = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+
+        # Streaming deltas
         chunk = parse_jsonl_line(line)
         if chunk and chunk.type == "text":
             parts.append(chunk.content)
-    return "".join(parts)
+
+        # Complete assistant messages (non-streaming)
+        if msg.get("type") == "assistant":
+            for block in (msg.get("message") or {}).get("content", []):
+                if block.get("type") == "text" and block.get("text"):
+                    parts.append(block["text"])
+
+        # Result fallback
+        if msg.get("type") == "result" and msg.get("result") and not parts:
+            result_text = msg["result"]
+
+    return "".join(parts) or result_text
