@@ -28,7 +28,7 @@ packages.
 ## Requirements
 
 - Python 3.13+
-- An AI CLI tool (e.g. Claude Code) — used by lorekit to run the GM agent
+- [Claude Code](https://docs.anthropic.com/en/docs/claude-code) — the AI CLI tool used by lorekit to run the GM agent (support for Codex and Gemini CLI is planned)
 - Optional: `starlette` + `uvicorn` for the HTTP server (`pip install lorekit[server]`)
 
 ## Setup
